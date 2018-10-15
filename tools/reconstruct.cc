@@ -413,6 +413,7 @@ int main(int argc, char **argv)
         
         maskedTemplate = stacks[templateNumber]*m;
         reconstruction.CropImage(stacks[templateNumber],m);
+        reconstruction.CropImage(maskedTemplate,m);
  
         if (debug) {
             m.Write("maskforTemplate.nii.gz");

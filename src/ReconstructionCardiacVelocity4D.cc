@@ -25,7 +25,7 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageTransformation.h"
 #include "mirtk/LinearInterpolateImageFunction.hxx"
-#include <math.h>
+#include <math.h> 
 
 
 

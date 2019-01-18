@@ -1,5 +1,5 @@
 # ============================================================================
-# ZSVR : SVR reconstruction based on MIRTK
+# SVRTK : SVR reconstruction based on MIRTK
 #
 # Copyright 2008-2017 Imperial College London
 # Copyright 2018 King's College London

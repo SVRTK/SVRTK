@@ -18,7 +18,7 @@
 # ============================================================================
 
 cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
-
+ 
 set(CMAKE_CXX_FLAGS "-std=c++11")
 
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/config")

@@ -1947,6 +1947,8 @@ public:
 	    
             ResamplingWithPadding<RealPixel> resampling(attr._dx,attr._dx,attr._dx,-1);         
             Reconstruction dummy_reconstruction;
+		  
+	    GenericLinearInterpolateImageFunction<RealImage> interpolator;
             
             // TARGET
             // get current slice   
@@ -1954,6 +1956,7 @@ public:
             // resample to spatial resolution of reconstructed volume
             resampling.Input(&reconstructor->_slices[inputIndex]);
             resampling.Output(&t);
+ 	    resamplin.Interpolator(&interpolator);
             resampling.Run();
             target=t;
             // get pixel value min and max

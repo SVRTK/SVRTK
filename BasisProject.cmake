@@ -37,7 +37,7 @@
 #       should be kept on a separate line as last commented argument of the
 #       corresponding options of the basis_project() command. The TEMPLATE
 #       option and set argument are also required by this tool and should not
-#       be changed manually. The argument is updated by basisproject --update.
+#       be changed manually. The argument is updated by basisproject --update. 
 
 basis_project (
 
@@ -51,7 +51,7 @@ basis_project (
   DESCRIPTION "SVR Reconstruction for Medical Imaging."
   COPYRIGHT   "2013-2017 Imperial College London, 2013-2017 Andreas Schuh, 2018-2019 King's College London"
   LICENSE     "Apache License Version 2.0"
-  CONTACT     "Maria Deprez <maria.murgasova@kcl.ac.uk>, Alena Uus <alena.uus@gmail.com>"
+  CONTACT     "Maria Deprez <maria.murgasova@kcl.ac.uk>, Alena Uus <alena.uus@kcl.ac.uk>"
   TEMPLATE    "mirtk-module/1.0"
 
   # ----------------------------------------------------------------------------

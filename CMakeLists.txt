@@ -28,7 +28,7 @@ endif ()
 
 #set(BASIS_PYTHON_LIBRARY_TARGET svrtk_pythonlib)
 
-mirtk_configure_module() 
+mirtk_configure_module()  
 
 
 

@@ -20,11 +20,11 @@
 
 ##############################################################################
 # @file  CMakeLists.txt
-# @brief Build configuration of MIRTK ZSVR library.
+# @brief Build configuration of MIRTK SVRTK library.
 ##############################################################################
 
 set(HEADERS
-  ${BINARY_INCLUDE_DIR}/mirtk/ZSVRExport.h
+  ${BINARY_INCLUDE_DIR}/mirtk/SVRTKExport.h
   Reconstruction.h
 )
 

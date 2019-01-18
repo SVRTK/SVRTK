@@ -1,4 +1,4 @@
-MIRTK ZSVR Package
+MIRTK SVRTK Package
 ====================
 
 
@@ -9,7 +9,7 @@ SVR reconstruction package for MIRTK, originally known as `reconstruction` as pa
 Installation
 ------------
 
-ZSVR requires installation of MIRTK (https://github.com/BioMedIA/MIRTK) with TBB option. 
+SVRTK requires installation of MIRTK (https://github.com/BioMedIA/MIRTK) with TBB option. 
 
 
 
@@ -29,7 +29,7 @@ cd recon
 License
 -------
 
-The MIRTK ZSVR package is distributed under the terms of the
+The MIRTK SVRTK package is distributed under the terms of the
 [Apache License Version 2](http://www.apache.org/licenses/LICENSE-2.0).
 
 
@@ -37,7 +37,7 @@ The MIRTK ZSVR package is distributed under the terms of the
 Citation and acknowledgements
 -----------------------------
 
-In case you found ZSVR useful please give appropriate credit to the software.
+In case you found SVRTK useful please give appropriate credit to the software.
 
 Publication:
 

@@ -73,5 +73,5 @@ namespace mirtk {
 
 } // namespace mirtk
 
-#endif  // MIRTK_MeanShift_H
+#endif  // MIRTK_MeanShift_H 
 

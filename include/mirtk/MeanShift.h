@@ -1,5 +1,5 @@
 /*
- */
+ */ 
 
 #ifndef _MIRTK_MeanShift_H
 #define _MIRTK_MeanShift_H

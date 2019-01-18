@@ -9,7 +9,7 @@ SVR reconstruction package for MIRTK, originally known as `reconstruction` as pa
 Installation 
 ------------
 
-SVRTK requires installation of MIRTK (https://github.com/BioMedIA/MIRTK) with TBB option. 
+SVRTK requires installation of MIRTK (https://github.com/BioMedIA/MIRTK) with TBB option.  
 
 
 

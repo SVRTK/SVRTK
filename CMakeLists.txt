@@ -26,7 +26,7 @@ if (NOT COMMAND mirtk_configure_module)
   find_package(MIRTK REQUIRED COMPONENTS CMake)
 endif ()
 
-#set(BASIS_PYTHON_LIBRARY_TARGET zsvr_pythonlib)
+#set(BASIS_PYTHON_LIBRARY_TARGET svrtk_pythonlib)
 
 mirtk_configure_module() 
 

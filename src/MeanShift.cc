@@ -27,7 +27,7 @@ MeanShift::~MeanShift() {
     delete[] _density;
 }
 
-RealImage MeanShift::ReturnMask() {
+RealImage MeanShift::ReturnMask() { 
     RealImage mask = _image;
     RealPixel *ptr = mask.GetPointerToVoxels();
     int n = _image.GetNumberOfVoxels();

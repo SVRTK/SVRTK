@@ -1,9 +1,9 @@
 # ============================================================================
-# ZSVR : SVR reconstruction based on MIRTK
+# SVRTK : SVR reconstruction based on MIRTK
 #
 # Copyright Imperial College London
 # Copyright 2018 Andreas Schuh
-# Copyright 2018 King's College London
+# Copyright 2018-2019 King's College London
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

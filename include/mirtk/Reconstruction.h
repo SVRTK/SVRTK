@@ -39,6 +39,9 @@
 #include "mirtk/ImageTransformation.h"
 
 
+#include "mirtk/MeanShift.h"
+
+
 namespace mirtk {
 
 
@@ -50,31 +53,48 @@ struct POINT3D
     double value;
 };
 
+enum RECON_TYPE {_3D, _1D, _interpolate};
+
 typedef Array<POINT3D> VOXELCOEFFS; 
 typedef Array<Array<VOXELCOEFFS> > SLICECOEFFS;
     
 
-class Reconstruction //: public RegistrationFilter
+class Reconstruction 
 {
 
 protected: 
     
     // ---------------------------------------------------------------------------
+
+
+    //Reconstruction type
+    RECON_TYPE _recon_type;
     
     /// Structures to store the matrix of transformation between volume and slices
     Array<SLICECOEFFS> _volcoeffs;
+    Array<SLICECOEFFS> _volcoeffsSF;
     
+    int _slicePerDyn;
+
+
     /// Slices
     Array<RealImage> _slices;
+    Array<RealImage> _slicesRwithMB;
     Array<RealImage> _simulated_slices;
     Array<RealImage> _simulated_weights;
     Array<RealImage> _simulated_inside;
 
     /// Transformations
     Array<RigidTransformation> _transformations;
+    Array<RigidTransformation> _previous_transformations;
+    Array<RigidTransformation> _transformationsRwithMB;
+
 
     /// Indicator whether slice has an overlap with volumetric mask
     Array<bool> _slice_inside;
+    Array<bool> _slice_insideSF;
+
+
     /// Flag to say whether the template volume has been created
     bool _template_created;
     /// Flag to say whether we have a mask
@@ -83,10 +103,14 @@ protected:
     /// Volumes
     RealImage _reconstructed;
     RealImage _mask;
+    RealImage _target;
     RealImage _brain_probability;
     Array<RealImage> _probability_maps;
+
     /// Weights for Gaussian reconstruction
     RealImage _volume_weights;
+    RealImage _volume_weightsSF;
+
     /// Weights for regularization
     RealImage _confidence_map;
     
@@ -138,6 +162,7 @@ protected:
     double _lambda;
     ///Average voxel wights to modulate parameter alpha
     double _average_volume_weight;
+    double _average_volume_weightSF;
 
     
     //global bias field correction
@@ -150,6 +175,12 @@ protected:
     Array<double> _stack_factor;
     double _average_value;
     Array<int> _stack_index;
+
+    // GF 200416 Handling slice acquisition order
+    // Array containing slice acquisition order
+    Array<int> _z_slice_order;
+    Array<int> _t_slice_order;
+    Array<int> _slice_timing;
   
     //forced excluded slices
     Array<int> _force_excluded;
@@ -164,6 +195,10 @@ protected:
     ///Debug mode
     bool _debug;
 
+    //do not exclude voxels, only whole slices
+    bool _robust_slices_only;
+
+    bool _withMB;
   
     //Probability density functions
     ///Zero-mean Gaussian PDF
@@ -175,6 +210,7 @@ protected:
 
     /// Gestational age (to compute expected brain volume)
     double _GA;
+    
     
     // ---------------------------------------------------------------------------
     
@@ -189,11 +225,24 @@ public:
     double CreateTemplate( RealImage stack,
                            double resolution=0 );
     
+    double CreateTemplateAniso(RealImage stack);
+
     
+    double CreateLargeTemplate( Array<RealImage>& stacks,
+                                Array<RigidTransformation>& stack_transformations,
+                                ImageAttributes &templateAttr,
+                                double resolution,
+                                double smooth_mask,
+                                double threshold_mask,
+                                double expand=0 );
+
     ///Remember volumetric mask and smooth it if necessary
     void SetMask( RealImage* mask,
                   double sigma,
                   double threshold=0.5 );
+    
+    /// Set gestational age (to compute expected brain volume)
+    void SetGA(double ga);
     
     ///Center stacks
     void CenterStacks( Array<RealImage>& stacks,
@@ -259,8 +308,18 @@ public:
                                             double averageValue,
                                             bool together=false);
  
+    ///If template image has been masked instead of creating the mask in separate
+    ///file, this function can be used to create mask from the template image
     RealImage CreateMask( RealImage image );
     
+    void CreateMaskFromBlackBackground( Array<RealImage> stacks,
+                                        Array<RigidTransformation> stack_transformations,
+                                        double smooth_mask );
+   
+    
+    ///Mask all stacks
+    void MaskStacks(Array<RealImage>& stacks,Array<RigidTransformation>& stack_transformations);
+
     ///Mask all slices
     void MaskSlices();
  
@@ -269,9 +328,11 @@ public:
   
     ///Calculate transformation matrix between slices and voxels
     void CoeffInit();
+    void CoeffInitSF(int begin, int end);
 
     ///Reconstruction using weighted Gaussian PSF
     void GaussianReconstruction();
+    void GaussianReconstructionSF(Array<RealImage>& stacks);
     
     
     ///Initialise variables and parameters for EM
@@ -317,14 +378,21 @@ public:
   
     ///Save slices
     void SaveSlices();
+    void SaveSlicesWithTiming();
     void SlicesInfo( const char* filename,
                      Array<string> &stack_filenames );
+
+    ///Save simulated slices
+    void SaveSimulatedSlices();
   
     ///Save weights
     void SaveWeights();
+    void SaveRegistrationStep(Array<RealImage>& stacks,int step);
   
     ///Save transformations
     void SaveTransformations();
+    void SaveTransformationsWithTiming();
+    void SaveTransformationsWithTiming(int iter);
     void GetTransformations( Array<RigidTransformation> &transformations );
     void SetTransformations( Array<RigidTransformation> &transformations );
   
@@ -345,6 +413,7 @@ public:
     ///Return resampled mask
     inline RealImage GetMask();
     
+    ///Remember volumetric mask 
     inline void PutMask( RealImage mask );
   
     ///Set smoothing parameters
@@ -368,6 +437,16 @@ public:
     ///Set slices which need to be excluded by default
     inline void SetForceExcludedSlices( Array<int>& force_excluded );
 
+    inline void Set3DRecon();
+    inline void Set1DRecon();
+    inline void SetInterpolationRecon();
+    inline void SetSlicesPerDyn(int slices);
+    inline void SetMultiband(bool withMB);
+    
+    inline int GetNumberOfTransformations();
+    inline RigidTransformation GetTransformation(int n);
+
+
 
     //utility
     ///Save intermediate results
@@ -377,8 +456,11 @@ public:
 
     inline void UseAdaptiveRegularisation();
     
+    inline void ExcludeWholeSlicesOnly();
+    
     ///Write included/excluded/outside slices
     void Evaluate( int iter );
+    void EvaluateWithTiming( int iter );
   
     /// Read Transformations
     void ReadTransformation( char* folder );
@@ -408,6 +490,52 @@ public:
                           bool half=false,
                           int half_iter=1);
   
+    // Calculate Slice acquisition order
+    void GetSliceAcquisitionOrder(Array<RealImage>& stacks,
+    		Array<int> &pack_num, Array<int> order, int step, int rewinder);
+    
+    // Split image in a flexible manner
+    void flexibleSplitImage(Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
+    		Array<int> &pack_num, Array<int> sliceNums, Array<int> order, int step, int rewinder);
+    
+    // Create Multiband replica for flexibleSplitImage
+    void flexibleSplitImagewithMB(Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
+    		Array<int> &pack_num, Array<int> sliceNums, Array<int> multiband, Array<int> order, int step, int rewinder);
+    
+    // Split images into packages
+    void splitPackages(Array<RealImage>& stacks, Array<int> &pack_num,
+    		Array<RealImage>& packageStacks, Array<int> order, int step, int rewinder);
+    
+    // Create Multiband replica for splitPackages
+    void splitPackageswithMB(Array<RealImage>& stacks, Array<int> &pack_num,
+    		Array<RealImage>& packageStacks, Array<int> multiband, Array<int> order,
+    		int step, int rewinder);
+    
+    // Performs package registration
+    void newPackageToVolume( Array<RealImage>& stacks, Array<int> &pack_num,
+    		Array<int> multiband, Array<int> order, int step,
+    		int rewinder, int iter, int steps);
+    
+    // Perform subpackage registration for flexibleSplitImage
+    void ChunkToVolume( Array<RealImage>& stacks, Array<int> &pack_num,
+    		Array<int> sliceNums, Array<int> multiband, Array<int> order,
+    		int step, int rewinder, int iter, int steps);
+    
+    // Calculate number of iterations needed for subpacking stages
+    int giveMeDepth(Array<RealImage>& stacks, Array<int> &pack_num,
+    		Array<int> multiband);
+    
+    // Calculate subpacking needed for tree like structure
+    Array<int> giveMeSplittingArray(Array<RealImage>& stacks, Array<int> &pack_num,
+    		Array<int> multiband, int iterations, bool last);
+    
+    void WriteSliceOrder();
+    
+    // Calculate relative change of displacement field across different iterations
+    double calculateResidual(int padding);
+
+
+
     ///Splits stacks into packages
     void SplitImage( RealImage image,
                      int packages,
@@ -429,11 +557,15 @@ public:
                                 int iter=1);
     
     ///Crop image according to the given mask
-    void CropImage(RealImage& image, RealImage& mask);
+    void CropImage( RealImage& image, RealImage& mask );
     
+    void CropImageIgnoreZ( RealImage& image, RealImage& mask );
+
+
     friend class ParallelStackRegistrations;
     friend class ParallelSliceToVolumeRegistration;
     friend class ParallelCoeffInit;
+    friend class ParallelCoeffInitSF;
     friend class ParallelSuperresolution;
     friend class ParallelMStep;
     friend class ParallelEStep;
@@ -512,6 +644,12 @@ inline void Reconstruction::SetSigma(double sigma)
 }
 
 
+inline void Reconstruction::SetGA(double ga)
+{
+    _GA = ga;
+}
+
+
 inline void Reconstruction::SpeedupOn()
 {
     _quality_factor=1;
@@ -539,6 +677,12 @@ inline void Reconstruction::SetLowIntensityCutoff(double cutoff)
     _low_intensity_cutoff = cutoff;
 }
 
+inline void Reconstruction::ExcludeWholeSlicesOnly()
+{
+    _robust_slices_only=true;
+    cout<<"Exclude only whole slices."<<endl;
+}
+
 
 inline void Reconstruction::SetSmoothingParameters(double delta, double lambda)
 {
@@ -547,12 +691,56 @@ inline void Reconstruction::SetSmoothingParameters(double delta, double lambda)
     _alpha = 0.05/lambda;
     if (_alpha>1) 
         _alpha= 1;
+    cout<<"delta = "<<_delta<<" lambda = "<<lambda<<" alpha = "<<_alpha<<endl;
 }
 
 inline void Reconstruction::SetForceExcludedSlices(Array<int>& force_excluded)
 {
     _force_excluded = force_excluded;  
 }
+
+
+
+inline void Reconstruction::Set3DRecon()
+{
+    _recon_type = _3D;
+}
+
+inline void Reconstruction::Set1DRecon()
+{
+    _recon_type = _1D;
+}
+
+inline void Reconstruction::SetInterpolationRecon()
+{
+    _recon_type = _interpolate;
+}
+
+inline void Reconstruction::SetSlicesPerDyn(int slices) 
+{
+	_slicePerDyn = slices;
+}
+
+inline void Reconstruction::SetMultiband(bool withMB) 
+{
+	_withMB = withMB;
+}
+
+inline int Reconstruction::GetNumberOfTransformations()
+{
+  return _transformations.size();
+}
+
+inline RigidTransformation Reconstruction::GetTransformation(int n)
+{
+  if(_transformations.size()<=n)
+  {
+    cerr<<"Reconstruction::GetTransformation: too large n = "<<n<<endl;
+    exit(1);
+  }
+  return _transformations[n];
+}
+
 
 
 

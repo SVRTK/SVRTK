@@ -22,6 +22,8 @@
 # @brief Build configuration of MIRTK SVRTK tools.
 ##############################################################################
 
+#set(USE_Python TRUE)
+
 mirtk_add_executable(
   reconstruct
   SOURCES
@@ -36,4 +38,23 @@ mirtk_add_executable(
     LibSVRTK
     ${TBB}
 )
+
+mirtk_add_executable(
+  reconstructCardiac
+  SOURCES
+    reconstructCardiac.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+#mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})
+
+
 

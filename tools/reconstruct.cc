@@ -77,7 +77,11 @@ void usage()
     cout << "\t-global_bias_correction   Correct the bias in reconstructed image against previous estimation."<<endl;
     cout << "\t-no_intensity_matching    Switch off intensity matching."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
-    cout << "\t-no_registration          Switch off registration."<<endl;
+    cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
+    cout << "\t-exclude_slices_only      Robust statistics for exclusion of slices only."<<endl;
+    cerr << "\t-remove_black_background  Create mask from black background."<<endl;
+    cerr << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction."<<endl;
+    cerr << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
@@ -138,13 +142,17 @@ int main(int argc, char **argv)
     double low_intensity_cutoff = 0.01;
     //folder for slice-to-volume registrations, if given
     char * folder=NULL;
-    //flag to swich the intensity matching on and off
+    //flag to remove black background, e.g. when neonatal motion correction is performed
+    bool remove_black_background = false;
+    //flag to switch the intensity matching on and off
     bool intensity_matching = true;
     bool rescale_stacks = false;
     bool registration_flag = true;
     
-    //flag to swich the robust statistics on and off
+    //flags to switch the robust statistics on and off
     bool robust_statistics = true;
+    bool robust_slices_only = false;
+    
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
     
@@ -153,6 +161,10 @@ int main(int argc, char **argv)
     string info_filename = "slice_info.tsv";
     string log_id;
     bool no_log = false;
+    
+    //forced exclusion of slices
+    int number_of_force_excluded_slices = 0;
+    vector<int> force_excluded;
     
     
     //Create reconstruction object
@@ -301,6 +313,45 @@ int main(int argc, char **argv)
             argv++;
         }
         
+        //Read transformations from this folder
+        if ((ok == false) && (strcmp(argv[1], "-transformations") == 0)){
+            argc--;
+            argv++;
+            folder=argv[1];
+            ok = true;
+            argc--;
+            argv++;
+        }
+        
+        //Remove black background
+        if ((ok == false) && (strcmp(argv[1], "-remove_black_background") == 0)){
+            argc--;
+            argv++;
+            remove_black_background=true;
+            ok = true;
+        }
+        
+        //Force removal of certain slices
+        if ((ok == false) && (strcmp(argv[1], "-force_exclude") == 0)){
+            argc--;
+            argv++;
+            number_of_force_excluded_slices = atoi(argv[1]);
+            argc--;
+            argv++;
+            
+            cout<< number_of_force_excluded_slices<< " force excluded slices: ";
+            for (i=0;i<number_of_force_excluded_slices;i++)
+            {
+                force_excluded.push_back(atoi(argv[1]));
+                cout<<force_excluded[i]<<" ";
+                argc--;
+                argv++;
+            }
+            cout<<"."<<endl;
+            
+            ok = true;
+        }
+        
         //Switch off intensity matching
         if ((ok == false) && (strcmp(argv[1], "-no_intensity_matching") == 0)) {
             argc--;
@@ -314,6 +365,14 @@ int main(int argc, char **argv)
             argc--;
             argv++;
             robust_statistics=false;
+            ok = true;
+        }
+        
+        //Robust statistics for slices only
+        if ((ok == false) && (strcmp(argv[1], "-exclude_slices_only") == 0)) {
+            argc--;
+            argv++;
+            robust_slices_only = true;
             ok = true;
         }
         
@@ -382,6 +441,8 @@ int main(int argc, char **argv)
     if (debug) reconstruction.DebugOn();
     else reconstruction.DebugOff();
     
+    //Set force excluded slices
+    reconstruction.SetForceExcludedSlices(force_excluded);
     
     //Set low intensity cutoff for bias estimation
     reconstruction.SetLowIntensityCutoff(low_intensity_cutoff)  ;
@@ -394,15 +455,15 @@ int main(int argc, char **argv)
     }
     
     //If no mask was given - try to create mask from the template image in case it was padded
-    if ((mask==NULL)) {
+    if (mask == NULL) {
         mask = new RealImage(stacks[templateNumber]);
         *mask = reconstruction.CreateMask(*mask);
         cout << "Warning : no mask was provided (reconstruction might take too long)" << endl;
     }
     
-    
+
     //Before creating the template we will crop template stack according to the given mask
-    if (mask !=NULL)
+    if (mask != NULL)
     {
         //first resample the mask to the space of the stack
         //for template stact the transformation is identity
@@ -427,6 +488,12 @@ int main(int argc, char **argv)
     
     //Set mask to reconstruction object.
     reconstruction.SetMask(mask,smooth_mask);
+    
+    //if remove_black_background flag is set, create mask from black background of the stacks
+    if (remove_black_background) {
+        reconstruction.CreateMaskFromBlackBackground(stacks, stack_transformations, smooth_mask);
+        
+    }
     
     //to redirect output from screen to text files
     
@@ -638,6 +705,9 @@ int main(int argc, char **argv)
             reconstruction.SpeedupOn();
         else
             reconstruction.SpeedupOff();
+        
+        if(robust_slices_only)
+            reconstruction.ExcludeWholeSlicesOnly();
         
         //Initialise values of weights, scales and bias fields
         reconstruction.InitializeEMValues();

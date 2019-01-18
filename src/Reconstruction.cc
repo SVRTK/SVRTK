@@ -23,6 +23,97 @@ using namespace std;
 
 namespace mirtk {
 
+//------------------------------------------------------------------- 
+
+void bbox( RealImage &stack, RigidTransformation &transformation, double &min_x, double &min_y, double &min_z, double &max_x, double &max_y, double &max_z ) {
+
+    //cout << "bbox" << endl;
+    
+    min_x = DBL_MAX;
+    min_y = DBL_MAX;
+    min_z = DBL_MAX;
+    max_x = -DBL_MAX;
+    max_y = -DBL_MAX;
+    max_z = -DBL_MAX;
+    double x,y,z;
+    // WARNING: do not search to increment by stack.GetZ()-1,
+    // otherwise you would end up with a 0 increment for slices...
+    for ( int i = 0; i <= stack.GetX(); i += stack.GetX() )
+        for ( int j = 0; j <= stack.GetY(); j += stack.GetY() )
+            for ( int k = 0; k <= stack.GetZ(); k += stack.GetZ() ) {
+                x = i;
+                y = j;
+                z = k;
+         //        cout << "line1 " 
+         // << x << " "
+         // << y << " "
+         // << z << endl;
+                stack.ImageToWorld( x, y, z );
+                // FIXME!!!
+                transformation.Transform( x, y, z );
+                //transformation.Inverse( x, y, z );
+         //        cout << "line2 " 
+         // << x << " "
+         // << y << " "
+         // << z << endl;
+                if ( x < min_x )
+                    min_x = x;
+                if ( y < min_y )
+                    min_y = y;
+                if ( z < min_z )
+                    min_z = z;
+                if ( x > max_x )
+                    max_x = x;
+                if ( y > max_y )
+                    max_y = y;
+                if ( z > max_z )
+                    max_z = z;
+            }
+    // cout << "bbox" 
+    //      << min_x << " "
+    //      << min_y << " "
+    //      << min_z << " "
+    //      << max_x << " "
+    //      << max_y << " "
+    //      << max_z << endl;
+}
+
+void bboxCrop( RealImage &image ) {
+    int min_x, min_y, min_z, max_x, max_y, max_z;
+    min_x = image.GetX()-1;
+    min_y = image.GetY()-1;
+    min_z = image.GetZ()-1;
+    max_x = 0;
+    max_y = 0;
+    max_z = 0;
+    for ( int i = 0; i < image.GetX(); i++ )
+        for ( int j = 0; j < image.GetY(); j++ )
+            for ( int k = 0; k < image.GetZ(); k++ ) {
+                if ( image.Get(i, j, k) > 0 ) {
+                    if ( i < min_x )
+                        min_x = i;
+                    if ( j < min_y )
+                        min_y = j;
+                    if ( k < min_z )
+                        min_z = k;
+                    if ( i > max_x )
+                        max_x = i;
+                    if ( j > max_y )
+                        max_y = j;
+                    if ( k > max_z )
+                        max_z = k;                    
+                }
+            }
+
+    //Cut region of interest
+    image = image.GetRegion( min_x, min_y, min_z,
+                             max_x, max_y, max_z );                
+}
+
+
+
+
+
     //-------------------------------------------------------------------   
 
     void centroid(RealImage &image, double &x, double &y, double &z) {
@@ -71,6 +162,8 @@ namespace mirtk {
         _low_intensity_cutoff = 0.01;
         _global_bias_correction = false;
         _adaptive = false;
+        _robust_slices_only = false;
+        _recon_type = _3D;
 
         int directions[13][3] = {
             { 1, 0, -1},
@@ -196,9 +289,7 @@ namespace mirtk {
                 for (x=0; x<image.GetX(); x++) {
                     for (y=0; y<image.GetY(); y++) {
                         for (z=0; z<image.GetZ(); z++) {
-
                             image(x,y,z) = 0;
-                            
                         }
                     }
                 }
@@ -436,6 +527,33 @@ namespace mirtk {
     }
     
     //-------------------------------------------------------------------
+
+double Reconstruction::CreateTemplateAniso(RealImage stack)
+{
+    double dx, dy, dz, d;
+
+    //Get image attributes - image size and voxel size
+    ImageAttributes attr = stack.GetImageAttributes();
+
+    //enlarge stack in z-direction in case top of the head is cut off
+    attr._t = 1;
+
+    //create enlarged image
+    RealImage enlarged(attr);
+
+    cout << "Constructing volume with anisotropic voxel size " << attr._x << " " <<attr._y<<" "<<attr._z << endl;
+
+    //initialize recontructed volume
+    _reconstructed = enlarged;
+    _template_created = true;
+
+    //return resulting resolution of the template image
+    return attr._x;
+}
+
+
+
+    //-------------------------------------------------------------------
     
     void Reconstruction::SetTemplate( RealImage templateImage )
     {
@@ -469,7 +587,8 @@ namespace mirtk {
         
         _reconstructed = t2template;
     }
-    
+
+
     //-------------------------------------------------------------------
     
     RealImage Reconstruction::CreateMask( RealImage image )
@@ -477,12 +596,48 @@ namespace mirtk {
         //binarize mask
         RealPixel* ptr = image.GetPointerToVoxels();
         for (int i = 0; i < image.GetNumberOfVoxels(); i++) {
-            *ptr = 1;
-            ptr++;
+
+            if (*ptr > 0.5)
+            	*ptr = 1;
+	    else
+		*ptr = 0;
+	    ptr++;
         }
         return image;
     }
 
+    //-------------------------------------------------------------------
+    
+    void Reconstruction::CreateMaskFromBlackBackground( Array<RealImage> stacks, Array<RigidTransformation> stack_transformations, double smooth_mask )
+    {
+
+        //Create average of the stack using currect stack transformations
+        GreyImage average = CreateAverage(stacks, stack_transformations);
+
+        GreyPixel* ptr = average.GetPointerToVoxels();
+        for (int i = 0; i < average.GetNumberOfVoxels(); i++) {
+            if (*ptr < 0)
+                *ptr = 0;
+            ptr++;
+        }
+        
+        //Create mask of the average from the black background
+	MeanShift msh(average, 0, 256);
+	msh.GenerateDensity();
+	msh.SetTreshold();
+	msh.RemoveBackground();
+	GreyImage mask = msh.ReturnMask();
+
+	//Calculate LCC of the mask to remove disconnected structures
+	MeanShift msh2(mask, 0, 256);
+	msh2.SetOutput(&mask);
+	msh2.Lcc(1);
+	RealImage m = mask;
+	SetMask(&m, smooth_mask);
+ 
+    }
+    
+    
     //-------------------------------------------------------------------
     
     void Reconstruction::SetMask(RealImage *mask, double sigma, double threshold)
@@ -643,12 +798,8 @@ namespace mirtk {
                 //set target and source (need to be converted to irtkGreyImage)
 
                 RealImage r_source = stacks[i];
-                RealImage r_target = target; //stacks[templateNumber];
-                
-                
-//                r_source = target;
-//                r_target = stacks[i];
-                
+                //RealImage r_target = target; //stacks[templateNumber];
+
                 
                 //include offset in transformation
                 Matrix mo = offset.GetMatrix();
@@ -671,28 +822,13 @@ namespace mirtk {
                 Insert(params, "No. of bins", 64);
                 Insert(params, "Image interpolation mode", "Linear");
                 Insert(params, "Background value", 0);
-                
-                
-//                Insert(params, "Image (dis-)similarity measure", "NCC");
-//                string type = "box";
-//                string units = "vox";
-//                double width = 0;
-//                Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
-                //Insert(params, "Image interpolation mode", "NN");
-                
-//                Insert(params, "Background value", 0);
-//                Insert(params, "Image interpolation mode", "Linear");
-//                Insert(params, "First level", 4);
-//                Insert(params, "Final level", 1);                
-
+          
 
                 GenericRegistrationFilter registration;
                 registration.Parameter(params);
-                registration.Input(&r_target, &r_source);
-                
+                registration.Input(&target, &r_source);
                 
 
-                
                 GenericRegistrationFilter rigidregistration_ncc;
                 ParameterList params_ncc;
                 Insert(params_ncc, "Transformation model", "Rigid");
@@ -705,7 +841,7 @@ namespace mirtk {
                 Insert(params_ncc, string("Local window size [") + type + string("]"), ToString(width) + units);
                 
                 rigidregistration_ncc.Parameter(params_ncc);
-                rigidregistration_ncc.Input(&r_target, &r_source);
+                rigidregistration_ncc.Input(&target, &r_source);
                 
 
 //                sprintf(buffer, "ut-%i.nii.gz", i);
@@ -729,7 +865,6 @@ namespace mirtk {
                 stack_transformations[i] = *rigidTransf;
                 
 
-                
                 dofout = nullptr;
                 rigidregistration_ncc.Output(&dofout);
                 rigidregistration_ncc.InitialGuess(&stack_transformations[i]);
@@ -738,13 +873,9 @@ namespace mirtk {
                 
                 RigidTransformation *rigidTransf_ncc = dynamic_cast<RigidTransformation*> (dofout);
                 stack_transformations[i] = *rigidTransf_ncc;
-
-
-                
+      
 //                sprintf(buffer, "ud-%i.dof", i);
 //                stack_transformations[i].Write(buffer);
-                
-                
 //                stack_transformations[i].Invert();
                 
             
@@ -1001,10 +1132,10 @@ namespace mirtk {
                         sim(i, j, 0) += p.value * _reconstructed(p.x, p.y, p.z);
                         weight += p.value;
                     }
-                    if(weight>0.99)
-                    sim(i,j,0)/=weight;
+                    if(weight>0.98)
+                    	sim(i,j,0)/=weight;
                     else
-                    sim(i,j,0)=0;
+                    	sim(i,j,0)=0;
                 }
             }
             
@@ -1016,9 +1147,9 @@ namespace mirtk {
             }
             
             for(i=0;i<sim.GetX();i++)
-            for(j=0;j<sim.GetY();j++) {
-                stacks[_stack_index[inputIndex]](i,j,z)=sim(i,j,0);
-            }
+            	for(j=0;j<sim.GetY();j++) {
+                	stacks[_stack_index[inputIndex]](i,j,z)=sim(i,j,0);
+            	}
             //end of loop for a slice inputIndex
         }
     }
@@ -1134,6 +1265,65 @@ namespace mirtk {
         }
         
     }
+
+
+    //-------------------------------------------------------------------
+
+
+void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations)
+{
+  cout << "Masking stacks ... ";
+
+    double x, y, z;
+    int i, j, k;
+
+    //Check whether we have a mask
+    if (!_have_mask) {
+        cout << "Could not mask slices because no mask has been set." << endl;
+        return;
+    }
+
+    //mask slices
+    for (int unsigned inputIndex = 0; inputIndex < stacks.size(); inputIndex++) {
+
+        RealImage& stack = stacks[inputIndex];
+        for (i = 0; i < stack.GetX(); i++)
+            for (j = 0; j < stack.GetY(); j++) {
+              for (k = 0; k < stack.GetZ(); k++) {
+                //if the value is smaller than 1 assume it is padding
+                if (stack(i,j,k) < 0.01)
+                    stack(i,j,k) = -1;
+                //image coordinates of a slice voxel
+                x = i;
+                y = j;
+                z = k;
+                //change to world coordinates in slice space
+                stack.ImageToWorld(x, y, z);
+                //world coordinates in volume space
+                stack_transformations[inputIndex].Transform(x, y, z);
+                //image coordinates in volume space
+                _mask.WorldToImage(x, y, z);
+                x = round(x);
+                y = round(y);
+                z = round(z);
+                //if the voxel is outside mask ROI set it to -1 (padding value)
+                if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
+                    && (z < _mask.GetZ())) {
+                    if (_mask(x, y, z) == 0)
+                        stack(i, j, k) = -1;
+                }
+                else
+                    stack(i, j, k) = -1;
+            }
+	    }
+        //remember masked slice
+        //_slices[inputIndex] = slice;
+    }
+    cout << "done." << endl;
+}
+
+
+
 
     
     //-------------------------------------------------------------------
@@ -1604,9 +1794,28 @@ namespace mirtk {
                 slice.GetPixelSize(&dx, &dy, &dz);
                 
                 //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
-                double sigmax = 1.2 * dx / 2.3548;
-                double sigmay = 1.2 * dy / 2.3548;
-                double sigmaz = dz / 2.3548;
+                double sigmax, sigmay, sigmaz;
+		if(reconstructor->_recon_type == _3D)
+		{
+			  sigmax = 1.2 * dx / 2.3548;
+			  sigmay = 1.2 * dy / 2.3548;
+			  sigmaz = dz / 2.3548;
+		}
+	
+		if(reconstructor->_recon_type == _1D)
+		{
+			  sigmax = 0.5 * dx / 2.3548;
+			  sigmay = 0.5 * dy / 2.3548;
+			  sigmaz = dz / 2.3548;
+		}
+	
+		if(reconstructor->_recon_type == _interpolate)
+		{
+			  sigmax = 0.5 * dx / 2.3548;
+			  sigmay = 0.5 * dx / 2.3548;
+			  sigmaz = 0.5 * dx / 2.3548;
+		}
+
                 
                 //calculate discretized PSF
                 
@@ -1619,6 +1828,13 @@ namespace mirtk {
                 int xDim = round(2 * dx / size);
                 int yDim = round(2 * dy / size);
                 int zDim = round(2 * dz / size);
+
+		///test to make dimension always odd
+		xDim = xDim/2*2+1;
+		yDim = yDim/2*2+1;
+		zDim = zDim/2*2+1;
+		///end test
+
                 
                 //image corresponding to PSF
                 ImageAttributes attr;
@@ -1999,7 +2215,561 @@ namespace mirtk {
         }
     }
 
+
+    //-------------------------------------------------------------------
+
     
+class ParallelCoeffInitSF {
+public:
+	
+    Reconstruction *reconstructor;
+    size_t _begin;
+    size_t _end;
+
+    ParallelCoeffInitSF(Reconstruction *_reconstructor, size_t begin, size_t end) : 
+    reconstructor(_reconstructor) 
+    { 
+    	_begin = begin;
+    	_end = end;
+    }
+
+    void operator() (const blocked_range<size_t> &r) const {
+        
+        for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
+
+            bool slice_inside;
+            //current slice
+            //irtkRealImage slice;
+
+            //get resolution of the volume
+            double vx, vy, vz;
+            reconstructor->_reconstructed.GetPixelSize(&vx, &vy, &vz);
+            //volume is always isotropic
+            double res = vx;
+        
+            //start of a loop for a slice inputIndex
+            cout << inputIndex << " ";
+            cout.flush();
+            //read the slice
+            
+            RealImage& slice = (reconstructor->_withMB == true) ? reconstructor->_slicesRwithMB[inputIndex] : reconstructor->_slices[inputIndex];
+
+            //prepare structures for storage
+            POINT3D p;
+            VOXELCOEFFS empty;
+            SLICECOEFFS slicecoeffs(slice.GetX(), Array < VOXELCOEFFS > (slice.GetY(), empty));
+
+            //to check whether the slice has an overlap with mask ROI
+            slice_inside = false;
+
+            //PSF will be calculated in slice space in higher resolution
+
+            //get slice voxel size to define PSF
+            double dx, dy, dz;
+            slice.GetPixelSize(&dx, &dy, &dz);
+
+            //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
+	    
+			double sigmax, sigmay, sigmaz;
+			if(reconstructor->_recon_type == _3D)
+			{
+				  sigmax = 1.2 * dx / 2.3548;
+				  sigmay = 1.2 * dy / 2.3548;
+				  sigmaz = dz / 2.3548;
+			}
+	
+			if(reconstructor->_recon_type == _1D)
+			{
+				  sigmax = 0.5 * dx / 2.3548;
+				  sigmay = 0.5 * dy / 2.3548;
+				  sigmaz = dz / 2.3548;
+			}
+	
+			if(reconstructor->_recon_type == _interpolate)
+			{
+				  sigmax = 0.5 * dx / 2.3548;
+				  sigmay = 0.5 * dx / 2.3548;
+				  sigmaz = 0.5 * dx / 2.3548;
+			}
+            /*
+              cout<<"Original sigma"<<sigmax<<" "<<sigmay<<" "<<sigmaz<<endl;
+        
+              //readjust for resolution of the volume
+              //double sigmax,sigmay,sigmaz;
+              double sigmamin = res/(3*2.3548);
+        
+              if((dx-res)>sigmamin)
+              sigmax = 1.2 * sqrt(dx*dx-res*res) / 2.3548;
+              else sigmax = sigmamin;
+
+              if ((dy-res)>sigmamin)
+              sigmay = 1.2 * sqrt(dy*dy-res*res) / 2.3548;
+              else
+              sigmay=sigmamin;
+              if ((dz-1.2*res)>sigmamin)
+              sigmaz = sqrt(dz*dz-1.2*1.2*res*res) / 2.3548;
+              else sigmaz=sigmamin;
+        
+              cout<<"Adjusted sigma:"<<sigmax<<" "<<sigmay<<" "<<sigmaz<<endl;
+            */
+        
+            //calculate discretized PSF
+
+            //isotropic voxel size of PSF - derived from resolution of reconstructed volume
+            double size = res / reconstructor->_quality_factor;
+
+            //number of voxels in each direction
+            //the ROI is 2*voxel dimension
+
+            int xDim = round(2 * dx / size);
+            int yDim = round(2 * dy / size);
+            int zDim = round(2 * dz / size);
+			///test to make dimension alwways odd
+			xDim = xDim/2*2+1;
+			yDim = yDim/2*2+1;
+			zDim = zDim/2*2+1;
+			///end test
+
+            //image corresponding to PSF
+            ImageAttributes attr;
+            attr._x = xDim;
+            attr._y = yDim;
+            attr._z = zDim;
+            attr._dx = size;
+            attr._dy = size;
+            attr._dz = size;
+            RealImage PSF(attr);
+
+            //centre of PSF
+            double cx, cy, cz;
+            cx = 0.5 * (xDim - 1);
+            cy = 0.5 * (yDim - 1);
+            cz = 0.5 * (zDim - 1);
+            PSF.ImageToWorld(cx, cy, cz);
+
+            double x, y, z;
+            double sum = 0;
+            int i, j, k;
+            for (i = 0; i < xDim; i++)
+                for (j = 0; j < yDim; j++)
+                    for (k = 0; k < zDim; k++) {
+                        x = i;
+                        y = j;
+                        z = k;
+                        PSF.ImageToWorld(x, y, z);
+                        x -= cx;
+                        y -= cy;
+                        z -= cz;
+                        //continuous PSF does not need to be normalized as discrete will be
+                        PSF(i, j, k) = exp(
+                                           -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
+                                           - z * z / (2 * sigmaz * sigmaz));
+                        sum += PSF(i, j, k);
+                    }
+            PSF /= sum;
+
+            if (reconstructor->_debug)
+                if (inputIndex == 0)
+                    PSF.Write("PSF.nii.gz");
+
+            //prepare storage for PSF transformed and resampled to the space of reconstructed volume
+            //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
+            //Note conversion from PSF image coordinates to tPSF image coordinates *size/res
+            int dim = (floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2))
+                * 2 + 1 + 2;
+            //prepare image attributes. Voxel dimension will be taken from the reconstructed volume
+            attr._x = dim;
+            attr._y = dim;
+            attr._z = dim;
+            attr._dx = res;
+            attr._dy = res;
+            attr._dz = res;
+            //create matrix from transformed PSF
+            RealImage tPSF(attr);
+            //calculate centre of tPSF in image coordinates
+            int centre = (dim - 1) / 2;
+
+            //for each voxel in current slice calculate matrix coefficients
+            int ii, jj, kk;
+            int tx, ty, tz;
+            int nx, ny, nz;
+            int l, m, n;
+            double weight;
+            for (i = 0; i < slice.GetX(); i++)
+                for (j = 0; j < slice.GetY(); j++)
+                    if (slice(i, j, 0) != -1) {
+                        //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
+                        x = i;
+                        y = j;
+                        z = 0;
+                        slice.ImageToWorld(x, y, z);
+                        
+                        if (reconstructor->_withMB)
+                        	reconstructor->_transformationsRwithMB[inputIndex].Transform(x, y, z);
+                        else
+                        	reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                        
+                        reconstructor->_reconstructed.WorldToImage(x, y, z);
+                        tx = round(x);
+                        ty = round(y);
+                        tz = round(z);
+
+                        //Clear the transformed PSF
+                        for (ii = 0; ii < dim; ii++)
+                            for (jj = 0; jj < dim; jj++)
+                                for (kk = 0; kk < dim; kk++)
+                                    tPSF(ii, jj, kk) = 0;
+
+                        //for each POINT3D of the PSF
+                        for (ii = 0; ii < xDim; ii++)
+                            for (jj = 0; jj < yDim; jj++)
+                                for (kk = 0; kk < zDim; kk++) {
+                                    //Calculate the position of the POINT3D of
+                                    //PSF centered over current slice voxel                            
+                                    //This is a bit complicated because slices
+                                    //can be oriented in any direction 
+
+                                    //PSF image coordinates
+                                    x = ii;
+                                    y = jj;
+                                    z = kk;
+                                    //change to PSF world coordinates - now real sizes in mm
+                                    PSF.ImageToWorld(x, y, z);
+                                    //centre around the centrepoint of the PSF
+                                    x -= cx;
+                                    y -= cy;
+                                    z -= cz;
+
+                                    //Need to convert (x,y,z) to slice image
+                                    //coordinates because slices can have
+                                    //transformations included in them (they are
+                                    //nifti)  and those are not reflected in
+                                    //PSF. In slice image coordinates we are
+                                    //sure that z is through-plane 
+
+                                    //adjust according to voxel size
+                                    x /= dx;
+                                    y /= dy;
+                                    z /= dz;
+                                    //center over current voxel
+                                    x += i;
+                                    y += j;
+
+                                    //convert from slice image coordinates to world coordinates
+                                    slice.ImageToWorld(x, y, z);
+
+                                    //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
+                                    //Transform to space of reconstructed volume
+                                    if (reconstructor->_withMB)
+                                    	reconstructor->_transformationsRwithMB[inputIndex].Transform(x, y, z);
+                                    else
+                                    	reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                                    
+                                    //Change to image coordinates
+                                    reconstructor->_reconstructed.WorldToImage(x, y, z);
+
+                                    //determine coefficients of volume voxels for position x,y,z
+                                    //using linear interpolation
+
+                                    //Find the 8 closest volume voxels
+
+                                    //lowest corner of the cube
+                                    nx = (int) floor(x);
+                                    ny = (int) floor(y);
+                                    nz = (int) floor(z);
+
+                                    //not all neighbours might be in ROI, thus we need to normalize
+                                    //(l,m,n) are image coordinates of 8 neighbours in volume space
+                                    //for each we check whether it is in volume
+                                    sum = 0;
+                                    //to find wether the current slice voxel has overlap with ROI
+                                    bool inside = false;
+                                    for (l = nx; l <= nx + 1; l++)
+                                        if ((l >= 0) && (l < reconstructor->_reconstructed.GetX()))
+                                            for (m = ny; m <= ny + 1; m++)
+                                                if ((m >= 0) && (m < reconstructor->_reconstructed.GetY()))
+                                                    for (n = nz; n <= nz + 1; n++)
+                                                        if ((n >= 0) && (n < reconstructor->_reconstructed.GetZ())) {
+                                                            weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                            sum += weight;
+                                                            if (reconstructor->_mask(l, m, n) == 1) {
+                                                                inside = true;
+                                                                slice_inside = true;
+                                                            }
+                                                        }
+                                    //if there were no voxels do nothing
+                                    if ((sum <= 0) || (!inside))
+                                        continue;
+                                    //now calculate the transformed PSF
+                                    for (l = nx; l <= nx + 1; l++)
+                                        if ((l >= 0) && (l < reconstructor->_reconstructed.GetX()))
+                                            for (m = ny; m <= ny + 1; m++)
+                                                if ((m >= 0) && (m < reconstructor->_reconstructed.GetY()))
+                                                    for (n = nz; n <= nz + 1; n++)
+                                                        if ((n >= 0) && (n < reconstructor->_reconstructed.GetZ())) {
+                                                            weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+
+                                                            //image coordinates in tPSF
+                                                            //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
+                                                            int aa, bb, cc;
+                                                            aa = l - tx + centre;
+                                                            bb = m - ty + centre;
+                                                            cc = n - tz + centre;
+
+                                                            //resulting value
+                                                            double value = PSF(ii, jj, kk) * weight / sum;
+
+                                                            //Check that we are in tPSF
+                                                            if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
+                                                                || (cc >= dim)) {
+                                                                cerr << "Error while trying to populate tPSF. " << aa << " " << bb
+                                                                     << " " << cc << endl;
+                                                                cerr << l << " " << m << " " << n << endl;
+                                                                cerr << tx << " " << ty << " " << tz << endl;
+                                                                cerr << centre << endl;
+                                                                tPSF.Write("tPSF.nii.gz");
+                                                                exit(1);
+                                                            }
+                                                            else
+                                                                //update transformed PSF
+                                                                tPSF(aa, bb, cc) += value;
+                                                        }
+
+                                } //end of the loop for PSF points
+
+                        //store tPSF values
+                        for (ii = 0; ii < dim; ii++)
+                            for (jj = 0; jj < dim; jj++)
+                                for (kk = 0; kk < dim; kk++)
+                                    if (tPSF(ii, jj, kk) > 0) {
+                                        p.x = ii + tx - centre;
+                                        p.y = jj + ty - centre;
+                                        p.z = kk + tz - centre;
+                                        p.value = tPSF(ii, jj, kk);
+                                        slicecoeffs[i][j].push_back(p);
+                                    }
+                    } //end of loop for slice voxels
+
+            reconstructor->_volcoeffsSF[inputIndex % (reconstructor->_slicePerDyn)] = slicecoeffs;
+            reconstructor->_slice_insideSF[inputIndex % (reconstructor->_slicePerDyn)] = slice_inside;
+            //cerr<<" Done "<<inputIndex % (reconstructor->_slicePerDyn)<<endl;
+        }  //end of loop through the slices                            
+    }
+
+    // execute
+    void operator() () const {
+        //task_scheduler_init init(tbb_no_threads);
+        parallel_for( blocked_range<size_t>(_begin, _end),
+                      *this );
+       //init.terminate();
+    }
+};
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::CoeffInitSF(int begin, int end)
+{
+    if (_debug)
+        cout << "CoeffInitSF" << endl;
+    
+    //clear slice-volume matrix from previous iteration
+    _volcoeffsSF.clear();
+    _volcoeffsSF.resize(_slicePerDyn);
+
+    //clear indicator of slice having and overlap with volumetric mask
+    _slice_insideSF.clear();
+    _slice_insideSF.resize(_slicePerDyn);
+
+    cout << "Initialising matrix coefficients...";
+    cout.flush();
+	
+    ParallelCoeffInitSF coeffinit(this,begin,end);
+    coeffinit();
+    
+    //prepare image for volume weights, will be needed for Gaussian Reconstruction
+	_volume_weightsSF.Initialize( _reconstructed.GetImageAttributes() );
+	_volume_weightsSF = 0;
+
+	int inputIndex, i, j, n, k;
+	POINT3D p;
+	if(_withMB)
+		for ( inputIndex = begin; inputIndex < end; ++inputIndex) {
+			for ( i = 0; i < _slicesRwithMB[inputIndex].GetX(); i++)
+				for ( j = 0; j < _slicesRwithMB[inputIndex].GetY(); j++) {
+					n = _volcoeffsSF[inputIndex % _slicePerDyn][i][j].size();
+					for (k = 0; k < n; k++) {
+						p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
+						_volume_weightsSF(p.x, p.y, p.z) += p.value;
+					}
+				}
+		}
+	else {
+		for ( inputIndex = begin; inputIndex < end; ++inputIndex) {
+			for ( i = 0; i < _slices[inputIndex].GetX(); i++)
+				for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
+					n = _volcoeffsSF[inputIndex % _slicePerDyn][i][j].size();
+					for (k = 0; k < n; k++) {
+						p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
+						_volume_weightsSF(p.x, p.y, p.z) += p.value;
+					}
+				}
+		}
+	}
+    
+    if (_debug)
+        _volume_weightsSF.Write("volume_weights.nii.gz");
+
+    //find average volume weight to modify alpha parameters accordingly
+    RealPixel *ptr = _volume_weightsSF.GetPointerToVoxels();
+    RealPixel *pm = _mask.GetPointerToVoxels();
+    double sum = 0;
+    int num=0;
+    for (int i=0;i<_volume_weightsSF.GetNumberOfVoxels();i++) {
+        if (*pm==1) {
+            sum+=*ptr;
+            num++;
+        }
+        ptr++;
+        pm++;
+    }
+    _average_volume_weightSF = sum/num;
+    
+    if(_debug) {
+        cout<<"Average volume weight is "<<_average_volume_weightSF<<endl;
+    }
+    
+}  //end of CoeffInitSF()
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
+{
+	Array<RigidTransformation> currentTransformations;
+	Array<RealImage> currentSlices;
+	Array<double> currentScales;
+	Array<RealImage> currentBiases;
+		
+	RealImage interpolated;
+	ImageAttributes attr, attr2;
+		
+	RealImage slice;
+	double scale;
+	int n;
+	POINT3D p;
+	Array<int> voxel_num;  
+	int slice_vox_num = 0;
+
+	int counter = 0;
+	interpolated  = _reconstructed;
+	attr2 = interpolated.GetImageAttributes();
+	
+	// cleaning _interpolated
+	for (int k = 0; k < attr2._z; k++) {
+		for (int j = 0; j < attr2._y; j++) {
+			for (int i = 0; i < attr2._x; i++) {
+				_reconstructed(i,j,k) = 0;
+			}
+		}
+	}
+
+	for (int dyn = 0; dyn < stacks.size(); dyn++)  {
+	
+		attr = stacks[dyn].GetImageAttributes();
+		
+		CoeffInitSF(counter,counter+attr._z);		
+		
+		for (int s = 0; s < attr._z; s ++) {
+			currentTransformations.push_back(_transformations[counter + s]);
+			currentSlices.push_back(_slices[counter + s]);
+			currentScales.push_back(_scale[counter + s]);
+			currentBiases.push_back(_bias[counter + s]);
+		}
+		
+		// cleaning interpolated
+		for (int k = 0; k < attr2._z; k++) {
+			for (int j = 0; j < attr2._y; j++) {
+				for (int i = 0; i < attr2._x; i++) {
+					interpolated(i,j,k) = 0;
+				}
+			}
+		}
+
+		for (int s = 0; s < currentSlices.size(); s++) {
+			
+			//copy the current slice
+			slice = currentSlices[s];
+			//alias the current bias image
+			RealImage& b = currentBiases[s];
+			//read current scale factor
+			scale = currentScales[s];
+			
+			slice_vox_num = 0;
+			for (int i = 0; i < slice.GetX(); i++)
+				for (int j = 0; j < slice.GetY(); j++)
+					if (slice(i, j, 0) != -1) {
+						//biascorrect and scale the slice
+						slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+			
+						//number of volume voxels with non-zero coefficients
+						//for current slice voxel
+						n = _volcoeffsSF[s][i][j].size();
+			
+						//if given voxel is not present in reconstructed volume at all,
+						//pad it
+						
+						//if (n == 0)
+						//_slices[inputIndex].PutAsDouble(i, j, 0, -1);
+						//calculate num of vox in a slice that have overlap with roi
+						if (n>0)
+							slice_vox_num++;
+			
+						//add contribution of current slice voxel to all voxel volumes
+						//to which it contributes
+						for (int k = 0; k < n; k++) {
+							p = _volcoeffsSF[s][i][j][k];
+							interpolated(p.x, p.y, p.z) += p.value * slice(i, j, 0);
+						}
+					}
+			voxel_num.push_back(slice_vox_num);
+		}
+		counter = counter + attr._z;
+		currentSlices.clear();
+		currentBiases.clear();
+		currentTransformations.clear();
+		currentScales.clear();
+		interpolated /= _volume_weightsSF;
+		_reconstructed += interpolated;
+	}	
+	_reconstructed /= stacks.size();
+
+    cout << "done." << endl;
+	if (_debug)
+		_reconstructed.Write("init.nii.gz");
+	
+	//now find slices with small overlap with ROI and exclude them.  
+	Array<int> voxel_num_tmp;
+	for (int i=0;i<voxel_num.size();i++)
+		voxel_num_tmp.push_back(voxel_num[i]);
+	
+	//find median
+	sort(voxel_num_tmp.begin(),voxel_num_tmp.end());
+	int median = voxel_num_tmp[round(voxel_num_tmp.size()*0.5)];
+	
+	//remember slices with small overlap with ROI
+	_small_slices.clear();
+	for (int i=0;i<voxel_num.size();i++)
+		if (voxel_num[i]<0.1*median)
+			_small_slices.push_back(i);
+	
+	if (_debug) {
+		cout<<"Small slices:";
+		for (int i=0;i<_small_slices.size();i++)
+			cout<<" "<<_small_slices[i];
+		cout<<endl;
+	}
+}
+
+
     //-------------------------------------------------------------------
     
     void Reconstruction::InitializeEM()
@@ -2075,6 +2845,11 @@ namespace mirtk {
             //Initialise scaling factors for intensity matching
             _scale[i] = 1;
         }
+
+	//Force exclusion of slices predefined by user
+    	for (unsigned int i = 0; i < _force_excluded.size(); i++)
+        	_slice_weight[_force_excluded[i]] = 0;
+
     }
     
     //-------------------------------------------------------------------
@@ -2659,8 +3434,15 @@ namespace mirtk {
                     int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                     for (int k = 0; k < n; k++) {
                         p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                        addon(p.x, p.y, p.z) += p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                        confidence_map(p.x, p.y, p.z) += p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                       
+                        if (reconstructor->_robust_slices_only) {
+                            addon(p.x, p.y, p.z) += p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                            confidence_map(p.x, p.y, p.z) += p.value * reconstructor->_slice_weight[inputIndex];
+                        }
+                        else {
+                            addon(p.x, p.y, p.z) += p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                            confidence_map(p.x, p.y, p.z) += p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                        }
                     }
                 }
             } //end of loop for a slice inputIndex
@@ -3120,9 +3902,9 @@ namespace mirtk {
                 *pi /= *pr;
                 //clamp intensities to allowed range
                 if (*pi < _min_intensity * 0.9)
-                *pi = _min_intensity * 0.9;
+                	*pi = _min_intensity * 0.9;
                 if (*pi > _max_intensity * 1.1)
-                *pi = _max_intensity * 1.1;
+                	*pi = _max_intensity * 1.1;
             }
             else {
                 *pr = 0;
@@ -3282,6 +4064,12 @@ namespace mirtk {
         gb.Output(&m);
         gb.Run();
         bias/=m;
+
+	if (_debug) {
+        	char buffer[256];
+        	sprintf(buffer,"averagebias%i.nii.gz",iter);
+        	bias.Write(buffer);
+    	}
         
         RealPixel *pi, *pb;
         pi = _reconstructed.GetPointerToVoxels();
@@ -3378,6 +4166,34 @@ namespace mirtk {
         }
     }
 
+   //-------------------------------------------------------------------
+
+void Reconstruction::SaveSlicesWithTiming()
+{
+    char buffer[256];
+    cout<<"Saving slices with timing: ";
+    for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+        {
+            sprintf(buffer, "sliceTime%i.nii.gz", _slice_timing[inputIndex]);
+            _slices[inputIndex].Write(buffer);
+        }
+}
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::SaveSimulatedSlices()
+{
+    cout<<"Saving simulated slices ...";
+    char buffer[256];
+    for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+        {
+            sprintf(buffer, "simslice%i.nii.gz", inputIndex);
+            _simulated_slices[inputIndex].Write(buffer);
+        }
+        cout<<"done."<<endl;
+}
+
+
     //-------------------------------------------------------------------
     
     void Reconstruction::SaveWeights()
@@ -3388,6 +4204,58 @@ namespace mirtk {
             _weights[inputIndex].Write(buffer);
         }
     }
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::SaveRegistrationStep(Array<RealImage>& stacks,int step) {
+
+	char buffer[256];
+	ImageAttributes attr = stacks[0].GetImageAttributes();
+	int stack;
+	int slice;
+	int threshold = attr._z;
+	int counter = 0;
+	for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+		if (inputIndex >= threshold) {
+			counter++;
+			attr = stacks[counter].GetImageAttributes();
+			threshold += attr._z;
+		}				
+		stack = counter;
+		slice = inputIndex - (threshold-attr._z);
+		sprintf(buffer, "step%04i_travol%04islice%04i.dof", step, stack, slice);
+		_transformations[inputIndex].Write(buffer);
+	}
+}
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::SaveTransformationsWithTiming()
+{
+    char buffer[256];
+    cout<<"Saving transformations with timing: ";
+    for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+       cout<<inputIndex<<" ";
+        sprintf(buffer, "transformationTime%i.dof", _slice_timing[inputIndex]);
+        _transformations[inputIndex].Write(buffer);
+    }
+    cout<<" done."<<endl;
+}
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::SaveTransformationsWithTiming(int iter)
+{
+    char buffer[256];
+    cout<<"Saving transformations with timing: ";
+    for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+       cout<<inputIndex<<" ";
+        sprintf(buffer, "transformationTime%i-%i.dof", iter,_slice_timing[inputIndex]);
+        _transformations[inputIndex].Write(buffer);
+    }
+    cout<<" done."<<endl;
+}
+
     
     //-------------------------------------------------------------------
     
@@ -3479,6 +4347,833 @@ namespace mirtk {
         
         info.close();
     }
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::GetSliceAcquisitionOrder(Array<RealImage>& stacks, Array<int> &pack_num, Array<int> order, int step, int rewinder)
+{
+	ImageAttributes attr;
+	int slicesPerPackage;
+	int slice_pos_counter, counter, temp, p, stepFactor, rewinderFactor;
+	Array<int> fakeAscending;
+	Array<int> realInterleaved;
+
+	for (int dyn = 0; dyn < stacks.size(); dyn++) {
+
+		attr = stacks[dyn].GetImageAttributes();
+		slicesPerPackage = (attr._z/pack_num[dyn]);
+		int z_slice_order[attr._z];
+		int t_slice_order[attr._z];
+
+		// ascending
+		if (order[dyn] == 1) {
+
+			counter = 0;
+			slice_pos_counter = 0;
+			p = 0;
+
+			while(counter < attr._z)	{
+
+				z_slice_order[counter] = slice_pos_counter;
+				t_slice_order[slice_pos_counter] = counter;
+				counter++;
+				slice_pos_counter = slice_pos_counter + pack_num[dyn];
+
+				// start new package
+				if (slice_pos_counter >= attr._z) {
+					p++;
+					slice_pos_counter = p;
+				}
+			}
+
+			// copying
+			for(temp = 0; temp < attr._z; temp++) 	{
+				_z_slice_order.push_back(z_slice_order[temp]);
+				_t_slice_order.push_back(t_slice_order[temp]);
+			}
+		}
+
+		// descending
+		else if (order[dyn] == 2) {
+
+			counter = 0;
+			slice_pos_counter = attr._z - 1;
+			int p = 0; // package counter
+
+			while(counter < attr._z)	{
+
+				z_slice_order[counter] = slice_pos_counter;
+				t_slice_order[slice_pos_counter] = counter;
+				counter++;
+				slice_pos_counter = slice_pos_counter - pack_num[dyn];
+
+				// start new package
+				if (slice_pos_counter < 0) {
+					p++;
+					slice_pos_counter = attr._z - 1 - p;
+				}
+			}
+
+			// copying
+			for(temp = 0; temp < attr._z; temp++) 	{
+				_z_slice_order.push_back(z_slice_order[temp]);
+				_t_slice_order.push_back(t_slice_order[temp]);
+			}
+		}
+
+		// default
+		else if (order[dyn] == 3) {
+
+			int index, restart;
+			rewinderFactor = 1;
+			stepFactor = 2;
+
+			// pretending to do ascending within each package, and then shuffling according to default acquisition
+			for(int p = 0; p < pack_num[dyn]; p++)
+				{
+					// middle part of the stack
+					for(int s = 0; s < slicesPerPackage; s++)
+					{
+						slice_pos_counter = s*pack_num[dyn] + p;
+						fakeAscending.push_back(slice_pos_counter);
+					}
+
+					// last slices for larger packages
+					if(attr._z > slicesPerPackage*pack_num[dyn]) {
+						slice_pos_counter = slicesPerPackage*pack_num[dyn] + p;
+						if (slice_pos_counter < attr._z) {
+							fakeAscending.push_back(slice_pos_counter);
+						}
+					}
+
+					// shuffling
+					index = 0;
+					restart = 0;
+					for(int i = 0; i < fakeAscending.size(); i++) 	{
+						if (index >= fakeAscending.size()) {
+							restart = restart + rewinderFactor;
+							index = restart;
+						}
+						realInterleaved.push_back(fakeAscending[index]);
+						index = index + stepFactor;
+					}
+					// clear fake ascending and start over
+					fakeAscending.clear();
+				}
+
+			// saving
+			for(temp = 0; temp < attr._z; temp++) 	{
+				z_slice_order[temp] = realInterleaved[temp];
+				t_slice_order[realInterleaved[temp]] = temp;
+			}
+
+			// copying
+			for(temp = 0; temp < attr._z; temp++) 	{
+				_z_slice_order.push_back(z_slice_order[temp]);
+				_t_slice_order.push_back(t_slice_order[temp]);
+			}
+			realInterleaved.clear();
+		}
+
+		// interleaved
+		else {
+
+			int index, restart;
+			counter = 0;
+
+			if (order[dyn] == 4)
+			{
+				rewinderFactor = 1;
+			}
+			else
+			{
+				stepFactor = step;
+				rewinderFactor = rewinder;
+			}
+
+			// pretending to do ascending within each package, and then shuffling according to interleaved acquisition
+			for(int p = 0; p < pack_num[dyn]; p++)
+				{
+					if (order[dyn] == 4)
+					{
+						// getting step size, from PPE
+						if((attr._z - counter) > slicesPerPackage*pack_num[dyn])		{
+							stepFactor = round(sqrt(double(slicesPerPackage + 1)));
+							counter++;
+						}
+						else
+							stepFactor = round(sqrt(double(slicesPerPackage)));
+					}
+
+					// middle part of the stack
+					for(int s = 0; s < slicesPerPackage; s++)
+					{
+						slice_pos_counter = s*pack_num[dyn] + p;
+						fakeAscending.push_back(slice_pos_counter);
+					}
+
+					// last slices for larger packages
+					if(attr._z > slicesPerPackage*pack_num[dyn]) {
+						slice_pos_counter = slicesPerPackage*pack_num[dyn] + p;
+						if (slice_pos_counter < attr._z) {
+							fakeAscending.push_back(slice_pos_counter);
+						}
+					}
+
+					// shuffling
+					index = 0;
+					restart = 0;
+					for(int i = 0; i < fakeAscending.size(); i++) 	{
+						if (index >= fakeAscending.size()) {
+							restart = restart + rewinderFactor;
+							index = restart;
+						}
+						realInterleaved.push_back(fakeAscending[index]);
+						index = index + stepFactor;
+					}
+					// clear fake ascending and start over
+					fakeAscending.clear();
+				}
+
+			// saving
+			for(temp = 0; temp < attr._z; temp++) 	{
+				z_slice_order[temp] = realInterleaved[temp];
+				t_slice_order[realInterleaved[temp]] = temp;
+			}
+
+			// copying
+			for(temp = 0; temp < attr._z; temp++) 	{
+				_z_slice_order.push_back(z_slice_order[temp]);
+				_t_slice_order.push_back(t_slice_order[temp]);
+			}
+			realInterleaved.clear();
+		}
+	}
+}
+
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::flexibleSplitImage(Array<RealImage>& stacks, Array<RealImage>& sliceStacks, Array<int> &pack_num, Array<int> sliceNums, Array<int> order, int step, int rewinder)
+{
+	RealImage image;
+	ImageAttributes attr;
+	int internalIterations, sliceNum;
+
+	// location acquisition order
+	Array<int> z_internal_slice_order;
+
+	// calculate slice order
+    char buffer[256];
+	
+	GetSliceAcquisitionOrder(stacks,pack_num,order,step,rewinder);
+	
+	// counters
+	int counter1 = 0;
+	int counter2 = 0;
+	int counter3 = 0;
+
+	int startIterations = 0;
+	int endIterations = 0;
+	int sum = 0;
+	
+	// dynamic loop
+	for (int dyn = 0; dyn < stacks.size(); dyn++) {
+
+		image = stacks[dyn];
+		attr   = image.GetImageAttributes();
+		
+		// slice loop
+		for (int sl = 0; sl < attr._z; sl++) {
+			z_internal_slice_order.push_back(_z_slice_order[counter1 + sl]);
+		}
+		
+		// fake packages
+		while (sum < attr._z)	{
+			sum = sum + sliceNums[counter2];
+			counter2++;
+		}
+		endIterations = counter2;
+		
+		// fake package loop
+		for (int iter = startIterations; iter < endIterations; iter++) {
+			internalIterations = sliceNums[iter];
+			RealImage stack(attr);
+			// copying
+			for(int sl = counter3; sl < internalIterations + counter3; sl++) 	{
+				for(int j=0; j<stack.GetY();j++)
+					for(int i=0; i<stack.GetX();i++)
+					{
+						stack.Put(i,j,z_internal_slice_order[sl],image(i,j,z_internal_slice_order[sl]));
+					}
+			}
+			// pushing package
+			sliceStacks.push_back(stack);
+			counter3 = counter3 + internalIterations;
+
+			
+			for  (int i = 0; i < sliceStacks.size(); i++){
+
+			    //sprintf( buffer, "sliceStacks%i.nii", i );
+			    //sliceStacks[i].Write( buffer );			
+			}
+		}
+		
+		// updating varialbles for next dynamic
+		z_internal_slice_order.clear();
+		counter1 = counter1 + attr._z;
+		counter3 = 0;
+		sum = 0;
+		startIterations = endIterations;
+	}
+}
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::flexibleSplitImagewithMB(Array<RealImage>& stacks, Array<RealImage>& sliceStacks, Array<int> &pack_num, Array<int> sliceNums, Array<int> multiband_vector, Array<int> order, int step, int rewinder)
+{
+	// initializing variables
+	RealImage chunck;
+	Array<RealImage> chuncks, chuncks_separated, chuncks_separated_reordered, chunksAll;
+	Array<int> pack_num_chucks;
+	RealImage image;
+	RealImage multibanded, toAdd;
+	ImageAttributes attr;
+	int sliceMB;
+	int stepFactor, startFactor, endFactor;
+	int counter1, counter2, counter3, counter4, counter5;
+	int multiband;
+
+	int sum = 0;
+    Array<int> sliceNumsChunks;
+
+    startFactor = 0;
+    endFactor = 0;
+    // dynamic loop
+	for (int dyn = 0; dyn < stacks.size(); dyn++) {
+
+		image  = stacks[dyn];
+		attr   = image.GetImageAttributes();
+		RealImage multibanded(attr);
+		multiband = multiband_vector[dyn];
+		sliceMB = attr._z/multiband;
+
+		for (int m = 0; m < multiband; m++) {
+			chunck  = image.GetRegion(0,0,m*sliceMB,attr._x,attr._y,(m+1)*sliceMB);
+			chuncks.push_back(chunck);
+			pack_num_chucks.push_back(pack_num[dyn]);
+		}
+
+		while (sum < sliceMB)	{
+			sum = sum + sliceNums[endFactor];
+			endFactor++;
+		}
+
+		for (int m = 0; m < multiband; m++) {
+			for (int iter = startFactor; iter < endFactor; iter++)	{
+				sliceNumsChunks.push_back(sliceNums[iter]);
+			}
+		}
+		startFactor = endFactor;
+		sum = 0;
+	}
+
+	// splitting each multiband subgroup
+	flexibleSplitImage(chuncks, chunksAll, pack_num_chucks, sliceNumsChunks, order, step, rewinder);
+
+	counter4 = 0;
+	counter5 = 0;
+	stepFactor = 0;
+	// new dynamic loop
+	for (int dyn = 0; dyn < stacks.size(); dyn++) {
+
+		image  = stacks[dyn];
+		attr   = image.GetImageAttributes();
+		RealImage multibanded(attr);
+		multiband = multiband_vector[dyn];
+		sliceMB = attr._z/multiband;
+
+		// stepping factor in vector
+		while (sum < sliceMB)	{
+			sum = sum + sliceNums[counter5 + stepFactor];
+			stepFactor++;
+		}
+
+		// getting data from this dynamic
+		for (int iter = 0; iter < multiband*stepFactor; iter++) {
+			chuncks_separated.push_back(chunksAll[iter+counter4]);
+		}
+		counter4 = counter4 + multiband*stepFactor;
+
+		// reordering chuncks_separated
+		counter1 = 0;
+		counter2 = 0;
+		counter3 = 0;
+		while (counter1 < chuncks_separated.size()) {
+
+			chuncks_separated_reordered.push_back(chuncks_separated[counter2]);
+
+			counter2 = counter2 + stepFactor;
+			if (counter2 > (chuncks_separated.size() - 1))	{
+				counter3++;
+				counter2 = counter3;
+			}
+			counter1++;
+		}
+
+		// riassembling multiband packs
+		counter1 = 0;
+		counter2 = 0;
+		while (counter1 < chuncks_separated_reordered.size())	 {
+			for (int m = 0; m < multiband; m++)	{
+				toAdd = chuncks_separated_reordered[counter1];
+				for (int k = 0; k < toAdd.GetZ(); k++)	{
+
+					for(int j=0; j<toAdd.GetY();j++)
+						for(int i=0; i<toAdd.GetX();i++)
+							multibanded.Put(i,j,counter2,toAdd(i,j,k));
+
+					counter2++;
+
+				}
+				counter1++;
+			}
+			sliceStacks.push_back(multibanded);
+			// clean multibanded for next iteration
+			for(int k=0; k<multibanded.GetZ();k++)
+				for(int j=0; j<multibanded.GetY();j++)
+					for(int i=0; i<multibanded.GetX();i++)
+						multibanded.Put(i,j,k,0);
+			counter2 = 0;
+		}
+		chuncks_separated.clear();
+		chuncks_separated_reordered.clear();
+		sum = 0;
+		counter5 = counter5 + stepFactor;
+		stepFactor = 0;
+	}
+}
+
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::splitPackages(Array<RealImage>& stacks, Array<int> &pack_num, Array<RealImage>& packageStacks, Array<int> order, int step, int rewinder)
+{
+	RealImage image;
+	ImageAttributes attr;
+	int pkg_z, internalIterations;
+
+	// location acquisition order
+	Array<int> z_internal_slice_order;
+
+	// counters
+	int counter1 = 0;
+	int counter2 = 0;
+	int counter3 = 0;
+
+	// calculate slice order
+	GetSliceAcquisitionOrder(stacks,pack_num,order,step,rewinder);
+
+	// dynamic loop
+	for (int dyn = 0; dyn < stacks.size(); dyn++) {
+
+		// current stack
+		image  = stacks[dyn];
+		attr   = image.GetImageAttributes();
+		pkg_z  = attr._z/pack_num[dyn];
+
+		// slice loop
+		for (int sl = 0; sl < attr._z; sl++) {
+			z_internal_slice_order.push_back(_z_slice_order[counter1 + sl]);
+		}
+
+		// package loop
+		for(int p = 0; p < pack_num[dyn]; p++)
+		{
+			// slice excess for each package
+			if((attr._z - counter2) > pkg_z*pack_num[dyn]) {
+				internalIterations = pkg_z + 1;
+				counter2++;
+			}
+			else{
+				internalIterations = pkg_z;
+			}
+
+			// copying
+			RealImage stack(attr);
+			for(int sl = counter3; sl < internalIterations + counter3; sl++) {
+				for(int j=0; j<stack.GetY();j++)
+					for(int i=0; i<stack.GetX();i++)
+					{
+						stack.Put(i,j,z_internal_slice_order[sl],image(i,j, z_internal_slice_order[sl]));
+					}
+
+			}
+			// pushing package
+			packageStacks.push_back(stack);
+			// updating varialbles for next package
+			counter3 = counter3 + internalIterations;
+		}
+		// updating varialbles for next dynamic
+		z_internal_slice_order.clear();
+		counter1 = counter1 + attr._z;
+		counter2 = 0;
+		counter3 = 0;
+	}
+}
+
+
+    //-------------------------------------------------------------------
+
+void Reconstruction::splitPackageswithMB(Array<RealImage>& stacks, Array<int> &pack_num, Array<RealImage>& packageStacks, Array<int> multiband_vector, Array<int> order, int step, int rewinder)
+{
+	// initializing variables
+	RealImage chunck;
+	Array<RealImage> chuncks, chuncks_separated, chuncks_separated_reordered, chunksAll;
+	Array<int> pack_numAll;
+	RealImage image;
+	RealImage multibanded, toAdd;
+	ImageAttributes attr;
+	int sliceMB;
+	int stepFactor;
+	int counter1, counter2, counter3, counter4;
+	int multiband;
+	
+	// dynamic loop
+	for (int dyn = 0; dyn < stacks.size(); dyn++) {
+
+		image  = stacks[dyn];
+		attr   = image.GetImageAttributes();
+		RealImage multibanded(attr);
+		multiband = multiband_vector[dyn];
+		sliceMB = attr._z/multiband;
+
+		for (int m = 0; m < multiband; m++) {
+			chunck  = image.GetRegion(0,0,m*sliceMB,attr._x,attr._y,(m+1)*sliceMB);
+			chuncks.push_back(chunck);
+			pack_numAll.push_back(pack_num[dyn]);
+		}
+	}
+
+	// split package
+	splitPackages(chuncks, pack_numAll, chunksAll, order, step, rewinder);
+
+	counter4 = 0;
+	// new dynamic loop
+	for (int dyn = 0; dyn < stacks.size(); dyn++) {
+
+		image  = stacks[dyn];
+		attr   = image.GetImageAttributes();
+		RealImage multibanded(attr);
+		multiband = multiband_vector[dyn];
+		sliceMB = attr._z/multiband;
+
+		// getting data from this dynamic
+		stepFactor = pack_num[dyn];
+		for (int iter = 0; iter < multiband*stepFactor; iter++) {
+			chuncks_separated.push_back(chunksAll[iter+counter4]);
+		}
+		counter4 = counter4 + multiband*stepFactor;
+
+		// reordering chuncks_separated
+		counter1 = 0;
+		counter2 = 0;
+		counter3 = 0;
+		while (counter1 < chuncks_separated.size()) {
+
+			chuncks_separated_reordered.push_back(chuncks_separated[counter2]);
+
+			counter2 = counter2 + stepFactor;
+			if (counter2 > (chuncks_separated.size() - 1))	{
+				counter3++;
+				counter2 = counter3;
+			}
+			counter1++;
+		}
+
+		// riassembling multiband slices
+		counter1 = 0;
+		counter2 = 0;
+		while (counter1 < chuncks_separated_reordered.size())	 {
+			for (int m = 0; m < multiband; m++)	{
+				toAdd = chuncks_separated_reordered[counter1];
+				for (int k = 0; k < toAdd.GetZ(); k++)	{
+
+					for(int j=0; j<toAdd.GetY();j++)
+						for(int i=0; i<toAdd.GetX();i++)
+							multibanded.Put(i,j,counter2,toAdd(i,j,k));
+
+					counter2++;
+				}
+				counter1++;
+			}
+			packageStacks.push_back(multibanded);
+			// clean multibanded
+			for(int k=0; k<multibanded.GetZ();k++)
+				for(int j=0; j<multibanded.GetY();j++)
+					for(int i=0; i<multibanded.GetX();i++)
+						multibanded.Put(i,j,k,0);
+			counter2 = 0;
+		}
+		chuncks_separated.clear();
+		chuncks_separated_reordered.clear();
+	}
+}
+
+    //-------------------------------------------------------------------
+
+
+    // 05/12
+
+void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pack_num, Array<int> multiband_vector, Array<int> order, int step, int rewinder, int iter, int steps)
+{
+	char buffer[256];
+	// copying transformations from previous iterations
+	if (_previous_transformations.size() > 0)
+		_previous_transformations.clear();
+	for (int i = 0; i < _transformations.size(); i++) 
+		_previous_transformations.push_back(_transformations[i]);
+	
+	// initializing variable
+    
+
+    GreyImage t,s;
+    RealImage target, firstPackage;
+    Array<RealImage> packages;
+    ImageAttributes attr;
+
+
+
+    GenericLinearInterpolateImageFunction<RealImage> interpolator;
+        
+
+    //irtkImageRigidRegistrationWithPadding rigidregistration;
+
+	ParameterList params;
+        Insert(params, "Transformation model", "Rigid");
+        Insert(params, "Image (dis-)similarity measure", "NMI");
+        Insert(params, "No. of bins", 128);
+	Insert(params, "Image interpolation mode", "Linear");
+	Insert(params, "Background value", 0);
+
+	GenericRegistrationFilter *rigidregistration = new GenericRegistrationFilter();
+        rigidregistration->Parameter(params);
+
+
+
+	Array<int> t_internal_slice_order;
+	Array<RigidTransformation> internal_transformations;
+    int multiband;
+    
+	Array<RealImage> sstacks;
+	Array<int> spack_num;
+	Array<int> smultiband_vector;
+	Array<int> sorder;
+
+    // other variables
+	int counter1;
+	int counter2 = 0;
+	int counter3 = 0;
+    int startIterations;
+    int endIterations;
+    int extra;
+    int iterations;
+    
+	int wrapper = stacks.size()/steps;
+	if ((stacks.size()%steps) > 0)
+		wrapper++;
+	
+	int doffset;
+	int count = 0;
+    
+	for (int w = 0; w < wrapper; w++)	 {
+
+		doffset = w*steps;	
+		// preparing input for this iterations
+		for (int s = 0; s < steps; s++)		{
+			if ((s+doffset) < stacks.size())
+			{
+				sstacks.push_back(stacks[s+doffset]);
+				spack_num.push_back(pack_num[s+doffset]);
+				smultiband_vector.push_back(multiband_vector[s+doffset]);
+				sorder.push_back(order[s+doffset]);
+			}
+		}
+		
+		splitPackageswithMB(sstacks, spack_num, packages, smultiband_vector, sorder, step, rewinder);
+		
+		// other variables
+		counter1 = 0;
+		startIterations = 0;
+		endIterations   = 0;
+		
+		for (int i = 0; i < sstacks.size(); i++) {
+	
+			 firstPackage = packages[counter1];
+			 multiband = smultiband_vector[i];
+			 extra = (firstPackage.GetZ()/multiband)%(spack_num[i]);
+	
+			 // slice loop
+			 for (int sl = 0; sl < firstPackage.GetZ(); sl++) {
+				t_internal_slice_order.push_back(_t_slice_order[counter3 + sl]);
+				internal_transformations.push_back(_transformations[counter2 + sl]);
+			 }
+			 
+			 // package look
+			 for (int j = 0; j < spack_num[i]; j++) {
+	
+				 // performing registration
+				 target = packages[counter1];
+				 t = target;
+				 s = _reconstructed;
+				 
+				 if (_debug) {
+					 sprintf(buffer,"target%i-%i-%i.nii.gz",iter,i+doffset,j);
+					 t.Write(buffer);
+					 sprintf(buffer,"source%i-%i-%i.nii.gz",iter,i+doffset,j);
+					 s.Write(buffer);
+				 }
+	
+	                        //check whether package is empty (all zeros)
+	                        RealPixel tmin,tmax;
+				 target.GetMinMax(&tmin,&tmax);
+				 
+				 if(tmax>0)
+				 {
+				   RigidTransformation offset;
+				   ResetOrigin(t,offset);
+				   Matrix mo = offset.GetMatrix();
+				   Matrix m = internal_transformations[j].GetMatrix();
+				   m=m*mo;
+				   internal_transformations[j].PutMatrix(m);
+
+
+				   rigidregistration->Input(&t, &s);
+                            	   Transformation *dofout = nullptr;
+	                           rigidregistration->Output(&dofout);
+
+				   RigidTransformation tmp_dofin = internal_transformations[j];
+
+				   rigidregistration->InitialGuess(&tmp_dofin);
+                            	   rigidregistration->GuessParameter();
+                                   rigidregistration->Run();
+
+				   RigidTransformation *rigid_dofout = dynamic_cast<RigidTransformation*> (dofout);
+
+				   internal_transformations[j] = *rigid_dofout;
+
+	
+				   //rigidregistration.SetInput(&t, &s);
+				   //rigidregistration.SetOutput(&internal_transformations[j]);
+				   //rigidregistration.GuessParameterPackageToVolume();
+				   //rigidregistration.SetTargetPadding(0);
+
+
+
+                   /*
+				   if (_debug) {
+					 rigidregistration.Write("par-packages.rreg");
+				   }
+                   */
+
+				   rigidregistration->Run();
+	
+				   mo.Invert();
+				   m = internal_transformations[j].GetMatrix();
+				   m=m*mo;
+				   internal_transformations[j].PutMatrix(m);
+				 }
+				 
+				 if (_debug) {
+					 sprintf(buffer,"transformation%i-%i-%i.dof",iter,i+doffset,j);
+					 internal_transformations[j].Write(buffer); 
+				 }
+	
+				 // saving transformations
+				 iterations = (firstPackage.GetZ()/multiband)/(spack_num[i]);
+				 if (extra > 0) {
+					 iterations++;
+					 extra--;
+				 }
+				 endIterations = endIterations + iterations;
+	
+				 for (int k = startIterations; k < endIterations; k++)	 {
+					 for (int l = 0; l < t_internal_slice_order.size(); l++) {
+						 if (k == t_internal_slice_order[l]) {
+							 _transformations[counter2+l].PutTranslationX(internal_transformations[j].GetTranslationX());
+							 _transformations[counter2+l].PutTranslationY(internal_transformations[j].GetTranslationY());
+							 _transformations[counter2+l].PutTranslationZ(internal_transformations[j].GetTranslationZ());
+							 _transformations[counter2+l].PutRotationX(internal_transformations[j].GetRotationX());
+							 _transformations[counter2+l].PutRotationY(internal_transformations[j].GetRotationY());
+							 _transformations[counter2+l].PutRotationZ(internal_transformations[j].GetRotationZ());
+							 _transformations[counter2+l].UpdateMatrix();
+						 }
+					 }
+				 }
+				 startIterations = endIterations;
+				 counter1++;
+			 }
+			 // resetting variables for next dynamic
+			 startIterations = 0;
+			 endIterations = 0;
+			 t_internal_slice_order.clear();
+			 internal_transformations.clear();
+			 counter2 = counter2 + firstPackage.GetZ();
+			 counter3 = counter3 + firstPackage.GetZ();
+		}
+		
+		
+		//save overal slice order
+		ImageAttributes attr = stacks[0].GetImageAttributes();
+                int dyn, num;
+ 	        int slices_per_dyn = attr._z/multiband_vector[0];
+
+		//slice order should repeat for each dynamic - only take first dynamic
+		_slice_timing.clear();
+		for (dyn=0;dyn<stacks.size();dyn++)
+		  for(int i = 0; i < attr._z; i++)
+                  {
+		     _slice_timing.push_back( dyn*slices_per_dyn + _t_slice_order[i]);
+		      //cout<<"index = "<<i<<endl;
+		      //cout<<"attrz = "<<attr._z<<endl;
+		      //cout<<"dyn = "<<dyn<<endl;
+		      //cout<<"slices_per_dyn = "<<slices_per_dyn<<endl;
+		      //cout<<"t = "<<_t_slice_order[i]<<endl;
+		      cout<<"slice timing = "<<_slice_timing[i]<<endl;
+		    }
+
+		
+		
+	       for(int i = 0; i < _z_slice_order.size(); i++)
+		{
+		   cout<<"z("<<i<<")="<<_z_slice_order[i]<<endl;
+		}
+		
+	       for(int i = 0; i < _t_slice_order.size(); i++)
+		{
+		   cout<<"t("<<i<<")="<<_t_slice_order[i]<<endl;
+		}
+		
+		// save transformations and clear
+		_z_slice_order.clear();
+		_t_slice_order.clear();
+		
+		sstacks.clear();
+		spack_num.clear();
+		smultiband_vector.clear();
+		sorder.clear();	
+		packages.clear();	
+		counter3 = 0;
+	}
+}
+
+
+    //-------------------------------------------------------------------
+
+
+    //-------------------------------------------------------------------
+
+
     
     //-------------------------------------------------------------------
     
@@ -3862,6 +5557,144 @@ namespace mirtk {
         image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
     }
     
+    //-------------------------------------------------------------------
+
+    // GF 190416, useful for handling different slice orders
+    void Reconstruction::CropImageIgnoreZ(RealImage& image, RealImage& mask)
+
+    {
+        //Crops the image according to the mask
+        int i, j, k;
+        //ROI boundaries
+        int x1, x2, y1, y2, z1, z2;
+
+        // Filling slices out of mask with zeors
+        int sum = 0;
+        for (k = image.GetZ() - 1; k >= 0; k--) {
+            sum = 0;
+            for (j = image.GetY() - 1; j >= 0; j--)
+                for (i = image.GetX() - 1; i >= 0; i--)
+                    if (mask.Get(i, j, k) > 0)
+                        sum++;
+            if (sum > 0) {
+                k = k+1;
+                break;
+            }
+        }
+        z2 = k;
+
+        //lower boundary for z coordinate
+        sum = 0;
+        for (k = 0; k <= image.GetZ() - 1; k++) {
+            sum = 0;
+            for (j = image.GetY() - 1; j >= 0; j--)
+                for (i = image.GetX() - 1; i >= 0; i--)
+                    if (mask.Get(i, j, k) > 0)
+                        sum++;
+            if (sum > 0)
+                break;
+        }
+        z1 = k;
+
+        // Filling upper part
+        for (k = z2; k < image.GetZ(); k++)	{
+            for (j = 0; j < image.GetY(); j++)	{
+                for (i = 0; i < image.GetX(); i++)	{
+                    image.Put(i,j,k,0);
+                }
+            }
+        }
+
+        // Filling lower part
+        for (k = 0; k < z1; k++)	{
+            for (j = 0; j < image.GetY(); j++)	{
+                for (i = 0; i < image.GetX(); i++)	{
+                    image.Put(i,j,k,0);
+                }
+            }
+        }
+
+        //Original ROI
+        x1 = 0;
+        y1 = 0;
+        z1 = 0;
+        x2 = image.GetX();
+        y2 = image.GetY();
+        z2 = image.GetZ();
+
+        z2 = z2-1;
+
+        //upper boundary for y coordinate
+        sum = 0;
+        for (j = image.GetY() - 1; j >= 0; j--) {
+            sum = 0;
+            for (k = image.GetZ() - 1; k >= 0; k--)
+                for (i = image.GetX() - 1; i >= 0; i--)
+                    if (mask.Get(i, j, k) > 0)
+                        sum++;
+            if (sum > 0)
+                break;
+        }
+        y2 = j;
+
+        //lower boundary for y coordinate
+        sum = 0;
+        for (j = 0; j <= image.GetY() - 1; j++) {
+            sum = 0;
+            for (k = image.GetZ() - 1; k >= 0; k--)
+                for (i = image.GetX() - 1; i >= 0; i--)
+                    if (mask.Get(i, j, k) > 0)
+                        sum++;
+            if (sum > 0)
+                break;
+        }
+        y1 = j;
+
+        //upper boundary for x coordinate
+        sum = 0;
+        for (i = image.GetX() - 1; i >= 0; i--) {
+            sum = 0;
+            for (k = image.GetZ() - 1; k >= 0; k--)
+                for (j = image.GetY() - 1; j >= 0; j--)
+                    if (mask.Get(i, j, k) > 0)
+                        sum++;
+            if (sum > 0)
+                break;
+        }
+        x2 = i;
+
+        //lower boundary for x coordinate
+        sum = 0;
+        for (i = 0; i <= image.GetX() - 1; i++) {
+            sum = 0;
+            for (k = image.GetZ() - 1; k >= 0; k--)
+                for (j = image.GetY() - 1; j >= 0; j--)
+                    if (mask.Get(i, j, k) > 0)
+                        sum++;
+            if (sum > 0)
+                break;
+        }
+
+        x1 = i;
+
+        if (_debug)
+            cout << "Region of interest is " << x1 << " " << y1 << " " << z1 << " " << x2 << " " << y2
+                << " " << z2 << endl;
+
+        // if no intersection with mask, force exclude
+        if ((x2 < x1) || (y2 < y1) || (z2 < z1) ) {
+            x1 = 0;
+            y1 = 0;
+            z1 = 0;
+            x2 = 0;
+            y2 = 0;
+            z2 = 0;
+        }
+
+        //Cut region of interest
+        image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
+    }
+	
     //-------------------------------------------------------------------
     
     void Reconstruction::InvertStackTransformations( Array<RigidTransformation>& stack_transformations )

@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <queue>
 
-using namespace std;
+using namespace std; 
 
 namespace mirtk {
 

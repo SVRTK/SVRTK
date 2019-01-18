@@ -19,7 +19,6 @@ Run
 Example: 
 
 mkdir recon 
-
 cd recon 
 
  reconstruct   ../outputSVR.nii.gz  4 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz  -mask ../mask.nii.gz  -template_number 2  -thickness 2 2 2 2  -resolution 0.75 -iterations 3 

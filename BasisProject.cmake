@@ -1,5 +1,5 @@
 # ==============================================================================
-# SVR : SVRTK reconstruction based on MIRTK
+# SVR : SVRTK reconstruction based on MIRTK 
 #
 # Copyright 2013-2017 Imperial College London
 # Copyright 2013-2017 Andreas Schuh

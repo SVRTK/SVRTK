@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#ifndef MIRTK_Reconstruction_H
+#ifndef MIRTK_Reconstruction_H 
 #define MIRTK_Reconstruction_H
 
 #include "mirtk/Common.h"

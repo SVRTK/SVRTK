@@ -19,7 +19,7 @@
 
 ##############################################################################
 # @file  CMakeLists.txt 
-# @brief Build configuration of MIRTK ZSVR tools.
+# @brief Build configuration of MIRTK SVRTK tools.
 ##############################################################################
 
 mirtk_add_executable(
@@ -33,7 +33,7 @@ mirtk_add_executable(
     LibIO
     LibRegistration
     LibTransformation
-    LibZSVR
+    LibSVRTK
     ${TBB}
 )
 

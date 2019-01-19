@@ -1956,7 +1956,7 @@ public:
             // resample to spatial resolution of reconstructed volume
             resampling.Input(&reconstructor->_slices[inputIndex]);
             resampling.Output(&t);
- 	    resamplin.Interpolator(&interpolator);
+ 	    resampling.Interpolator(&interpolator);
             resampling.Run();
             target=t;
             // get pixel value min and max

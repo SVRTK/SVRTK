@@ -791,15 +791,8 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
                 //do not perform registration for template
                 if (i == templateNumber)
                     continue;
-                
-                //rigid registration object
-                //RigidRegistrationWithPadding registration;
-
-                //set target and source (need to be converted to irtkGreyImage)
 
                 RealImage r_source = stacks[i];
-                //RealImage r_target = target; //stacks[templateNumber];
-
                 
                 //include offset in transformation
                 Matrix mo = offset.GetMatrix();
@@ -807,20 +800,12 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
                 m=m*mo;
                 stack_transformations[i].PutMatrix(m);
                 
-                /*
-                //perform rigid registration
-                registration.SetInput(&target, &source);
-                registration.SetOutput(&stack_transformations[i]);
-                registration.GuessParameterThickSlices();
-                registration.SetTargetPadding(0);
-                registration.Run();
-                */
 
                 ParameterList params;
                 Insert(params, "Transformation model", "Rigid");
                 Insert(params, "Image (dis-)similarity measure", "NMI");
                 Insert(params, "No. of bins", 64);
-                Insert(params, "Image interpolation mode", "Linear");
+//                 Insert(params, "Image interpolation mode", "Linear");
                 Insert(params, "Background value", 0);
           
 
@@ -829,29 +814,22 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
                 registration.Input(&target, &r_source);
                 
 
-                GenericRegistrationFilter rigidregistration_ncc;
-                ParameterList params_ncc;
-                Insert(params_ncc, "Transformation model", "Rigid");
-                Insert(params_ncc, "Background value", 0);
-                Insert(params_ncc, "Image (dis-)similarity measure", "NCC");
-                Insert(params_ncc, "Image interpolation mode", "Linear");
-                string type = "box";
-                string units = "vox";
-                double width = 0;
-                Insert(params_ncc, string("Local window size [") + type + string("]"), ToString(width) + units);
+//                 GenericRegistrationFilter rigidregistration_ncc;
+//                 ParameterList params_ncc;
+//                 Insert(params_ncc, "Transformation model", "Rigid");
+//                 Insert(params_ncc, "Background value", 0);
+//                 Insert(params_ncc, "Image (dis-)similarity measure", "NCC");
+//                 Insert(params_ncc, "Image interpolation mode", "Linear");
+//                 string type = "box";
+//                 string units = "vox";
+//                 double width = 0;
+//                 Insert(params_ncc, string("Local window size [") + type + string("]"), ToString(width) + units);
                 
-                rigidregistration_ncc.Parameter(params_ncc);
-                rigidregistration_ncc.Input(&target, &r_source);
+//                 rigidregistration_ncc.Parameter(params_ncc);
+//                 rigidregistration_ncc.Input(&target, &r_source);
                 
-
-//                sprintf(buffer, "ut-%i.nii.gz", i);
-//                r_target.Write(buffer);
-//                sprintf(buffer, "us-%i.nii.gz", i);
-//                r_source.Write(buffer);
-//                sprintf(buffer, "uo-%i.dof", i);
-//                offset.Write(buffer);
                 
-                RigidTransformation dofin = offset;
+                RigidTransformation dofin = stack_transformations[i];
 //                dofin.Invert();
                 
                 
@@ -865,20 +843,6 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
                 stack_transformations[i] = *rigidTransf;
                 
 
-                dofout = nullptr;
-                rigidregistration_ncc.Output(&dofout);
-                rigidregistration_ncc.InitialGuess(&stack_transformations[i]);
-                rigidregistration_ncc.GuessParameter();
-                rigidregistration_ncc.Run();
-                
-                RigidTransformation *rigidTransf_ncc = dynamic_cast<RigidTransformation*> (dofout);
-                stack_transformations[i] = *rigidTransf_ncc;
-      
-//                sprintf(buffer, "ud-%i.dof", i);
-//                stack_transformations[i].Write(buffer);
-//                stack_transformations[i].Invert();
-                
-            
                 mo.Invert();
                 m = stack_transformations[i].GetMatrix();
                 m=m*mo;
@@ -932,7 +896,7 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
         }
         
         RigidTransformation offset;
-        //ResetOrigin(target, offset);
+        ResetOrigin(target, offset);
         
         //register all stacks to the target
         ParallelStackRegistrations registration( this,

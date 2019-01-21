@@ -1,4 +1,4 @@
-MIRTK SVRTK Package
+MIRTK SVR Package
 ====================
 
 

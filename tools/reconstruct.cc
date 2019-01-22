@@ -123,6 +123,8 @@ int main(int argc, char **argv)
     /// number of packages for each stack
     Array<int> packages;
     
+    // Numbers of NMI bins for registration
+    int nmi_bins = 16;
     
     // Default values.
     int templateNumber=0;
@@ -313,6 +315,16 @@ int main(int argc, char **argv)
             argv++;
         }
         
+        //Bins for NMI registration
+        if ((ok == false) && (strcmp(argv[1], "-nmi_bins") == 0)){
+            argc--;
+            argv++;
+            nmi_bins=atoi(argv[1]);
+            ok = true;
+            argc--;
+            argv++;
+        }
+        
         //Read transformations from this folder
         if ((ok == false) && (strcmp(argv[1], "-transformations") == 0)){
             argc--;
@@ -440,6 +452,9 @@ int main(int argc, char **argv)
     //Set debug mode
     if (debug) reconstruction.DebugOn();
     else reconstruction.DebugOff();
+    
+    //Set NMI bins for registration
+    reconstruction.SetNMIBins(nmi_bins);
     
     //Set force excluded slices
     reconstruction.SetForceExcludedSlices(force_excluded);
@@ -663,7 +678,7 @@ int main(int argc, char **argv)
         cout<<"Iteration : "<<iter<<endl;
         
         //perform slice-to-volume registrations - skip the first iteration
-        if (iter>-1) {
+        if (iter>0) {
             if ( ! no_log ) {
                 cerr.rdbuf(file_e.rdbuf());
                 cout.rdbuf (file.rdbuf());

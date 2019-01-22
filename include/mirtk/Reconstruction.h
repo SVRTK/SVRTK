@@ -135,8 +135,11 @@ protected:
     double _step;
     /// Voxel posteriors
     Array<RealImage> _weights;
-    ///Slice posteriors
+    /// Slice posteriors
     Array<double> _slice_weight;
+    
+    /// NMI registration bins
+    int _nmi_bins;
     
     //Bias field
     ///Variance for bias field
@@ -242,7 +245,8 @@ public:
                   double threshold=0.5 );
     
     /// Set gestational age (to compute expected brain volume)
-    void SetGA(double ga);
+    void SetGA( double ga );
+    
     
     ///Center stacks
     void CenterStacks( Array<RealImage>& stacks,
@@ -446,6 +450,8 @@ public:
     inline int GetNumberOfTransformations();
     inline RigidTransformation GetTransformation(int n);
 
+    
+    inline void SetNMIBins( int nmi_bins );
 
 
     //utility
@@ -699,6 +705,11 @@ inline void Reconstruction::SetForceExcludedSlices(Array<int>& force_excluded)
     _force_excluded = force_excluded;  
 }
 
+inline void Reconstruction::SetNMIBins( int nmi_bins )
+{
+    _nmi_bins = nmi_bins;
+    
+}
 
 
 inline void Reconstruction::Set3DRecon()

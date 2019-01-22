@@ -2,7 +2,7 @@ MIRTK SVR Package
 ====================
 
 
-SVR reconstruction package for MIRTK, originally known as `reconstruction` as part of IRTK.
+SVR reconstruction package for MIRTK, originally known as `reconstruction` as part of IRTK : https://github.com/BioMedIA/IRTK .
 
 4D Cardiac reconstruction code was transferred from the original IRTK implementation : https://github.com/jfpva/irtk_cardiac4d .
 

@@ -62,10 +62,10 @@ typedef Array<Array<VOXELCOEFFS> > SLICECOEFFS;
 class Reconstruction 
 {
 
-protected: 
+//protected: // will be changed back to proctected with -fno-new-inheriting-ctors compilation option
+public: 
     
     // ---------------------------------------------------------------------------
-
 
     //Reconstruction type
     RECON_TYPE _recon_type;

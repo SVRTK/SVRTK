@@ -27,12 +27,14 @@ set(HEADERS
   ${BINARY_INCLUDE_DIR}/mirtk/SVRTKExport.h
   Reconstruction.h
   ReconstructionCardiac4D.h
+  ReconstructionCardiacVelocity4D.h
   MeanShift.h
 )
 
 set(SOURCES
   Reconstruction.cc
   ReconstructionCardiac4D.cc
+  ReconstructionCardiacVelocity4D.cc
   MeanShift.cc
 ) 
 
@@ -49,6 +51,4 @@ set(DEPENDS
 list(APPEND DEPENDS tbb)
 
 mirtk_add_library()
-
-
 

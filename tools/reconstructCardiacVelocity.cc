@@ -42,7 +42,7 @@
 using namespace mirtk;
 using namespace std;
 
-//Application to perform reconstruction of volumetric cardiac cine phase / velocity MRI from thick-slice dynamic 2D MRI
+//Application to perform reconstruction of volumetric cardiac cine velocity MRI from thick-slice dynamic 2D MRI
 
 // =============================================================================
 // Auxiliary functions

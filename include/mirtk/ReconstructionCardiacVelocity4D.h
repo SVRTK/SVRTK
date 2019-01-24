@@ -47,8 +47,6 @@ public:
   Array<RealImage> _reconstructed5DVelocity;
   Array<RealImage> _confidence_maps_velocity;
 
-  
-
   // do we need it ?
   double _VENC; 
 
@@ -76,9 +74,6 @@ public:
     friend class ParallelSuperresolutionCardiacVelocity4D;
     friend class ParallelAdaptiveRegularization1Cardiac4D;
     friend class ParallelAdaptiveRegularization2Cardiac4D;
-
-    // inline int GetReconstructedX();
-
 
 
     

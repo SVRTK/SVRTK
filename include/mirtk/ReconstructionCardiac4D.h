@@ -30,8 +30,8 @@ namespace mirtk {
     class ReconstructionCardiac4D : public Reconstruction
     {
         
-    protected:
-        
+    //protected: // will be changed back to proctected with -fno-new-inheriting-ctors compilation option
+    public:        
         
         // Stacks
         Array<int> _loc_index;        // running index of all 2D slice locations
@@ -45,12 +45,10 @@ namespace mirtk {
         // PI
         const double PI = 3.14159265358979323846;
         
-        // Reconstructed 4D Cardiac Cine Image
+        // Reconstructed 4D Cardiac Cine Images
         RealImage _reconstructed4D;
         // TODO: replace _reconstructed4D with _reconstructed and fix conflicts between irtkReconstruction and irtkReconstructionCardiac4D use of _reconstruction and_reconstruction4D
-        
-        
-        
+                
         // Reconstructed Cardiac Phases
         Array<double> _reconstructed_cardiac_phases;
         

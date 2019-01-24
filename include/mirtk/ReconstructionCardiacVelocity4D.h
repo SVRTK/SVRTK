@@ -18,7 +18,7 @@
  */ 
 
 #ifndef MIRTK_ReconstructionCardiacVelocity4D_H
-#define MIRTK_ReconstructionCardiacVelocity4D_H
+#define MIRTK_ReconstructionCardiacVelocity4D_H 
 
 #include "mirtk/ReconstructionCardiac4D.h"
 
@@ -30,34 +30,59 @@ namespace mirtk {
 class ReconstructionCardiacVelocity4D : public ReconstructionCardiac4D 
 {
 
-protected: 
+//protected: // will be changed back to proctected with -fno-new-inheriting-ctors compilation option
+public: 
+
+  RealImage _reconstructed4DVelocity;
+  RealImage _confidence_map_velocity;
+
+  Array<Array<double> > _g_directions;
+  Array<double> _g_values;
+  Array<Array<double> > _v_directions;
+
+  Array<RealImage> _simulated_velocity;
 
 
-  // ...
+  // Reconstructed 4D cardiac cine velocity images (for X, Y and Z components)
+  Array<RealImage> _reconstructed5DVelocity;
+  Array<RealImage> _confidence_maps_velocity;
+
+  
+
+  // do we need it ?
+  double _VENC; 
+
+  // what is the correct value / units? 
+  const double gamma = 42577;
+
 
  public:
    
-   // Constructor
-   ReconstructionCardiacVelocity4D();
+    ReconstructionCardiacVelocity4D();
+    ~ReconstructionCardiacVelocity4D();
+
+    void GaussianReconstructionCardiacVelocity4D();  
+    void RotateDirections(double &dx, double &dy, double &dz, int i);
+    void InitGradientMoments(Array<Array<double> > g_directions, Array<double> g_values);
+    void SimulateSlicesCardiacVelocity4D();
+    void SuperresolutionCardiacVelocity4D(int iter);
+    void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals);
+    void InitialiseVelocityVolumes();
+
+    inline void SaveReconstructedVelocity4D(); 
+
    
-   // Destructor
-   ~ReconstructionCardiacVelocity4D();
+    friend class ParallelSimulateSlicesCardiacVelocity4D;
+    friend class ParallelSuperresolutionCardiacVelocity4D;
+    friend class ParallelAdaptiveRegularization1Cardiac4D;
+    friend class ParallelAdaptiveRegularization2Cardiac4D;
+
+    // inline int GetReconstructedX();
 
 
-   void SimulateSlicesCardiacVelocity4D();
 
-
-   void InitGradientMoments( Array< Array<double> > gm_dirs, Array<double> gm_vals );
-
-
-   friend class ParallelSimulateSlicesCardiacVelocity4D;
-   
-   
-   
+    
 };  // end of ReconstructionCardiacVelocity4D class definition
-
-
-
 
 
 
@@ -70,8 +95,32 @@ protected:
 // ...
 // -----------------------------------------------------------------------------
 
+inline void ReconstructionCardiacVelocity4D::SaveReconstructedVelocity4D()
+{
+
+  char buffer[256];
+
+  cout << ".............................................." << endl;
+  cout << ".............................................." << endl;
+  cout << "Reconstructed velocity files : " << endl;
+
+  for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
+
+    sprintf(buffer,"velocity-%i.nii.gz",i);
+    _reconstructed5DVelocity[i].Write(buffer);
+    cout << " - " << buffer << endl;
+  }
+
+  cout << ".............................................." << endl;
+  cout << ".............................................." << endl;
 
 
+}
+
+
+// -----------------------------------------------------------------------------
+// ...
+// -----------------------------------------------------------------------------
 
 
 } // namespace mirtk

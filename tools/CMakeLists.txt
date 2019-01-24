@@ -54,7 +54,21 @@ mirtk_add_executable(
     ${TBB}
 )
 
-#mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})
+mirtk_add_executable(
+  reconstructCardiacVelocity
+  SOURCES
+    reconstructCardiacVelocity.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
 
+#mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})
 
 

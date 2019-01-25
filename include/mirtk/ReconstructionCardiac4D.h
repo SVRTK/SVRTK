@@ -29,9 +29,8 @@ namespace mirtk {
     
     class ReconstructionCardiac4D : public Reconstruction
     {
-        
-    //protected: // will be changed back to proctected with -fno-new-inheriting-ctors compilation option
-    public:        
+       
+    protected:        
         
         // Stacks
         Array<int> _loc_index;        // running index of all 2D slice locations

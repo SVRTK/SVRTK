@@ -30,8 +30,7 @@ namespace mirtk {
 class ReconstructionCardiacVelocity4D : public ReconstructionCardiac4D 
 {
 
-//protected: // will be changed back to proctected with -fno-new-inheriting-ctors compilation option
-public: 
+protected: 
 
   RealImage _reconstructed4DVelocity;
   RealImage _confidence_map_velocity;
@@ -72,8 +71,8 @@ public:
    
     friend class ParallelSimulateSlicesCardiacVelocity4D;
     friend class ParallelSuperresolutionCardiacVelocity4D;
-    friend class ParallelAdaptiveRegularization1Cardiac4D;
-    friend class ParallelAdaptiveRegularization2Cardiac4D;
+    friend class ParallelAdaptiveRegularization1CardiacVelocity4D;
+    friend class ParallelAdaptiveRegularization2CardiacVelocity4D;
 
 
     

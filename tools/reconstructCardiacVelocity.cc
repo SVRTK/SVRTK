@@ -42,7 +42,7 @@
 using namespace mirtk;
 using namespace std;
 
-//Application to perform reconstruction of volumetric cardiac cine velocity MRI from thick-slice dynamic 2D MRI
+//Application to perform reconstruction of volumetric cardiac cine phase / velocity MRI from thick-slice dynamic 2D MRI
 
 // =============================================================================
 // Auxiliary functions
@@ -205,7 +205,7 @@ int main(int argc, char **argv)
     double delta = 150;
     int levels = 3;
     double lastIterLambda = 0.01;
-    int rec_iterations;
+    int rec_iterations = 10;
     int rec_iterations_first = 10;
     int rec_iterations_last = -1;
     double averageValue = 700;
@@ -1247,11 +1247,18 @@ int main(int argc, char **argv)
 
     // Velocity reconstruction (draft version)
 
-    reconstruction.InitialiseVelocityVolumes();
-    
-    reconstruction.InitGradientMoments(g_directions, g_values);
+    reconstruction.InitializeVelocityVolumes();
+
+    reconstruction.InitializeGradientMoments(g_directions, g_values);
+
+
 
     reconstruction.SetSmoothingParameters(delta,lastIterLambda);
+    reconstruction.SpeedupOff();
+
+
+    if(robust_slices_only)
+        reconstruction.ExcludeWholeSlicesOnly();
 
     reconstruction.InitializeEMValues();
 
@@ -1260,23 +1267,67 @@ int main(int argc, char **argv)
     reconstruction.Set3DRecon();
 
     reconstruction.GaussianReconstructionCardiacVelocity4D();
-    
-    reconstruction.InitializeRobustStatistics();
-    
-    //reconstruction.Set3DRecon();
-    //reconstruction.CoeffInit();
+
+
+    //Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();
-    // reconstruction.SaveSimulatedSlices();
+
+
+    //Initialize robust statistics parameters
+    reconstruction.InitializeRobustStatistics();
+
+    //EStep
+    if(robust_statistics)
+      reconstruction.EStep();
     
+
+    rec_iterations = rec_iterations_first;
+
+    if ((!robust_statistics)&&(!intensity_matching))
+        rec_iterations=0;
     
-    for(int iteration = 0; iteration < rec_iterations_first ; iteration++ ) {
+    for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
+
+      cout<<endl<<"  Reconstruction iteration "<<i<<". "<<endl;
+            
+      if (intensity_matching) 
+      {
+        //calculate bias fields
+        if (sigma>0)
+          reconstruction.Bias();
+          //calculate scales
+        reconstruction.Scale();
+      }            
 
       reconstruction.SuperresolutionCardiacVelocity4D(iteration);
+
+
       reconstruction.SimulateSlicesCardiacVelocity4D();
-      // reconstruction.SaveSHcoeffs(iteration);
+
+      if ((i+1)<rec_iterations) {
+
+        if(robust_statistics)
+          reconstruction.MStep(i+1);
+                
+        //E-step
+        if(robust_statistics)
+          reconstruction.EStep();
+
+      }
+
+
     }
 
     reconstruction.SaveReconstructedVelocity4D(); 
+
+
+    reconstruction.StaticMaskReconstructedVolume4D();
+    reconstruction.RestoreSliceIntensities();
+    reconstruction.ScaleVolumeCardiac4D();
+    reconstructed=reconstruction.GetReconstructedCardiac4D();
+    reconstructed.Write(output_name);
+    reconstruction.SaveSlices(stacks);
+    reconstruction.SaveTransformations();
 
     // reconstruction.SaveSimulatedSlices();
 
@@ -1687,7 +1738,8 @@ int main(int argc, char **argv)
         cout<<"ReconstructionCardiac complete."<<endl;
     }
     //The end of main()
-    
+
+
     */
     
 }

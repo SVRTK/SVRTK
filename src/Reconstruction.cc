@@ -165,7 +165,7 @@ void bboxCrop( RealImage &image ) {
         _robust_slices_only = false;
         _recon_type = _3D;
         
-        _nmi_bins = 16;
+        _nmi_bins = -1; // 16
 
         int directions[13][3] = {
             { 1, 0, -1},
@@ -832,7 +832,8 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
                 ParameterList params;
                 Insert(params, "Transformation model", "Rigid");
                  Insert(params, "Image (dis-)similarity measure", "NMI");
-                 Insert(params, "No. of bins", reconstructor->_nmi_bins);
+                 if (reconstructor->_nmi_bins>0)
+                    Insert(params, "No. of bins", reconstructor->_nmi_bins);
                 Insert(params, "Image interpolation mode", "Linear");
                 Insert(params, "Background value", 0);
                  Insert(params, "Optimisation method", "GradientDescent");
@@ -1661,6 +1662,8 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
             ImageAttributes attr = reconstructor->_reconstructed.GetImageAttributes();
             GreyImage source = reconstructor->_reconstructed;
 
+            // source.Write("s.nii.gz");
+
             
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
@@ -1670,6 +1673,8 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                 GreyImage target;
                 GreyImage slice, w, b;
                 RealImage t;
+
+                Reconstruction dummy_reconstruction;
                 
                 ResamplingWithPadding<RealPixel> resampling(attr._dx,attr._dx,attr._dx,-1);
 
@@ -1677,6 +1682,7 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                 GenericLinearInterpolateImageFunction<RealImage> interpolator;
 
                 t = reconstructor->_slices[inputIndex];
+                
                 
                 resampling.Input(&reconstructor->_slices[inputIndex]);
                 resampling.Output(&t);
@@ -1695,11 +1701,12 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                     Insert(params, "Transformation model", "Rigid");
                     // Insert(params, "Optimisation method", "GradientDescent");
                     Insert(params, "Image (dis-)similarity measure", "NMI");
-                    Insert(params, "No. of bins", reconstructor->_nmi_bins);
+                    if (reconstructor->_nmi_bins>0)
+                        Insert(params, "No. of bins", reconstructor->_nmi_bins);
                     Insert(params, "Image interpolation mode", "Linear");
                     // Insert(params, "Background value", -1);
-                    Insert(params, "Background value for image 1", -1);
-                    Insert(params, "Background value for image 2", -1);
+                    // Insert(params, "Background value for image 1", 0);
+                    // Insert(params, "Background value for image 2", -1);
                     
                     GenericRegistrationFilter *registration = new GenericRegistrationFilter();
                     registration->Parameter(params);
@@ -1708,18 +1715,7 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                     //put origin to zero
                     RigidTransformation offset;
 
-                    double ox,oy,oz;
-                    target.GetOrigin(ox,oy,oz);
-                    target.PutOrigin(0,0,0);
-                    offset.PutTranslationX(ox);
-                    offset.PutTranslationY(oy);
-                    offset.PutTranslationZ(oz);
-                    offset.PutRotationX(0);
-                    offset.PutRotationY(0);
-                    offset.PutRotationZ(0);
-                    
-                    
-                    
+                    dummy_reconstruction.ResetOrigin(target,offset);
                     Matrix mo = offset.GetMatrix();
                     Matrix m = reconstructor->_transformations[inputIndex].GetMatrix();
                     m=m*mo;
@@ -1730,14 +1726,17 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                     Transformation *dofout = nullptr;
                     registration->Output(&dofout);
 
-                    
+
                     RigidTransformation tmp_dofin = reconstructor->_transformations[inputIndex];
-                    
-                    
                     
                     registration->InitialGuess(&tmp_dofin);
                     registration->GuessParameter();
+
+                    cout << inputIndex << " - " << endl;
+
                     registration->Run();
+
+                    cout << inputIndex << " + " << endl;
 
                     RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
 
@@ -4983,7 +4982,8 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
 	ParameterList params;
         Insert(params, "Transformation model", "Rigid");
         Insert(params, "Image (dis-)similarity measure", "NMI");
-        Insert(params, "No. of bins", _nmi_bins);
+        if (_nmi_bins>0)
+            Insert(params, "No. of bins", _nmi_bins);
 	Insert(params, "Image interpolation mode", "Linear");
 //    Insert(params, "Background value", 0);
     Insert(params, "Background value for image 1", -1);
@@ -5339,9 +5339,12 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
         Insert(params, "Background value", -1);
 
         Insert(params, "Image (dis-)similarity measure", "NMI");
-        Insert(params, "No. of bins", _nmi_bins);
+        if (_nmi_bins>0)
+            Insert(params, "No. of bins", _nmi_bins);
 
-        rigidregistration.Parameter(params);        
+        rigidregistration.Parameter(params);   
+
+        // _reconstructed.Write("s.nii.gz"); 
         
 
         RealImage t,s;
@@ -5418,6 +5421,13 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
                 Transformation *dofout = nullptr;
                 rigidregistration.Output(&dofout);
                 
+
+                // sprintf(buffer,"p-%i.nii.gz",j);
+                // t.Write(buffer);
+
+                // sprintf(buffer,"r-%i.dof",j);
+                // _transformations[firstSliceIndex].Write(buffer);
+
                 
                 RigidTransformation tmp_dofin = _transformations[firstSliceIndex]; //offset;            
 

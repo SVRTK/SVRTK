@@ -74,14 +74,16 @@ void usage()
     cout << "\t-template_number          Number of the template stack. [Default: 0]"<<endl;
     cout << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 3]"<<endl;
     cout << "\t-resolution [res]         Isotropic resolution of the volume. [Default: 0.75mm]"<<endl;
+    cout << "\t-nmi_bins [nmi_bins]      Number of NMI bins for registration. [Default: 16]"<<endl;
+    cout << "\t-svr_only                 Only SVR registration to a template stack."<<endl;
     cout << "\t-global_bias_correction   Correct the bias in reconstructed image against previous estimation."<<endl;
     cout << "\t-no_intensity_matching    Switch off intensity matching."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-exclude_slices_only      Robust statistics for exclusion of slices only."<<endl;
-    cerr << "\t-remove_black_background  Create mask from black background."<<endl;
-    cerr << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction."<<endl;
-    cerr << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
+    cout << "\t-remove_black_background  Create mask from black background."<<endl;
+    cout << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction."<<endl;
+    cout << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
@@ -124,7 +126,7 @@ int main(int argc, char **argv)
     Array<int> packages;
     
     // Numbers of NMI bins for registration
-    int nmi_bins = 16;
+    int nmi_bins = -1; //16;
     
     // Default values.
     int templateNumber=0;
@@ -154,6 +156,9 @@ int main(int argc, char **argv)
     //flags to switch the robust statistics on and off
     bool robust_statistics = true;
     bool robust_slices_only = false;
+
+    //flag for SVR registration to a template (without packages)
+    bool svr_only = false;
     
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
@@ -393,6 +398,14 @@ int main(int argc, char **argv)
             argc--;
             argv++;
             registration_flag=false;
+            ok = true;
+        }
+
+        //Use only SVR to a template
+        if ((ok == false) && (strcmp(argv[1], "-svr_only") == 0)) {
+            argc--;
+            argv++;
+            svr_only=true;
             ok = true;
         }
 
@@ -676,24 +689,62 @@ int main(int argc, char **argv)
             cout.rdbuf (strm_buffer);
         }
         cout<<"Iteration : "<<iter<<endl;
-        
-        //perform slice-to-volume registrations - skip the first iteration
-        if (iter>0) {
-            if ( ! no_log ) {
+
+
+        if ( ! no_log ) {
                 cerr.rdbuf(file_e.rdbuf());
                 cout.rdbuf (file.rdbuf());
             }
-            if (registration_flag) {
-                cout<<"SVR iteration : "<<iter<<endl;
-                reconstruction.SliceToVolumeRegistration();
-            }
-            
-            cout<<endl;
-            if ( ! no_log ) {
-                cerr.rdbuf (strm_buffer_e);
+
+        if (svr_only) {
+            cout<<"SVR iteration : "<<iter<<endl;
+            reconstruction.SliceToVolumeRegistration();
+
+        }
+        else {
+        //perform slice-to-volume registrations - skip the first iteration
+            if (iter>0) {
+
+                if (registration_flag) {
+                    // cout<<"SVR iteration : "<<iter<<endl;
+                    // reconstruction.SliceToVolumeRegistration();
+
+                    //if((packages.size()>0)&&(iter<(iterations-1)))
+                    if((packages.size()>0)&&(iter<=iterations*(levels-1)/levels)&&(iter<(iterations-1)))
+                    {
+                        if(iter==1)
+                            reconstruction.PackageToVolume(stacks,packages,iter);
+                        else
+                        {
+                            if(iter==2)
+                                reconstruction.PackageToVolume(stacks,packages,iter,true);
+                            else
+                            {
+                                if(iter==3)
+                                    reconstruction.PackageToVolume(stacks,packages,iter,true,true);
+                                else
+                                {
+                                    if(iter>=4)
+                                        reconstruction.PackageToVolume(stacks,packages,iter,true,true,iter-2);
+                                    else
+                                        reconstruction.SliceToVolumeRegistration();
+                                }
+                            }
+                        }
+                    }
+                    else
+                        reconstruction.SliceToVolumeRegistration();
+
+                }
+ 
             }
         }
         
+        cout<<endl;
+        if ( ! no_log ) {
+            cerr.rdbuf (strm_buffer_e);
+        }
+
         //Write to file
         if ( ! no_log ) {
             cout.rdbuf (file2.rdbuf());

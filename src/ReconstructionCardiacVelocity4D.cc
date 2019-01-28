@@ -46,15 +46,21 @@ ReconstructionCardiacVelocity4D::ReconstructionCardiacVelocity4D():Reconstructio
 
     // initialise velocity direction array
     Array<double> tmp;
+    double t;  
+
+    _v_directions.clear();
     for (int i=0; i<3; i++) {
+        tmp.clear();
         for (int j=0; j<3; j++) {
             if (i==j)
-                tmp.push_back(1);
+                t = 1;
             else 
-                tmp.push_back(0);
+                t = 0;
+            tmp.push_back(t);
         }
         _v_directions.push_back(tmp);
     }
+
     
 }
 
@@ -64,9 +70,10 @@ ReconstructionCardiacVelocity4D::ReconstructionCardiacVelocity4D():Reconstructio
 ReconstructionCardiacVelocity4D::~ReconstructionCardiacVelocity4D() { }
 
 
+
 //------------------------------------------------------------------- 
 
-void ReconstructionCardiacVelocity4D::InitialiseVelocityVolumes()
+void ReconstructionCardiacVelocity4D::InitializeVelocityVolumes()
 {
 
     _reconstructed4D = GetReconstructedCardiac4D();
@@ -80,6 +87,7 @@ void ReconstructionCardiacVelocity4D::InitialiseVelocityVolumes()
         _confidence_maps_velocity.push_back(_reconstructed4D);
 
 }
+
 
 //------------------------------------------------------------------- 
 
@@ -101,11 +109,12 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
         
         int gradientIndex, velocityIndex;
         double gval, gx, gy, gz, dx, dy, dz, dotp, v_component; 
+        double sigma=0.2, w, tw;
 
         // clear _reconstructed image
         _reconstructed4D = 0;
         
-        // RealImage weights = _reconstructed4D;
+ 
 
         Array<RealImage> recon5D;
 
@@ -146,18 +155,23 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
 
                 for ( velocityIndex=0; velocityIndex<_v_directions.size(); velocityIndex++ ) {
 
+                    // velocity direction vector
                     dx = _v_directions[velocityIndex][0];
                     dy = _v_directions[velocityIndex][1];
                     dz = _v_directions[velocityIndex][2];
-                    
+
+                                        
                     // ???? double check - whether it is correct for V = PHASE / (GAMMA*G)
                     dotp = (dx*gx+dy*gy+dz*gz)/sqrt((dx*dx+dy*dy+dz*dz)*(gx*gx+gy*gy+gz*gz));
 
                     // tw = (fabs(dotp)-1)/sigma;
 	                // w=exp(-tw*tw)/(6.28*sigma);
 
-                    v_component = dotp/(gval*gamma);
+                    v_component = dotp /( gval * gamma);
 
+                    cout << " g: [" << gx << " " << gy << " " << gz << "] / ";
+                    cout << " v: [" << dx << " " << dy << " " << dz << "] / "; 
+                    cout << " dotp: " << dotp << " / " << " v_comp: " << v_component << endl;
 
                     // distribute slice intensities to the volume
                     for ( int i = 0; i < slice.GetX(); i++ ) {
@@ -186,7 +200,7 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
                                     for ( outputIndex=0; outputIndex<_reconstructed_cardiac_phases.size(); outputIndex++ )  {
 
                                         // _reconstructed4D(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
-                                        recon5D[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
+                                        recon5D[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * slice(i, j, 0) * _slice_temporal_weight[outputIndex][inputIndex] * p.value;
 
                                         // do we need to multiply by v_component? or dotp?
                                         weights[velocityIndex](p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
@@ -210,6 +224,7 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
 
         for (int i=0; i<_v_directions.size(); i++) {
             recon5D[i] /= weights[i];
+            // recon5D[i] *= 100;
         }
 
         _reconstructed5DVelocity = recon5D; 
@@ -229,6 +244,8 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
             }
 
         }
+
+        // exit(1);
 
         if(_debug) {
             cout << inputIndex << "\b\b." << endl;
@@ -264,6 +281,55 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
 
 
 }
+
+//------------------------------------------------------------------- 
+
+
+class ParallelGaussianReconstructionCardiacVelocity4D {
+public:
+        ReconstructionCardiacVelocity4D *reconstructor;
+        
+        ParallelGaussianReconstructionCardiacVelocity4D(ReconstructionCardiacVelocity4D *_reconstructor) :
+        reconstructor(_reconstructor) { }
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            
+            // ImageAttributes attr = reconstructor->_reconstructed4D.GetImageAttributes();
+        
+            // ...
+
+            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
+
+                char buffer[256];
+
+                // ... 
+
+
+            }
+
+        }
+
+        // execute
+        void operator() () const {
+            //task_scheduler_init init(tbb_no_threads);
+            parallel_for( blocked_range<size_t>(0, reconstructor->_v_directions.size() ), *this );
+            //init.terminate();
+        }
+        
+
+};
+
+void ReconstructionCardiacVelocity4D::FastGaussianReconstructionCardiacVelocity4D()
+{
+
+    ParallelGaussianReconstructionCardiacVelocity4D *gr = new ParallelGaussianReconstructionCardiacVelocity4D(this);
+        (*gr)();
+        
+        delete gr;
+
+}
+
+
 
 //------------------------------------------------------------------- 
 
@@ -582,30 +648,30 @@ class ParallelSuperresolutionCardiacVelocity4D {
         
         // check for velocities 
 
-        /*
-        //bound the intensities
-        for (i = 0; i < _reconstructed4D.GetX(); i++) {
-            for (j = 0; j < _reconstructed4D.GetY(); j++) {
-                for (k = 0; k < _reconstructed4D.GetZ(); k++) {
-                    for (t = 0; t < _reconstructed4D.GetT(); t++) {
-                        if (_reconstructed4D(i, j, k, t) < _min_intensity * 0.9)
-                        _reconstructed4D(i, j, k, t) = _min_intensity * 0.9;
-                        if (_reconstructed4D(i, j, k, t) > _max_intensity * 1.1)
-                        _reconstructed4D(i, j, k, t) = _max_intensity * 1.1;
-                    }
-                }
-            }
-        }
-        */
+        // 
+        // //bound the intensities
+        // for (i = 0; i < _reconstructed4D.GetX(); i++) {
+        //     for (j = 0; j < _reconstructed4D.GetY(); j++) {
+        //         for (k = 0; k < _reconstructed4D.GetZ(); k++) {
+        //             for (t = 0; t < _reconstructed4D.GetT(); t++) {
+        //                 if (_reconstructed4D(i, j, k, t) < _min_intensity * 0.9)
+        //                 _reconstructed4D(i, j, k, t) = _min_intensity * 0.9;
+        //                 if (_reconstructed4D(i, j, k, t) > _max_intensity * 1.1)
+        //                 _reconstructed4D(i, j, k, t) = _max_intensity * 1.1;
+        //             }
+        //         }
+        //     }
+        // }
+        // 
         
         //Smooth the reconstructed image
         AdaptiveRegularizationCardiacVelocity4D(iter, originals);
         
         //Remove the bias in the reconstructed volume compared to previous iteration
-        /* TODO: update adaptive regularisation for 4d
-         if (_global_bias_correction)
-         BiasCorrectVolume(original);
-         */
+        //  TODO: update adaptive regularisation for 4d
+        //  if (_global_bias_correction)
+        //  BiasCorrectVolume(original);
+        //  
     }
     
 
@@ -751,7 +817,7 @@ class ParallelSuperresolutionCardiacVelocity4D {
 
 
 //------------------------------------------------------------------- 
-    // Adaptive Regularization
+// Adaptive Regularization
 //------------------------------------------------------------------- 
 
     void ReconstructionCardiacVelocity4D::AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals)
@@ -805,15 +871,11 @@ class ParallelSuperresolutionCardiacVelocity4D {
         }
     }
     
-    
 
 
 //------------------------------------------------------------------- 
 
-
-//------------------------------------------------------------------- 
-
-void ReconstructionCardiacVelocity4D::InitGradientMoments(Array<Array<double>> g_directions, Array<double> g_values)
+void ReconstructionCardiacVelocity4D::InitializeGradientMoments(Array<Array<double>> g_directions, Array<double> g_values)
 {
   _g_directions = g_directions;
   _g_values = g_values;
@@ -859,6 +921,71 @@ void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, d
   }
 
 }
+
+
+
+//------------------------------------------------------------------- 
+
+
+
+    void ReconstructionCardiacVelocity4D::MaskSlicesPhase()
+    {
+        cout << "Masking slices ... ";
+        
+        double x, y, z;
+        int i, j;
+        
+        //Check whether we have a mask
+        if (!_have_mask) {
+            cout << "Could not mask slices because no mask has been set." << endl;
+            return;
+        }
+        
+        //mask slices
+        for (int unsigned inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            RealImage& slice = _slices[inputIndex];
+            for (i = 0; i < slice.GetX(); i++)
+            for (j = 0; j < slice.GetY(); j++) {
+                //if the value is smaller than 1 assume it is padding
+                // if (slice(i,j,0) < 0.01)
+                //     slice(i,j,0) = -1;
+                //image coordinates of a slice voxel
+                x = i;
+                y = j;
+                z = 0;
+                //change to world coordinates in slice space
+                slice.ImageToWorld(x, y, z);
+                //world coordinates in volume space
+                _transformations[inputIndex].Transform(x, y, z);
+                //image coordinates in volume space
+                _mask.WorldToImage(x, y, z);
+                x = round(x);
+                y = round(y);
+                z = round(z);
+                //if the voxel is outside mask ROI set it to -1 (padding value)
+                if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
+                    && (z < _mask.GetZ())) {
+                    if (_mask(x, y, z) == 0)
+                    slice(i, j, 0) = -10;
+                }
+                else
+                slice(i, j, 0) = -10;
+            }
+            //remember masked slice
+            //_slices[inputIndex] = slice;
+        }
+        cout << "done." << endl;
+    }
+    
+
+
+
+
+//------------------------------------------------------------------- 
+
+
+//------------------------------------------------------------------- 
+
 
 //------------------------------------------------------------------- 
 

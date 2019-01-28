@@ -32,7 +32,7 @@ class ReconstructionCardiacVelocity4D : public ReconstructionCardiac4D
 
 protected: 
 
-  RealImage _reconstructed4DVelocity;
+  // RealImage _reconstructed4DVelocity;
   RealImage _confidence_map_velocity;
 
   Array<Array<double> > _g_directions;
@@ -46,11 +46,13 @@ protected:
   Array<RealImage> _reconstructed5DVelocity;
   Array<RealImage> _confidence_maps_velocity;
 
+  
+
   // do we need it ?
   double _VENC; 
 
   // what is the correct value / units? 
-  const double gamma = 42577;
+  const double gamma = 1; //42577; 
 
 
  public:
@@ -58,13 +60,20 @@ protected:
     ReconstructionCardiacVelocity4D();
     ~ReconstructionCardiacVelocity4D();
 
-    void GaussianReconstructionCardiacVelocity4D();  
+
+    void InitializeGradientMoments(Array<Array<double> > g_directions, Array<double> g_values);
+    void InitializeVelocityVolumes();
     void RotateDirections(double &dx, double &dy, double &dz, int i);
-    void InitGradientMoments(Array<Array<double> > g_directions, Array<double> g_values);
+
+
+    void GaussianReconstructionCardiacVelocity4D();    
     void SimulateSlicesCardiacVelocity4D();
     void SuperresolutionCardiacVelocity4D(int iter);
     void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals);
-    void InitialiseVelocityVolumes();
+    
+    void FastGaussianReconstructionCardiacVelocity4D();
+
+    void  MaskSlicesPhase();
 
     inline void SaveReconstructedVelocity4D(); 
 
@@ -74,6 +83,7 @@ protected:
     friend class ParallelAdaptiveRegularization1CardiacVelocity4D;
     friend class ParallelAdaptiveRegularization2CardiacVelocity4D;
 
+    friend class ParallelGaussianReconstructionCardiacVelocity4D;
 
     
 };  // end of ReconstructionCardiacVelocity4D class definition

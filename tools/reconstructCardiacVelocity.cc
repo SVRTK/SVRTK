@@ -293,6 +293,8 @@ int main(int argc, char **argv)
         tmp_image.reset(image_reader->Run());
         
         stack = *tmp_image;
+
+        // stack = stack+3.14;
         
         argc--;
         argv++;
@@ -1138,6 +1140,7 @@ int main(int argc, char **argv)
         }
     }
     
+    /*
     //Rescale intensities of the stacks to have the same average
     if (stack_intensity_matching)
     reconstruction.MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
@@ -1152,6 +1155,8 @@ int main(int argc, char **argv)
     average = reconstruction.CreateAverage(stacks,stack_transformations);
     if (debug)
     average.Write("average2.nii.gz");
+    */
+
     
     //Create slices and slice-dependent transformations
     reconstruction.CreateSlicesAndTransformationsCardiac4D(stacks,stack_transformations,thickness);
@@ -1183,7 +1188,7 @@ int main(int argc, char **argv)
     reconstruction.InitTRE();
     
     //Mask all the slices
-    reconstruction.MaskSlices();
+    reconstruction.MaskSlicesPhase();
     
     // Set R-R for each image
     if (rr_loc.empty())
@@ -1266,7 +1271,19 @@ int main(int argc, char **argv)
 
     reconstruction.Set3DRecon();
 
+
+
+
+    reconstruction.GaussianReconstructionCardiac4D();
+
+    reconstructed=reconstruction.GetReconstructedCardiac4D();
+
+    reconstructed.Write("ph.nii.gz");
+
+
+
     reconstruction.GaussianReconstructionCardiacVelocity4D();
+    reconstruction.SaveReconstructedVelocity4D(); 
 
 
     //Simulate slices (should be done after Gaussian reconstruction)
@@ -1283,8 +1300,13 @@ int main(int argc, char **argv)
 
     rec_iterations = rec_iterations_first;
 
+    /*
     if ((!robust_statistics)&&(!intensity_matching))
         rec_iterations=0;
+
+    */
+
+    rec_iterations = 1; 
     
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
 
@@ -1322,12 +1344,16 @@ int main(int argc, char **argv)
 
 
     reconstruction.StaticMaskReconstructedVolume4D();
-    reconstruction.RestoreSliceIntensities();
+    
+    // reconstruction.RestoreSliceIntensities();
+
     reconstruction.ScaleVolumeCardiac4D();
     reconstructed=reconstruction.GetReconstructedCardiac4D();
     reconstructed.Write(output_name);
     reconstruction.SaveSlices(stacks);
     reconstruction.SaveTransformations();
+
+    reconstruction.SaveSimulatedSlices(stacks);
 
     // reconstruction.SaveSimulatedSlices();
 

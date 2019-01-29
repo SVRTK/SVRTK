@@ -1306,7 +1306,7 @@ int main(int argc, char **argv)
 
     */
 
-    rec_iterations = 1; 
+//     rec_iterations = 1; 
     
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
 
@@ -1347,7 +1347,7 @@ int main(int argc, char **argv)
     
     // reconstruction.RestoreSliceIntensities();
 
-    reconstruction.ScaleVolumeCardiac4D();
+//     reconstruction.ScaleVolumeCardiac4D();
     reconstructed=reconstruction.GetReconstructedCardiac4D();
     reconstructed.Write(output_name);
     reconstruction.SaveSlices(stacks);

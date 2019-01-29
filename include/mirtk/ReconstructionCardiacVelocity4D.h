@@ -52,7 +52,7 @@ protected:
   double _VENC; 
 
   // what is the correct value / units? 
-  const double gamma = 1; //42577; 
+  const double gamma = 42577; 
 
 
  public:

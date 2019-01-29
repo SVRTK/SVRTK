@@ -314,8 +314,8 @@ int main(int argc, char **argv)
       g_directions.push_back(tmp_array);
 
     }
-
-
+    
+    
     //Read the name of the text file with gradient values
     char *g_val_file = argv[1];
     argc--;
@@ -325,23 +325,26 @@ int main(int argc, char **argv)
     ifstream in_g_val(g_val_file);
     double num;
     i = 0;
-    cout<<" - Reading Gradient values from " << g_val_file << " ... "<<endl;
+    cout<<" - Reading Gradient values from " << g_val_file << " : "<<endl;
     if (in_g_val.is_open()) {
         while (!in_g_val.eof()) {
           in_g_val >> num;
           if (i<nStacks)
             g_values[i]=num;
-          cout<<num<<" ";
           i++;
         }
-        cout<<endl;
         in_g_val.close();
+
+        for (i=0; i<g_values.size(); i++)
+          cout << g_values[i] << " ";
+        cout << endl;
     } 
     else {
         cout << " - Unable to open file " << g_val_file << endl;
         exit(1);
     }
-    
+
+
     //Read the gradient directions from the text file
     char *g_dir_file = argv[1];
     argc--;
@@ -350,26 +353,33 @@ int main(int argc, char **argv)
     ifstream in_g_dir(g_dir_file);
     int coord = 0;
     int dir = 0;
-    cout<<" - Reading Gradient directions from " << g_dir_file << " ... "<<endl;
+    cout<<" - Reading Gradient directions from " << g_dir_file << " : "<<endl;
     if (in_g_dir.is_open()) {
         while (!in_g_dir.eof()) {
           in_g_dir >> num;
           if ((coord<nStacks)&&(dir<3))
             g_directions[coord][dir]=num;
-          cout<<num<<" ";
           dir++;
           if (dir>=3) {
             dir=0;
             coord++;
-            cout<<endl;
           }
         }
         in_g_dir.close();
+
+        for (i=0; i<g_directions.size(); i++) {
+          Array<double> g_direction = g_directions[i];
+          for (int k=0; k<g_direction.size(); k++)
+            cout << g_direction[k] << " ";  
+          cout << endl;
+        }
+
     } 
     else {
         cout << " - Unable to open file " << g_dir_file << endl;
         exit(1);
     }
+
 
     // Parse options.
     while (argc > 1){

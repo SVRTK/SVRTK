@@ -110,6 +110,7 @@ inline void ReconstructionCardiacVelocity4D::SaveReconstructedVelocity4D()
 
   for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
 
+    _reconstructed5DVelocity[i] = _reconstructed5DVelocity[i] * 1000; 
     sprintf(buffer,"velocity-%i.nii.gz",i);
     _reconstructed5DVelocity[i].Write(buffer);
     cout << " - " << buffer << endl;

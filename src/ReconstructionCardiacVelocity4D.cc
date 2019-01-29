@@ -966,7 +966,7 @@ void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, d
                 if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
                     && (z < _mask.GetZ())) {
                     if (_mask(x, y, z) == 0)
-                    slice(i, j, 0) = -10;
+                    slice(i, j, 0) = -1;
                 }
                 else
                 slice(i, j, 0) = -1;

@@ -235,6 +235,7 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
 
             for (int i=0; i<_v_directions.size(); i++) {
         
+		recon5D[i] = recon5D[i] * 1000; 
                 sprintf(buffer,"recon4Dgaussian-velocity-%i.nii.gz", i);
                 recon5D[i].Write(buffer);
 
@@ -1001,4 +1002,3 @@ void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, d
 
     
 } // namespace mirtk
-

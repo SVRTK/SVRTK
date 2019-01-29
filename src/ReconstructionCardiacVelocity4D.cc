@@ -969,7 +969,7 @@ void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, d
                     slice(i, j, 0) = -10;
                 }
                 else
-                slice(i, j, 0) = -10;
+                slice(i, j, 0) = -1;
             }
             //remember masked slice
             //_slices[inputIndex] = slice;

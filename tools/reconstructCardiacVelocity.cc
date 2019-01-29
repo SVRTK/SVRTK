@@ -1283,7 +1283,7 @@ int main(int argc, char **argv)
 
 
     reconstruction.GaussianReconstructionCardiacVelocity4D();
-    reconstruction.SaveReconstructedVelocity4D(); 
+//     reconstruction.SaveReconstructedVelocity4D(); 
 
 
     //Simulate slices (should be done after Gaussian reconstruction)

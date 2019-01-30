@@ -294,7 +294,7 @@ int main(int argc, char **argv)
         
         stack = *tmp_image;
 
-        // stack = stack+3.14;
+//        stack = stack;
         
         argc--;
         argv++;
@@ -314,8 +314,8 @@ int main(int argc, char **argv)
       g_directions.push_back(tmp_array);
 
     }
-    
-    
+
+
     //Read the name of the text file with gradient values
     char *g_val_file = argv[1];
     argc--;
@@ -1125,8 +1125,8 @@ int main(int argc, char **argv)
     }
     
     average = reconstruction.CreateAverage(stacks,stack_transformations);
-    if (debug)
-    average.Write("average1.nii.gz");
+//    if (debug)
+//    average.Write("average1.nii.gz");
     
     //Mask is transformed to the all stacks and they are cropped
     for (i=0; i<nStacks; i++)
@@ -1237,16 +1237,6 @@ int main(int argc, char **argv)
         cerr<<"5D cardiac velocity MRI reconstruction requires specification of cardiac phases."<<endl;
         exit(1);
 
-        // if ( numCardPhase != 1 ) {    // reconstructing cine volume
-        //     ImageAttributes attr = stacks[templateNumber].GetImageAttributes();
-        //     if (attr._t > 1) {
-        //         cerr<<"Cardiac 4D reconstruction requires cardiac phase for each slice."<<endl;
-        //         exit(1);
-        //     }
-        // }
-        // else {                        // reconstructing single cardiac phase volume
-        //     reconstruction.SetSliceCardiacPhase();    // set all cardiac phases to zero
-        // }
     }
     else {
         reconstruction.SetSliceCardiacPhase( cardPhase );   // set all cardiac phases to given values
@@ -1256,7 +1246,6 @@ int main(int argc, char **argv)
     // Calculate Temporal Weight for Each Slice
     reconstruction.CalculateSliceTemporalWeights();
     
-
     
     // ...........................................................................
 
@@ -1288,12 +1277,19 @@ int main(int argc, char **argv)
 
     reconstructed=reconstruction.GetReconstructedCardiac4D();
 
-    reconstructed.Write("ph.nii.gz");
+    reconstructed.Write("gaussian-phase.nii.gz");
 
 
 
-    reconstruction.GaussianReconstructionCardiacVelocity4D();
-//     reconstruction.SaveReconstructedVelocity4D(); 
+
+    // robust_statistics = false;
+
+
+    // reconstruction.GaussianReconstructionCardiacVelocity4D();
+    // reconstruction.SaveReconstructedVelocity4D(); 
+
+    reconstruction.GaussianReconstructionCardiacVelocity4Dx3();
+    reconstruction.SaveReconstructedVelocity4D(); 
 
 
     //Simulate slices (should be done after Gaussian reconstruction)
@@ -1308,6 +1304,8 @@ int main(int argc, char **argv)
       reconstruction.EStep();
     
 
+//    intensity_matching = false;
+    
     rec_iterations = rec_iterations_first;
 
     /*
@@ -1316,7 +1314,9 @@ int main(int argc, char **argv)
 
     */
 
-//     rec_iterations = 1; 
+    
+    if (!robust_statistics)
+        rec_iterations = 1;
     
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
 
@@ -1357,7 +1357,7 @@ int main(int argc, char **argv)
     
     // reconstruction.RestoreSliceIntensities();
 
-//     reconstruction.ScaleVolumeCardiac4D();
+    // reconstruction.ScaleVolumeCardiac4D();
     reconstructed=reconstruction.GetReconstructedCardiac4D();
     reconstructed.Write(output_name);
     reconstruction.SaveSlices(stacks);
@@ -1782,5 +1782,6 @@ int main(int argc, char **argv)
 
 
 // -----------------------------------------------------------------------------
+
 
 

@@ -46,10 +46,15 @@ protected:
   Array<RealImage> _reconstructed5DVelocity;
   Array<RealImage> _confidence_maps_velocity;
 
+  Array<Array<RealImage> > _globalReconstructed4DVelocityArray;
+  Array<RealImage> _globalReconstructed4DArray;
   
 
   // do we need it ?
   double _VENC; 
+
+
+  double _velocity_scale;
 
   // what is the correct value / units? 
   const double gamma = 42.577; 
@@ -72,10 +77,13 @@ protected:
     void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals, RealImage& original_main);
     
     void GaussianReconstructionCardiacVelocity4Dx3();
+    void GaussianReconstructionCardiacVelocity4DxT();
+    void GaussianReconstructionCardiac4DxT();
 
     void  MaskSlicesPhase();
 
     inline void SaveReconstructedVelocity4D(); 
+    inline void SetVelocityScale(double scale);
 
    
     friend class ParallelSimulateSlicesCardiacVelocity4D;
@@ -84,6 +92,8 @@ protected:
     friend class ParallelAdaptiveRegularization2CardiacVelocity4D;
 
     friend class ParallelGaussianReconstructionCardiacVelocity4D;
+    friend class ParallelGaussianReconstructionCardiacVelocity4DxT;
+    friend class ParallelGaussianReconstructionCardiac4DxT;
 
     
 };  // end of ReconstructionCardiacVelocity4D class definition
@@ -94,6 +104,14 @@ protected:
 // Inline/template definitions
 ////////////////////////////////////////////////////////////////////////////////
 
+// -----------------------------------------------------------------------------
+// ...
+// -----------------------------------------------------------------------------
+
+inline void ReconstructionCardiacVelocity4D::SetVelocityScale(double scale)
+{
+  _velocity_scale = scale;
+}
 
 // -----------------------------------------------------------------------------
 // ...
@@ -112,11 +130,15 @@ inline void ReconstructionCardiacVelocity4D::SaveReconstructedVelocity4D()
 
   for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
 
-    RealImage scaled =  _reconstructed5DVelocity[i];
-    scaled *= 1000;
     sprintf(buffer,"velocity-%i.nii.gz",i);
-    scaled.Write(buffer);
+    _reconstructed5DVelocity[i].Write(buffer);
     cout << " - " << buffer << endl;
+
+    RealImage scaled =  _reconstructed5DVelocity[i];
+    scaled *= _velocity_scale;
+    sprintf(buffer,"scaled-velocity-%i.nii.gz",i);
+    scaled.Write(buffer);
+
   }
 
   cout << ".............................................." << endl;
@@ -141,7 +163,7 @@ inline void ReconstructionCardiacVelocity4D::SaveReconstructedVelocity4D()
           for (int x=0; x<subtracted4D.GetX(); x++)
             subtracted4D(x,y,z,t) = subtracted4D(x,y,z,t) - average3D(x,y,z);
 
-    subtracted4D *= 1000;
+    subtracted4D *= _velocity_scale;
 
     sprintf(buffer,"subtracted-velocity-%i.nii.gz",i);
     subtracted4D.Write(buffer);

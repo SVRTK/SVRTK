@@ -48,6 +48,8 @@ ReconstructionCardiacVelocity4D::ReconstructionCardiacVelocity4D():Reconstructio
     Array<double> tmp;
     double t;  
 
+    _velocity_scale = 1000;
+
     _v_directions.clear();
     for (int i=0; i<3; i++) {
         tmp.clear();
@@ -285,6 +287,387 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4D()
 //------------------------------------------------------------------- 
 
 
+class ParallelGaussianReconstructionCardiacVelocity4DxT {
+public:
+        ReconstructionCardiacVelocity4D *reconstructor;
+
+
+        ParallelGaussianReconstructionCardiacVelocity4DxT(ReconstructionCardiacVelocity4D *_reconstructor) :
+        reconstructor(_reconstructor) { }
+
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            
+
+            for ( size_t outputIndex = r.begin(); outputIndex != r.end(); ++outputIndex ) {
+
+                char buffer[256];
+
+                unsigned int inputIndex;
+                int k, n;
+                RealImage slice;
+                double scale;
+                POINT3D p;
+                
+                int gradientIndex, velocityIndex;
+                double gval, gx, gy, gz, dx, dy, dz, dotp, v_component; 
+
+                // volume for reconstruction
+                Array<RealImage> reconstructed3DVelocityArray;
+                reconstructed3DVelocityArray = reconstructor->_globalReconstructed4DVelocityArray[outputIndex];
+
+                
+                RealImage weights = reconstructed3DVelocityArray[0];
+
+                
+                for ( inputIndex = 0; inputIndex < reconstructor->_slices.size(); ++inputIndex ) {
+                    
+                    if (reconstructor->_slice_excluded[inputIndex]==0) {
+                        
+                        if(reconstructor->_debug)
+                        {
+                            cout << inputIndex << " , ";
+                            cout.flush();
+                        }
+
+                        // copy the current slice
+                        slice = reconstructor->_slices[inputIndex];
+                        // alias the current bias image
+                        RealImage& b = reconstructor->_bias[inputIndex];
+                        //read current scale factor
+                        scale = reconstructor->_scale[inputIndex];
+
+                        // gradient direction for current slice
+                        gradientIndex = reconstructor->_stack_index[inputIndex];
+                        gx = reconstructor->_g_directions[gradientIndex][0];
+                        gy = reconstructor->_g_directions[gradientIndex][1];
+                        gz = reconstructor->_g_directions[gradientIndex][2];
+
+                        reconstructor->RotateDirections(gx, gy, gz, inputIndex);
+
+                        gval = reconstructor->_g_values[gradientIndex];
+
+                        for ( velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
+
+                            // velocity direction vector
+                            dx = reconstructor->_v_directions[velocityIndex][0];
+                            dy = reconstructor->_v_directions[velocityIndex][1];
+                            dz = reconstructor->_v_directions[velocityIndex][2];
+                                                
+                            // ???? double check - whether it is correct for V = PHASE / (GAMMA*G)
+                            dotp = (dx*gx+dy*gy+dz*gz)/sqrt((dx*dx+dy*dy+dz*dz)*(gx*gx+gy*gy+gz*gz));
+
+                            v_component = dotp /( gval * reconstructor->gamma);
+
+
+                            // distribute slice intensities to the volume
+                            for ( int i = 0; i < slice.GetX(); i++ ) {
+                                for ( int j = 0; j < slice.GetY(); j++ ) {
+
+                                    if (slice(i, j, 0) != -1) {
+                                        // biascorrect and scale the slice
+                                        slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                                        
+                                        // number of volume voxels with non-zero coefficients for current slice voxel
+                                        n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                                                                                
+                                        // add contribution of current slice voxel to all voxel volumes to which it contributes
+                                        for ( k = 0; k < n; k++ ) {
+
+                                            p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+
+                                            // for ( outputIndex=0; outputIndex<reconstructor->_reconstructed_cardiac_phases.size(); outputIndex++ )  {
+
+                                                // _reconstructed4D(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
+                                                // reconstructed4DVelocity(p.x, p.y, p.z, outputIndex) += v_component * slice(i, j, 0) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+
+                                                reconstructed3DVelocityArray[velocityIndex](p.x, p.y, p.z) += v_component * slice(i, j, 0) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+
+                                                // do we need to multiply by v_component? or dotp?
+                                                // weights(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                                                weights(p.x, p.y, p.z) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                                                    
+                                            // } // end of loop for cardiac phases 
+                                        }
+                                    }
+                                }
+                            } 
+                        } // end of velocity vector loop
+                    
+                    } // end of if (_slice_excluded[inputIndex]==0)
+                    
+                } // end of loop for a slice inputIndex
+                
+                // normalize the volume by proportion of contributing slice voxels
+                // for each volume voxel
+
+                for ( velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
+                    reconstructed3DVelocityArray[velocityIndex] /= weights;
+
+                    reconstructor->_globalReconstructed4DVelocityArray[outputIndex][velocityIndex] = reconstructed3DVelocityArray[velocityIndex];
+                }
+
+
+            } // parallel cardiac phase loop
+
+        }
+
+
+        // execute
+        void operator() () const {
+            //task_scheduler_init init(tbb_no_threads);
+            parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed_cardiac_phases.size()), *this );
+            //init.terminate();
+        }
+        
+
+};
+
+
+
+void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4DxT()
+{
+ 
+    RealImage reconstructed3DVelocity = _reconstructed4D.GetRegion(0,0,0,0,_reconstructed4D.GetX(),_reconstructed4D.GetY(),_reconstructed4D.GetZ(),1);
+    reconstructed3DVelocity = 0;
+
+    Array<RealImage> reconstructed3DVelocityArray;
+    for (int i=0; i<_v_directions.size(); i++)
+        reconstructed3DVelocityArray.push_back(reconstructed3DVelocity);
+
+    _globalReconstructed4DVelocityArray.clear();
+    for (int i=0; i<_reconstructed_cardiac_phases.size(); i++)
+        _globalReconstructed4DVelocityArray.push_back(reconstructed3DVelocityArray);
+
+
+    if(_debug) {
+        cout << "- Gaussian reconstruction : " << endl;
+    }
+
+    ParallelGaussianReconstructionCardiacVelocity4DxT *gr = new ParallelGaussianReconstructionCardiacVelocity4DxT(this);
+    (*gr)();
+
+    int X, Y, Z, T, V;
+    X = _reconstructed4D.GetX();
+    Y = _reconstructed4D.GetY();
+    Z = _reconstructed4D.GetZ();
+    T = _reconstructed4D.GetT();
+    V = _reconstructed5DVelocity.size();
+
+    RealImage tmp3D, tmp4D;
+    
+    tmp4D = _reconstructed4D; 
+    tmp4D = 0;
+    
+    for (int v=0; v<V ; v++) {
+
+        tmp4D = 0;
+        for (int t=0; t<T ; t++) {
+
+            tmp3D = _globalReconstructed4DVelocityArray[t][v];
+            for (int z=0; z<Z ; z++) {
+                for (int y=0; y<Y ; y++) {
+                    for (int x=0; x<X ; x++) {
+                        tmp4D(x,y,z,t) = tmp3D(x,y,z);
+                    }
+                }
+            }
+        }
+
+        _reconstructed5DVelocity[v] = tmp4D;
+    }
+
+    delete gr;
+    _globalReconstructed4DVelocityArray.clear();
+
+    char buffer[256];
+
+    if (_debug) {
+
+        for (int i=0; i<_v_directions.size(); i++) {
+        
+            RealImage scaled = _reconstructed5DVelocity[i];
+            scaled *= _velocity_scale;
+            sprintf(buffer,"recon4D-gaussian-velocity-%i.nii.gz", i);
+            scaled.Write(buffer);
+
+            // sprintf(buffer,"weights-velocity-%i.nii.gz", i);
+            // weights[i].Write(buffer);
+
+        }
+
+    }
+
+}
+
+
+//------------------------------------------------------------------- 
+
+
+class ParallelGaussianReconstructionCardiac4DxT {
+public:
+        ReconstructionCardiacVelocity4D *reconstructor;
+
+
+        ParallelGaussianReconstructionCardiac4DxT(ReconstructionCardiacVelocity4D *_reconstructor) :
+        reconstructor(_reconstructor) { }
+
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            
+
+            for ( size_t outputIndex = r.begin(); outputIndex != r.end(); ++outputIndex ) {
+
+                char buffer[256];
+                
+                unsigned int inputIndex;
+                int k, n;
+                RealImage slice;
+                double scale;
+                POINT3D p;
+
+                // volume for reconstruction
+                RealImage reconstructed3D;
+                reconstructed3D = reconstructor->_globalReconstructed4DArray[outputIndex];
+                
+                RealImage weights = reconstructed3D;
+
+
+                for ( inputIndex = 0; inputIndex < reconstructor->_slices.size(); ++inputIndex ) {
+                    
+                    if (reconstructor->_slice_excluded[inputIndex]==0) {
+                        
+                        if(reconstructor->_debug)
+                        {
+                            cout << inputIndex << " , ";
+                            cout.flush();
+                        }
+
+                        // copy the current slice
+                        slice = reconstructor->_slices[inputIndex];
+                        // alias the current bias image
+                        RealImage& b = reconstructor->_bias[inputIndex];
+                        //read current scale factor
+                        scale = reconstructor->_scale[inputIndex];
+
+                            // distribute slice intensities to the volume
+                            for ( int i = 0; i < slice.GetX(); i++ ) {
+                                for ( int j = 0; j < slice.GetY(); j++ ) {
+
+                                    if (slice(i, j, 0) != -1) {
+                                        // biascorrect and scale the slice
+                                        slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                                        
+                                        // number of volume voxels with non-zero coefficients for current slice voxel
+                                        n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                                                                                
+                                        // add contribution of current slice voxel to all voxel volumes to which it contributes
+                                        for ( k = 0; k < n; k++ ) {
+
+                                            p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+
+                                            // for ( outputIndex=0; outputIndex<reconstructor->_reconstructed_cardiac_phases.size(); outputIndex++ )  {
+
+                                                reconstructed3D(p.x, p.y, p.z) += slice(i, j, 0) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+
+                                                weights(p.x, p.y, p.z) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                                                    
+                                            // } // end of loop for cardiac phases 
+                                        }
+                                    }
+                                }
+                            } 
+                        // } // end of velocity vector loop
+                    
+                    } // end of if (_slice_excluded[inputIndex]==0)
+                    
+                } // end of loop for a slice inputIndex
+                
+                // normalize the volume by proportion of contributing slice voxels
+                // for each volume voxel
+
+                reconstructed3D /= weights;
+
+                reconstructor->_globalReconstructed4DArray[outputIndex] = reconstructed3D;
+
+            } // parallel cardiac phase loop
+
+        }
+
+
+        // execute
+        void operator() () const {
+            //task_scheduler_init init(tbb_no_threads);
+            parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed_cardiac_phases.size()), *this );
+            //init.terminate();
+        }
+        
+
+};
+
+
+
+void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiac4DxT()
+{
+ 
+    RealImage reconstructed3D= _reconstructed4D.GetRegion(0,0,0,0,_reconstructed4D.GetX(),_reconstructed4D.GetY(),_reconstructed4D.GetZ(),1);
+    reconstructed3D = 0;
+
+    _globalReconstructed4DArray.clear();
+    for (int i=0; i<_reconstructed_cardiac_phases.size(); i++)
+        _globalReconstructed4DArray.push_back(reconstructed3D);
+
+
+    if(_debug) {
+        cout << "- Gaussian reconstruction : " << endl;
+    }
+
+    ParallelGaussianReconstructionCardiac4DxT *gr = new ParallelGaussianReconstructionCardiac4DxT(this);
+    (*gr)();
+
+    int X, Y, Z, T;
+    X = _reconstructed4D.GetX();
+    Y = _reconstructed4D.GetY();
+    Z = _reconstructed4D.GetZ();
+    T = _reconstructed4D.GetT();
+
+    RealImage tmp3D, tmp4D;
+    
+    tmp4D = _reconstructed4D; 
+    tmp4D = 0;
+    
+    for (int t=0; t<T ; t++) {
+
+        tmp3D = _globalReconstructed4DArray[t];
+        for (int z=0; z<Z ; z++) {
+            for (int y=0; y<Y ; y++) {
+                for (int x=0; x<X ; x++) {
+                    tmp4D(x,y,z,t) = tmp3D(x,y,z);
+                }
+            }
+        }
+    }
+
+    _reconstructed4D = tmp4D;
+
+    delete gr;
+    _globalReconstructed4DArray.clear();
+
+    char buffer[256];
+
+    if (_debug) {
+
+        sprintf(buffer,"pp-recon4D-gaussian-phase.nii.gz");
+        _reconstructed4D.Write(buffer);
+
+    }
+
+}
+
+
+//------------------------------------------------------------------- 
+
+
 class ParallelGaussianReconstructionCardiacVelocity4D {
 public:
         ReconstructionCardiacVelocity4D *reconstructor;
@@ -432,8 +815,8 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4Dx3(
         for (int i=0; i<_v_directions.size(); i++) {
         
             RealImage scaled = _reconstructed5DVelocity[i];
-            scaled *= 1000;
-            sprintf(buffer,"recon4Dgaussian-velocity-%i.nii.gz", i);
+            scaled *= _velocity_scale;
+            sprintf(buffer,"recon4D-gaussian-velocity-%i.nii.gz", i);
             scaled.Write(buffer);
 
             // sprintf(buffer,"weights-velocity-%i.nii.gz", i);

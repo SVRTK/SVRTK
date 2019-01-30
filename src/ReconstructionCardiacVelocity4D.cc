@@ -657,7 +657,7 @@ void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiac4DxT()
 
     if (_debug) {
 
-        sprintf(buffer,"pp-recon4D-gaussian-phase.nii.gz");
+        sprintf(buffer,"recon4D-gaussian-phase.nii.gz");
         _reconstructed4D.Write(buffer);
 
     }

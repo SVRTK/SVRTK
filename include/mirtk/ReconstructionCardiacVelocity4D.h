@@ -114,7 +114,7 @@ inline void ReconstructionCardiacVelocity4D::SaveReconstructedVelocity4D()
 
     RealImage scaled =  _reconstructed5DVelocity[i];
     scaled *= 1000;
-    sprintf(buffer,"scaled-velocity-%i.nii.gz",i);
+    sprintf(buffer,"velocity-%i.nii.gz",i);
     scaled.Write(buffer);
     cout << " - " << buffer << endl;
   }

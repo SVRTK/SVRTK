@@ -52,7 +52,7 @@ protected:
   double _VENC; 
 
   // what is the correct value / units? 
-  const double gamma = 42577; 
+  const double gamma = 42.577; 
 
 
  public:
@@ -69,9 +69,9 @@ protected:
     void GaussianReconstructionCardiacVelocity4D();    
     void SimulateSlicesCardiacVelocity4D();
     void SuperresolutionCardiacVelocity4D(int iter);
-    void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals);
+    void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals, RealImage& original_main);
     
-    void FastGaussianReconstructionCardiacVelocity4D();
+    void GaussianReconstructionCardiacVelocity4Dx3();
 
     void  MaskSlicesPhase();
 
@@ -104,21 +104,49 @@ inline void ReconstructionCardiacVelocity4D::SaveReconstructedVelocity4D()
 
   char buffer[256];
 
+
+
   cout << ".............................................." << endl;
   cout << ".............................................." << endl;
   cout << "Reconstructed velocity files : " << endl;
 
   for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
 
-    _reconstructed5DVelocity[i] = _reconstructed5DVelocity[i] * 1000; 
-    sprintf(buffer,"velocity-%i.nii.gz",i);
-    _reconstructed5DVelocity[i].Write(buffer);
+    RealImage scaled =  _reconstructed5DVelocity[i];
+    scaled *= 1000;
+    sprintf(buffer,"scaled-velocity-%i.nii.gz",i);
+    scaled.Write(buffer);
     cout << " - " << buffer << endl;
   }
 
   cout << ".............................................." << endl;
   cout << ".............................................." << endl;
 
+  for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
+
+    RealImage subtracted4D = _reconstructed5DVelocity[i];
+
+    RealImage average3D = subtracted4D.GetRegion(0,0,0,0,subtracted4D.GetX(),subtracted4D.GetY(),subtracted4D.GetZ(),1);
+    average3D = 0;
+
+
+    for (int t=0; t<subtracted4D.GetT(); t++)
+      average3D = average3D + subtracted4D.GetRegion(0,0,0,(t),subtracted4D.GetX(),subtracted4D.GetY(),subtracted4D.GetZ(),(t+1));
+
+    average3D /= subtracted4D.GetT();
+
+    for (int t=0; t<subtracted4D.GetT(); t++)
+      for (int z=0; z<subtracted4D.GetZ(); z++)
+        for (int y=0; y<subtracted4D.GetY(); y++)
+          for (int x=0; x<subtracted4D.GetX(); x++)
+            subtracted4D(x,y,z,t) = subtracted4D(x,y,z,t) - average3D(x,y,z);
+
+    subtracted4D *= 1000;
+
+    sprintf(buffer,"subtracted-velocity-%i.nii.gz",i);
+    subtracted4D.Write(buffer);
+
+  }
 
 }
 

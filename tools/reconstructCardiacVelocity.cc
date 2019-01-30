@@ -187,9 +187,10 @@ int main(int argc, char **argv)
 
     // Numbers of NMI bins for registration
     int nmi_bins = 16;
+    double velocity_scale = 1000;
 
     
-    // Default values.
+    // Default values
     int templateNumber = 0;
     RealImage *mask=NULL;
     int iterations = 4;
@@ -228,7 +229,7 @@ int main(int argc, char **argv)
     bool stack_registration = false;
     
     //flag to swich the robust statistics on and off
-    bool robust_statistics = false; //true;
+    bool robust_statistics = true; //true;
     bool robust_slices_only = false;
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
@@ -676,6 +677,16 @@ int main(int argc, char **argv)
             argv++;
             ok = true;
         }
+
+        //Scale for output velocity volumes
+        if ((ok == false) && (strcmp(argv[1], "-velocity_scale") == 0)){
+            argc--;
+            argv++;
+            velocity_scale=atof(argv[1]);
+            argc--;
+            argv++;
+            ok = true;
+        }
         
         //Match stack intensities
         if ((ok == false) && (strcmp(argv[1], "-no_stack_intensity_matching") == 0)){
@@ -770,6 +781,8 @@ int main(int argc, char **argv)
             rescale_stacks=true;
             ok = true;
         }
+
+        
         
         // Save slice info
         if ((ok == false) && (strcmp(argv[1], "-info") == 0)) {
@@ -1019,6 +1032,9 @@ int main(int argc, char **argv)
     //Set NMI bins for registration
     reconstruction.SetNMIBins(nmi_bins);
     
+    //Set scale for ouput velocity volumes
+    reconstruction.SetVelocityScale(velocity_scale);
+
     //Set force excluded slices
     reconstruction.SetForceExcludedSlices(force_excluded);
     
@@ -1271,27 +1287,18 @@ int main(int argc, char **argv)
     reconstruction.Set3DRecon();
 
 
+ 
+    reconstruction.GaussianReconstructionCardiac4DxT();
+
+    // reconstructed=reconstruction.GetReconstructedCardiac4D();
+    // reconstructed.Write("recon4D-gaussian-phase.nii.gz");
+    
 
 
-    reconstruction.GaussianReconstructionCardiac4D();
-
-    reconstructed=reconstruction.GetReconstructedCardiac4D();
-
-    reconstructed.Write("gaussian-phase.nii.gz");
-
-
-
-
-    // robust_statistics = false;
-
-
-    // reconstruction.GaussianReconstructionCardiacVelocity4D();
+    reconstruction.GaussianReconstructionCardiacVelocity4DxT();
     // reconstruction.SaveReconstructedVelocity4D(); 
 
-    reconstruction.GaussianReconstructionCardiacVelocity4Dx3();
-    reconstruction.SaveReconstructedVelocity4D(); 
-
-
+    
     //Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();
 
@@ -1304,23 +1311,17 @@ int main(int argc, char **argv)
       reconstruction.EStep();
     
 
-//    intensity_matching = false;
-    
+
     rec_iterations = rec_iterations_first;
 
-    /*
-    if ((!robust_statistics)&&(!intensity_matching))
-        rec_iterations=0;
-
-    */
-
-    
+  
     if (!robust_statistics)
         rec_iterations = 1;
+
     
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
 
-      cout<<endl<<"  Reconstruction iteration "<<i<<". "<<endl;
+      cout<<endl<<" - Reconstruction iteration : "<< iteration <<" ... "<<endl;
             
       if (intensity_matching) 
       {
@@ -1352,431 +1353,24 @@ int main(int argc, char **argv)
 
     reconstruction.SaveReconstructedVelocity4D(); 
 
-
     reconstruction.StaticMaskReconstructedVolume4D();
+
     
     // reconstruction.RestoreSliceIntensities();
 
     // reconstruction.ScaleVolumeCardiac4D();
     reconstructed=reconstruction.GetReconstructedCardiac4D();
     reconstructed.Write(output_name);
+
     reconstruction.SaveSlices(stacks);
-    reconstruction.SaveTransformations();
+    // reconstruction.SaveTransformations();
 
     reconstruction.SaveSimulatedSlices(stacks);
 
     // reconstruction.SaveSimulatedSlices();
 
 
-    // ...........................................................................
-
-    exit(1);
-
-
-
-  /*
-
-    //interleaved registration-reconstruction iterations
-    if(debug)
-    cout<<"Number of iterations is :"<<iterations<<endl;
-    
-    
-    for (int iter=0;iter<iterations;iter++)
-    {
-        //Print iteration number on the screen
-        if ( ! no_log ) {
-            cout.rdbuf (strm_buffer);
-        }
-        
-        cout<<"Iteration"<<iter<<". "<<endl;
-        
-        
-        //perform slice-to-volume registrations
-        if ( iter > 0 )
-        {
-            if ( ! no_log ) {
-                cerr.rdbuf(file_e.rdbuf());
-                cout.rdbuf (file.rdbuf());
-            }
-            cout<<endl<<endl<<"Iteration "<<iter<<": "<<endl<<endl;
-            reconstruction.SliceToVolumeRegistrationCardiac4D();
-            cout<<endl;
-            if ( ! no_log ) {
-                cerr.rdbuf (strm_buffer_e);
-            }
-            
-            // if ((iter>0) && (debug))
-            //       reconstruction.SaveRegistrationStep(stacks,iter);
-            
-            if ( ! no_log ) {
-                cerr.rdbuf (strm_buffer_e);
-            }
-            
-            // process transformations
-            if(motion_sigma>0)
-            reconstruction.SmoothTransformations(motion_sigma);
-            
-        }  // if ( iter > 0 )
-        
-        
-        //Write to file
-        if ( ! no_log ) {
-            cout.rdbuf (file2.rdbuf());
-        }
-        cout<<endl<<endl<<"Iteration "<<iter<<": "<<endl<<endl;
-        
-        //Set smoothing parameters
-        //amount of smoothing (given by lambda) is decreased with improving alignment
-        //delta (to determine edges) stays constant throughout
-        if(iter==(iterations-1))
-        reconstruction.SetSmoothingParameters(delta,lastIterLambda);
-        else
-        {
-            double l=lambda;
-            for (i=0;i<levels;i++)
-            {
-                if (iter==iterations*(levels-i-1)/levels)
-                reconstruction.SetSmoothingParameters(delta, l);
-                l*=2;
-            }
-        }
-        
-        //Use faster reconstruction during iterations and slower for final reconstruction
-        if ( iter<(iterations-1) )
-        reconstruction.SpeedupOn();
-        else
-        reconstruction.SpeedupOff();
-        
-        //Exclude whole slices only
-        if(robust_slices_only)
-        reconstruction.ExcludeWholeSlicesOnly();
-        
-        //Initialise values of weights, scales and bias fields
-        reconstruction.InitializeEMValues();
-        
-        //Calculate matrix of transformation between voxels of slices and volume
-        if (bspline)
-        {
-            cerr<<"Cannot currently initalise b-spline for cardiac 4D reconstruction."<<endl;
-            exit(1);
-        }
-        else
-        reconstruction.CoeffInitCardiac4D();
-        
-        //Initialize reconstructed image with Gaussian weighted reconstruction
-        if (bspline)
-        {
-            cerr<<"Cannot currently reconstruct b-spline for cardiac 4D reconstruction."<<endl;
-            exit(1);
-        }
-        else
-        reconstruction.GaussianReconstructionCardiac4D();
-        
-        // Calculate Entropy
-        e.clear();
-        e.push_back(reconstruction.CalculateEntropy());
-        
-        // Save Initialised Volume to File
-        if (debug)
-        {
-            reconstructed = reconstruction.GetReconstructedCardiac4D();
-            sprintf(buffer,"init_mc%02i.nii.gz",iter);
-            reconstructed.Write(buffer);
-            volumeweights = reconstruction.GetVolumeWeights();
-            sprintf(buffer,"volumeweights_mc%02i.nii.gz",iter);
-            volumeweights.Write(buffer);
-        }
-        
-        //Simulate slices (needs to be done after Gaussian reconstruction)
-        reconstruction.SimulateSlicesCardiac4D();
-        
-        //Save intermediate simulated slices
-        if(debug)
-        {
-            reconstruction.SaveSimulatedSlices(stacks,iter,0);
-            reconstruction.SaveSimulatedWeights(stacks,iter,0);
-            reconstruction.CalculateError();
-            reconstruction.SaveError(stacks,iter,0);
-        }
-        
-        //Initialize robust statistics parameters
-        reconstruction.InitializeRobustStatistics();
-        
-        //EStep
-        if(robust_statistics)
-        reconstruction.EStep();
-        
-        if(debug)
-        reconstruction.SaveWeights(stacks,iter,0);
-        
-        //number of reconstruction iterations
-        if ( iter==(iterations-1) )
-        {
-            if (rec_iterations_last<0)
-            rec_iterations_last = 2 * rec_iterations_first;
-            rec_iterations = rec_iterations_last;
-        }
-        else {
-            rec_iterations = rec_iterations_first;
-        }
-        if (debug)
-        cout << "rec_iterations = " << rec_iterations << endl;
-        
-        if ((bspline)&&(!robust_statistics)&&(!intensity_matching))
-        rec_iterations=0;
-        
-        //reconstruction iterations
-        for (i=0;i<rec_iterations;i++)
-        {
-            cout<<endl<<"  Reconstruction iteration "<<i<<". "<<endl;
-            
-            if (intensity_matching)
-            {
-                //calculate bias fields
-                if (sigma>0)
-                reconstruction.Bias();
-                //calculate scales
-                reconstruction.Scale();
-            }
-            
-            //Update reconstructed volume
-            if (!bspline)
-            reconstruction.SuperresolutionCardiac4D(i);
-            
-            if (intensity_matching)
-            {
-                if((sigma>0)&&(!global_bias_correction))
-                reconstruction.NormaliseBiasCardiac4D(iter,i);
-            }
-            
-            //Save intermediate reconstructed volume
-            if (debug)
-            {
-                reconstructed=reconstruction.GetReconstructedCardiac4D();
-                reconstructed=reconstruction.StaticMaskVolume4D(reconstructed,-1);
-                sprintf(buffer,"super_mc%02isr%02i.nii.gz",iter,i);
-                reconstructed.Write(buffer);
-            }
-            
-            // Calculate Entropy
-            e.push_back(reconstruction.CalculateEntropy());
-            
-            // Simulate slices (needs to be done
-            // after the update of the reconstructed volume)
-            reconstruction.SimulateSlicesCardiac4D();
-            
-            if ((i+1)<rec_iterations)
-            {
-                //Save intermediate simulated slices
-                if(debug)
-                {
-                    if (intensity_matching) {
-                        reconstruction.CalculateCorrectedSlices();
-                        reconstruction.SaveCorrectedSlices(stacks,iter,i+1);
-                        if (sigma>0)
-                        reconstruction.SaveBiasFields(stacks,iter,i+1);
-                    }
-                    reconstruction.SaveSimulatedSlices(stacks,iter,i+1);
-                    reconstruction.CalculateError();
-                    reconstruction.SaveError(stacks,iter,i+1);
-                }
-                
-                if(robust_statistics)
-                reconstruction.MStep(i+1);
-                
-                //E-step
-                if(robust_statistics)
-                reconstruction.EStep();
-                
-                //Save intermediate weights
-                if(debug)
-                reconstruction.SaveWeights(stacks,iter,i+1);
-            }
-            
-        }//end of reconstruction iterations
-        
-        //Mask reconstructed image to ROI given by the mask
-        if(!bspline)
-        reconstruction.StaticMaskReconstructedVolume4D();
-        
-        //Save reconstructed image
-        reconstructed=reconstruction.GetReconstructedCardiac4D();
-        reconstructed=reconstruction.StaticMaskVolume4D(reconstructed,-1);
-        sprintf(buffer,"reconstructed_mc%02i.nii.gz",iter);
-        reconstructed.Write(buffer);
-        
-        //Save Calculated Entropy
-        entropy.push_back(e);
-        
-        //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-        if ( ! no_log )
-        cout.rdbuf (fileEv.rdbuf());
-        reconstruction.Evaluate(iter);
-        cout<<endl;
-        if ( ! no_log )
-        cout.rdbuf (strm_buffer);
-        
-        // Calculate Displacements
-        if(have_ref_vol){
-            
-            // Change logging
-            if ( ! no_log ) {
-                cerr.rdbuf(file_e.rdbuf());
-                cout.rdbuf (file.rdbuf());
-            }
-            
-            // Get Current Reconstructed Volume
-            reconstructed=reconstruction.GetReconstructedCardiac4D();
-            reconstructed=reconstruction.StaticMaskVolume4D(reconstructed,-1);
-            
-            // Invert to get recon to ref transformation
-            if(rreg_recon_to_ref) {
-                reconstruction.VolumeToVolumeRegistration(ref_vol,reconstructed,transformation_recon_to_ref);
-                Matrix m = transformation_recon_to_ref.GetMatrix();
-                m.Invert();  // Invert to get recon to ref transformation
-                transformation_recon_to_ref.PutMatrix(m);
-            }
-            else {
-                reconstruction.VolumeToVolumeRegistration(reconstructed,ref_vol,transformation_recon_to_ref);
-            }
-            
-            // Change logging
-            if ( ! no_log ) {
-                cout.rdbuf (strm_buffer);
-                cerr.rdbuf (strm_buffer_e);
-            }
-            
-            // Save Transformation
-            sprintf(buffer, "recon_to_ref_mc%02i.dof",iter);
-            transformation_recon_to_ref.Write(buffer);
-            
-            // Calculate Displacements Relative to Alignment
-            mean_displacement.push_back(reconstruction.CalculateDisplacement(transformation_recon_to_ref));
-            mean_weighted_displacement.push_back(reconstruction.CalculateWeightedDisplacement(transformation_recon_to_ref));
-            
-            // Calculate TRE Relative to Alignment
-            if(have_ref_transformations)
-            mean_tre.push_back(reconstruction.CalculateTRE(transformation_recon_to_ref));
-            
-        }
-        else {
-            
-            // Calculate Displacement
-            mean_displacement.push_back(reconstruction.CalculateDisplacement());
-            mean_weighted_displacement.push_back(reconstruction.CalculateWeightedDisplacement());
-            
-            // Calculate TRE
-            if(have_ref_transformations)
-            mean_tre.push_back(reconstruction.CalculateTRE());
-            
-        }
-        
-        // Display Displacements and TRE
-        if (debug) {
-            cout<<"Mean Displacement (iter "<<iter<<") = "<<mean_displacement[iter]<<" mm."<<endl;
-            cout<<"Mean Weighted Displacement (iter "<<iter<<") = "<<mean_weighted_displacement[iter]<<" mm."<<endl;
-            if(have_ref_transformations)
-            cout<<"Mean TRE (iter "<<iter<<") = "<<mean_tre[iter]<<" mm."<<endl;
-        }
-        
-        // Save Info for Iteration
-        if(debug)
-        {
-            cout<<"SlicesInfoCardiac4D"<<endl;
-            sprintf(buffer,"info_mc%02i.tsv",iter);
-            reconstruction.SlicesInfoCardiac4D( buffer, stack_files );
-        }
-        
-    }// end of interleaved registration-reconstruction iterations
-
-    
-
-
-
-    
-    //Display Entropy Values
-    if(debug)
-    {
-        cout<<setprecision(9);
-        cout << "Calculated Entropy:" << endl;
-        for(unsigned int iter_mc=0; iter_mc<entropy.size(); iter_mc++)
-        {
-            cout << iter_mc << ": ";
-            for(unsigned int iter_sr=0; iter_sr<entropy[iter_mc].size(); iter_sr++)
-            {
-                cout << entropy[iter_mc][iter_sr] << " ";
-            }
-            cout << endl;
-        }
-        cout<<setprecision(3);
-    }
-    
-    //Display Mean Displacements and TRE
-    if (debug) {
-        cout<<"Mean Displacement:";
-        for(unsigned int iter_mc=0; iter_mc<mean_displacement.size(); iter_mc++) {
-            cout<<" "<<mean_displacement[iter_mc];
-        }
-        cout<<" mm."<<endl;
-        cout<<"Mean Weighted Displacement:";
-        for(unsigned int iter_mc=0; iter_mc<mean_weighted_displacement.size(); iter_mc++) {
-            cout<<" "<<mean_weighted_displacement[iter_mc];
-        }
-        cout<<" mm."<<endl;
-        if(have_ref_transformations) {
-            cout<<"Mean TRE:";
-            for(unsigned int iter_mc=0; iter_mc<mean_tre.size(); iter_mc++) {
-                cout<<" "<<mean_tre[iter_mc];
-            }
-            cout<<" mm."<<endl;
-        }
-    }
-    
-    //save final result
-    if(debug)
-    cout<<"RestoreSliceIntensities"<<endl;
-    reconstruction.RestoreSliceIntensities();
-    if(debug)
-    cout<<"ScaleVolumeCardiac4D"<<endl;
-    reconstruction.ScaleVolumeCardiac4D();
-    if(debug)
-    cout<<"Saving Reconstructed Volume"<<endl;
-    reconstructed=reconstruction.GetReconstructedCardiac4D();
-    reconstructed.Write(output_name);
-    if(debug)
-    cout<<"SaveSlices"<<endl;
-    reconstruction.SaveSlices(stacks);
-    if(debug)
-    cout<<"SaveTransformations"<<endl;
-    reconstruction.SaveTransformations();
-    
-    //save final transformation to reference volume
-    if(have_ref_vol) {
-        sprintf(buffer, "recon_to_ref.dof");
-        transformation_recon_to_ref.Write(buffer);
-    }
-    
-    if ( info_filename.length() > 0 )
-    {
-        if(debug)
-        cout<<"SlicesInfoCardiac4D"<<endl;
-        reconstruction.SlicesInfoCardiac4D( info_filename.c_str(), stack_files );
-    }
-    
-    if(debug)
-    {
-        cout<<"SaveWeights"<<endl;
-        reconstruction.SaveWeights(stacks);
-        cout<<"SaveBiasFields"<<endl;
-        reconstruction.SaveBiasFields(stacks);
-        cout<<"SaveSimulatedSlices"<<endl;
-        reconstruction.SaveSimulatedSlices(stacks);
-        cout<<"ReconstructionCardiac complete."<<endl;
-    }
     //The end of main()
-
-
-    */
     
 }
 

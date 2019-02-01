@@ -96,6 +96,7 @@ void usage()
     cerr << "\t-no_stack_intensity_matching  Switch off stack intensity matching."<<endl;
     cerr << "\t-no_intensity_matching     Switch off intensity matching."<<endl;
     cerr << "\t-no_robust_statistics      Switch off robust statistics."<<endl;
+    cerr << "\t-no_regularisation         Switch off adaptive regularisation."<<endl;
     cerr << "\t-exclude_slices_only       Do not exclude individual voxels."<<endl;
     cerr << "\t-ref_vol                   Reference volume for adjustment of spatial position of reconstructed volume."<<endl;
     cerr << "\t-rreg_recon_to_ref         Register reconstructed volume to reference volume [Default: recon to ref]"<<endl;
@@ -187,7 +188,7 @@ int main(int argc, char **argv)
     
     // Numbers of NMI bins for registration
     int nmi_bins = 16;
-    double velocity_scale = 1000;
+    double velocity_scale = 1;
     
     
     // Default values
@@ -227,9 +228,11 @@ int main(int argc, char **argv)
     bool intensity_matching = false; //true;
     bool rescale_stacks = false;
     bool stack_registration = false;
+
+    bool adaptive_regularisation = true;
     
     //flag to swich the robust statistics on and off
-    bool robust_statistics = true; //true;
+    bool robust_statistics = false; //true;
     bool robust_slices_only = false;
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
@@ -688,6 +691,15 @@ int main(int argc, char **argv)
             ok = true;
         }
         
+        //No adaptive regularisation
+        if ((ok == false) && (strcmp(argv[1], "-no_regularisation") == 0)){
+            argc--;
+            argv++;
+            adaptive_regularisation=false;
+
+            ok = true;
+        }
+        
         //Match stack intensities
         if ((ok == false) && (strcmp(argv[1], "-no_stack_intensity_matching") == 0)){
             argc--;
@@ -1032,6 +1044,9 @@ int main(int argc, char **argv)
     //Set NMI bins for registration
     reconstruction.SetNMIBins(nmi_bins);
     
+    //Set adaptive regularisation option flag
+    reconstruction.SetAdaptiveRegularisation(adaptive_regularisation);
+    
     //Set scale for ouput velocity volumes
     reconstruction.SetVelocityScale(velocity_scale);
     
@@ -1100,45 +1115,6 @@ int main(int argc, char **argv)
     cout<<setprecision(3);
     cerr<<setprecision(3);
     
-    //redirect output to files
-    if ( ! no_log ) {
-        cerr.rdbuf(file_e.rdbuf());
-        cout.rdbuf (file.rdbuf());
-    }
-    
-    /*
-     //volumetric registration if input stacks are single time frame
-     if (stack_registration)
-     {
-     ImageAttributes attr = stacks[templateNumber].GetImageAttributes();
-     if (attr._t > 1)
-     cout << "Skipping stack-stack registration; target stack has more than one time frame." << endl;
-     else
-     {
-     if (debug)
-     cout << "StackRegistrations" << endl;
-     reconstruction.StackRegistrations(stacks,stack_transformations,templateNumber);
-     if (debug)
-     {
-     reconstruction.InvertStackTransformations(stack_transformations);
-     for (i=0;i<nStacks;i++)
-     {
-     sprintf(buffer, "stack-transformation%03i.dof", i);
-     stack_transformations[i].Write(buffer);
-     }
-     reconstruction.InvertStackTransformations(stack_transformations);
-     }
-     }
-     }
-     */
-    
-    
-    cout<<endl;
-    //redirect output back to screen
-    if ( ! no_log ) {
-        cout.rdbuf (strm_buffer);
-        cerr.rdbuf (strm_buffer_e);
-    }
     
     average = reconstruction.CreateAverage(stacks,stack_transformations);
     //    if (debug)
@@ -1286,20 +1262,24 @@ int main(int argc, char **argv)
     
     reconstruction.Set3DRecon();
     
-    
+    // Initialise velocity and phase limits
     reconstruction.ItinialiseVelocityBounds();
+    
+    
+    
+    //-------------------------------------------------------------------------------------
+    // Main velocity reconstruciton steps
  
-
-    // Gaussian reconstruction of phase volume   
+    
+    // STEP 1: Gaussian reconstruction of phase volume
     reconstruction.GaussianReconstructionCardiac4DxT();
 
 
-    // Gaussian recostruction of velocity volumes       
+    // STEP 2: Gaussian recostruction of velocity volumes
     reconstruction.GaussianReconstructionCardiacVelocity4DxT();
-    // reconstruction.SaveReconstructedVelocity4D();
-    
+
  
-    // Simulate slices (should be done after Gaussian reconstruction)
+    // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();
     
     
@@ -1311,11 +1291,9 @@ int main(int argc, char **argv)
         reconstruction.EStep();
     
      
-    rec_iterations = rec_iterations_first;
+    rec_iterations = rec_iterations_first;      // number of iterations is controlled by '-rec_iterations' flag
 
-    
-    robust_statistics = false;
-        
+    // main reconstruction loop
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
         
         cout<<endl<<" - Reconstruction iteration : "<< iteration <<" ... "<<endl;
@@ -1334,9 +1312,8 @@ int main(int argc, char **argv)
         }
         
         
-        
+        // STEPS 4-5: super-resolution reconstruction and simulation of slices (optimisation loop)
         reconstruction.SuperresolutionCardiacVelocity4D(iteration);
-        
         reconstruction.SimulateSlicesCardiacVelocity4D();
         
         
@@ -1357,15 +1334,17 @@ int main(int argc, char **argv)
         reconstruction.SaveReconstructedVelocity4D(iteration);
         reconstruction.SaveReconstructedVolume4D(iteration);
         
-    }
+    } // end of reconstruction loop
     
+    //-------------------------------------------------------------------------------------
+    
+    
+    reconstruction.StaticMaskReconstructedVolume5D();
+    reconstruction.SaveReconstructedVelocity4D(100);
     
     
     reconstruction.StaticMaskReconstructedVolume4D();
-    
-    
     // reconstruction.RestoreSliceIntensities();
-    
     // reconstruction.ScaleVolumeCardiac4D();
     reconstructed=reconstruction.GetReconstructedCardiac4D();
     reconstructed.Write(output_name);

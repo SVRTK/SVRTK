@@ -48,7 +48,9 @@ namespace mirtk {
         Array<double> tmp;
         double t;
         
-        _velocity_scale = 1000;
+        _velocity_scale = 1;
+        
+        _adaptive_regularisation = true;
         
         _v_directions.clear();
         for (int i=0; i<3; i++) {
@@ -175,7 +177,11 @@ namespace mirtk {
                     // w=exp(-tw*tw)/(6.28*sigma);
                     
                     v_component = dotp /( gval * gamma);
-                                        
+                    
+                    cout << " g: [" << gx << " " << gy << " " << gz << "] / ";
+                    cout << " v: [" << dx << " " << dy << " " << dz << "] / ";
+                    cout << " dotp: " << dotp << " / " << " v_comp: " << v_component << endl;
+                    
                     // distribute slice intensities to the volume
                     for ( int i = 0; i < slice.GetX(); i++ ) {
                         for ( int j = 0; j < slice.GetY(); j++ ) {
@@ -557,7 +563,14 @@ namespace mirtk {
              for (int y = 0; y < _reconstructed4D.GetY(); y++) {
                  for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
                      for (int t = 0; t < _reconstructed4D.GetT(); t++) {
-                         for ( int v = 0; v < _v_directions.size(); v++ ) {   
+                         for ( int v = 0; v < _v_directions.size(); v++ ) {
+
+                            if (_reconstructed4D(x, y, z, t) < _min_phase*0.9)
+                                _reconstructed4D(x, y, z, t) = _min_phase*0.9;
+
+                            if (_reconstructed4D(x, y, z, t) > _max_phase*1.1)
+                                _reconstructed4D(x, y, z, t) = _max_phase*1.1;
+   
                              
                             if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
                                 _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
@@ -576,8 +589,9 @@ namespace mirtk {
         
         if (_debug) {
 
-            // sprintf(buffer,"recon4D-gaussian-phase.nii.gz");
-            // _reconstructed4D.Write(buffer);
+            sprintf(buffer,"recon4D-gaussian-phase.nii.gz");
+            _reconstructed4D.Write(buffer);
+
             
             for (int i=0; i<_v_directions.size(); i++) {
                 
@@ -763,6 +777,7 @@ namespace mirtk {
                      }
                  }
              }
+             
          }
 
 
@@ -1199,18 +1214,21 @@ namespace mirtk {
              }
          }
         
+        
+        if(_adaptive_regularisation) {
 
-        //Smooth the reconstructed image
-//        AdaptiveRegularizationCardiacVelocity4D(iter, originals, original_main);
-        
-        
-        
+            // Smooth the reconstructed image
+            AdaptiveRegularizationCardiacVelocity4D(iter, originals, original_main);
+            
+        }
+
         
         //Remove the bias in the reconstructed volume compared to previous iteration
         //  TODO: update adaptive regularisation for 4d
         //  if (_global_bias_correction)
         //  BiasCorrectVolume(original);
-        //
+        
+        
     }
     
     
@@ -1445,6 +1463,30 @@ namespace mirtk {
         
     }
     
+    
+    //-------------------------------------------------------------------
+    
+    
+    void ReconstructionCardiacVelocity4D::StaticMaskReconstructedVolume5D()
+    {
+        for ( int v = 0; v < _reconstructed5DVelocity.size(); v++ ) {
+            for ( int x = 0; x < _mask.GetX(); x++ ) {
+                for ( int y = 0; y < _mask.GetY(); y++ ) {
+                    for ( int z = 0; z < _mask.GetZ(); z++ ) {
+                        
+                        if ( _mask(x,y,z) == 0 ) {
+                            
+                            for ( int t = 0; t < _reconstructed4D.GetT(); t++ ) {
+                                
+                                _reconstructed5DVelocity[v](x,y,z,t) = -1;
+                                
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     
     //-------------------------------------------------------------------

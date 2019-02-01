@@ -760,6 +760,9 @@ namespace mirtk {
 
                         if (_reconstructed4D(x, y, z, t) > _max_phase*1.1)
                             _reconstructed4D(x, y, z, t) = _max_phase*1.1;
+                     }
+                 }
+             }
          }
 
 

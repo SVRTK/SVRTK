@@ -1932,6 +1932,9 @@ namespace mirtk {
         void operator() (const blocked_range<size_t> &r) const {
             
             ImageAttributes attr = reconstructor->_reconstructed4D.GetImageAttributes();
+
+
+
             
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
@@ -1962,15 +1965,16 @@ namespace mirtk {
                     target.GetMinMax(&smin, &smax);
                     
                     // SOURCE
-                    if (smax > -1) {
+                    if (smax > 0 && (smax-smin) > 1) {
                         
                         ParameterList params;
                         Insert(params, "Transformation model", "Rigid");
                         Insert(params, "Image (dis-)similarity measure", "NMI");
-                        Insert(params, "No. of bins", reconstructor->_nmi_bins);
+                        if (reconstructor->_nmi_bins>0)
+                            Insert(params, "No. of bins", reconstructor->_nmi_bins);
                         Insert(params, "Image interpolation mode", "Linear");
                         // Insert(params, "Background value", -1);
-                        Insert(params, "Background value for image 1", -1);
+                        Insert(params, "Background value for image 1", 0);
                         Insert(params, "Background value for image 2", -1);
                         
 //                        Insert(params, "Image (dis-)similarity measure", "NCC");
@@ -1996,6 +2000,9 @@ namespace mirtk {
                         // TODO: extract nearest cardiac phase from reconstructed 4D to use as source
                         GreyImage source = reconstructor->_reconstructed4D.GetRegion( 0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex]+1 );
                         
+
+                        target.Write("tt.nii.gz");
+
                         
                         registration->Input(&target, &source);
                         Transformation *dofout = nullptr;
@@ -2039,6 +2046,9 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     void ReconstructionCardiac4D::SliceToVolumeRegistrationCardiac4D()
     {
+
+        _reconstructed4D.Write("zzz.nii.gz");
+
         if (_debug)
         cout << "SliceToVolumeRegistrationCardiac4D" << endl;
         ParallelSliceToVolumeRegistrationCardiac4D registration(this);
@@ -2056,7 +2066,8 @@ namespace mirtk {
         ParameterList params;
         Insert(params, "Transformation model", "Rigid");
         Insert(params, "Image (dis-)similarity measure", "NMI");
-        Insert(params, "No. of bins", _nmi_bins);
+        if (_nmi_bins>0)
+            Insert(params, "No. of bins", _nmi_bins);
         // Insert(params, "Image interpolation mode", "Linear");
         Insert(params, "Background value for image 1", -1);
         Insert(params, "Background value for image 2", -1);
@@ -3899,11 +3910,10 @@ namespace mirtk {
     
     
     
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
     
     
     
 } // namespace mirtk
 
 
- 

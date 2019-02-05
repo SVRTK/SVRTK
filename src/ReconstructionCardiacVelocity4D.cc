@@ -178,9 +178,9 @@ namespace mirtk {
                     
                     v_component = dotp /( gval * gamma);
                     
-                    cout << " g: [" << gx << " " << gy << " " << gz << "] / ";
-                    cout << " v: [" << dx << " " << dy << " " << dz << "] / ";
-                    cout << " dotp: " << dotp << " / " << " v_comp: " << v_component << endl;
+//                     cout << " g: [" << gx << " " << gy << " " << gz << "] / ";
+//                     cout << " v: [" << dx << " " << dy << " " << dz << "] / ";
+//                     cout << " dotp: " << dotp << " / " << " v_comp: " << v_component << endl;
                     
                     // distribute slice intensities to the volume
                     for ( int i = 0; i < slice.GetX(); i++ ) {
@@ -556,7 +556,7 @@ namespace mirtk {
         delete gr;
         _globalReconstructed4DVelocityArray.clear();
         
-
+        /*
 
         //bound the intensities
          for (int x = 0; x < _reconstructed4D.GetX(); x++) {
@@ -583,7 +583,7 @@ namespace mirtk {
                  }
              }
          }
-
+        */
 
         char buffer[256];
         
@@ -762,7 +762,9 @@ namespace mirtk {
         delete gr;
         _globalReconstructed4DArray.clear();
         
-
+        
+        /*
+        
         //bound the intensities
          for (int x = 0; x < _reconstructed4D.GetX(); x++) {
              for (int y = 0; y < _reconstructed4D.GetY(); y++) {
@@ -779,7 +781,7 @@ namespace mirtk {
              }
              
          }
-
+        */
 
         char buffer[256];
         
@@ -1194,6 +1196,7 @@ namespace mirtk {
     
         int templateIndex = 1;
         
+        /*
         
          //bound the intensities
          for (int x = 0; x < _reconstructed4D.GetX(); x++) {
@@ -1214,6 +1217,7 @@ namespace mirtk {
              }
          }
         
+        */
         
         if(_adaptive_regularisation) {
 

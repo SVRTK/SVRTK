@@ -203,8 +203,8 @@ int main(int argc, char **argv)
     double rrDefault = 1;
     double rrInterval = rrDefault;
     bool is_temporalpsf_gauss = false;
-    double lambda = 0.015; // 0.02;
-    double delta = 80; // 150;
+    double lambda = 0.015;
+    double delta = 70;
     int levels = 3;
     double lastIterLambda = 0.01;
     int rec_iterations = 10;
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
     bool adaptive_regularisation = true;
     
     //flag to swich the robust statistics on and off
-    bool robust_statistics = false; //true;
+    bool robust_statistics = true; //true;
     bool robust_slices_only = false;
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
@@ -1271,6 +1271,8 @@ int main(int argc, char **argv)
     // Main velocity reconstruciton steps
  
     
+    /*
+    
     // STEP 1: Gaussian reconstruction of phase volume
     reconstruction.GaussianReconstructionCardiac4DxT();
 
@@ -1278,13 +1280,17 @@ int main(int argc, char **argv)
     // STEP 2: Gaussian recostruction of velocity volumes
     reconstruction.GaussianReconstructionCardiacVelocity4DxT();
 
+    */
  
     // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();
     
     
+    
     //Initialize robust statistics parameters
     reconstruction.InitializeRobustStatistics();
+    
+    
     
     //EStep
     if(robust_statistics)

@@ -178,9 +178,9 @@ namespace mirtk {
                     
                     v_component = dotp /( gval * gamma);
                     
-//                     cout << " g: [" << gx << " " << gy << " " << gz << "] / ";
-//                     cout << " v: [" << dx << " " << dy << " " << dz << "] / ";
-//                     cout << " dotp: " << dotp << " / " << " v_comp: " << v_component << endl;
+                    cout << " g: [" << gx << " " << gy << " " << gz << "] / ";
+                    cout << " v: [" << dx << " " << dy << " " << dz << "] / ";
+                    cout << " dotp: " << dotp << " / " << " v_comp: " << v_component << endl;
                     
                     // distribute slice intensities to the volume
                     for ( int i = 0; i < slice.GetX(); i++ ) {
@@ -423,17 +423,23 @@ namespace mirtk {
                         
                         gval = reconstructor->_g_values[gradientIndex];
                         
+                        Array<double> g_directions;
+                        g_directions.push_back(gx);
+                        g_directions.push_back(gy);
+                        g_directions.push_back(gz);
+                        
+                        
                         for ( velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
                             
-                            // velocity direction vector
-                            dx = reconstructor->_v_directions[velocityIndex][0];
-                            dy = reconstructor->_v_directions[velocityIndex][1];
-                            dz = reconstructor->_v_directions[velocityIndex][2];
                             
-                            // ???? double check - whether it is correct for V = PHASE / (GAMMA*G)
-                            dotp = (dx*gx+dy*gy+dz*gz)/sqrt((dx*dx+dy*dy+dz*dz)*(gx*gx+gy*gy+gz*gz));
+//                            // velocity direction vector
+//                            dx = reconstructor->_v_directions[velocityIndex][0];
+//                            dy = reconstructor->_v_directions[velocityIndex][1];
+//                            dz = reconstructor->_v_directions[velocityIndex][2];
+//                            dotp = (dx*gx+dy*gy+dz*gz)/sqrt((dx*dx+dy*dy+dz*dz)*(gx*gx+gy*gy+gz*gz));
+//                            v_component = dotp /( gval * reconstructor->gamma);
                             
-                            v_component = dotp /( gval * reconstructor->gamma);
+                            v_component = g_directions[velocityIndex] / ( gval * reconstructor->gamma);
                             
                             
                             // distribute slice intensities to the volume
@@ -452,18 +458,12 @@ namespace mirtk {
                                             
                                             p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                             
-                                            // for ( outputIndex=0; outputIndex<reconstructor->_reconstructed_cardiac_phases.size(); outputIndex++ )  {
-                                            
-                                            // _reconstructed4D(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
-                                            // reconstructed4DVelocity(p.x, p.y, p.z, outputIndex) += v_component * slice(i, j, 0) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                                            
                                             reconstructed3DVelocityArray[velocityIndex](p.x, p.y, p.z) += v_component * slice(i, j, 0) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                             
                                             // do we need to multiply by v_component? or dotp?
                                             // weights(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                             weights(p.x, p.y, p.z) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                             
-                                            // } // end of loop for cardiac phases
                                         }
                                     }
                                 }
@@ -556,9 +556,10 @@ namespace mirtk {
         delete gr;
         _globalReconstructed4DVelocityArray.clear();
         
-        /*
 
-        //bound the intensities
+        /*
+         
+        //bound the intensities (test whether we need it)
          for (int x = 0; x < _reconstructed4D.GetX(); x++) {
              for (int y = 0; y < _reconstructed4D.GetY(); y++) {
                  for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
@@ -583,8 +584,9 @@ namespace mirtk {
                  }
              }
          }
-        */
 
+         */
+        
         char buffer[256];
         
         if (_debug) {
@@ -592,7 +594,6 @@ namespace mirtk {
             sprintf(buffer,"recon4D-gaussian-phase.nii.gz");
             _reconstructed4D.Write(buffer);
 
-            
             for (int i=0; i<_v_directions.size(); i++) {
                 
                 RealImage scaled = _reconstructed5DVelocity[i];
@@ -600,12 +601,16 @@ namespace mirtk {
                 sprintf(buffer,"recon4D-gaussian-velocity-%i.nii.gz", i);
                 scaled.Write(buffer);
                 
-                // sprintf(buffer,"weights-velocity-%i.nii.gz", i);
-                // weights[i].Write(buffer);
-                
             }
             
         }
+        
+        
+        
+        for (int i=0; i<_v_directions.size(); i++)
+            _reconstructed5DVelocity[i] = 0;
+        
+        
         
     }
     
@@ -762,9 +767,9 @@ namespace mirtk {
         delete gr;
         _globalReconstructed4DArray.clear();
         
-        
+
         /*
-        
+         
         //bound the intensities
          for (int x = 0; x < _reconstructed4D.GetX(); x++) {
              for (int y = 0; y < _reconstructed4D.GetY(); y++) {
@@ -781,7 +786,8 @@ namespace mirtk {
              }
              
          }
-        */
+
+         */
 
         char buffer[256];
         
@@ -860,18 +866,9 @@ namespace mirtk {
                                     
                                     sim_signal = sim_signal * reconstructor->gamma;
                                     
-                                    // to be updated !!!
+                                    // reconstruction from velocity
                                     reconstructor->_simulated_slices[inputIndex](i, j, 0) += sim_signal * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value; // * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                                    
-                                    
-                                    // pure phase reconstruction
-                                    // reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                                    
-                                    
-                                    // reconstructor->_simulated_slices[inputIndex](i, j, 0) += sim_signal[outputIndex] * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                                    
-                                    
-                                    
+
                                     weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                     
                                 }
@@ -960,19 +957,23 @@ namespace mirtk {
                 g_direction.push_back(gy);
                 g_direction.push_back(gz);
                 
-                //Update reconstructed volume using current slice
                 
                 for ( int velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
                     
-                    double dx = reconstructor->_v_directions[velocityIndex][0];
-                    double dy = reconstructor->_v_directions[velocityIndex][1];
-                    double dz = reconstructor->_v_directions[velocityIndex][2];
                     
-                    // check whether it is a correct expression and gamma values
-                    double dotp = (dx*gx+dy*gy+dz*gz)/sqrt((dx*dx+dy*dy+dz*dz)*(gx*gx+gy*gy+gz*gz));
-                    double v_component = dotp / (reconstructor->gamma*gval);
+                    double v_component;
                     
+//                    double dx = reconstructor->_v_directions[velocityIndex][0];
+//                    double dy = reconstructor->_v_directions[velocityIndex][1];
+//                    double dz = reconstructor->_v_directions[velocityIndex][2];
+//                    double dotp = (dx*gx+dy*gy+dz*gz)/sqrt((dx*dx+dy*dy+dz*dz)*(gx*gx+gy*gy+gz*gz));
+//                    v_component = dotp / (reconstructor->gamma*gval);
+                
                     
+                    v_component = g_direction[velocityIndex] / (reconstructor->gamma*gval);
+                    
+                    //Update reconstructed velocity volumes using current slice
+                
                     //Distribute error to the volume
                     POINT3D p;
                     for ( int i = 0; i < slice.GetX(); i++ ) {
@@ -980,12 +981,15 @@ namespace mirtk {
                             
                             if (slice(i, j, 0) != -1) {
                                 //bias correct and scale the slice
+                                
                                 slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                 
-                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > 0 )
+                                
+                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -1 )
                                     slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
                                 else
                                     slice(i,j,0) = 0;
+                                
                                 
                                 int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                                 
@@ -995,7 +999,6 @@ namespace mirtk {
                                     
                                     for ( int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
                                         
-//                                        v_component = g_direction[velocityIndex]
                                         
                                         if(reconstructor->_robust_slices_only) {
                                             
@@ -1019,7 +1022,9 @@ namespace mirtk {
                             }
                         }
                     }
+                    
                 } // end of loop for velocity directions
+                
                 
             } //end of loop for a slice inputIndex
             
@@ -1138,9 +1143,6 @@ namespace mirtk {
         _confidence_map = parallelSuperresolution.confidence_map_main;
         
         if(_debug) {
-            // char buffer[256];
-            //sprintf(buffer,"confidence-map%i.nii.gz",iter);
-            //_confidence_map.Write(buffer);
             
             for ( int i=0; i<_v_directions.size(); i++ ) {
                 
@@ -1150,8 +1152,7 @@ namespace mirtk {
                 sprintf(buffer,"confidence-map-velocity-%i-%i.nii.gz",i,iter);
                 _confidence_maps_velocity[i].Write(buffer);
             }
-            //sprintf(buffer,"addon%i.nii.gz",iter);
-            //addon.Write(buffer);
+
         }
         
         if (!_adaptive)
@@ -1197,8 +1198,7 @@ namespace mirtk {
         int templateIndex = 1;
         
         /*
-        
-         //bound the intensities
+         //bound the intensities (test whether we need it)
          for (int x = 0; x < _reconstructed4D.GetX(); x++) {
              for (int y = 0; y < _reconstructed4D.GetY(); y++) {
                  for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
@@ -1216,7 +1216,6 @@ namespace mirtk {
                  }
              }
          }
-        
         */
         
         if(_adaptive_regularisation) {
@@ -1512,13 +1511,6 @@ namespace mirtk {
         //origin
         double ox,oy,oz;
         
-        if (_debug)
-        {
-            //cout<<"Original direction "<<i<<"(dir"<<_stack_index[i]+1<<"): ";
-            //cout<<dx<<", "<<dy<<", "<<dz<<". ";
-            //cout<<endl;
-        }
-        
         //origin
         ox=0;oy=0;oz=0;
         _transformations[i].Transform(ox,oy,oz);
@@ -1533,12 +1525,6 @@ namespace mirtk {
         dy=y-oy;
         dz=z-oz;
         
-        if (_debug)
-        {
-            //cout<<"Rotated direction "<<i<<"(dir"<<_stack_index[i]+1<<"): ";
-            //cout<<dx<<", "<<dy<<", "<<dz<<". ";
-            //cout<<endl;
-        }
         
     }
     

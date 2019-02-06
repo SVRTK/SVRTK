@@ -84,6 +84,7 @@ void usage()
     cerr << "\t-rec_iterations_last [n]   Number of super-resolution reconstruction iterations for last iteration. [Default: 2 x rec_iterations]"<<endl;
     cerr << "\t-sigma [sigma]             Stdev for bias field. [Default: 12mm]"<<endl;
     cerr << "\t-nmi_bins [nmi_bins]       Number of NMI bins for registration. [Default: 16]"<<endl;
+    cerr << "\t-alpha [alpha]             Alpha value for super-resolution loop. [Default: 1]"<<endl;
     cerr << "\t-average [average]         Average intensity value for stacks [Default: 700]"<<endl;
     cerr << "\t-delta [delta]             Parameter to define what is an edge. [Default: 150]"<<endl;
     cerr << "\t-lambda [lambda]           Smoothing parameter. [Default: 0.02]"<<endl;
@@ -97,6 +98,7 @@ void usage()
     cerr << "\t-no_intensity_matching     Switch off intensity matching."<<endl;
     cerr << "\t-no_robust_statistics      Switch off robust statistics."<<endl;
     cerr << "\t-no_regularisation         Switch off adaptive regularisation."<<endl;
+    cerr << "\t-limit_intensities         Limit velocity magnitude according to the maximum/minimum values."<<endl;
     cerr << "\t-exclude_slices_only       Do not exclude individual voxels."<<endl;
     cerr << "\t-ref_vol                   Reference volume for adjustment of spatial position of reconstructed volume."<<endl;
     cerr << "\t-rreg_recon_to_ref         Register reconstructed volume to reference volume [Default: recon to ref]"<<endl;
@@ -189,6 +191,7 @@ int main(int argc, char **argv)
     // Numbers of NMI bins for registration
     int nmi_bins = 16;
     double velocity_scale = 1;
+    double alpha = 1;
     
     
     // Default values
@@ -203,10 +206,10 @@ int main(int argc, char **argv)
     double rrDefault = 1;
     double rrInterval = rrDefault;
     bool is_temporalpsf_gauss = false;
-    double lambda = 0.015;
-    double delta = 70;
+    double lambda = 0.01;  // 0.015;
+    double delta = 50;  // 70
     int levels = 3;
-    double lastIterLambda = 0.01;
+    double lastIterLambda = 0.005; //0.01;
     int rec_iterations = 10;
     int rec_iterations_first = 10;
     int rec_iterations_last = -1;
@@ -230,6 +233,7 @@ int main(int argc, char **argv)
     bool stack_registration = false;
 
     bool adaptive_regularisation = true;
+    bool limit_intensities = false;
     
     //flag to swich the robust statistics on and off
     bool robust_statistics = true; //true;
@@ -700,6 +704,27 @@ int main(int argc, char **argv)
             ok = true;
         }
         
+        
+        //Limit velocity magnitude values
+        if ((ok == false) && (strcmp(argv[1], "-limit_intensities") == 0)){
+            argc--;
+            argv++;
+            limit_intensities=true;
+            
+            ok = true;
+        }
+        
+        //Alpha for super-resolution loop [alpha; 1]
+        if ((ok == false) && (strcmp(argv[1], "-alpha") == 0)){
+            argc--;
+            argv++;
+            alpha=atof(argv[1]);
+            argc--;
+            argv++;
+            ok = true;
+        }
+        
+        
         //Match stack intensities
         if ((ok == false) && (strcmp(argv[1], "-no_stack_intensity_matching") == 0)){
             argc--;
@@ -1047,6 +1072,9 @@ int main(int argc, char **argv)
     //Set adaptive regularisation option flag
     reconstruction.SetAdaptiveRegularisation(adaptive_regularisation);
     
+    //Set limit velocity magnitude intensities flag
+    reconstruction.SetLimitIntensities(limit_intensities);
+    
     //Set scale for ouput velocity volumes
     reconstruction.SetVelocityScale(velocity_scale);
     
@@ -1316,6 +1344,24 @@ int main(int argc, char **argv)
             //calculate scales
             reconstruction.Scale();
         }
+        
+        
+//        if(iterations==(rec_iterations-1))
+//            reconstruction.SetSmoothingParameters(delta,lastIterLambda);
+//        else
+//        {
+//            double l=lambda;
+//            for (i=0;i<levels;i++)
+//            {
+//                if (iterations==rec_iterations*(levels-i-1)/levels)
+//                    reconstruction.SetSmoothingParameters(delta, l);
+//                l*=2;
+//            }
+//        }
+        
+        
+        double alpha_i = (1-alpha)*double(iteration)/double(rec_iterations)+alpha;
+        reconstruction.SetAlpha(alpha_i);
         
         
         // STEPS 4-5: super-resolution reconstruction and simulation of slices (optimisation loop)

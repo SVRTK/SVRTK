@@ -58,6 +58,7 @@ namespace mirtk {
         double _max_velocity;
         
         bool _adaptive_regularisation;
+        bool _limit_intensities;
         
         
         // do we need it ?
@@ -99,12 +100,15 @@ namespace mirtk {
         double Consistency();
         
         
+        inline void SetAlpha(double alpha);
+        
         
         inline void SaveReconstructedVelocity4D(int iter);
         inline void SaveReconstructedVolume4D(int iter);
         
         inline void SetVelocityScale(double scale);
         inline void SetAdaptiveRegularisation(bool flag);
+        inline void SetLimitIntensities(bool flag);
         
         inline void ItinialiseVelocityBounds();
         
@@ -150,9 +154,34 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     
     
+    inline void ReconstructionCardiacVelocity4D::SetAlpha(double alpha)
+    {
+        if (alpha > 1)
+            alpha = 1;
+        
+        _alpha = alpha;
+        
+    }
+    
+    
+    // -----------------------------------------------------------------------------
+    // ...
+    // -----------------------------------------------------------------------------
+    
+    
     inline void ReconstructionCardiacVelocity4D::SetAdaptiveRegularisation(bool flag)
     {
         _adaptive_regularisation = flag;
+    }
+    
+    // -----------------------------------------------------------------------------
+    // ...
+    // -----------------------------------------------------------------------------
+
+    
+    inline void ReconstructionCardiacVelocity4D::SetLimitIntensities(bool flag)
+    {
+        _limit_intensities = flag;
     }
     
     // -----------------------------------------------------------------------------
@@ -214,7 +243,7 @@ namespace mirtk {
         
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
-        cout << "Reconstructed velocity files : " << endl;
+        cout << " - Reconstructed velocity files : " << endl;
         
         for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
             
@@ -224,7 +253,7 @@ namespace mirtk {
                 sprintf(buffer,"velocity-final-%i.nii.gz", i);
                 
             _reconstructed5DVelocity[i].Write(buffer);
-            cout << " - " << buffer << endl;
+            cout << "        " << buffer << endl;
             
 //            RealImage scaled =  _reconstructed5DVelocity[i];
 //            scaled *= _velocity_scale;

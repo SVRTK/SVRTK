@@ -51,6 +51,7 @@ namespace mirtk {
         _velocity_scale = 1;
         
         _adaptive_regularisation = true;
+        _limit_intensities = false;
         
         _v_directions.clear();
         for (int i=0; i<3; i++) {
@@ -557,35 +558,36 @@ namespace mirtk {
         _globalReconstructed4DVelocityArray.clear();
         
 
-        /*
+        if(_limit_intensities) {
          
-        //bound the intensities (test whether we need it)
-         for (int x = 0; x < _reconstructed4D.GetX(); x++) {
-             for (int y = 0; y < _reconstructed4D.GetY(); y++) {
-                 for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
-                     for (int t = 0; t < _reconstructed4D.GetT(); t++) {
-                         for ( int v = 0; v < _v_directions.size(); v++ ) {
+            //bound the intensities (test whether we need it)
+             for (int x = 0; x < _reconstructed4D.GetX(); x++) {
+                 for (int y = 0; y < _reconstructed4D.GetY(); y++) {
+                     for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
+                         for (int t = 0; t < _reconstructed4D.GetT(); t++) {
+                             for ( int v = 0; v < _v_directions.size(); v++ ) {
 
-                            if (_reconstructed4D(x, y, z, t) < _min_phase*0.9)
-                                _reconstructed4D(x, y, z, t) = _min_phase*0.9;
+                                if (_reconstructed4D(x, y, z, t) < _min_phase*0.9)
+                                    _reconstructed4D(x, y, z, t) = _min_phase*0.9;
 
-                            if (_reconstructed4D(x, y, z, t) > _max_phase*1.1)
-                                _reconstructed4D(x, y, z, t) = _max_phase*1.1;
-   
-                             
-                            if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
-                                _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
-                             
-                            if (_reconstructed5DVelocity[v](x, y, z, t) > _max_velocity*1.1)
-                                _reconstructed5DVelocity[v](x, y, z, t) = _max_velocity*1.1;
+                                if (_reconstructed4D(x, y, z, t) > _max_phase*1.1)
+                                    _reconstructed4D(x, y, z, t) = _max_phase*1.1;
+       
+                                 
+                                if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
+                                    _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
+                                 
+                                if (_reconstructed5DVelocity[v](x, y, z, t) > _max_velocity*1.1)
+                                    _reconstructed5DVelocity[v](x, y, z, t) = _max_velocity*1.1;
 
+                             }
                          }
                      }
                  }
              }
-         }
 
-         */
+        }
+        
         
         char buffer[256];
         
@@ -941,6 +943,10 @@ namespace mirtk {
                 //identify scale factor
                 double scale = reconstructor->_scale[inputIndex];
                 
+//                //analyse phase values
+//                RealImage& phase_weight = reconstructor->_weights[inputIndex];
+//                phase_weight = 1;
+                
                 
                 //direction for current slice
                 int gradientIndex = reconstructor->_stack_index[inputIndex];
@@ -960,6 +966,8 @@ namespace mirtk {
                 
                 for ( int velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
                     
+                    
+//                    phase_weight = 1;
                     
                     double v_component;
                     
@@ -989,6 +997,18 @@ namespace mirtk {
                                     slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
                                 else
                                     slice(i,j,0) = 0;
+                                
+                                
+//                                // .............................................
+//                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) != 0 ) {
+//                                    if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > reconstructor->_max_phase*1.1 || reconstructor->_simulated_slices[inputIndex](i,j,0) < reconstructor->_min_phase*0.9 )
+//                                        phase_weight(i,j,0) = 0.0;
+//                                    else
+//                                        phase_weight(i,j,0) = 1.0;
+//                                }
+//                                // .............................................
+                                
+                                
                                 
                                 
                                 int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
@@ -1120,7 +1140,7 @@ namespace mirtk {
     void ReconstructionCardiacVelocity4D::SuperresolutionCardiacVelocity4D( int iter )
     {
         if (_debug)
-            cout << "Superresolution " << iter << endl;
+            cout << "Superresolution " << iter << " ( " << _alpha << " )" << endl;
         
         char buffer[256];
         
@@ -1197,26 +1217,29 @@ namespace mirtk {
     
         int templateIndex = 1;
         
-        /*
-         //bound the intensities (test whether we need it)
-         for (int x = 0; x < _reconstructed4D.GetX(); x++) {
-             for (int y = 0; y < _reconstructed4D.GetY(); y++) {
-                 for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
-                     for (int t = 0; t < _reconstructed4D.GetT(); t++) {
-                         for ( int v = 0; v < _v_directions.size(); v++ ) {
-                             
-                             if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
-                                 _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
-                             
-                             if (_reconstructed5DVelocity[v](x, y, z, t) > _max_velocity*1.1)
-                                 _reconstructed5DVelocity[v](x, y, z, t) = _max_velocity*1.1;
+        if(_limit_intensities) {
+         
+             //bound the intensities (test whether we need it)
+             for (int x = 0; x < _reconstructed4D.GetX(); x++) {
+                 for (int y = 0; y < _reconstructed4D.GetY(); y++) {
+                     for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
+                         for (int t = 0; t < _reconstructed4D.GetT(); t++) {
+                             for ( int v = 0; v < _v_directions.size(); v++ ) {
+                                 
+                                 if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
+                                     _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
+                                 
+                                 if (_reconstructed5DVelocity[v](x, y, z, t) > _max_velocity*1.1)
+                                     _reconstructed5DVelocity[v](x, y, z, t) = _max_velocity*1.1;
 
+                             }
                          }
                      }
                  }
              }
-         }
-        */
+        
+        }
+        
         
         if(_adaptive_regularisation) {
 

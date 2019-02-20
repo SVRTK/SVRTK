@@ -85,7 +85,7 @@ namespace mirtk {
         void GaussianReconstructionCardiacVelocity4D();
         void SimulateSlicesCardiacVelocity4D();
         void SuperresolutionCardiacVelocity4D(int iter);
-        void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals, RealImage& original_main);
+        void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals); //, RealImage& original_main);
         
         void GaussianReconstructionCardiacVelocity4Dx3();
         void GaussianReconstructionCardiacVelocity4DxT();

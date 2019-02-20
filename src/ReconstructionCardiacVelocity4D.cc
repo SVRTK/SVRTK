@@ -44,6 +44,9 @@ namespace mirtk {
     {
         _recon_type = _3D;
         
+        _no_sr = true;
+        
+        
         // initialise velocity direction array
         Array<double> tmp;
         double t;
@@ -922,8 +925,8 @@ namespace mirtk {
         Array<RealImage> confidence_maps;
         Array<RealImage> addons;
         
-        RealImage addon_main;
-        RealImage confidence_map_main;
+//        RealImage addon_main;
+//        RealImage confidence_map_main;
         
         void operator()( const blocked_range<size_t>& r ) {
             
@@ -963,6 +966,11 @@ namespace mirtk {
                 g_direction.push_back(gy);
                 g_direction.push_back(gz);
                 
+                cout << inputIndex << " ("<< reconstructor->_stack_index[inputIndex] << ") : " << gx << " " << gy << " " << gz << endl;
+                
+                
+                reconstructor->_slice_weight[inputIndex] = 1;
+                
                 
                 for ( int velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
                     
@@ -993,8 +1001,10 @@ namespace mirtk {
                                 slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                 
                                 
-                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -1 )
+                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -1 ) {
                                     slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
+//                                    slice(i,j,0) = (slice(i,j,0) - reconstructor->_simulated_slices[inputIndex](i,j,0));
+                                }
                                 else
                                     slice(i,j,0) = 0;
                                 
@@ -1020,22 +1030,23 @@ namespace mirtk {
                                     for ( int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
                                         
                                         
+                                        
                                         if(reconstructor->_robust_slices_only) {
                                             
                                             addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
                                             confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
                                             
-                                            addon_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                            confidence_map_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
-                                            
+//                                            addon_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+//                                            confidence_map_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
+//
                                         }
                                         else {
                                             
                                             addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
                                             confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
                                             
-                                            addon_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                            confidence_map_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+//                                            addon_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+//                                            confidence_map_main(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
                                         }
                                     }
                                 }
@@ -1071,13 +1082,13 @@ namespace mirtk {
                 confidence_maps.push_back(confidence_map);
             }
             
-            //Clear addon
-            addon_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
-            addon_main = 0;
-            
-            //Clear confidence map
-            confidence_map_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
-            confidence_map_main = 0;
+//            //Clear addon
+//            addon_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+//            addon_main = 0;
+//
+//            //Clear confidence map
+//            confidence_map_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+//            confidence_map_main = 0;
             
         }
         
@@ -1088,8 +1099,8 @@ namespace mirtk {
                 confidence_maps[i] += y.confidence_maps[i];
             }
             
-            addon_main += y.addon_main;
-            confidence_map_main += y.confidence_map_main;
+//            addon_main += y.addon_main;
+//            confidence_map_main += y.confidence_map_main;
             
         }
         
@@ -1114,14 +1125,14 @@ namespace mirtk {
                 confidence_maps.push_back(confidence_map);
             }
             
-            //Clear addon
-            addon_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
-            addon_main = 0;
-            
-            //Clear confidence map
-            confidence_map_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
-            confidence_map_main = 0;
-            
+//            //Clear addon
+//            addon_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+//            addon_main = 0;
+//
+//            //Clear confidence map
+//            confidence_map_main.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+//            confidence_map_main = 0;
+//
         }
         
         // execute
@@ -1157,10 +1168,11 @@ namespace mirtk {
         _confidence_maps_velocity = parallelSuperresolution.confidence_maps;
         
         
-        RealImage original_main = _reconstructed4D;
-        
-        RealImage addon_main = parallelSuperresolution.addon_main;
-        _confidence_map = parallelSuperresolution.confidence_map_main;
+//        RealImage original_main = _reconstructed4D;
+//
+//        RealImage addon_main = parallelSuperresolution.addon_main;
+//        _confidence_map = parallelSuperresolution.confidence_map_main;
+
         
         if(_debug) {
             
@@ -1174,6 +1186,8 @@ namespace mirtk {
             }
 
         }
+
+//        _adaptive = true;
         
         if (!_adaptive)
             for ( int v = 0; v < _v_directions.size(); v++ )
@@ -1181,22 +1195,22 @@ namespace mirtk {
                     for ( int y = 0; y < addons[v].GetY(); y++ )
                         for ( int z = 0; z < addons[v].GetZ(); z++ )
                             for ( int t = 0; t < addons[v].GetT(); t++ )
-                                if (_confidence_map(x, y, z, t) > 0) {
+                                if (_confidence_maps_velocity[v](x, y, z, t) > 0) {
                                     // ISSUES if _confidence_map(i, j, k, t) is too small leading to bright pixels
                                     addons[v](x, y, z, t) /= _confidence_maps_velocity[v](x, y, z, t);
                                     //this is to revert to normal (non-adaptive) regularisation
                                     _confidence_maps_velocity[v](x, y, z, t) = 1;
                                     
-                                    addon_main(x, y, z, t) /= _confidence_map(x, y, z, t);
-                                    //this is to revert to normal (non-adaptive) regularisation
-                                    _confidence_map(x, y, z, t) = 1;
+//                                    addon_main(x, y, z, t) /= _confidence_map(x, y, z, t);
+//                                    //this is to revert to normal (non-adaptive) regularisation
+//                                    _confidence_map(x, y, z, t) = 1;
                                 }
         
         for ( int v = 0; v < _v_directions.size(); v++ )
             _reconstructed5DVelocity[v] += addons[v] * _alpha; //_average_volume_weight;
         
         
-        _reconstructed4D += addon_main * _alpha;
+//        _reconstructed4D += addon_main * _alpha;
         
         
         if(_debug) {
@@ -1213,6 +1227,7 @@ namespace mirtk {
             //sprintf(buffer,"addon%i.nii.gz",iter);
             //addon.Write(buffer);
         }
+
         
     
         int templateIndex = 1;
@@ -1239,12 +1254,12 @@ namespace mirtk {
              }
         
         }
-        
+
         
         if(_adaptive_regularisation) {
 
             // Smooth the reconstructed image
-            AdaptiveRegularizationCardiacVelocity4D(iter, originals, original_main);
+            AdaptiveRegularizationCardiacVelocity4D(iter, originals); //, original_main);
             
         }
 
@@ -1403,7 +1418,7 @@ namespace mirtk {
     // Adaptive Regularization
     //-------------------------------------------------------------------
     
-    void ReconstructionCardiacVelocity4D::AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals, RealImage& original_main)
+    void ReconstructionCardiacVelocity4D::AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals) //, RealImage& original_main)
     {
         if (_debug)
             cout << "AdaptiveRegularizationCardiacVelocity4D."<< endl;
@@ -1418,7 +1433,7 @@ namespace mirtk {
         
         RealImage original1, original2;
         
-        RealImage reconstructed4D_main, confidence_map_main;
+//        RealImage reconstructed4D_main, confidence_map_main;
         
         
         Array<RealImage> b;//(13);
@@ -1426,22 +1441,22 @@ namespace mirtk {
             b.push_back( _reconstructed4D );
         
         
-        original1 = original_main;
-        ParallelAdaptiveRegularization1CardiacVelocity4D parallelAdaptiveRegularization1( this,
-                                                                                         b,
-                                                                                         factor,
-                                                                                         original1 );
-        parallelAdaptiveRegularization1();
-        
-        original2 = _reconstructed4D;
-        ParallelAdaptiveRegularization2CardiacVelocity4D parallelAdaptiveRegularization2( this,
-                                                                                         b,
-                                                                                         factor,
-                                                                                         original2 );
-        parallelAdaptiveRegularization2();
-        
-        reconstructed4D_main = _reconstructed4D;
-        confidence_map_main = _confidence_map;
+//        original1 = original_main;
+//        ParallelAdaptiveRegularization1CardiacVelocity4D parallelAdaptiveRegularization1( this,
+//                                                                                         b,
+//                                                                                         factor,
+//                                                                                         original1 );
+//        parallelAdaptiveRegularization1();
+//
+//        original2 = _reconstructed4D;
+//        ParallelAdaptiveRegularization2CardiacVelocity4D parallelAdaptiveRegularization2( this,
+//                                                                                         b,
+//                                                                                         factor,
+//                                                                                         original2 );
+//        parallelAdaptiveRegularization2();
+//
+//        reconstructed4D_main = _reconstructed4D;
+//        confidence_map_main = _confidence_map;
         
         
         
@@ -1483,8 +1498,8 @@ namespace mirtk {
         }
         
         
-        _reconstructed4D = reconstructed4D_main;
-        _confidence_map = confidence_map_main;
+//        _reconstructed4D = reconstructed4D_main;
+//        _confidence_map = confidence_map_main;
         
         
     }
@@ -1534,15 +1549,23 @@ namespace mirtk {
         //origin
         double ox,oy,oz;
         
+        RigidTransformation tmp = _transformations[i];
+        
+//        tmp.PutTranslationX(0);
+//        tmp.PutTranslationY(0);
+//        tmp.PutTranslationZ(0);
+        
+//        _transformations[i].Invert();
+        
         //origin
         ox=0;oy=0;oz=0;
-        _transformations[i].Transform(ox,oy,oz);
+        tmp.Transform(ox,oy,oz);
         
         //end-point
         x=dx;
         y=dy;
         z=dz;
-        _transformations[i].Transform(x,y,z);
+        tmp.Transform(x,y,z);
         
         dx=x-ox;
         dy=y-oy;

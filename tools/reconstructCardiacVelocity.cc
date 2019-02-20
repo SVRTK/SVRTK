@@ -206,10 +206,10 @@ int main(int argc, char **argv)
     double rrDefault = 1;
     double rrInterval = rrDefault;
     bool is_temporalpsf_gauss = false;
-    double lambda = 0.01;  // 0.015;
-    double delta = 50;  // 70
+    double lambda = 0.015;  // 0.015;
+    double delta = 100;  // 50 // 70
     int levels = 3;
-    double lastIterLambda = 0.005; //0.01;
+    double lastIterLambda = 0.01; //0.01;
     int rec_iterations = 10;
     int rec_iterations_first = 10;
     int rec_iterations_last = -1;
@@ -267,13 +267,13 @@ int main(int argc, char **argv)
     //if not enough arguments print help
     if (argc < 5)
         usage();
-    
+
     //read output name
     output_name = argv[1];
     argc--;
     argv++;
     cout<<"Recontructed volume name ... "<<output_name<<endl;
-    
+
     //read number of stacks
     nStacks = atoi(argv[1]);
     argc--;
@@ -286,6 +286,7 @@ int main(int argc, char **argv)
     UniquePtr<BaseImage> tmp_image;
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
+
     
     
     for (i=0; i<nStacks; i++)
@@ -1120,6 +1121,40 @@ int main(int argc, char **argv)
     // Create template 4D volume
     reconstruction.CreateTemplateCardiac4DFromStaticMask( maskCropped, resolution );
     
+    
+//    //.........................................................................................
+//
+//    // 10-02
+//
+//    RealImage template_stack = stacks[0].GetRegion(0,0,0,0,stacks[0].GetX(),stacks[0].GetY(),stacks[0].GetZ(),1);
+//
+//    template_stack = 0;
+//
+//    template_stack.Write("hh.nii.gz");
+//
+////    GaussianBlurring<RealPixel> gb(1);
+////    gb.Input(&template_stack);
+////    gb.Output(&template_stack);
+////    gb.Run();
+//
+//
+//    RealImage template_mask = *mask;
+//    RigidTransformation *template_transform = new RigidTransformation;
+//    reconstruction.TransformMask(template_stack, template_mask, *template_transform);
+//    reconstruction.CropImage(template_stack, template_mask);
+//
+//
+//    template_stack.Write("zzz.nii.gz");
+//
+//    reconstruction.CreateTemplateCardiac4DFromStaticMask(template_stack, resolution);
+//
+//
+//    //.........................................................................................
+    
+    
+    
+    
+    
     // Set mask to reconstruction object
     reconstruction.SetMask(mask,smooth_mask);
     
@@ -1197,6 +1232,9 @@ int main(int argc, char **argv)
         reconstruction.InitError();
     }
     
+    
+    
+    
     //if given, read transformations
     if (folder!=NULL)
         reconstruction.ReadTransformation(folder);  // image-frame to volume registrations
@@ -1208,6 +1246,9 @@ int main(int argc, char **argv)
             exit(1);
         }
     }
+    
+    
+    
     
     //if given, read reference transformations
     if ((have_ref_transformations)&(ref_transformations_folder!=NULL))
@@ -1291,7 +1332,7 @@ int main(int argc, char **argv)
     reconstruction.Set3DRecon();
     
     // Initialise velocity and phase limits
-    reconstruction.ItinialiseVelocityBounds();
+    reconstruction.ItinialiseVelocityBounds(); 
     
     
     
@@ -1299,16 +1340,16 @@ int main(int argc, char **argv)
     // Main velocity reconstruciton steps
  
     
-    /*
     
-    // STEP 1: Gaussian reconstruction of phase volume
-    reconstruction.GaussianReconstructionCardiac4DxT();
-
-
-    // STEP 2: Gaussian recostruction of velocity volumes
-    reconstruction.GaussianReconstructionCardiacVelocity4DxT();
-
-    */
+//
+//    // STEP 1: Gaussian reconstruction of phase volume
+//    reconstruction.GaussianReconstructionCardiac4DxT();
+//
+//
+//    // STEP 2: Gaussian recostruction of velocity volumes
+//    reconstruction.GaussianReconstructionCardiacVelocity4DxT(); 
+//
+//
  
     // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();

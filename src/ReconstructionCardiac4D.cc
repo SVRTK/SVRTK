@@ -41,6 +41,8 @@ namespace mirtk {
     ReconstructionCardiac4D::ReconstructionCardiac4D():Reconstruction()
     {
         _recon_type = _3D;
+        
+        _no_sr = false;
     }
     
     // -----------------------------------------------------------------------------
@@ -93,7 +95,7 @@ namespace mirtk {
     {
         _slice_cardphase.clear();
         for (unsigned int i=0; i<_slices.size(); i++)
-        _slice_cardphase.push_back( 0 );
+            _slice_cardphase.push_back( 0 );
     }
     
     // -----------------------------------------------------------------------------
@@ -105,11 +107,11 @@ namespace mirtk {
         double dx, dy, dz, d;
         stack.GetPixelSize(&dx, &dy, &dz);
         if ((dx <= dy) && (dx <= dz))
-        d = dx;
+            d = dx;
         else if (dy <= dz)
-        d = dy;
+            d = dy;
         else
-        d = dz;
+            d = dz;
         return d;
     }
     
@@ -178,7 +180,7 @@ namespace mirtk {
     {
         _reconstructed_rr_interval = rrinterval;
         if (_debug)
-        cout<<"Reconstructed R-R interval = "<<_reconstructed_rr_interval<<" s."<<endl;
+            cout<<"Reconstructed R-R interval = "<<_reconstructed_rr_interval<<" s."<<endl;
     }
     
     
@@ -189,7 +191,7 @@ namespace mirtk {
     {
         _reconstructed_temporal_resolution = temporalresolution;
         if (_debug)
-        cout<<"Reconstructed temporal resolution = "<<_reconstructed_temporal_resolution<<" s."<<endl;
+            cout<<"Reconstructed temporal resolution = "<<_reconstructed_temporal_resolution<<" s."<<endl;
     }
     
     
@@ -235,6 +237,38 @@ namespace mirtk {
         _reconstructed4D = volume4D;
         _template_created = true;
         
+//        //.........................................................................................
+//
+//        // 10-02
+//
+//        Resampling<RealPixel> resampling2(resolution,resolution,resolution);
+//        GenericLinearInterpolateImageFunction<RealImage> interpolator2;
+//
+//        cout << "4" << endl;
+//
+//        RealImage template_stack = mask.GetRegion(0,0,0,0,mask.GetX(),mask.GetY(),mask.GetZ(),1);
+//        resampling2.Input(&template_stack);
+//        resampling2.Output(&template_stack);
+//        resampling2.Interpolator(&interpolator2);
+//        resampling2.Run();
+//
+//        cout << "5" << endl;
+//
+//        for (int t=0; t<volume4D.GetT(); t++)
+//            for (int z=0; z<volume4D.GetZ(); z++)
+//                for (int y=0; y<volume4D.GetY(); y++)
+//                    for (int x=0; x<volume4D.GetX(); x++)
+//                        volume4D(x,y,z,t) = template_stack(x,y,z);
+//
+//
+//        cout << "6" << endl;
+//
+//        _reconstructed4D = volume4D;
+//        _template_created = true;
+//
+//        //.........................................................................................
+        
+        
         // Set reconstructed 3D volume for reference by existing functions of irtkReconstruction class
         ImageAttributes attr4d = volume4D.GetImageAttributes();
         ImageAttributes attr3d = attr4d;
@@ -257,7 +291,7 @@ namespace mirtk {
                                                                    Array<RigidTransformation>& stack_transformations, double averageValue, bool together)
     {
         if (_debug)
-        cout << "Matching intensities of stacks. ";
+            cout << "Matching intensities of stacks. ";
         
         cout<<setprecision(6);
         
@@ -282,36 +316,36 @@ namespace mirtk {
             sum = 0;
             num = 0;
             for (i = 0; i < stacks[ind].GetX(); i++)
-            for (j = 0; j < stacks[ind].GetY(); j++)
-            for (k = 0; k < stacks[ind].GetZ(); k++) {
-                //image coordinates of the stack voxel
-                x = i;
-                y = j;
-                z = k;
-                //change to world coordinates
-                stacks[ind].ImageToWorld(x, y, z);
-                //transform to template (and also _mask) space
-                stack_transformations[ind].Transform(x, y, z);
-                //change to mask image coordinates - mask is aligned with template
-                _mask.WorldToImage(x, y, z);
-                x = round(x);
-                y = round(y);
-                z = round(z);
-                //if the voxel is inside mask ROI include it
-                if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
-                    && (z < _mask.GetZ()))
-                {
-                    if (_mask(x, y, z) == 1)
-                    {
-                        m(i,j,k)=1;
-                        for ( int f = 0; f < stacks[ind].GetT(); f++)
+                for (j = 0; j < stacks[ind].GetY(); j++)
+                    for (k = 0; k < stacks[ind].GetZ(); k++) {
+                        //image coordinates of the stack voxel
+                        x = i;
+                        y = j;
+                        z = k;
+                        //change to world coordinates
+                        stacks[ind].ImageToWorld(x, y, z);
+                        //transform to template (and also _mask) space
+                        stack_transformations[ind].Transform(x, y, z);
+                        //change to mask image coordinates - mask is aligned with template
+                        _mask.WorldToImage(x, y, z);
+                        x = round(x);
+                        y = round(y);
+                        z = round(z);
+                        //if the voxel is inside mask ROI include it
+                        if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
+                            && (z < _mask.GetZ()))
                         {
-                            sum += stacks[ind](i, j, k, f);
-                            num++;
+                            if (_mask(x, y, z) == 1)
+                            {
+                                m(i,j,k)=1;
+                                for ( int f = 0; f < stacks[ind].GetT(); f++)
+                                {
+                                    sum += stacks[ind](i, j, k, f);
+                                    num++;
+                                }
+                            }
                         }
                     }
-                }
-            }
             if(_debug)
             {
                 sprintf(buffer,"maskformatching%03i.nii.gz",ind);
@@ -319,7 +353,7 @@ namespace mirtk {
             }
             //calculate average for the stack
             if (num > 0)
-            stack_average.push_back(sum / num);
+                stack_average.push_back(sum / num);
             else {
                 cerr << "Stack " << ind << " has no overlap with ROI" << endl;
                 exit(1);
@@ -330,14 +364,14 @@ namespace mirtk {
         if (together) {
             global_average = 0;
             for(ind=0;ind<stack_average.size();ind++)
-            global_average += stack_average[ind];
+                global_average += stack_average[ind];
             global_average/=stack_average.size();
         }
         
         if (_debug) {
             cout << "Stack average intensities are ";
             for (ind = 0; ind < stack_average.size(); ind++)
-            cout << stack_average[ind] << " ";
+                cout << stack_average[ind] << " ";
             cout << endl;
             cout << "The new average value is " << averageValue << endl;
         }
@@ -359,7 +393,7 @@ namespace mirtk {
             ptr = stacks[ind].GetPointerToVoxels();
             for (i = 0; i < stacks[ind].GetNumberOfVoxels(); i++) {
                 if (*ptr > 0)
-                *ptr *= factor;
+                    *ptr *= factor;
                 ptr++;
             }
         }
@@ -372,7 +406,7 @@ namespace mirtk {
             
             cout << "Slice intensity factors are ";
             for (ind = 0; ind < stack_average.size(); ind++)
-            cout << _stack_factor[ind] << " ";
+                cout << _stack_factor[ind] << " ";
             cout << endl;
             cout << "The new average value is " << averageValue << endl;
         }
@@ -388,7 +422,7 @@ namespace mirtk {
     {
         _stack_factor.clear();
         for(unsigned int stackIndex=0; stackIndex<stacks.size(); stackIndex++)
-        _stack_factor.push_back(1);
+            _stack_factor.push_back(1);
     }
     
     
@@ -407,7 +441,7 @@ namespace mirtk {
         int loc_index = 0;
         
         if (_debug)
-        cout << "CreateSlicesAndTransformations" << endl;
+            cout << "CreateSlicesAndTransformations" << endl;
         
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
@@ -457,15 +491,15 @@ namespace mirtk {
         cout << "Number of images: " << _slices.size() << endl;
         //set excluded slices
         for (unsigned int i = 0; i < _force_excluded.size(); i++)
-        _slice_excluded[_force_excluded[i]] = 1;
+            _slice_excluded[_force_excluded[i]] = 1;
         for (unsigned int i = 0; i < _force_excluded_stacks.size(); i++)
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        if (_force_excluded_stacks[i]==_stack_index[inputIndex])
-        _slice_excluded[inputIndex] = 1;
+            for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+                if (_force_excluded_stacks[i]==_stack_index[inputIndex])
+                    _slice_excluded[inputIndex] = 1;
         for (unsigned int i = 0; i < _force_excluded_locs.size(); i++)
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        if (_force_excluded_locs[i]==_loc_index[inputIndex])
-        _slice_excluded[inputIndex] = 1;
+            for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+                if (_force_excluded_locs[i]==_loc_index[inputIndex])
+                    _slice_excluded[inputIndex] = 1;
     }
     
     // -----------------------------------------------------------------------------
@@ -497,7 +531,7 @@ namespace mirtk {
     {
         _corrected_slices.clear();
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        _corrected_slices.push_back(_slices[inputIndex]);
+            _corrected_slices.push_back(_slices[inputIndex]);
     }
     
     
@@ -508,7 +542,7 @@ namespace mirtk {
     {
         _error.clear();
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        _error.push_back(_slices[inputIndex]);
+            _error.push_back(_slices[inputIndex]);
     }
     
     
@@ -532,7 +566,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::CalculateSliceTemporalWeights()
     {
         if (_debug)
-        cout << "CalculateSliceTemporalWeights" << endl;
+            cout << "CalculateSliceTemporalWeights" << endl;
         InitSliceTemporalWeights();
         for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++)
         {
@@ -591,7 +625,7 @@ namespace mirtk {
     double ReconstructionCardiac4D::sinc(double x)
     {
         if (x == 0)
-        return 1;
+            return 1;
         return sin(x)/x;
     }
     
@@ -603,7 +637,7 @@ namespace mirtk {
         // angdiff = angular difference (-PI to +PI)
         // alpha   = amount of window with tapered cosine edges (0 to 1)
         if ( fabs( angdiff ) > PI * ( 1 - alpha ) )
-        return ( 1 + cos( ( fabs( angdiff ) - PI * ( 1 - alpha ) ) / alpha ) ) / 2;
+            return ( 1 + cos( ( fabs( angdiff ) - PI * ( 1 - alpha ) ) / alpha ) ) / 2;
         return 1;
     }
     
@@ -661,8 +695,16 @@ namespace mirtk {
                     {
                         sigmax = 1.2 * dx / 2.3548;
                         sigmay = 1.2 * dy / 2.3548;
-                        sigmaz = dz / 2.3548;
+                        sigmaz = 1 * dz / 2.3548;
                     }
+                    
+                    if(reconstructor->_no_sr)
+                    {
+                        sigmax = 0.5 * dx / 2.3548; // 1.2
+                        sigmay = 0.5 * dy / 2.3548; // 1.2
+                        sigmaz = 0.5 * dz / 2.3548;   // 1
+                    }
+                    
                     
                     if(reconstructor->_recon_type == _1D)
                     {
@@ -673,9 +715,9 @@ namespace mirtk {
                     
                     if(reconstructor->_recon_type == _interpolate)
                     {
-                        sigmax = 0.5 * dx / 2.3548;
-                        sigmay = 0.5 * dx / 2.3548;
-                        sigmaz = 0.5 * dx / 2.3548;
+                        sigmax = 0.5 * dx / 2.3548; // dx
+                        sigmay = 0.5 * dx / 2.3548; // dx
+                        sigmaz = 0.5 * dx / 2.3548; // dx
                     }
                     /*
                      cout<<"Original sigma"<<sigmax<<" "<<sigmay<<" "<<sigmaz<<endl;
@@ -737,26 +779,26 @@ namespace mirtk {
                     double sum = 0;
                     int i, j, k;
                     for (i = 0; i < xDim; i++)
-                    for (j = 0; j < yDim; j++)
-                    for (k = 0; k < zDim; k++) {
-                        x = i;
-                        y = j;
-                        z = k;
-                        PSF.ImageToWorld(x, y, z);
-                        x -= cx;
-                        y -= cy;
-                        z -= cz;
-                        //continuous PSF does not need to be normalized as discrete will be
-                        PSF(i, j, k) = exp(
-                                           -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
-                                           - z * z / (2 * sigmaz * sigmaz));
-                        sum += PSF(i, j, k);
-                    }
+                        for (j = 0; j < yDim; j++)
+                            for (k = 0; k < zDim; k++) {
+                                x = i;
+                                y = j;
+                                z = k;
+                                PSF.ImageToWorld(x, y, z);
+                                x -= cx;
+                                y -= cy;
+                                z -= cz;
+                                //continuous PSF does not need to be normalized as discrete will be
+                                PSF(i, j, k) = exp(
+                                                   -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
+                                                   - z * z / (2 * sigmaz * sigmaz));
+                                sum += PSF(i, j, k);
+                            }
                     PSF /= sum;
                     
                     if (reconstructor->_debug)
-                    if (inputIndex == 0)
-                    PSF.Write("PSF.nii.gz");
+                        if (inputIndex == 0)
+                            PSF.Write("PSF.nii.gz");
                     
                     //prepare storage for PSF transformed and resampled to the space of reconstructed volume
                     //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
@@ -782,151 +824,151 @@ namespace mirtk {
                     int l, m, n;
                     double weight;
                     for (i = 0; i < slice.GetX(); i++)
-                    for (j = 0; j < slice.GetY(); j++)
-                    if (slice(i, j, 0) != -1) {
-                        //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
-                        x = i;
-                        y = j;
-                        z = 0;
-                        slice.ImageToWorld(x, y, z);
-                        reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                        reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                        tx = round(x);
-                        ty = round(y);
-                        tz = round(z);
-                        
-                        //Clear the transformed PSF
-                        for (ii = 0; ii < dim; ii++)
-                        for (jj = 0; jj < dim; jj++)
-                        for (kk = 0; kk < dim; kk++)
-                        tPSF(ii, jj, kk) = 0;
-                        
-                        //for each POINT3D of the PSF
-                        for (ii = 0; ii < xDim; ii++)
-                        for (jj = 0; jj < yDim; jj++)
-                        for (kk = 0; kk < zDim; kk++) {
-                            //Calculate the position of the POINT3D of
-                            //PSF centered over current slice voxel
-                            //This is a bit complicated because slices
-                            //can be oriented in any direction
-                            
-                            //PSF image coordinates
-                            x = ii;
-                            y = jj;
-                            z = kk;
-                            //change to PSF world coordinates - now real sizes in mm
-                            PSF.ImageToWorld(x, y, z);
-                            //centre around the centrepoint of the PSF
-                            x -= cx;
-                            y -= cy;
-                            z -= cz;
-                            
-                            //Need to convert (x,y,z) to slice image
-                            //coordinates because slices can have
-                            //transformations included in them (they are
-                            //nifti)  and those are not reflected in
-                            //PSF. In slice image coordinates we are
-                            //sure that z is through-plane
-                            
-                            //adjust according to voxel size
-                            x /= dx;
-                            y /= dy;
-                            z /= dz;
-                            //center over current voxel
-                            x += i;
-                            y += j;
-                            
-                            //convert from slice image coordinates to world coordinates
-                            slice.ImageToWorld(x, y, z);
-                            
-                            //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
-                            //Transform to space of reconstructed volume
-                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                            //Change to image coordinates
-                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                            
-                            //determine coefficients of volume voxels for position x,y,z
-                            //using linear interpolation
-                            
-                            //Find the 8 closest volume voxels
-                            
-                            //lowest corner of the cube
-                            nx = (int) floor(x);
-                            ny = (int) floor(y);
-                            nz = (int) floor(z);
-                            
-                            //not all neighbours might be in ROI, thus we need to normalize
-                            //(l,m,n) are image coordinates of 8 neighbours in volume space
-                            //for each we check whether it is in volume
-                            sum = 0;
-                            //to find wether the current slice voxel has overlap with ROI
-                            bool inside = false;
-                            for (l = nx; l <= nx + 1; l++)
-                            if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                            for (m = ny; m <= ny + 1; m++)
-                            if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                            for (n = nz; n <= nz + 1; n++)
-                            if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                sum += weight;
-                                if (reconstructor->_mask(l, m, n) == 1) {
-                                    inside = true;
-                                    slice_inside = true;
-                                }
-                            }
-                            //if there were no voxels do nothing
-                            if ((sum <= 0) || (!inside))
-                            continue;
-                            //now calculate the transformed PSF
-                            for (l = nx; l <= nx + 1; l++)
-                            if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                            for (m = ny; m <= ny + 1; m++)
-                            if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                            for (n = nz; n <= nz + 1; n++)
-                            if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                        for (j = 0; j < slice.GetY(); j++)
+                            if (slice(i, j, 0) != -1) {
+                                //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
+                                x = i;
+                                y = j;
+                                z = 0;
+                                slice.ImageToWorld(x, y, z);
+                                reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                                reconstructor->_reconstructed4D.WorldToImage(x, y, z);
+                                tx = round(x);
+                                ty = round(y);
+                                tz = round(z);
                                 
-                                //image coordinates in tPSF
-                                //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
-                                int aa, bb, cc;
-                                aa = l - tx + centre;
-                                bb = m - ty + centre;
-                                cc = n - tz + centre;
+                                //Clear the transformed PSF
+                                for (ii = 0; ii < dim; ii++)
+                                    for (jj = 0; jj < dim; jj++)
+                                        for (kk = 0; kk < dim; kk++)
+                                            tPSF(ii, jj, kk) = 0;
                                 
-                                //resulting value
-                                double value = PSF(ii, jj, kk) * weight / sum;
+                                //for each POINT3D of the PSF
+                                for (ii = 0; ii < xDim; ii++)
+                                    for (jj = 0; jj < yDim; jj++)
+                                        for (kk = 0; kk < zDim; kk++) {
+                                            //Calculate the position of the POINT3D of
+                                            //PSF centered over current slice voxel
+                                            //This is a bit complicated because slices
+                                            //can be oriented in any direction
+                                            
+                                            //PSF image coordinates
+                                            x = ii;
+                                            y = jj;
+                                            z = kk;
+                                            //change to PSF world coordinates - now real sizes in mm
+                                            PSF.ImageToWorld(x, y, z);
+                                            //centre around the centrepoint of the PSF
+                                            x -= cx;
+                                            y -= cy;
+                                            z -= cz;
+                                            
+                                            //Need to convert (x,y,z) to slice image
+                                            //coordinates because slices can have
+                                            //transformations included in them (they are
+                                            //nifti)  and those are not reflected in
+                                            //PSF. In slice image coordinates we are
+                                            //sure that z is through-plane
+                                            
+                                            //adjust according to voxel size
+                                            x /= dx;
+                                            y /= dy;
+                                            z /= dz;
+                                            //center over current voxel
+                                            x += i;
+                                            y += j;
+                                            
+                                            //convert from slice image coordinates to world coordinates
+                                            slice.ImageToWorld(x, y, z);
+                                            
+                                            //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
+                                            //Transform to space of reconstructed volume
+                                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                                            //Change to image coordinates
+                                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
+                                            
+                                            //determine coefficients of volume voxels for position x,y,z
+                                            //using linear interpolation
+                                            
+                                            //Find the 8 closest volume voxels
+                                            
+                                            //lowest corner of the cube
+                                            nx = (int) floor(x);
+                                            ny = (int) floor(y);
+                                            nz = (int) floor(z);
+                                            
+                                            //not all neighbours might be in ROI, thus we need to normalize
+                                            //(l,m,n) are image coordinates of 8 neighbours in volume space
+                                            //for each we check whether it is in volume
+                                            sum = 0;
+                                            //to find wether the current slice voxel has overlap with ROI
+                                            bool inside = false;
+                                            for (l = nx; l <= nx + 1; l++)
+                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
+                                                    for (m = ny; m <= ny + 1; m++)
+                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
+                                                            for (n = nz; n <= nz + 1; n++)
+                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
+                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                                    sum += weight;
+                                                                    if (reconstructor->_mask(l, m, n) == 1) {
+                                                                        inside = true;
+                                                                        slice_inside = true;
+                                                                    }
+                                                                }
+                                            //if there were no voxels do nothing
+                                            if ((sum <= 0) || (!inside))
+                                                continue;
+                                            //now calculate the transformed PSF
+                                            for (l = nx; l <= nx + 1; l++)
+                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
+                                                    for (m = ny; m <= ny + 1; m++)
+                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
+                                                            for (n = nz; n <= nz + 1; n++)
+                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
+                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                                    
+                                                                    //image coordinates in tPSF
+                                                                    //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
+                                                                    int aa, bb, cc;
+                                                                    aa = l - tx + centre;
+                                                                    bb = m - ty + centre;
+                                                                    cc = n - tz + centre;
+                                                                    
+                                                                    //resulting value
+                                                                    double value = PSF(ii, jj, kk) * weight / sum;
+                                                                    
+                                                                    //Check that we are in tPSF
+                                                                    if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
+                                                                        || (cc >= dim)) {
+                                                                        cerr << "Error while trying to populate tPSF. " << aa << " " << bb
+                                                                        << " " << cc << endl;
+                                                                        cerr << l << " " << m << " " << n << endl;
+                                                                        cerr << tx << " " << ty << " " << tz << endl;
+                                                                        cerr << centre << endl;
+                                                                        tPSF.Write("tPSF.nii.gz");
+                                                                        exit(1);
+                                                                    }
+                                                                    else
+                                                                        //update transformed PSF
+                                                                        tPSF(aa, bb, cc) += value;
+                                                                }
+                                            
+                                        } //end of the loop for PSF points
                                 
-                                //Check that we are in tPSF
-                                if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
-                                    || (cc >= dim)) {
-                                    cerr << "Error while trying to populate tPSF. " << aa << " " << bb
-                                    << " " << cc << endl;
-                                    cerr << l << " " << m << " " << n << endl;
-                                    cerr << tx << " " << ty << " " << tz << endl;
-                                    cerr << centre << endl;
-                                    tPSF.Write("tPSF.nii.gz");
-                                    exit(1);
-                                }
-                                else
-                                //update transformed PSF
-                                tPSF(aa, bb, cc) += value;
-                            }
-                            
-                        } //end of the loop for PSF points
-                        
-                        //store tPSF values
-                        for (ii = 0; ii < dim; ii++)
-                        for (jj = 0; jj < dim; jj++)
-                        for (kk = 0; kk < dim; kk++)
-                        if (tPSF(ii, jj, kk) > 0) {
-                            p.x = ii + tx - centre;
-                            p.y = jj + ty - centre;
-                            p.z = kk + tz - centre;
-                            p.value = tPSF(ii, jj, kk);
-                            slicecoeffs[i][j].push_back(p);
-                        }
-                        
-                    } //end of loop for slice voxels
+                                //store tPSF values
+                                for (ii = 0; ii < dim; ii++)
+                                    for (jj = 0; jj < dim; jj++)
+                                        for (kk = 0; kk < dim; kk++)
+                                            if (tPSF(ii, jj, kk) > 0) {
+                                                p.x = ii + tx - centre;
+                                                p.y = jj + ty - centre;
+                                                p.z = kk + tz - centre;
+                                                p.value = tPSF(ii, jj, kk);
+                                                slicecoeffs[i][j].push_back(p);
+                                            }
+                                
+                            } //end of loop for slice voxels
                     
                 }  // if(_slice_excluded[inputIndex]==0)
                 
@@ -955,7 +997,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::CoeffInitCardiac4D()
     {
         if (_debug)
-        cout << "CoeffInit" << endl;
+            cout << "CoeffInit" << endl;
         
         //clear slice-volume matrix from previous iteration
         _volcoeffs.clear();
@@ -986,16 +1028,16 @@ namespace mirtk {
             cout << inputIndex << ", ";
             cout.flush();
             for ( i = 0; i < _slices[inputIndex].GetX(); i++)
-            for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
-                n = _volcoeffs[inputIndex][i][j].size();
-                for (k = 0; k < n; k++) {
-                    p = _volcoeffs[inputIndex][i][j][k];
-                    for (outputIndex=0; outputIndex<_reconstructed4D.GetT(); outputIndex++)
-                    {
-                        _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    n = _volcoeffs[inputIndex][i][j].size();
+                    for (k = 0; k < n; k++) {
+                        p = _volcoeffs[inputIndex][i][j][k];
+                        for (outputIndex=0; outputIndex<_reconstructed4D.GetT(); outputIndex++)
+                        {
+                            _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                        }
                     }
                 }
-            }
         }
         cout << "\b\b." << endl;
         // if (_debug)
@@ -1005,13 +1047,13 @@ namespace mirtk {
         double sum = 0;
         int num=0;
         for (i=0; i<_volume_weights.GetX(); i++)
-        for (j=0; j<_volume_weights.GetY(); j++)
-        for (k=0; k<_volume_weights.GetZ(); k++)
-        if (_mask(i,j,k)==1)
-        for (int f=0; f<_volume_weights.GetT(); f++) {
-            sum += _volume_weights(i,j,k,f);
-            num++;
-        }
+            for (j=0; j<_volume_weights.GetY(); j++)
+                for (k=0; k<_volume_weights.GetZ(); k++)
+                    if (_mask(i,j,k)==1)
+                        for (int f=0; f<_volume_weights.GetT(); f++) {
+                            sum += _volume_weights(i,j,k,f);
+                            num++;
+                        }
         
         _average_volume_weight = sum/num;
         
@@ -1064,34 +1106,34 @@ namespace mirtk {
                 
                 //Distribute slice intensities to the volume
                 for (int i = 0; i < slice.GetX(); i++)
-                for (int j = 0; j < slice.GetY(); j++)
-                if (slice(i, j, 0) != -1) {
-                    //biascorrect and scale the slice
-                    slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                    
-                    //number of volume voxels with non-zero coefficients
-                    //for current slice voxel
-                    n = _volcoeffs[inputIndex][i][j].size();
-                    
-                    //if given voxel is not present in reconstructed volume at all,
-                    //pad it
-                    
-                    //if (n == 0)
-                    //_slices[inputIndex].PutAsDouble(i, j, 0, -1);
-                    //calculate num of vox in a slice that have overlap with roi
-                    if (n>0)
-                    slice_vox_num++;
-                    
-                    //add contribution of current slice voxel to all voxel volumes
-                    //to which it contributes
-                    for (k = 0; k < n; k++) {
-                        p = _volcoeffs[inputIndex][i][j][k];
-                        for (outputIndex=0; outputIndex<_reconstructed_cardiac_phases.size(); outputIndex++)
-                        {
-                            _reconstructed4D(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
+                    for (int j = 0; j < slice.GetY(); j++)
+                        if (slice(i, j, 0) != -1) {
+                            //biascorrect and scale the slice
+                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            
+                            //number of volume voxels with non-zero coefficients
+                            //for current slice voxel
+                            n = _volcoeffs[inputIndex][i][j].size();
+                            
+                            //if given voxel is not present in reconstructed volume at all,
+                            //pad it
+                            
+                            //if (n == 0)
+                            //_slices[inputIndex].PutAsDouble(i, j, 0, -1);
+                            //calculate num of vox in a slice that have overlap with roi
+                            if (n>0)
+                                slice_vox_num++;
+                            
+                            //add contribution of current slice voxel to all voxel volumes
+                            //to which it contributes
+                            for (k = 0; k < n; k++) {
+                                p = _volcoeffs[inputIndex][i][j][k];
+                                for (outputIndex=0; outputIndex<_reconstructed_cardiac_phases.size(); outputIndex++)
+                                {
+                                    _reconstructed4D(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
+                                }
+                            }
                         }
-                    }
-                }
                 voxel_num.push_back(slice_vox_num);
             } //end of if (_slice_excluded[inputIndex]==0)
         } //end of loop for a slice inputIndex
@@ -1115,7 +1157,7 @@ namespace mirtk {
         
         Array<int> voxel_num_tmp;
         for (unsigned int i=0;i<voxel_num.size();i++)
-        voxel_num_tmp.push_back(voxel_num[i]);
+            voxel_num_tmp.push_back(voxel_num[i]);
         
         //find median
         sort(voxel_num_tmp.begin(),voxel_num_tmp.end());
@@ -1124,13 +1166,13 @@ namespace mirtk {
         //remember slices with small overlap with ROI
         _small_slices.clear();
         for (unsigned int i=0;i<voxel_num.size();i++)
-        if (voxel_num[i]<0.1*median)
-        _small_slices.push_back(i);
+            if (voxel_num[i]<0.1*median)
+                _small_slices.push_back(i);
         
         if (_debug) {
             cout<<"Small slices:";
             for (unsigned int i=0;i<_small_slices.size();i++)
-            cout<<" "<<_small_slices[i];
+                cout<<" "<<_small_slices[i];
             cout<<endl;
         }
     }
@@ -1142,7 +1184,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::ScaleVolumeCardiac4D()
     {
         if (_debug)
-        cout << "Scaling volume: ";
+            cout << "Scaling volume: ";
         
         unsigned int inputIndex;
         int i, j;
@@ -1159,21 +1201,21 @@ namespace mirtk {
             RealImage& sim = _simulated_slices[inputIndex];
             
             for (i = 0; i < slice.GetX(); i++)
-            for (j = 0; j < slice.GetY(); j++)
-            if (slice(i, j, 0) != -1) {
-                //scale - intensity matching
-                if ( _simulated_weights[inputIndex](i,j,0) > 0.99 ) {
-                    scalenum += w(i, j, 0) * _slice_weight[inputIndex] * slice(i, j, 0) * sim(i, j, 0);
-                    scaleden += w(i, j, 0) * _slice_weight[inputIndex] * sim(i, j, 0) * sim(i, j, 0);
-                }
-            }
+                for (j = 0; j < slice.GetY(); j++)
+                    if (slice(i, j, 0) != -1) {
+                        //scale - intensity matching
+                        if ( _simulated_weights[inputIndex](i,j,0) > 0.99 ) {
+                            scalenum += w(i, j, 0) * _slice_weight[inputIndex] * slice(i, j, 0) * sim(i, j, 0);
+                            scaleden += w(i, j, 0) * _slice_weight[inputIndex] * sim(i, j, 0) * sim(i, j, 0);
+                        }
+                    }
         } //end of loop for a slice inputIndex
         
         //calculate scale for the volume
         double scale = scalenum / scaleden;
         
         if(_debug)
-        cout<<" scale = "<<scale;
+            cout<<" scale = "<<scale;
         
         RealPixel *ptr = _reconstructed4D.GetPointerToVoxels();
         for(i=0;i<_reconstructed4D.GetNumberOfVoxels();i++) {
@@ -1209,11 +1251,11 @@ namespace mirtk {
                 
                 //calculate corrected voxels
                 for (int i = 0; i < slice.GetX(); i++)
-                for (int j = 0; j < slice.GetY(); j++)
-                if (slice(i,j,0) != -1) {
-                    //bias correct and scale the voxel
-                    slice(i,j,0) *= exp(-b(i, j, 0)) * scale;
-                }
+                    for (int j = 0; j < slice.GetY(); j++)
+                        if (slice(i,j,0) != -1) {
+                            //bias correct and scale the voxel
+                            slice(i,j,0) *= exp(-b(i, j, 0)) * scale;
+                        }
                 
                 reconstructor->_corrected_slices[inputIndex] = slice;
                 
@@ -1237,13 +1279,13 @@ namespace mirtk {
     void ReconstructionCardiac4D::CalculateCorrectedSlices()
     {
         if (_debug)
-        cout<<"Calculating corrected slices..."<<endl;
+            cout<<"Calculating corrected slices..."<<endl;
         
         ParallelCalculateCorrectedSlices parallelCalculateCorrectedSlices( this );
         parallelCalculateCorrectedSlices();
         
         if (_debug)
-        cout<<"\t...calculating corrected slices done."<<endl;
+            cout<<"\t...calculating corrected slices done."<<endl;
     }
     
     
@@ -1273,26 +1315,26 @@ namespace mirtk {
                 
                 POINT3D p;
                 for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ )
-                for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ )
-                if ( reconstructor->_slices[inputIndex](i, j, 0) != -1 ) {
-                    double weight = 0;
-                    int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                    for ( int k = 0; k < n; k++ ) {
-                        p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                        for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
-                            reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                            weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                    for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ )
+                        if ( reconstructor->_slices[inputIndex](i, j, 0) != -1 ) {
+                            double weight = 0;
+                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                            for ( int k = 0; k < n; k++ ) {
+                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                                for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
+                                    reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
+                                    weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                                }
+                                if (reconstructor->_mask(p.x, p.y, p.z) == 1) {
+                                    reconstructor->_simulated_inside[inputIndex](i, j, 0) = 1;
+                                    reconstructor->_slice_inside[inputIndex] = true;
+                                }
+                            }
+                            if( weight > 0 ) {
+                                reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
+                                reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
+                            }
                         }
-                        if (reconstructor->_mask(p.x, p.y, p.z) == 1) {
-                            reconstructor->_simulated_inside[inputIndex](i, j, 0) = 1;
-                            reconstructor->_slice_inside[inputIndex] = true;
-                        }
-                    }
-                    if( weight > 0 ) {
-                        reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
-                        reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
-                    }
-                }
                 
             }
         }
@@ -1314,13 +1356,13 @@ namespace mirtk {
     void ReconstructionCardiac4D::SimulateSlicesCardiac4D()
     {
         if (_debug)
-        cout<<"Simulating Slices..."<<endl;
+            cout<<"Simulating Slices..."<<endl;
         
         ParallelSimulateSlicesCardiac4D parallelSimulateSlices( this );
         parallelSimulateSlices();
         
         if (_debug)
-        cout<<"\t...Simulating Slices done."<<endl;
+            cout<<"\t...Simulating Slices done."<<endl;
     }
     
     
@@ -1424,26 +1466,26 @@ namespace mirtk {
                     double sum = 0;
                     int i, j, k;
                     for (i = 0; i < xDim; i++)
-                    for (j = 0; j < yDim; j++)
-                    for (k = 0; k < zDim; k++) {
-                        x = i;
-                        y = j;
-                        z = k;
-                        PSF.ImageToWorld(x, y, z);
-                        x -= cx;
-                        y -= cy;
-                        z -= cz;
-                        //continuous PSF does not need to be normalized as discrete will be
-                        PSF(i, j, k) = exp(
-                                           -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
-                                           - z * z / (2 * sigmaz * sigmaz));
-                        sum += PSF(i, j, k);
-                    }
+                        for (j = 0; j < yDim; j++)
+                            for (k = 0; k < zDim; k++) {
+                                x = i;
+                                y = j;
+                                z = k;
+                                PSF.ImageToWorld(x, y, z);
+                                x -= cx;
+                                y -= cy;
+                                z -= cz;
+                                //continuous PSF does not need to be normalized as discrete will be
+                                PSF(i, j, k) = exp(
+                                                   -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
+                                                   - z * z / (2 * sigmaz * sigmaz));
+                                sum += PSF(i, j, k);
+                            }
                     PSF /= sum;
                     
                     if (reconstructor->_debug)
-                    if (inputIndex == 0)
-                    PSF.Write("PSF.nii.gz");
+                        if (inputIndex == 0)
+                            PSF.Write("PSF.nii.gz");
                     
                     //prepare storage for PSF transformed and resampled to the space of reconstructed volume
                     //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
@@ -1469,150 +1511,150 @@ namespace mirtk {
                     int l, m, n;
                     double weight;
                     for (i = 0; i < slice.GetX(); i++)
-                    for (j = 0; j < slice.GetY(); j++)
-                    if (slice(i, j, 0) != -1) {
-                        //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
-                        x = i;
-                        y = j;
-                        z = 0;
-                        slice.ImageToWorld(x, y, z);
-                        reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                        reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                        tx = round(x);
-                        ty = round(y);
-                        tz = round(z);
-                        
-                        //Clear the transformed PSF
-                        for (ii = 0; ii < dim; ii++)
-                        for (jj = 0; jj < dim; jj++)
-                        for (kk = 0; kk < dim; kk++)
-                        tPSF(ii, jj, kk) = 0;
-                        
-                        //for each POINT3D of the PSF
-                        for (ii = 0; ii < xDim; ii++)
-                        for (jj = 0; jj < yDim; jj++)
-                        for (kk = 0; kk < zDim; kk++) {
-                            //Calculate the position of the POINT3D of
-                            //PSF centered over current slice voxel
-                            //This is a bit complicated because slices
-                            //can be oriented in any direction
-                            
-                            //PSF image coordinates
-                            x = ii;
-                            y = jj;
-                            z = kk;
-                            //change to PSF world coordinates - now real sizes in mm
-                            PSF.ImageToWorld(x, y, z);
-                            //centre around the centrepoint of the PSF
-                            x -= cx;
-                            y -= cy;
-                            z -= cz;
-                            
-                            //Need to convert (x,y,z) to slice image
-                            //coordinates because slices can have
-                            //transformations included in them (they are
-                            //nifti)  and those are not reflected in
-                            //PSF. In slice image coordinates we are
-                            //sure that z is through-plane
-                            
-                            //adjust according to voxel size
-                            x /= dx;
-                            y /= dy;
-                            z /= dz;
-                            //center over current voxel
-                            x += i;
-                            y += j;
-                            
-                            //convert from slice image coordinates to world coordinates
-                            slice.ImageToWorld(x, y, z);
-                            
-                            //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
-                            //Transform to space of reconstructed volume
-                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                            //Change to image coordinates
-                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                            
-                            //determine coefficients of volume voxels for position x,y,z
-                            //using linear interpolation
-                            
-                            //Find the 8 closest volume voxels
-                            
-                            //lowest corner of the cube
-                            nx = (int) floor(x);
-                            ny = (int) floor(y);
-                            nz = (int) floor(z);
-                            
-                            //not all neighbours might be in ROI, thus we need to normalize
-                            //(l,m,n) are image coordinates of 8 neighbours in volume space
-                            //for each we check whether it is in volume
-                            sum = 0;
-                            //to find wether the current slice voxel has overlap with ROI
-                            bool inside = false;
-                            for (l = nx; l <= nx + 1; l++)
-                            if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                            for (m = ny; m <= ny + 1; m++)
-                            if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                            for (n = nz; n <= nz + 1; n++)
-                            if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                sum += weight;
-                                if (reconstructor->_mask(l, m, n) == 1) {
-                                    inside = true;
-                                }
-                            }
-                            //if there were no voxels do nothing
-                            if ((sum <= 0) || (!inside))
-                            continue;
-                            //now calculate the transformed PSF
-                            for (l = nx; l <= nx + 1; l++)
-                            if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                            for (m = ny; m <= ny + 1; m++)
-                            if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                            for (n = nz; n <= nz + 1; n++)
-                            if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                        for (j = 0; j < slice.GetY(); j++)
+                            if (slice(i, j, 0) != -1) {
+                                //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
+                                x = i;
+                                y = j;
+                                z = 0;
+                                slice.ImageToWorld(x, y, z);
+                                reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                                reconstructor->_reconstructed4D.WorldToImage(x, y, z);
+                                tx = round(x);
+                                ty = round(y);
+                                tz = round(z);
                                 
-                                //image coordinates in tPSF
-                                //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
-                                int aa, bb, cc;
-                                aa = l - tx + centre;
-                                bb = m - ty + centre;
-                                cc = n - tz + centre;
+                                //Clear the transformed PSF
+                                for (ii = 0; ii < dim; ii++)
+                                    for (jj = 0; jj < dim; jj++)
+                                        for (kk = 0; kk < dim; kk++)
+                                            tPSF(ii, jj, kk) = 0;
                                 
-                                //resulting value
-                                double value = PSF(ii, jj, kk) * weight / sum;
+                                //for each POINT3D of the PSF
+                                for (ii = 0; ii < xDim; ii++)
+                                    for (jj = 0; jj < yDim; jj++)
+                                        for (kk = 0; kk < zDim; kk++) {
+                                            //Calculate the position of the POINT3D of
+                                            //PSF centered over current slice voxel
+                                            //This is a bit complicated because slices
+                                            //can be oriented in any direction
+                                            
+                                            //PSF image coordinates
+                                            x = ii;
+                                            y = jj;
+                                            z = kk;
+                                            //change to PSF world coordinates - now real sizes in mm
+                                            PSF.ImageToWorld(x, y, z);
+                                            //centre around the centrepoint of the PSF
+                                            x -= cx;
+                                            y -= cy;
+                                            z -= cz;
+                                            
+                                            //Need to convert (x,y,z) to slice image
+                                            //coordinates because slices can have
+                                            //transformations included in them (they are
+                                            //nifti)  and those are not reflected in
+                                            //PSF. In slice image coordinates we are
+                                            //sure that z is through-plane
+                                            
+                                            //adjust according to voxel size
+                                            x /= dx;
+                                            y /= dy;
+                                            z /= dz;
+                                            //center over current voxel
+                                            x += i;
+                                            y += j;
+                                            
+                                            //convert from slice image coordinates to world coordinates
+                                            slice.ImageToWorld(x, y, z);
+                                            
+                                            //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
+                                            //Transform to space of reconstructed volume
+                                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                                            //Change to image coordinates
+                                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
+                                            
+                                            //determine coefficients of volume voxels for position x,y,z
+                                            //using linear interpolation
+                                            
+                                            //Find the 8 closest volume voxels
+                                            
+                                            //lowest corner of the cube
+                                            nx = (int) floor(x);
+                                            ny = (int) floor(y);
+                                            nz = (int) floor(z);
+                                            
+                                            //not all neighbours might be in ROI, thus we need to normalize
+                                            //(l,m,n) are image coordinates of 8 neighbours in volume space
+                                            //for each we check whether it is in volume
+                                            sum = 0;
+                                            //to find wether the current slice voxel has overlap with ROI
+                                            bool inside = false;
+                                            for (l = nx; l <= nx + 1; l++)
+                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
+                                                    for (m = ny; m <= ny + 1; m++)
+                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
+                                                            for (n = nz; n <= nz + 1; n++)
+                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
+                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                                    sum += weight;
+                                                                    if (reconstructor->_mask(l, m, n) == 1) {
+                                                                        inside = true;
+                                                                    }
+                                                                }
+                                            //if there were no voxels do nothing
+                                            if ((sum <= 0) || (!inside))
+                                                continue;
+                                            //now calculate the transformed PSF
+                                            for (l = nx; l <= nx + 1; l++)
+                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
+                                                    for (m = ny; m <= ny + 1; m++)
+                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
+                                                            for (n = nz; n <= nz + 1; n++)
+                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
+                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                                    
+                                                                    //image coordinates in tPSF
+                                                                    //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
+                                                                    int aa, bb, cc;
+                                                                    aa = l - tx + centre;
+                                                                    bb = m - ty + centre;
+                                                                    cc = n - tz + centre;
+                                                                    
+                                                                    //resulting value
+                                                                    double value = PSF(ii, jj, kk) * weight / sum;
+                                                                    
+                                                                    //Check that we are in tPSF
+                                                                    if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
+                                                                        || (cc >= dim)) {
+                                                                        cerr << "Error while trying to populate tPSF. " << aa << " " << bb
+                                                                        << " " << cc << endl;
+                                                                        cerr << l << " " << m << " " << n << endl;
+                                                                        cerr << tx << " " << ty << " " << tz << endl;
+                                                                        cerr << centre << endl;
+                                                                        tPSF.Write("tPSF.nii.gz");
+                                                                        exit(1);
+                                                                    }
+                                                                    else
+                                                                        //update transformed PSF
+                                                                        tPSF(aa, bb, cc) += value;
+                                                                }
+                                            
+                                        } //end of the loop for PSF points
                                 
-                                //Check that we are in tPSF
-                                if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
-                                    || (cc >= dim)) {
-                                    cerr << "Error while trying to populate tPSF. " << aa << " " << bb
-                                    << " " << cc << endl;
-                                    cerr << l << " " << m << " " << n << endl;
-                                    cerr << tx << " " << ty << " " << tz << endl;
-                                    cerr << centre << endl;
-                                    tPSF.Write("tPSF.nii.gz");
-                                    exit(1);
-                                }
-                                else
-                                //update transformed PSF
-                                tPSF(aa, bb, cc) += value;
-                            }
-                            
-                        } //end of the loop for PSF points
-                        
-                        //store tPSF values
-                        for (ii = 0; ii < dim; ii++)
-                        for (jj = 0; jj < dim; jj++)
-                        for (kk = 0; kk < dim; kk++)
-                        if (tPSF(ii, jj, kk) > 0) {
-                            p.x = ii + tx - centre;
-                            p.y = jj + ty - centre;
-                            p.z = kk + tz - centre;
-                            p.value = tPSF(ii, jj, kk);
-                            slicecoeffs[i][j].push_back(p);
-                        }
-                        
-                    } //end of loop for slice voxels
+                                //store tPSF values
+                                for (ii = 0; ii < dim; ii++)
+                                    for (jj = 0; jj < dim; jj++)
+                                        for (kk = 0; kk < dim; kk++)
+                                            if (tPSF(ii, jj, kk) > 0) {
+                                                p.x = ii + tx - centre;
+                                                p.y = jj + ty - centre;
+                                                p.z = kk + tz - centre;
+                                                p.value = tPSF(ii, jj, kk);
+                                                slicecoeffs[i][j].push_back(p);
+                                            }
+                                
+                            } //end of loop for slice voxels
                     
                     //Calculate simulated slice
                     reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
@@ -1622,22 +1664,22 @@ namespace mirtk {
                     reconstructor->_simulated_weights[inputIndex] = 0;
                     
                     for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ )
-                    for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ )
-                    if ( reconstructor->_slices[inputIndex](i, j, 0) != -1 ) {
-                        double weight = 0;
-                        int n = slicecoeffs[i][j].size();
-                        for ( int k = 0; k < n; k++ ) {
-                            p = slicecoeffs[i][j][k];
-                            for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
-                                reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                                weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                        for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ )
+                            if ( reconstructor->_slices[inputIndex](i, j, 0) != -1 ) {
+                                double weight = 0;
+                                int n = slicecoeffs[i][j].size();
+                                for ( int k = 0; k < n; k++ ) {
+                                    p = slicecoeffs[i][j][k];
+                                    for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
+                                        reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
+                                        weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                                    }
+                                }
+                                if( weight > 0 ) {
+                                    reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
+                                    reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
+                                }
                             }
-                        }
-                        if( weight > 0 ) {
-                            reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
-                            reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
-                        }
-                    }
                     
                 }  // if(_slice_excluded[inputIndex]==0)
                 
@@ -1670,7 +1712,7 @@ namespace mirtk {
         //Initialise indicator of images having overlap with volume
         _slice_inside.clear();
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)
-        _slice_inside.push_back(true);
+            _slice_inside.push_back(true);
         
         //Simulate images
         cout << "Simulating...";
@@ -1710,16 +1752,16 @@ namespace mirtk {
                 
                 //calculate error
                 for (int i = 0; i < slice.GetX(); i++)
-                for (int j = 0; j < slice.GetY(); j++)
-                if (slice(i,j,0) != -1)
-                if ( reconstructor->_simulated_weights[inputIndex](i,j,0) > 0 ) {
-                    //bias correct and scale the voxel
-                    slice(i,j,0) *= exp(-b(i, j, 0)) * scale;
-                    //subtract simulated voxel
-                    slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
-                    //assign as error
-                    reconstructor->_error[inputIndex](i,j,0) = slice(i,j,0);
-                }
+                    for (int j = 0; j < slice.GetY(); j++)
+                        if (slice(i,j,0) != -1)
+                            if ( reconstructor->_simulated_weights[inputIndex](i,j,0) > 0 ) {
+                                //bias correct and scale the voxel
+                                slice(i,j,0) *= exp(-b(i, j, 0)) * scale;
+                                //subtract simulated voxel
+                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
+                                //assign as error
+                                reconstructor->_error[inputIndex](i,j,0) = slice(i,j,0);
+                            }
             } //end of loop for a slice inputIndex
         }
         
@@ -1740,13 +1782,13 @@ namespace mirtk {
     void ReconstructionCardiac4D::CalculateError()
     {
         if (_debug)
-        cout<<"Calculating error..."<<endl;
+            cout<<"Calculating error..."<<endl;
         
         ParallelCalculateError parallelCalculateError( this );
         parallelCalculateError();
         
         if (_debug)
-        cout<<"\t...calculating error done."<<endl;
+            cout<<"\t...calculating error done."<<endl;
     }
     
     
@@ -1780,7 +1822,7 @@ namespace mirtk {
                 RealPixel *pb = b.GetPointerToVoxels();
                 for(int i = 0; i<slice.GetNumberOfVoxels(); i++) {
                     if((*pi>-1)&&(scale>0))
-                    *pb -= log(scale);
+                        *pb -= log(scale);
                     pb++;
                     pi++;
                 }
@@ -1788,18 +1830,18 @@ namespace mirtk {
                 //Distribute slice intensities to the volume
                 POINT3D p;
                 for (int i = 0; i < slice.GetX(); i++)
-                for (int j = 0; j < slice.GetY(); j++)
-                if (slice(i, j, 0) != -1) {
-                    //number of volume voxels with non-zero coefficients for current slice voxel
-                    int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                    //add contribution of current slice voxel to all voxel volumes
-                    //to which it contributes
-                    for (int k = 0; k < n; k++) {
-                        p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                        bias(p.x, p.y, p.z) += p.value * b(i, j, 0);
-                        volweight3d(p.x,p.y,p.z) += p.value;
-                    }
-                }
+                    for (int j = 0; j < slice.GetY(); j++)
+                        if (slice(i, j, 0) != -1) {
+                            //number of volume voxels with non-zero coefficients for current slice voxel
+                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                            //add contribution of current slice voxel to all voxel volumes
+                            //to which it contributes
+                            for (int k = 0; k < n; k++) {
+                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                                bias(p.x, p.y, p.z) += p.value * b(i, j, 0);
+                                volweight3d(p.x,p.y,p.z) += p.value;
+                            }
+                        }
                 //end of loop for a slice inputIndex
             }
         }
@@ -1847,7 +1889,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::NormaliseBiasCardiac4D(int iter, int rec_iter)
     {
         if(_debug)
-        cout << "Normalise Bias ... ";
+            cout << "Normalise Bias ... ";
         
         ParallelNormaliseBiasCardiac4D parallelNormaliseBias(this);
         parallelNormaliseBias();
@@ -1858,7 +1900,7 @@ namespace mirtk {
         bias /= volweight3d;
         
         if(_debug)
-        cout << "done." << endl;
+            cout << "done." << endl;
         
         bias = StaticMaskVolume4D(bias,0);
         RealImage m = _mask;
@@ -1879,11 +1921,11 @@ namespace mirtk {
         }
         
         for ( int i = 0; i < _reconstructed4D.GetX(); i++)
-        for ( int j = 0; j < _reconstructed4D.GetY(); j++)
-        for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
-        for ( int f = 0; f < _reconstructed4D.GetT(); f++)
-        if(_reconstructed4D(i,j,k,f)!=-1)
-        _reconstructed4D(i,j,k,f) /=exp(-bias(i,j,k));
+            for ( int j = 0; j < _reconstructed4D.GetY(); j++)
+                for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
+                    for ( int f = 0; f < _reconstructed4D.GetT(); f++)
+                        if(_reconstructed4D(i,j,k,f)!=-1)
+                            _reconstructed4D(i,j,k,f) /=exp(-bias(i,j,k));
         
     }
     
@@ -1896,7 +1938,7 @@ namespace mirtk {
         int card_index;
         double angdiff;
         if (_debug)
-        cout << "CalculateSliceToVolumeTargetCardiacPhase" << endl;
+            cout << "CalculateSliceToVolumeTargetCardiacPhase" << endl;
         _slice_svr_card_index.clear();
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
         {
@@ -1932,9 +1974,9 @@ namespace mirtk {
         void operator() (const blocked_range<size_t> &r) const {
             
             ImageAttributes attr = reconstructor->_reconstructed4D.GetImageAttributes();
-
-
-
+            
+            
+            
             
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
@@ -1946,7 +1988,7 @@ namespace mirtk {
                     GreyImage target;
                     RealImage slice, w, b, t;
                     
-
+                    
                     ResamplingWithPadding<RealPixel> resampling(attr._dx,attr._dx,attr._dx,-1);
                     Reconstruction dummy_reconstruction;
                     
@@ -1977,13 +2019,13 @@ namespace mirtk {
                         Insert(params, "Background value for image 1", 0);
                         Insert(params, "Background value for image 2", -1);
                         
-//                        Insert(params, "Image (dis-)similarity measure", "NCC");
-//                        Insert(params, "Image interpolation mode", "Linear");
-//                        string type = "sigma";
-//                        string units = "mm";
-//                        double width = 5;
-//                        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
-
+                        //                        Insert(params, "Image (dis-)similarity measure", "NCC");
+                        //                        Insert(params, "Image interpolation mode", "Linear");
+                        //                        string type = "sigma";
+                        //                        string units = "mm";
+                        //                        double width = 5;
+                        //                        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+                        
                         GenericRegistrationFilter *registration = new GenericRegistrationFilter();
                         registration->Parameter(params);
                         
@@ -2000,9 +2042,9 @@ namespace mirtk {
                         // TODO: extract nearest cardiac phase from reconstructed 4D to use as source
                         GreyImage source = reconstructor->_reconstructed4D.GetRegion( 0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex]+1 );
                         
-
+                        
                         target.Write("tt.nii.gz");
-
+                        
                         
                         registration->Input(&target, &source);
                         Transformation *dofout = nullptr;
@@ -2019,7 +2061,7 @@ namespace mirtk {
                         RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
                         reconstructor->_transformations[inputIndex] = *rigidTransf;
                         
-  
+                        
                         //undo the offset
                         mo.Invert();
                         m = reconstructor->_transformations[inputIndex].GetMatrix();
@@ -2046,11 +2088,11 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     void ReconstructionCardiac4D::SliceToVolumeRegistrationCardiac4D()
     {
-
+        
         _reconstructed4D.Write("zzz.nii.gz");
-
+        
         if (_debug)
-        cout << "SliceToVolumeRegistrationCardiac4D" << endl;
+            cout << "SliceToVolumeRegistrationCardiac4D" << endl;
         ParallelSliceToVolumeRegistrationCardiac4D registration(this);
         registration();
     }
@@ -2112,7 +2154,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "CalculateDisplacment" << endl;
+            cout << "CalculateDisplacment" << endl;
         
         _slice_displacement.clear();
         _slice_tx.clear();
@@ -2174,9 +2216,9 @@ namespace mirtk {
         }
         
         if (num_voxel_total>0)
-        mean_disp = disp_sum_total / num_voxel_total;
+            mean_disp = disp_sum_total / num_voxel_total;
         else
-        mean_disp = -1;
+            mean_disp = -1;
         
         return mean_disp;
         
@@ -2222,7 +2264,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "CalculateWeightedDisplacement" << endl;
+            cout << "CalculateWeightedDisplacement" << endl;
         
         _slice_weighted_displacement.clear();
         
@@ -2265,9 +2307,9 @@ namespace mirtk {
         }
         
         if (weight_total>0)
-        mean_disp = disp_sum_total / weight_total;
+            mean_disp = disp_sum_total / weight_total;
         else
-        mean_disp = -1;
+            mean_disp = -1;
         
         return mean_disp;
         
@@ -2322,7 +2364,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "CalculateTRE" << endl;
+            cout << "CalculateTRE" << endl;
         
         _slice_tre.clear();
         
@@ -2365,9 +2407,9 @@ namespace mirtk {
         }
         
         if (num_voxel_total>0)
-        mean_tre = tre_sum_total / num_voxel_total;
+            mean_tre = tre_sum_total / num_voxel_total;
         else
-        mean_tre = -1;
+            mean_tre = -1;
         
         return mean_tre;
         
@@ -2413,7 +2455,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout<<"SmoothTransformations"<<endl<<"\tsigma = "<<sigma_seconds<<" s"<<endl;
+            cout<<"SmoothTransformations"<<endl<<"\tsigma = "<<sigma_seconds<<" s"<<endl;
         
         int i,j,iter,par;
         
@@ -2426,7 +2468,7 @@ namespace mirtk {
         Matrix imo = mo;
         imo.Invert();
         if (_debug)
-        offset.Write("reset_origin.dof");
+            offset.Write("reset_origin.dof");
         for(i=0;i<int(_transformations.size());i++)
         {
             m = _transformations[i].GetMatrix();
@@ -2453,13 +2495,13 @@ namespace mirtk {
             {
                 fileOut<<parameters(j,i);
                 if(j<5)
-                fileOut<<",";
+                    fileOut<<",";
                 else
-                fileOut<<endl;
+                    fileOut<<endl;
             }
             
             for(j=0;j<6;j++)
-            weights(j,i)=0;             //initialise as zero
+                weights(j,i)=0;             //initialise as zero
             if (!_slice_excluded[i])
             {
                 if (!use_slice_inside)      //set weights based on image intensities
@@ -2467,16 +2509,16 @@ namespace mirtk {
                     RealPixel smin, smax;
                     _slices[i].GetMinMax(&smin,&smax);
                     if(smax>-1)
-                    for(j=0;j<6;j++)
-                    weights(j,i)=1;
+                        for(j=0;j<6;j++)
+                            weights(j,i)=1;
                 }
                 else                        //set weights based on _slice_inside
                 {
                     if(_slice_inside.size()>0)
                     {
                         if(_slice_inside[i])
-                        for(j=0;j<6;j++)
-                        weights(j,i)=1;
+                            for(j=0;j<6;j++)
+                                weights(j,i)=1;
                     }
                 }
             }
@@ -2491,10 +2533,10 @@ namespace mirtk {
         double sigma;
         int nloc = 0;
         for(i=0;i<int(_transformations.size());i++)
-        if ((_loc_index[i]+1)>nloc)
-        nloc = _loc_index[i] + 1;
+            if ((_loc_index[i]+1)>nloc)
+                nloc = _loc_index[i] + 1;
         if (_debug)
-        cout << "\tnumber of slice-locations = " << nloc << endl;
+            cout << "\tnumber of slice-locations = " << nloc << endl;
         int dim = _transformations.size()/nloc; // assuming equal number of dynamic images for every slice-location
         int loc;
         
@@ -2503,9 +2545,9 @@ namespace mirtk {
         double nstep=15;
         step = ceil(_reconstructed4D.GetX()/nstep);
         if(step>ceil(_reconstructed4D.GetY()/nstep))
-        step = ceil(_reconstructed4D.GetY()/nstep);
+            step = ceil(_reconstructed4D.GetY()/nstep);
         if(step>ceil(_reconstructed4D.GetZ()/nstep))
-        step = ceil(_reconstructed4D.GetZ()/nstep);
+            step = ceil(_reconstructed4D.GetZ()/nstep);
         
         //kernel regression
         for(iter = 0; iter<niter;iter++)
@@ -2530,11 +2572,11 @@ namespace mirtk {
                         if(!_slice_excluded[i])
                         {
                             for(j=-3*sigma;j<=3*sigma;j++)
-                            if(((i+j)>=loc*dim) && ((i+j)<(loc+1)*dim))
-                            {
-                                num(par,i)+=parameters(par,i+j)*kernel[j+3*sigma]*weights(par,i+j);
-                                den(par,i)+=kernel[j+3*sigma]*weights(par,i+j);
-                            }
+                                if(((i+j)>=loc*dim) && ((i+j)<(loc+1)*dim))
+                                {
+                                    num(par,i)+=parameters(par,i+j)*kernel[j+3*sigma]*weights(par,i+j);
+                                    den(par,i)+=kernel[j+3*sigma]*weights(par,i+j);
+                                }
                         }
                         else
                         {
@@ -2547,8 +2589,8 @@ namespace mirtk {
             
             //kernel-weighted normalisation
             for(par=0;par<6;par++)
-            for(i=0;i<int(_transformations.size());i++)
-            kr(par,i)=num(par,i)/den(par,i);
+                for(i=0;i<int(_transformations.size());i++)
+                    kr(par,i)=num(par,i)/den(par,i);
             
             //recalculate weights using target registration error with original transformations as targets
             error.clear();
@@ -2582,21 +2624,21 @@ namespace mirtk {
                 
                 if(!_slice_excluded[i]) {
                     for(int ii=0;ii<_reconstructed4D.GetX();ii=ii+step)
-                    for(int jj=0;jj<_reconstructed4D.GetY();jj=jj+step)
-                    for(int kk=0;kk<_reconstructed4D.GetZ();kk=kk+step)
-                    if(_reconstructed4D(ii,jj,kk,0)>-1)
-                    {
-                        x=ii; y=jj; z=kk;
-                        _reconstructed4D.ImageToWorld(x,y,z);
-                        xx=x;yy=y;zz=z;
-                        orig.Transform(x,y,z);
-                        processed.Transform(xx,yy,zz);
-                        x-=xx;
-                        y-=yy;
-                        z-=zz;
-                        e += sqrt(x*x+y*y+z*z);
-                        n++;
-                    }
+                        for(int jj=0;jj<_reconstructed4D.GetY();jj=jj+step)
+                            for(int kk=0;kk<_reconstructed4D.GetZ();kk=kk+step)
+                                if(_reconstructed4D(ii,jj,kk,0)>-1)
+                                {
+                                    x=ii; y=jj; z=kk;
+                                    _reconstructed4D.ImageToWorld(x,y,z);
+                                    xx=x;yy=y;zz=z;
+                                    orig.Transform(x,y,z);
+                                    processed.Transform(xx,yy,zz);
+                                    x-=xx;
+                                    y-=yy;
+                                    z-=zz;
+                                    e += sqrt(x*x+y*y+z*z);
+                                    n++;
+                                }
                 }
                 
                 if(n>0)
@@ -2606,14 +2648,14 @@ namespace mirtk {
                     tmp.push_back(e);
                 }
                 else
-                error.push_back(-1);
+                    error.push_back(-1);
             }
             
             sort(tmp.begin(),tmp.end());
             median = tmp[round(tmp.size()*0.5)];
             
             if ((_debug)&(iter==0))
-            cout<<"\titeration:median_error(mm)...";
+                cout<<"\titeration:median_error(mm)...";
             if (_debug) {
                 cout<<iter<<":"<<median<<", ";
                 cout.flush();
@@ -2624,21 +2666,21 @@ namespace mirtk {
                 if((error[i]>=0)&(!_slice_excluded[i]))
                 {
                     if(error[i]<=median*1.35)
-                    for(par=0;par<6;par++)
-                    weights(par,i)=1;
+                        for(par=0;par<6;par++)
+                            weights(par,i)=1;
                     else
-                    for(par=0;par<6;par++)
-                    weights(par,i)=median*1.35/error[i];
+                        for(par=0;par<6;par++)
+                            weights(par,i)=median*1.35/error[i];
                 }
                 else
-                for(par=0;par<6;par++)
-                weights(par,i)=0;
+                    for(par=0;par<6;par++)
+                        weights(par,i)=0;
             }
             
         }
         
         if (_debug)
-        cout<<"\b\b."<<endl;
+            cout<<"\b\b."<<endl;
         
         ofstream fileOut2("motion-processed.txt", ofstream::out | ofstream::app);
         ofstream fileOut3("weights.txt", ofstream::out | ofstream::app);
@@ -2650,7 +2692,7 @@ namespace mirtk {
             fileOut3<<weights(j,i)<<" ";
             
             if(weights(0,i)<=0)
-            fileOut5<<i<<" ";
+                fileOut5<<i<<" ";
             
             _transformations[i].PutTranslationX(kr(0,i));
             _transformations[i].PutTranslationY(kr(1,i));
@@ -2663,9 +2705,9 @@ namespace mirtk {
             {
                 fileOut2<<kr(j,i);
                 if(j<5)
-                fileOut2<<",";
+                    fileOut2<<",";
                 else
-                fileOut2<<endl;
+                    fileOut2<<endl;
             }
         }
         
@@ -2687,10 +2729,10 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout<<"Scaling transformations."<<endl<<"scale = "<<scale<<"."<<endl;
+            cout<<"Scaling transformations."<<endl<<"scale = "<<scale<<"."<<endl;
         
         if (scale==1)
-        return;
+            return;
         
         if (scale<0) {
             cerr<<"Scaling of transformations undefined for scale < 0.";
@@ -2708,7 +2750,7 @@ namespace mirtk {
         Matrix imo = mo;
         imo.Invert();
         if (_debug)
-        offset.Write("reset_origin.dof");
+            offset.Write("reset_origin.dof");
         for(i=0;i<_transformations.size();i++)
         {
             m = _transformations[i].GetMatrix();
@@ -2724,8 +2766,8 @@ namespace mirtk {
             orig = logm( _transformations[i].GetMatrix() );
             scaled = orig;
             for(row=0;row<4;row++)
-            for(col=0;col<4;col++)
-            scaled(row,col) = scale * orig(row,col);
+                for(col=0;col<4;col++)
+                    scaled(row,col) = scale * orig(row,col);
             _transformations[i].PutMatrix( expm( scaled ) );
         }
         
@@ -2807,34 +2849,34 @@ namespace mirtk {
                 //Distribute error to the volume
                 POINT3D p;
                 for ( int i = 0; i < slice.GetX(); i++)
-                for ( int j = 0; j < slice.GetY(); j++)
-                if (slice(i, j, 0) != -1) {
-                    //bias correct and scale the slice
-                    slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                    
-                    if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > 0 )
-                    slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
-                    else
-                    slice(i,j,0) = 0;
-                    
-                    int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                    for (int k = 0; k < n; k++) {
-                        p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                        for (int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++) {
-                            if(reconstructor->_robust_slices_only)
-                            {
-                                addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
-                                
-                            }
+                    for ( int j = 0; j < slice.GetY(); j++)
+                        if (slice(i, j, 0) != -1) {
+                            //bias correct and scale the slice
+                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            
+                            if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > 0 )
+                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
                             else
-                            {
-                                addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                slice(i,j,0) = 0;
+                            
+                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                            for (int k = 0; k < n; k++) {
+                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                                for (int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++) {
+                                    if(reconstructor->_robust_slices_only)
+                                    {
+                                        addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                        confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
+                                        
+                                    }
+                                    else
+                                    {
+                                        addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                        confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                    }
+                                }
                             }
                         }
-                    }
-                }
             } //end of loop for a slice inputIndex
         }
         
@@ -2883,7 +2925,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::SuperresolutionCardiac4D( int iter )
     {
         if (_debug)
-        cout << "Superresolution " << iter << endl;
+            cout << "Superresolution " << iter << endl;
         
         int i, j, k, t;
         RealImage addon, original;
@@ -2908,31 +2950,31 @@ namespace mirtk {
         }
         
         if (!_adaptive)
-        for (i = 0; i < addon.GetX(); i++)
-        for (j = 0; j < addon.GetY(); j++)
-        for (k = 0; k < addon.GetZ(); k++)
-        for (t = 0; t < addon.GetT(); t++)
-        if (_confidence_map(i, j, k, t) > 0) {
-            // ISSUES if _confidence_map(i, j, k, t) is too small leading
-            // to bright pixels
-            addon(i, j, k, t) /= _confidence_map(i, j, k, t);
-            //this is to revert to normal (non-adaptive) regularisation
-            _confidence_map(i,j,k,t) = 1;
-        }
+            for (i = 0; i < addon.GetX(); i++)
+                for (j = 0; j < addon.GetY(); j++)
+                    for (k = 0; k < addon.GetZ(); k++)
+                        for (t = 0; t < addon.GetT(); t++)
+                            if (_confidence_map(i, j, k, t) > 0) {
+                                // ISSUES if _confidence_map(i, j, k, t) is too small leading
+                                // to bright pixels
+                                addon(i, j, k, t) /= _confidence_map(i, j, k, t);
+                                //this is to revert to normal (non-adaptive) regularisation
+                                _confidence_map(i,j,k,t) = 1;
+                            }
         
         _reconstructed4D += addon * _alpha; //_average_volume_weight;
         
         //bound the intensities
         for (i = 0; i < _reconstructed4D.GetX(); i++)
-        for (j = 0; j < _reconstructed4D.GetY(); j++)
-        for (k = 0; k < _reconstructed4D.GetZ(); k++)
-        for (t = 0; t < _reconstructed4D.GetT(); t++)
-        {
-            if (_reconstructed4D(i, j, k, t) < _min_intensity * 0.9)
-            _reconstructed4D(i, j, k, t) = _min_intensity * 0.9;
-            if (_reconstructed4D(i, j, k, t) > _max_intensity * 1.1)
-            _reconstructed4D(i, j, k, t) = _max_intensity * 1.1;
-        }
+            for (j = 0; j < _reconstructed4D.GetY(); j++)
+                for (k = 0; k < _reconstructed4D.GetZ(); k++)
+                    for (t = 0; t < _reconstructed4D.GetT(); t++)
+                    {
+                        if (_reconstructed4D(i, j, k, t) < _min_intensity * 0.9)
+                            _reconstructed4D(i, j, k, t) = _min_intensity * 0.9;
+                        if (_reconstructed4D(i, j, k, t) > _max_intensity * 1.1)
+                            _reconstructed4D(i, j, k, t) = _max_intensity * 1.1;
+                    }
         
         //Smooth the reconstructed image
         AdaptiveRegularizationCardiac4D(iter, original);
@@ -2976,22 +3018,22 @@ namespace mirtk {
                 int x, y, z, xx, yy, zz, t;
                 double diff;
                 for (x = 0; x < dx; x++)
-                for (y = 0; y < dy; y++)
-                for (z = 0; z < dz; z++) {
-                    xx = x + reconstructor->_directions[i][0];
-                    yy = y + reconstructor->_directions[i][1];
-                    zz = z + reconstructor->_directions[i][2];
-                    for (t = 0; t < dt; t++) {
-                        if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
-                            && (reconstructor->_confidence_map(x, y, z, t) > 0) && (reconstructor->_confidence_map(xx, yy, zz, t) > 0)) {
-                            diff = (original(xx, yy, zz, t) - original(x, y, z, t)) * sqrt(factor[i]) / reconstructor->_delta;
-                            b[i](x, y, z, t) = factor[i] / sqrt(1 + diff * diff);
-                            
+                    for (y = 0; y < dy; y++)
+                        for (z = 0; z < dz; z++) {
+                            xx = x + reconstructor->_directions[i][0];
+                            yy = y + reconstructor->_directions[i][1];
+                            zz = z + reconstructor->_directions[i][2];
+                            for (t = 0; t < dt; t++) {
+                                if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
+                                    && (reconstructor->_confidence_map(x, y, z, t) > 0) && (reconstructor->_confidence_map(xx, yy, zz, t) > 0)) {
+                                    diff = (original(xx, yy, zz, t) - original(x, y, z, t)) * sqrt(factor[i]) / reconstructor->_delta;
+                                    b[i](x, y, z, t) = factor[i] / sqrt(1 + diff * diff);
+                                    
+                                }
+                                else
+                                    b[i](x, y, z, t) = 0;
+                            }
                         }
-                        else
-                        b[i](x, y, z, t) = 0;
-                    }
-                }
             }
         }
         
@@ -3033,43 +3075,43 @@ namespace mirtk {
             for ( size_t x = r.begin(); x != r.end(); ++x ) {
                 int xx, yy, zz;
                 for (int y = 0; y < dy; y++)
-                for (int z = 0; z < dz; z++)
-                for (int t = 0; t < dt; t++) {
-                    if(reconstructor->_confidence_map(x,y,z,t)>0)
-                    {
-                        double val = 0;
-                        double sum = 0;
-                        for (int i = 0; i < 13; i++)
-                        {
-                            xx = x + reconstructor->_directions[i][0];
-                            yy = y + reconstructor->_directions[i][1];
-                            zz = z + reconstructor->_directions[i][2];
-                            if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                            if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
+                    for (int z = 0; z < dz; z++)
+                        for (int t = 0; t < dt; t++) {
+                            if(reconstructor->_confidence_map(x,y,z,t)>0)
                             {
-                                val += b[i](x, y, z, t) * original(xx, yy, zz, t);
-                                sum += b[i](x, y, z, t);
+                                double val = 0;
+                                double sum = 0;
+                                for (int i = 0; i < 13; i++)
+                                {
+                                    xx = x + reconstructor->_directions[i][0];
+                                    yy = y + reconstructor->_directions[i][1];
+                                    zz = z + reconstructor->_directions[i][2];
+                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
+                                        if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
+                                        {
+                                            val += b[i](x, y, z, t) * original(xx, yy, zz, t);
+                                            sum += b[i](x, y, z, t);
+                                        }
+                                }
+                                
+                                for (int i = 0; i < 13; i++) {
+                                    xx = x - reconstructor->_directions[i][0];
+                                    yy = y - reconstructor->_directions[i][1];
+                                    zz = z - reconstructor->_directions[i][2];
+                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
+                                        if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
+                                        {
+                                            val += b[i](x, y, z, t) * original(xx, yy, zz, t);
+                                            sum += b[i](x, y, z, t);
+                                        }
+                                }
+                                
+                                val -= sum * original(x, y, z, t);
+                                val = original(x, y, z, t)
+                                + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
+                                reconstructor->_reconstructed4D(x, y, z, t) = val;
                             }
                         }
-                        
-                        for (int i = 0; i < 13; i++) {
-                            xx = x - reconstructor->_directions[i][0];
-                            yy = y - reconstructor->_directions[i][1];
-                            zz = z - reconstructor->_directions[i][2];
-                            if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                            if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
-                            {
-                                val += b[i](x, y, z, t) * original(xx, yy, zz, t);
-                                sum += b[i](x, y, z, t);
-                            }
-                        }
-                        
-                        val -= sum * original(x, y, z, t);
-                        val = original(x, y, z, t)
-                        + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
-                        reconstructor->_reconstructed4D(x, y, z, t) = val;
-                    }
-                }
             }
         }
         
@@ -3090,19 +3132,19 @@ namespace mirtk {
     void ReconstructionCardiac4D::AdaptiveRegularizationCardiac4D(int iter, RealImage& original)
     {
         if (_debug)
-        cout << "AdaptiveRegularizationCardiac4D."<< endl;
+            cout << "AdaptiveRegularizationCardiac4D."<< endl;
         //cout << "AdaptiveRegularizationCardiac4D: _delta = "<<_delta<<" _lambda = "<<_lambda <<" _alpha = "<<_alpha<< endl;
         
         Array<double> factor(13,0);
         for (int i = 0; i < 13; i++) {
             for (int j = 0; j < 3; j++)
-            factor[i] += fabs(double(_directions[i][j]));
+                factor[i] += fabs(double(_directions[i][j]));
             factor[i] = 1 / factor[i];
         }
         
         Array<RealImage> b;//(13);
         for (int i = 0; i < 13; i++)
-        b.push_back( _reconstructed4D );
+            b.push_back( _reconstructed4D );
         
         ParallelAdaptiveRegularization1Cardiac4D parallelAdaptiveRegularization1( this,
                                                                                  b,
@@ -3207,27 +3249,27 @@ namespace mirtk {
         double entropy = 0;
         
         for ( int i = 0; i < _reconstructed4D.GetX(); i++)
-        for ( int j = 0; j < _reconstructed4D.GetY(); j++)
-        for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
-        if ( _mask(i,j,k) == 1 )
-        for ( int f = 0; f < _reconstructed4D.GetT(); f++)
-        {
-            x = _reconstructed4D(i,j,k,f);
-            sum_x_sq += x*x;
-        }
+            for ( int j = 0; j < _reconstructed4D.GetY(); j++)
+                for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
+                    if ( _mask(i,j,k) == 1 )
+                        for ( int f = 0; f < _reconstructed4D.GetT(); f++)
+                        {
+                            x = _reconstructed4D(i,j,k,f);
+                            sum_x_sq += x*x;
+                        }
         
         x_max = sqrt( sum_x_sq );
         
         for ( int i = 0; i < _reconstructed4D.GetX(); i++)
-        for ( int j = 0; j < _reconstructed4D.GetY(); j++)
-        for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
-        if ( _mask(i,j,k) == 1 )
-        for ( int f = 0; f < _reconstructed4D.GetT(); f++)
-        {
-            x = _reconstructed4D(i,j,k,f);
-            if (x>0)
-            entropy += x/x_max * log( x/x_max );
-        }
+            for ( int j = 0; j < _reconstructed4D.GetY(); j++)
+                for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
+                    if ( _mask(i,j,k) == 1 )
+                        for ( int f = 0; f < _reconstructed4D.GetT(); f++)
+                        {
+                            x = _reconstructed4D(i,j,k,f);
+                            if (x>0)
+                                entropy += x/x_max * log( x/x_max );
+                        }
         
         entropy = -entropy;
         
@@ -3264,7 +3306,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "SaveBiasFields as stacks ...";
+            cout << "SaveBiasFields as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3290,7 +3332,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3298,7 +3340,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "SaveBiasFields as stacks ...";
+            cout << "SaveBiasFields as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3324,7 +3366,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3335,7 +3377,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::SaveCorrectedSlices()
     {
         if (_debug)
-        cout<<"Saving corrected images ...";
+            cout<<"Saving corrected images ...";
         char buffer[256];
         for (unsigned int inputIndex = 0; inputIndex < _corrected_slices.size(); inputIndex++)
         {
@@ -3349,7 +3391,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving corrected images as stacks ...";
+            cout << "Saving corrected images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3375,7 +3417,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3383,7 +3425,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving error images as stacks ...";
+            cout << "Saving error images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3409,7 +3451,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3421,7 +3463,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::SaveSimulatedSlices()
     {
         if (_debug)
-        cout<<"Saving simulated images ...";
+            cout<<"Saving simulated images ...";
         char buffer[256];
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
         {
@@ -3435,7 +3477,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving simulated images as stacks ...";
+            cout << "Saving simulated images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3461,7 +3503,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3469,7 +3511,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving simulated images as stacks ...";
+            cout << "Saving simulated images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3495,7 +3537,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3530,7 +3572,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::SaveSimulatedWeights()
     {
         if (_debug)
-        cout<<"Saving simulated weights ...";
+            cout<<"Saving simulated weights ...";
         char buffer[256];
         for (unsigned int inputIndex = 0; inputIndex < _simulated_weights.size(); inputIndex++)
         {
@@ -3544,7 +3586,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving simulated weights as stacks ...";
+            cout << "Saving simulated weights as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3570,7 +3612,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3578,7 +3620,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving simulated weights as stacks ...";
+            cout << "Saving simulated weights as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3604,7 +3646,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3616,7 +3658,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "SaveSlices" << endl;
+            cout << "SaveSlices" << endl;
         
         char buffer[256];
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
@@ -3630,7 +3672,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "SaveSlices as stacks ...";
+            cout << "SaveSlices as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3656,7 +3698,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3667,7 +3709,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::SaveError()
     {
         if (_debug)
-        cout<<"Saving error images ...";
+            cout<<"Saving error images ...";
         char buffer[256];
         for (unsigned int inputIndex = 0; inputIndex < _error.size(); inputIndex++)
         {
@@ -3681,7 +3723,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving error images as stacks ...";
+            cout << "Saving error images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3707,7 +3749,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3715,7 +3757,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "Saving error images as stacks ...";
+            cout << "Saving error images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3741,7 +3783,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3762,7 +3804,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "SaveWeights as stacks ...";
+            cout << "SaveWeights as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3788,7 +3830,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3796,7 +3838,7 @@ namespace mirtk {
     {
         
         if (_debug)
-        cout << "SaveWeights as stacks ...";
+            cout << "SaveWeights as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3822,7 +3864,7 @@ namespace mirtk {
         }
         
         if (_debug)
-        cout << " done." << endl;
+            cout << " done." << endl;
         
     }
     
@@ -3915,5 +3957,6 @@ namespace mirtk {
     
     
 } // namespace mirtk
+
 
 

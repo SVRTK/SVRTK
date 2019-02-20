@@ -995,6 +995,40 @@ int main(int argc, char **argv)
     // Create template 4D volume
     reconstruction.CreateTemplateCardiac4DFromStaticMask( maskCropped, resolution );
     
+    
+//    //.........................................................................................
+//
+//    // 10-02
+//
+//    cout << "0" << endl;
+//
+//    RealImage template_stack = stacks[0].GetRegion(0,0,0,0,stacks[0].GetX(),stacks[0].GetY(),stacks[0].GetZ(),1);
+//
+//    template_stack.Write("hh.nii.gz");
+//
+//    GaussianBlurring<RealPixel> gb(1);
+//    gb.Input(&template_stack);
+//    gb.Output(&template_stack);
+//    gb.Run();
+//
+//    cout << "1" << endl;
+//
+//    RealImage template_mask = *mask;
+//    RigidTransformation *template_transform = new RigidTransformation;
+//    reconstruction.TransformMask(template_stack, template_mask, *template_transform);
+//    reconstruction.CropImage(template_stack, template_mask);
+//
+//    cout << "2" << endl;
+//
+//    template_stack.Write("zzz.nii.gz");
+//
+//    reconstruction.CreateTemplateCardiac4DFromStaticMask(template_stack, resolution);
+//
+//    cout << "3" << endl;
+//
+//    //.........................................................................................
+    
+    
     // Set mask to reconstruction object
     reconstruction.SetMask(mask,smooth_mask);
     
@@ -1191,7 +1225,7 @@ int main(int argc, char **argv)
         cout<<"Iteration"<<iter<<". "<<endl;
         
         //perform slice-to-volume registrations
-        if ( iter > 0 )
+        if ( iter > 0 ) // 10-02 // > -1
         {
             if ( ! no_log ) {
                 cerr.rdbuf(file_e.rdbuf());

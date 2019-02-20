@@ -37,6 +37,9 @@ namespace mirtk {
         Array<int> _stack_loc_index;  // index of 2D slice location in M2D stack
         Array<int> _stack_dyn_index;  // index of dynamic in M2D stack
         
+        
+        bool _no_sr;
+        
         // Images
         Array<RealImage> _error;
         Array<RealImage> _corrected_slices;

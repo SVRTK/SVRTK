@@ -68,7 +68,7 @@ namespace mirtk {
         double _velocity_scale;
         
         // what is the correct value / units?
-        const double gamma = 1; //42577;
+        const double gamma = 1; //42577; //1
         
         
     public:
@@ -243,30 +243,54 @@ namespace mirtk {
         
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
-        cout << " - Reconstructed velocity files : " << endl;
+        cout << " - Reconstructed velocity : " << endl;
         
-        for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
+//        for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
+//
+//            if (iter < 50)
+//                sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
+//            else
+//                sprintf(buffer,"velocity-final-%i.nii.gz", i);
+//
+//            _reconstructed5DVelocity[i].Write(buffer);
+//            cout << "        " << buffer << endl;
+//
+////            RealImage scaled =  _reconstructed5DVelocity[i];
+////            scaled *= _velocity_scale;
+////            sprintf(buffer,"scaled-velocity-%i-%i.nii.gz", i, iter);
+////            scaled.Write(buffer);
+//
+//        }
+        
+//        cout << ".............................................." << endl;
+//        cout << ".............................................." << endl;
+        
+        
+        if (_reconstructed5DVelocity[0].GetT() == 1) {
+        
+            ImageAttributes attr = _reconstructed5DVelocity[0].GetImageAttributes();
+            attr._t = 3;
             
+            RealImage output_4D(attr);
+            
+            for (int t=0; t<output_4D.GetT(); t++)
+                for (int z=0; z<output_4D.GetZ(); z++)
+                    for (int y=0; y<output_4D.GetY(); y++)
+                        for (int x=0; x<output_4D.GetX(); x++)
+                            output_4D(x,y,z,t) = _reconstructed5DVelocity[t](x,y,z,0);
             if (iter < 50)
-                sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
+                sprintf(buffer,"velocity-vector-%i.nii.gz", iter);
             else
-                sprintf(buffer,"velocity-final-%i.nii.gz", i);
+                sprintf(buffer,"velocity-vector-final.nii.gz");
                 
-            _reconstructed5DVelocity[i].Write(buffer);
-            cout << "        " << buffer << endl;
+            output_4D.Write(buffer);
             
-//            RealImage scaled =  _reconstructed5DVelocity[i];
-//            scaled *= _velocity_scale;
-//            sprintf(buffer,"scaled-velocity-%i-%i.nii.gz", i, iter);
-//            scaled.Write(buffer);
+            cout << "        " << buffer << endl;
             
         }
         
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
-        
-        
-        
         
         /*
         

@@ -1234,6 +1234,8 @@ int main(int argc, char **argv)
     
     
     
+    /*
+    
     
     //if given, read transformations
     if (folder!=NULL)
@@ -1247,7 +1249,7 @@ int main(int argc, char **argv)
         }
     }
     
-    
+    */
     
     
     //if given, read reference transformations
@@ -1259,7 +1261,9 @@ int main(int argc, char **argv)
         reconstruction.InitTRE();
     
     //Mask all the slices
-    reconstruction.MaskSlicesPhase();
+//    reconstruction.MaskSlicesPhase(); // 21/02
+    
+    
     
     // Set R-R for each image
     if (rr_loc.empty())
@@ -1347,7 +1351,7 @@ int main(int argc, char **argv)
 //
 //
 //    // STEP 2: Gaussian recostruction of velocity volumes
-//    reconstruction.GaussianReconstructionCardiacVelocity4DxT(); 
+//    reconstruction.GaussianReconstructionCardiacVelocity4DxT();
 //
 //
  
@@ -1401,7 +1405,9 @@ int main(int argc, char **argv)
 //        }
         
         
-        double alpha_i = (1-alpha)*double(iteration)/double(rec_iterations)+alpha;
+        double alpha_i = (alpha)*double(iteration)/double(rec_iterations)+(1-alpha);
+        
+        
         reconstruction.SetAlpha(alpha_i);
         
         
@@ -1424,6 +1430,11 @@ int main(int argc, char **argv)
             
         }
         
+        Array<RealImage> tmp_stacks;
+        tmp_stacks = stacks;
+        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
+        
+
         reconstruction.SaveReconstructedVelocity4D(iteration);
         reconstruction.SaveReconstructedVolume4D(iteration);
         

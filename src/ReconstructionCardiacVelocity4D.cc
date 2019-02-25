@@ -1025,10 +1025,12 @@ namespace mirtk {
 //                    double dotp = (dx*gx+dy*gy+dz*gz)/sqrt((dx*dx+dy*dy+dz*dz)*(gx*gx+gy*gy+gz*gz));
 //                    v_component = dotp / (reconstructor->gamma*gval);
                 
-                    if (g_direction[velocityIndex]>0.01 || g_direction[velocityIndex]<-0.01)
-                        v_component = 1/(g_direction[velocityIndex]*reconstructor->gamma*gval);
-                    else
-                        v_component = 0;
+//                     if (g_direction[velocityIndex]>0.01 || g_direction[velocityIndex]<-0.01)
+//                         v_component = 1/(g_direction[velocityIndex]*reconstructor->gamma*gval);
+//                     else
+//                         v_component = 0;
+                    
+                    v_component = (g_direction[velocityIndex]*reconstructor->gamma*gval);
                     
                     //Update reconstructed velocity volumes using current slice
                 

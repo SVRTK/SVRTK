@@ -1352,9 +1352,19 @@ int main(int argc, char **argv)
 //    // STEP 2: Gaussian recostruction of velocity volumes
 //    reconstruction.GaussianReconstructionCardiacVelocity4DxT();
 
+    
+    Array<int> init_stack_numbers;
+
+    for (int i=0; i<3; i++)         // stacks.size()
+        init_stack_numbers.push_back(i);
+        
+    
 
     // STEP 0: Analytical initisaliation of velocity volumes
-    reconstruction.InitialisationCardiacVelocity4D();
+    reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
+    
+    
+    reconstruction.SaveReconstructedVelocity4D(-1);
     
     
     // STEP 3: Simulate slices (should be done after Gaussian reconstruction)

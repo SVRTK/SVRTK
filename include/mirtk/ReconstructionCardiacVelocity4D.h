@@ -93,7 +93,7 @@ namespace mirtk {
         void InitialiseInverse(Array<RealImage> stacks);
         
         
-        void InitialisationCardiacVelocity4D();
+        void InitialisationCardiacVelocity4D(Array<int> stack_numbers);
         Array<double> InverseVelocitySolution(Array<double> p_values, Array<Array<double>> g_values);
         
         
@@ -265,11 +265,17 @@ namespace mirtk {
                     for (int y=0; y<output_4D.GetY(); y++)
                         for (int x=0; x<output_4D.GetX(); x++)
                             output_4D(x,y,z,t) = _reconstructed5DVelocity[t](x,y,z,0);
+            
+            if (iter < 0) {
+                sprintf(buffer,"velocity-vector-init.nii.gz");
+            }
+            else {
             if (iter < 50)
-                sprintf(buffer,"velocity-vector-%i.nii.gz", iter);
-            else
-                sprintf(buffer,"velocity-vector-final.nii.gz");
-                
+                    sprintf(buffer,"velocity-vector-%i.nii.gz", iter);
+                else
+                    sprintf(buffer,"velocity-vector-final.nii.gz");
+            }
+            
             output_4D.Write(buffer);
             
             

@@ -1075,7 +1075,7 @@ namespace mirtk {
                                 _slice_temporal_weight[outputIndex][inputIndex] = 1;
                             
                             //----------------------------------------------------
-                            if (p.value>0.3 && _slice_temporal_weight[outputIndex][inputIndex]>0.3) {
+                            if (p.value>0.7 && _slice_temporal_weight[outputIndex][inputIndex]>0.7) {
 
                                 int array_index = _slice_contributions_volume(p.x, p.y, p.z, outputIndex);
                                 

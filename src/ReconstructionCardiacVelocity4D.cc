@@ -287,7 +287,7 @@ namespace mirtk {
     //-------------------------------------------------------------------
     
     
-    void ReconstructionCardiacVelocity4D::InitialisationCardiacVelocity4D()
+    void ReconstructionCardiacVelocity4D::InitialisationCardiacVelocity4D(Array<int> stack_numbers)
     {
         
         
@@ -308,8 +308,14 @@ namespace mirtk {
                             
                             POINT3DS ps;
                             ps = _slice_contributions_array[c_index][s];
-                            p_values.push_back(ps.value);
                             
+                            bool s_add = false;
+                            for (int a=0; a<stack_numbers.size(); a++) {
+                                if(_stack_index[ps.i] == stack_numbers[a])
+                                    s_add = true;
+                            }
+                                
+
                             int g_index = _stack_index[ps.i];
                             double gx, gy, gz;
                             gx = _g_directions[g_index][0];
@@ -322,10 +328,23 @@ namespace mirtk {
                             g_value.push_back(gy);
                             g_value.push_back(gz);
                             
-                            g_values.push_back(g_value);
+                            double dg_limint = 0.01;
                             
+                            for (int a=0; a<p_values.size(); a++) {
+                                
+                                if( abs(gx-g_values[a][0])<dg_limint && abs(gy-g_values[a][1])<dg_limint && abs(gz-g_values[a][2])<dg_limint )
+                                    s_add = false;
+                            }
+
+                            if (s_add) {
+                                g_values.push_back(g_value);
+                                p_values.push_back(ps.value);
+
+                            }
+
                         }
                         if (g_values.size()>2) {
+
                             v_values = InverseVelocitySolution(p_values, g_values);
                         
                             for (int v=0; v<_reconstructed5DVelocity.size(); v++)
@@ -342,6 +361,11 @@ namespace mirtk {
         char buffer[256];
         
         for (int v=0; v<_reconstructed5DVelocity.size(); v++) {
+            
+            GaussianBlurring<RealPixel> gb(_reconstructed5DVelocity[0].GetXSize()*0.25);
+            gb.Input(&_reconstructed5DVelocity[v]);
+            gb.Output(&_reconstructed5DVelocity[v]);
+            gb.Run();
             
             sprintf(buffer,"init-velocity-%i.nii.gz", v);
             _reconstructed5DVelocity[v].Write(buffer);
@@ -642,7 +666,7 @@ namespace mirtk {
             }
         }
 
-//        _adaptive = false;
+        _adaptive = false;
         
         
         if (!_adaptive)
@@ -702,7 +726,7 @@ namespace mirtk {
         }
 
         
-//        _adaptive_regularisation = false;
+        _adaptive_regularisation = false;
 
         if(_adaptive_regularisation) {
 

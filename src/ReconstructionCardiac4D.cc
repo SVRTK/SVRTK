@@ -999,6 +999,41 @@ namespace mirtk {
         if (_debug)
             cout << "CoeffInit" << endl;
         
+        
+        //----------------------------------------------------
+        
+        ImageAttributes attr = _reconstructed4D.GetImageAttributes();
+        _slice_contributions_volume.Initialize(attr);
+        
+        
+//        CoordImage _slice_contributions_volume;
+//        Array<Array<Point>> _slice_contributions_array;
+        
+        POINT3DS pi;
+        pi.x = -1, pi.y = -1, pi.z = -1, pi.i = -1, pi.value = -1000;
+        Array<POINT3DS> p_array;
+        p_array.push_back(pi);
+        
+        int c_index = 0;
+        
+        for (int x=0; x<_reconstructed4D.GetX(); x++) {
+            for (int y=0; y<_reconstructed4D.GetY(); y++) {
+                for (int z=0; z<_reconstructed4D.GetZ(); z++) {
+                    for (int t=0; t<_reconstructed4D.GetT(); t++) {
+
+                        _slice_contributions_volume(x,y,z,t) = c_index;
+                        _slice_contributions_array.push_back(p_array);
+                        c_index++;
+                        
+                    }
+                }
+            }
+        }
+        
+        
+        //----------------------------------------------------
+        
+        
         //clear slice-volume matrix from previous iteration
         _volcoeffs.clear();
         _volcoeffs.resize(_slices.size());
@@ -1035,6 +1070,29 @@ namespace mirtk {
                         for (outputIndex=0; outputIndex<_reconstructed4D.GetT(); outputIndex++)
                         {
                             _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
+                            
+                            if (_reconstructed4D.GetT() == 1)
+                                _slice_temporal_weight[outputIndex][inputIndex] = 1;
+                            
+                            //----------------------------------------------------
+                            if (p.value>0.3 && _slice_temporal_weight[outputIndex][inputIndex]>0.3) {
+
+                                int array_index = _slice_contributions_volume(p.x, p.y, p.z, outputIndex);
+                                
+                                POINT3DS ps;
+                                ps.x = i, ps.y = j, ps.z = k, ps.i = inputIndex, ps.value = _slices[inputIndex](i,j,0,outputIndex);
+                                
+                                _slice_contributions_array[array_index].push_back(ps);
+                                
+                                //                                cout << inputIndex << " : (" << p.x << " " << p.y << " " << p.z << " " << outputIndex << ") / ";
+                                //                                cout << p.value << " " << _slice_temporal_weight[outputIndex][inputIndex] << " / ";
+                                //                                cout << "(" << i << " " << j << " " << k << ") / " << array_index << " | " << _slice_contributions_array.size() << endl;
+                                //
+
+                                
+                            }
+                            //----------------------------------------------------
+                            
                         }
                     }
                 }
@@ -1042,6 +1100,8 @@ namespace mirtk {
         cout << "\b\b." << endl;
         // if (_debug)
         //     _volume_weights.Write("volume_weights.nii.gz");
+        
+        
         
         //find average volume weight to modify alpha parameters accordingly
         double sum = 0;

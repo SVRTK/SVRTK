@@ -26,6 +26,16 @@
 namespace mirtk {
     
     
+    struct POINT3DS
+    {
+        short x;
+        short y;
+        short z;
+        short i;
+        double value;
+    };
+    
+    
     
     class ReconstructionCardiac4D : public Reconstruction
     {
@@ -36,6 +46,7 @@ namespace mirtk {
         Array<int> _loc_index;        // running index of all 2D slice locations
         Array<int> _stack_loc_index;  // index of 2D slice location in M2D stack
         Array<int> _stack_dyn_index;  // index of dynamic in M2D stack
+        
         
         
         bool _no_sr;
@@ -123,9 +134,25 @@ namespace mirtk {
         double CalculateTemporalWeight( double cardphase0, double cardphase, double dt, double rr, double alpha );
         
         
+
+
+        typedef GenericImage<int> CoordImage;
+        
+        CoordImage _slice_contributions_volume;
+        
+        Array<Array<POINT3DS>> _slice_contributions_array;
+        
+    
         
     public:
         
+        
+        
+
+        
+        
+        
+
         // Constructor
         ReconstructionCardiac4D();
         

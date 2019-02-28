@@ -81,15 +81,20 @@ namespace mirtk {
         void InitializeVelocityVolumes();
         void RotateDirections(double &dx, double &dy, double &dz, int i);
         
-        
-        void GaussianReconstructionCardiacVelocity4D();
         void SimulateSlicesCardiacVelocity4D();
         void SuperresolutionCardiacVelocity4D(int iter);
-        void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals); //, RealImage& original_main);
+        void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals);
         
-        void GaussianReconstructionCardiacVelocity4Dx3();
         void GaussianReconstructionCardiacVelocity4DxT();
         void GaussianReconstructionCardiac4DxT();
+        
+        
+        
+        void InitialiseInverse(Array<RealImage> stacks);
+        
+        
+        void InitialisationCardiacVelocity4D();
+        Array<double> InverseVelocitySolution(Array<double> p_values, Array<Array<double>> g_values);
         
         
         
@@ -156,8 +161,8 @@ namespace mirtk {
     
     inline void ReconstructionCardiacVelocity4D::SetAlpha(double alpha)
     {
-        if (alpha > 1)
-            alpha = 1;
+//        if (alpha > 1)
+//            alpha = 1;
         
         _alpha = alpha;
         
@@ -200,6 +205,9 @@ namespace mirtk {
         _min_velocity = _min_phase / (_g_values[templateNumber]*gamma);
         _max_velocity = _max_phase / (_g_values[templateNumber]*gamma);
         
+        cout << " - velocity limits : [ " << _min_velocity << " ; " << _max_velocity << " ] " << endl;
+        
+        
     }
     
     // -----------------------------------------------------------------------------
@@ -240,30 +248,9 @@ namespace mirtk {
         char buffer[256];
         
         
-        
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
         cout << " - Reconstructed velocity : " << endl;
-        
-//        for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
-//
-//            if (iter < 50)
-//                sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
-//            else
-//                sprintf(buffer,"velocity-final-%i.nii.gz", i);
-//
-//            _reconstructed5DVelocity[i].Write(buffer);
-//            cout << "        " << buffer << endl;
-//
-////            RealImage scaled =  _reconstructed5DVelocity[i];
-////            scaled *= _velocity_scale;
-////            sprintf(buffer,"scaled-velocity-%i-%i.nii.gz", i, iter);
-////            scaled.Write(buffer);
-//
-//        }
-        
-//        cout << ".............................................." << endl;
-//        cout << ".............................................." << endl;
         
         
         if (_reconstructed5DVelocity[0].GetT() == 1) {
@@ -285,10 +272,36 @@ namespace mirtk {
                 
             output_4D.Write(buffer);
             
+            
+            attr._t = 1;
+            RealImage output_sum(attr);
+            output_sum = 0;
+            
+            for (int v=0; v<output_4D.GetT(); v++)
+                output_sum += output_4D.GetRegion(0, 0, 0, v, attr._x, attr._y, attr._z, (v+1));
+            
+            
+            output_sum.Write("sum-velocity.nii.gz");
+            
+            
             cout << "        " << buffer << endl;
             
         }
+        else {
+            
+            for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
+                
+                if (iter < 50)
+                sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
+                    else
+                sprintf(buffer,"velocity-final-%i.nii.gz", i);
+                
+                _reconstructed5DVelocity[i].Write(buffer);
+                cout << "     " << buffer << endl;
+            }
+        }
         
+
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
         

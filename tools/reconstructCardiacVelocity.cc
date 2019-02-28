@@ -1320,7 +1320,7 @@ int main(int argc, char **argv)
     
     reconstruction.InitializeGradientMoments(g_directions, g_values);
     
-    
+
     
     reconstruction.SetSmoothingParameters(delta,lastIterLambda);
     reconstruction.SpeedupOff();
@@ -1343,8 +1343,7 @@ int main(int argc, char **argv)
     //-------------------------------------------------------------------------------------
     // Main velocity reconstruciton steps
  
-    
-    
+
 //
 //    // STEP 1: Gaussian reconstruction of phase volume
 //    reconstruction.GaussianReconstructionCardiac4DxT();
@@ -1352,9 +1351,12 @@ int main(int argc, char **argv)
 //
 //    // STEP 2: Gaussian recostruction of velocity volumes
 //    reconstruction.GaussianReconstructionCardiacVelocity4DxT();
-//
-//
- 
+
+
+    // STEP 0: Analytical initisaliation of velocity volumes
+    reconstruction.InitialisationCardiacVelocity4D();
+    
+    
     // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();
     
@@ -1405,11 +1407,21 @@ int main(int argc, char **argv)
 //        }
         
         
-        double alpha_i = (alpha)*double(iteration)/double(rec_iterations)+(1-alpha);
+        double alpha_i = alpha + (1-alpha)*double(iteration)/double(rec_iterations);
         
+        
+//        cout << "........................................................" << endl;
+//
+//        cout << "- alpha : " << alpha_i << endl;
+//
+//        cout << "........................................................" << endl;
+        
+        alpha_i = alpha;
         
         reconstruction.SetAlpha(alpha_i);
         
+        
+//        reconstruction.SetAlpha(alpha);
         
         // STEPS 4-5: super-resolution reconstruction and simulation of slices (optimisation loop)
         reconstruction.SuperresolutionCardiacVelocity4D(iteration);
@@ -1430,9 +1442,9 @@ int main(int argc, char **argv)
             
         }
         
-        Array<RealImage> tmp_stacks;
-        tmp_stacks = stacks;
-        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
+//        Array<RealImage> tmp_stacks;
+//        tmp_stacks = stacks;
+//        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
         
 
         reconstruction.SaveReconstructedVelocity4D(iteration);

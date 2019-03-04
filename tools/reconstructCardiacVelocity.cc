@@ -712,7 +712,7 @@ int main(int argc, char **argv)
         }
         
         //With analytical initialisation
-        if ((ok == false) && (strcmp(argv[1], "-initisaliation") == 0)){
+        if ((ok == false) && (strcmp(argv[1], "-initialisation") == 0)){
             argc--;
             argv++;
             initisaliation=true;

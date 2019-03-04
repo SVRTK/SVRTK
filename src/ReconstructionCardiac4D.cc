@@ -1054,6 +1054,12 @@ namespace mirtk {
         _volume_weights.Initialize( volAttr );
         _volume_weights = 0;
         
+        
+        double p_value_limit = 0.3;
+        if (_no_sr)
+            p_value_limit = 0.5;
+        
+        
         // TODO: investigate if this loop is taking a long time to compute, and consider parallelisation
         int i, j, n, k, outputIndex;
         unsigned int inputIndex;
@@ -1075,7 +1081,7 @@ namespace mirtk {
                                 _slice_temporal_weight[outputIndex][inputIndex] = 1;
                             
                             //----------------------------------------------------
-                            if (p.value>0.7 && _slice_temporal_weight[outputIndex][inputIndex]>0.7) {
+                            if (p.value>p_value_limit && _slice_temporal_weight[outputIndex][inputIndex]>p_value_limit) {
 
                                 int array_index = _slice_contributions_volume(p.x, p.y, p.z, outputIndex);
                                 
@@ -1083,12 +1089,6 @@ namespace mirtk {
                                 ps.x = i, ps.y = j, ps.z = k, ps.i = inputIndex, ps.value = _slices[inputIndex](i,j,0,outputIndex);
                                 
                                 _slice_contributions_array[array_index].push_back(ps);
-                                
-                                //                                cout << inputIndex << " : (" << p.x << " " << p.y << " " << p.z << " " << outputIndex << ") / ";
-                                //                                cout << p.value << " " << _slice_temporal_weight[outputIndex][inputIndex] << " / ";
-                                //                                cout << "(" << i << " " << j << " " << k << ") / " << array_index << " | " << _slice_contributions_array.size() << endl;
-                                //
-
                                 
                             }
                             //----------------------------------------------------
@@ -3562,6 +3562,8 @@ namespace mirtk {
             simstacks[i].Write(buffer);
         }
         
+        
+        
         if (_debug)
             cout << " done." << endl;
         
@@ -3595,6 +3597,13 @@ namespace mirtk {
             sprintf(buffer, "simstack%03i_mc%02isr%02i.nii.gz", i, iter, rec_iter);
             simstacks[i].Write(buffer);
         }
+        
+        for (int ii=0; ii<stacks.size(); ii++) {
+            sprintf(buffer,"dif-%i-%i.nii.gz",ii,iter);
+            simstacks[ii] = stacks[ii] - simstacks[ii];
+            simstacks[ii].Write(buffer);
+        }
+        
         
         if (_debug)
             cout << " done." << endl;

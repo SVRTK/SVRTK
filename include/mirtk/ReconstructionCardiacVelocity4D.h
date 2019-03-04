@@ -22,6 +22,8 @@
 
 #include "mirtk/ReconstructionCardiac4D.h"
 
+#include "mirtk/Arith.h"
+
 
 namespace mirtk {
     
@@ -73,6 +75,11 @@ namespace mirtk {
         
     public:
         
+        int current_stack_for_processing;
+        int current_velocity_for_processing;
+        
+        Array<RealImage> _dif_stacks;
+        
         ReconstructionCardiacVelocity4D();
         ~ReconstructionCardiacVelocity4D();
         
@@ -87,7 +94,6 @@ namespace mirtk {
         
         void GaussianReconstructionCardiacVelocity4DxT();
         void GaussianReconstructionCardiac4DxT();
-        
         
         
         void InitialiseInverse(Array<RealImage> stacks);

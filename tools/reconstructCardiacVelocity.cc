@@ -141,6 +141,10 @@ void usage()
 
 int main(int argc, char **argv)
 {
+    
+    cout << UnitRandom() << " " << UnitRandom() << " " << UnitRandom() << endl;
+    
+    
     //utility variables
     int i, j, ok;
     char buffer[256];
@@ -192,6 +196,8 @@ int main(int argc, char **argv)
     int nmi_bins = 16;
     double velocity_scale = 1;
     double alpha = 1;
+    
+    bool initisaliation = false;
     
     
     // Default values
@@ -303,12 +309,12 @@ int main(int argc, char **argv)
         
         stack = *tmp_image;
         
-        //        stack = stack;
-        
         argc--;
         argv++;
         stacks.push_back(stack);
     }
+    
+    
     
     
     Array<Array<double> > g_directions;
@@ -704,6 +710,16 @@ int main(int argc, char **argv)
 
             ok = true;
         }
+        
+        //With analytical initialisation
+        if ((ok == false) && (strcmp(argv[1], "-initisaliation") == 0)){
+            argc--;
+            argv++;
+            initisaliation=true;
+            
+            ok = true;
+        }
+        
         
         
         //Limit velocity magnitude values
@@ -1261,7 +1277,7 @@ int main(int argc, char **argv)
         reconstruction.InitTRE();
     
     //Mask all the slices
-//    reconstruction.MaskSlicesPhase(); // 21/02
+    reconstruction.MaskSlicesPhase(); // 21/02
     
     
     
@@ -1353,24 +1369,29 @@ int main(int argc, char **argv)
 //    reconstruction.GaussianReconstructionCardiacVelocity4DxT();
 
     
-    Array<int> init_stack_numbers;
-
-    for (int i=0; i<3; i++)         // stacks.size()
-        init_stack_numbers.push_back(i);
-        
+//    reconstruction.InitialiseInverse(stacks);
     
 
+    
+    
     // STEP 0: Analytical initisaliation of velocity volumes
-    reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
     
     
-    reconstruction.SaveReconstructedVelocity4D(-1);
+    if (initisaliation) {
+        Array<int> init_stack_numbers;
+        
+        for (int i=0; i<stacks.size(); i++)
+            init_stack_numbers.push_back(i);
+
+        reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
+        reconstruction.SaveReconstructedVelocity4D(-1);
+    }
     
     
     // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();
     
-    
+
     
     //Initialize robust statistics parameters
     reconstruction.InitializeRobustStatistics();
@@ -1383,25 +1404,18 @@ int main(int argc, char **argv)
     
      
     rec_iterations = rec_iterations_first;      // number of iterations is controlled by '-rec_iterations' flag
+    
+    
 
+    reconstruction._dif_stacks = stacks;
+
+    
     // main reconstruction loop
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
         
         cout<<endl<<" - Reconstruction iteration : "<< iteration <<" ... "<<endl;
-        
-        
-        reconstruction.SimulateSignal(iteration);
-        
-        
-        if (intensity_matching)
-        {
-            //calculate bias fields
-            if (sigma>0)
-                reconstruction.Bias();
-            //calculate scales
-            reconstruction.Scale();
-        }
-        
+
+
         
 //        if(iterations==(rec_iterations-1))
 //            reconstruction.SetSmoothingParameters(delta,lastIterLambda);
@@ -1418,25 +1432,15 @@ int main(int argc, char **argv)
         
         
         double alpha_i = alpha + (1-alpha)*double(iteration)/double(rec_iterations);
-        
-        
-//        cout << "........................................................" << endl;
-//
-//        cout << "- alpha : " << alpha_i << endl;
-//
-//        cout << "........................................................" << endl;
-        
-        alpha_i = alpha;
-        
         reconstruction.SetAlpha(alpha_i);
         
-        
-//        reconstruction.SetAlpha(alpha);
+
         
         // STEPS 4-5: super-resolution reconstruction and simulation of slices (optimisation loop)
+        
         reconstruction.SuperresolutionCardiacVelocity4D(iteration);
         reconstruction.SimulateSlicesCardiacVelocity4D();
-        
+
         
         double consistency = reconstruction.Consistency();
         
@@ -1457,8 +1461,8 @@ int main(int argc, char **argv)
 //        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
         
 
-        reconstruction.SaveReconstructedVelocity4D(iteration);
-        reconstruction.SaveReconstructedVolume4D(iteration);
+//        reconstruction.SaveReconstructedVelocity4D(iteration);
+//        reconstruction.SaveReconstructedVolume4D(iteration);
         
     } // end of reconstruction loop
     

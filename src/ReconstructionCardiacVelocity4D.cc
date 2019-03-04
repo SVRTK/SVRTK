@@ -47,6 +47,8 @@ namespace mirtk {
         _no_sr = true;
         
         
+        current_stack_for_processing = 0;
+        
         // initialise velocity direction array
         Array<double> tmp;
         double t;
@@ -290,6 +292,7 @@ namespace mirtk {
     void ReconstructionCardiacVelocity4D::InitialisationCardiacVelocity4D(Array<int> stack_numbers)
     {
         
+        cout << "Analytical initialisation." << endl;
         
         for (int x=0; x<_reconstructed4D.GetX(); x++) {
             for (int y=0; y<_reconstructed4D.GetY(); y++) {
@@ -332,14 +335,16 @@ namespace mirtk {
                             
                             for (int a=0; a<p_values.size(); a++) {
                                 
-                                if( abs(gx-g_values[a][0])<dg_limint && abs(gy-g_values[a][1])<dg_limint && abs(gz-g_values[a][2])<dg_limint )
+                                if( abs( gx-g_values[a][0])<dg_limint && abs(gy-g_values[a][1])<dg_limint && abs(gz-g_values[a][2])<dg_limint )
                                     s_add = false;
                             }
+                            
+                            if (ps.value>3.14 || ps.value<-3.14)
+                                s_add = false;
 
                             if (s_add) {
                                 g_values.push_back(g_value);
                                 p_values.push_back(ps.value);
-
                             }
 
                         }
@@ -351,6 +356,10 @@ namespace mirtk {
                                 _reconstructed5DVelocity[v](x,y,z,t) = v_values[v];
                             
                         }
+//                        else {
+//                            for (int v=0; v<_reconstructed5DVelocity.size(); v++)
+//                                _reconstructed5DVelocity[v](x,y,z,t) = -50;
+//                        }
                         
                         
                     }
@@ -358,6 +367,9 @@ namespace mirtk {
             }
         }
 
+        
+        
+        
         char buffer[256];
         
         for (int v=0; v<_reconstructed5DVelocity.size(); v++) {
@@ -413,11 +425,18 @@ namespace mirtk {
     }
     
     
-    //-------------------------------------------------------------------
     
     
     //-------------------------------------------------------------------
     
+    
+    //-------------------------------------------------------------------
+
+    
+    //-------------------------------------------------------------------
+    
+    
+    //-------------------------------------------------------------------
     
     
     //-------------------------------------------------------------------
@@ -426,18 +445,40 @@ namespace mirtk {
         ReconstructionCardiacVelocity4D* reconstructor;
     public:
         Array<RealImage> confidence_maps;
+        Array<RealImage> addons_p;
+        Array<RealImage> addons_n;
         Array<RealImage> addons;
         
         
         void operator()( const blocked_range<size_t>& r ) {
             
             for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
+                
                 // read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
                 
                 // read the current simulated slice
                 RealImage sim = reconstructor->_simulated_slices[inputIndex];
                 
+                RealImage sss = slice - sim;
+                
+                
+                for ( int i = 0; i < slice.GetX(); i++ ) {
+                    for ( int j = 0; j < slice.GetY(); j++ ) {
+                        
+                        if (slice(i,j,0)>-100 && sim(i,j,0)>-100)
+                            reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = sss(i,j,0);
+                        else {
+                            sss(i,j,0) = 0;
+                            reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = 0;
+                        }
+                        
+                    }
+                }
+                
+                slice = sss;
+                
+
                 //read the current weight image
                 RealImage& w = reconstructor->_weights[inputIndex];
                 
@@ -447,13 +488,14 @@ namespace mirtk {
                 //identify scale factor
                 double scale = reconstructor->_scale[inputIndex];
                 
-
+                
                 //direction for current slice
                 int gradientIndex = reconstructor->_stack_index[inputIndex];
                 
                 double gx = reconstructor->_g_directions[gradientIndex][0];
                 double gy = reconstructor->_g_directions[gradientIndex][1];
                 double gz = reconstructor->_g_directions[gradientIndex][2];
+                
                 reconstructor->RotateDirections(gx,gy,gz,inputIndex);
                 
                 double gval = reconstructor->_g_values[gradientIndex];
@@ -463,7 +505,7 @@ namespace mirtk {
                 g_direction.push_back(gy);
                 g_direction.push_back(gz);
                 
- 
+                
                 
                 for ( int velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
                     
@@ -472,8 +514,9 @@ namespace mirtk {
                     
                     v_component = g_direction[velocityIndex] / (3*reconstructor->gamma*gval);
                     
+
                     //Update reconstructed velocity volumes using current slice
-                
+                    
                     //Distribute error to the volume
                     POINT3D p;
                     for ( int i = 0; i < slice.GetX(); i++ ) {
@@ -482,57 +525,64 @@ namespace mirtk {
                             if (slice(i, j, 0) > -100) {
                                 //bias correct and scale the slice
                                 
-//                                slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                                //                                slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                 
                                 
-                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -100 ) {
-                                    slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
-                                }
-                                else
-                                    slice(i,j,0) = 0;
-                                
-                                
-//                                // .............................................
-//                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) != 0 ) {
-//                                    if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > reconstructor->_max_phase*1.1 || reconstructor->_simulated_slices[inputIndex](i,j,0) < reconstructor->_min_phase*0.9 )
-//                                        phase_weight(i,j,0) = 0.0;
-//                                    else
-//                                        phase_weight(i,j,0) = 1.0;
+//                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -100 ) {
+//                                    slice(i,j,0) = slice(i,j,0) - sim(i,j,0); //reconstructor->_simulated_slices[inputIndex](i,j,0);
 //                                }
-//                                // .............................................
+//                                else
+//                                    slice(i,j,0) = 0;
+                                
                                 
                                 
                                 int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                                
                                 
                                 for ( int k = 0; k < n; k++ ) {
                                     
                                     p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                     
-                                    for ( int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
+                                    if (p.value>0.0) {
                                         
-                                        
-                                        if (reconstructor->_robust_slices_only) {
+                                        for ( int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
                                             
-                                            addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                            confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
-                                            
-                                        }
-                                        else {
-                                            
-                                            addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                            
-                                            confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                            
+                                            if (reconstructor->_robust_slices_only) {
+                                                
+                                                
+                                                
+                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
+                                                
+                                            }
+                                            else {
+                                                
+//                                                double a_tmp = slice(i, j, 0);
+//
+//
+                                                
+                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                                
+                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+//
+//
+//                                                if(a_tmp>0)
+//                                                    addons_p[velocityIndex](p.x, p.y, p.z, outputIndex) += a_tmp;
+//                                                else
+//                                                    addons_n[velocityIndex](p.x, p.y, p.z, outputIndex) += a_tmp;
+                                                
+                                            }
                                         }
                                     }
                                 }
-  
-                                
                             }
                         }
                     }
                     
                 } // end of loop for velocity directions
+                
+                
+                //                }
                 
                 
             } //end of loop for a slice inputIndex
@@ -547,10 +597,15 @@ namespace mirtk {
             addon = 0;
             
             addons.clear();
+//            addons_n.clear();
+//            addons_p.clear();
             for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
                 addons.push_back(addon);
+//                addons_p.push_back(addon);
+//                addons_n.push_back(addon);
             }
             
+
             // Clear confidence map
             RealImage confidence_map = reconstructor->_reconstructed4D;
             confidence_map = 0;
@@ -566,6 +621,9 @@ namespace mirtk {
             
             for (int i=0; i<addons.size(); i++) {
                 addons[i] += y.addons[i];
+//                addons_n[i] += y.addons_n[i];
+//                addons_p[i] += y.addons_p[i];
+                
                 confidence_maps[i] += y.confidence_maps[i];
             }
 
@@ -579,8 +637,12 @@ namespace mirtk {
             addon = 0;
             
             addons.clear();
+//            addons_n.clear();
+//            addons_p.clear();
             for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
                 addons.push_back(addon);
+//                addons_p.push_back(addon);
+//                addons_n.push_back(addon);
             }
             
             // Clear confidence map
@@ -596,8 +658,7 @@ namespace mirtk {
         
         // execute
         void operator() () {
-            parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()),
-                            *this );
+            parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
         }
     };
     
@@ -615,6 +676,11 @@ namespace mirtk {
         Array<RealImage> addons, originals;
         
         
+        for (int i=0; i<_dif_stacks.size(); i++) {
+            _dif_stacks[i] = 0;
+        }
+        
+        
         // Remember current reconstruction for edge-preserving smoothing
         originals = _reconstructed5DVelocity;
         
@@ -623,6 +689,14 @@ namespace mirtk {
         
         addons = parallelSuperresolution.addons;
         _confidence_maps_velocity = parallelSuperresolution.confidence_maps;
+        
+        
+//        for (int i=0; i<_dif_stacks.size(); i++) {
+//            sprintf(buffer,"zdif-%i-%i.nii.gz", i, iter);
+//            _dif_stacks[i].Write(buffer);
+//        }
+        
+        
         
 
         if(_debug) {
@@ -643,14 +717,34 @@ namespace mirtk {
                 sprintf(buffer,"addon-velocity-%i.nii.gz", iter);
                 output_4D.Write(buffer);
                 
-                for (int t=0; t<output_4D.GetT(); t++)
-                    for (int z=0; z<output_4D.GetZ(); z++)
-                        for (int y=0; y<output_4D.GetY(); y++)
-                            for (int x=0; x<output_4D.GetX(); x++)
-                                output_4D(x,y,z,t) = _confidence_maps_velocity[t](x,y,z,0);
-                
-                sprintf(buffer,"confidence-map-velocity-%i.nii.gz", iter);
-                output_4D.Write(buffer);
+
+//                for (int t=0; t<output_4D.GetT(); t++)
+//                    for (int z=0; z<output_4D.GetZ(); z++)
+//                        for (int y=0; y<output_4D.GetY(); y++)
+//                            for (int x=0; x<output_4D.GetX(); x++)
+//                                output_4D(x,y,z,t) = parallelSuperresolution.addons_n[t](x,y,z,0);
+//
+//                sprintf(buffer,"n-addon-velocity-%i.nii.gz", iter);
+//                output_4D.Write(buffer);
+//
+//                for (int t=0; t<output_4D.GetT(); t++)
+//                    for (int z=0; z<output_4D.GetZ(); z++)
+//                        for (int y=0; y<output_4D.GetY(); y++)
+//                            for (int x=0; x<output_4D.GetX(); x++)
+//                                output_4D(x,y,z,t) = parallelSuperresolution.addons_p[t](x,y,z,0);
+//
+//                sprintf(buffer,"p-addon-velocity-%i.nii.gz", iter);
+//                output_4D.Write(buffer);
+//
+//
+//                for (int t=0; t<output_4D.GetT(); t++)
+//                    for (int z=0; z<output_4D.GetZ(); z++)
+//                        for (int y=0; y<output_4D.GetY(); y++)
+//                            for (int x=0; x<output_4D.GetX(); x++)
+//                                output_4D(x,y,z,t) = _confidence_maps_velocity[t](x,y,z,0);
+//
+//                sprintf(buffer,"confidence-map-velocity-%i.nii.gz", iter);
+//                output_4D.Write(buffer);
                 
             }
             else {
@@ -665,11 +759,9 @@ namespace mirtk {
 
             }
         }
+       
 
-        _adaptive = false;
-        
-        
-        if (!_adaptive)
+        if (!_adaptive_regularisation)
             for ( int v = 0; v < _v_directions.size(); v++ )
                 for ( int x = 0; x < addons[v].GetX(); x++ )
                     for ( int y = 0; y < addons[v].GetY(); y++ )
@@ -683,19 +775,20 @@ namespace mirtk {
                                     
                                 }
         
+        
         for ( int v = 0; v < _v_directions.size(); v++ )
             _reconstructed5DVelocity[v] += addons[v] * _alpha; //_average_volume_weight;
         
         
-        if(_debug) {
-
-            for ( int i=0; i<_v_directions.size(); i++ ) {
-
-                sprintf(buffer,"new-velocity-%i-%i.nii.gz",i,iter);
-                _reconstructed5DVelocity[i].Write(buffer);
-            }
-
-        }
+//        if(_debug) {
+//
+//            for ( int i=0; i<_v_directions.size(); i++ ) {
+//
+//                sprintf(buffer,"new-velocity-%i-%i.nii.gz",i,iter);
+//                _reconstructed5DVelocity[i].Write(buffer);
+//            }
+//
+//        }
 
         
         if(_limit_intensities) {
@@ -725,8 +818,6 @@ namespace mirtk {
         
         }
 
-        
-        _adaptive_regularisation = false;
 
         if(_adaptive_regularisation) {
 
@@ -982,6 +1073,15 @@ namespace mirtk {
         _g_directions = g_directions;
         _g_values = g_values;
         
+//        for (int i=0; i<_transformations.size(); i++) {
+//            
+//            _transformations[i].PutRotationX(UnitRandom());
+//            _transformations[i].PutRotationY(UnitRandom());
+//            _transformations[i].PutRotationZ(UnitRandom());
+//            
+//        }
+        
+        
     }
     
     //-------------------------------------------------------------------
@@ -995,10 +1095,7 @@ namespace mirtk {
         double ox,oy,oz;
         
         RigidTransformation tmp = _transformations[i];
-        
-//        tmp.PutTranslationX(0);
-//        tmp.PutTranslationY(0);
-//        tmp.PutTranslationZ(0);
+
         
 //        _transformations[i].Invert();
         
@@ -1548,113 +1645,113 @@ namespace mirtk {
     
     
     
-    /*
-     void ReconstructionCardiacVelocity4D::InitialiseInverse(Array<RealImage> stacks)
-     {
-     
-     char buffer[256];
-     
-     int N = stacks.size();
-     
-     Matrix p_vector(N, 1);
-     Matrix v_vector(N, 1);
-     Matrix g_matrix(N, N);
-     
-     for (int i=0; i<N; i++) {
-     for (int j=0; j<N; j++) {
-     if(i==j)
-     g_matrix(i,j) = 1;
-     if (j<3)
-     g_matrix(i,j) = _g_directions[i][j];
-     }
-     }
-     
-     
-     g_matrix.Print();
-     g_matrix.Invert();
-     g_matrix.Print();
-     
-     
-     RealImage tmp_volume = _reconstructed4D;
-     tmp_volume = 0;
-     
-     Array<RealImage> v_volumes;
-     for (int v=0; v<N; v++) {
-     v_volumes.push_back(tmp_volume);
-     }
-     
-     ImageAttributes attr = _reconstructed4D.GetImageAttributes();
-     attr._t = N;
-     
-     RealImage v_4D(attr);
-     v_4D = 0;
-     
-     
-     
-     for (int z=0; z<tmp_volume.GetZ(); z++) {
-     for (int y=0; y<tmp_volume.GetY(); y++) {
-     for (int x=0; x<tmp_volume.GetX(); x++) {
-     for (int t=0; t<tmp_volume.GetT(); t++) {
-     
-     double main_wx, main_wy, main_wz, wx, wy, wz;
-     int ix, iy, iz;
-     
-     main_wx = x;
-     main_wy = y;
-     main_wz = z;
-     
-     _reconstructed4D.ImageToWorld(main_wx, main_wy, main_wz);
-     
-     for (int n=0; n<N; n++) {
-     
-     wx = main_wx;
-     wy = main_wy;
-     wz = main_wz;
-     
-     stacks[n].WorldToImage(wx, wy, wz);
-     
-     ix = round(wx);
-     iy = round(wy);
-     iz = round(wz);
-     
-     if (ix>-1 && ix<stacks[n].GetX() && iy>-1 && iy<stacks[n].GetY() && iz>-1 && iz<stacks[n].GetZ() )
-     p_vector(n,0) = stacks[n](ix, iy, iz)/(gamma*_g_values[n]);
-     else
-     p_vector(n,0) = 0;
-     
-     
-     }
-     
-     v_vector = g_matrix * p_vector;
-     
-     for (int v=0; v<N; v++) {
-     v_volumes[v](x,y,z) = v_vector(v,0);
-     v_4D(x,y,z,v) = v_vector(v,0);
-     }
-     
-     for (int v=0; v<3; v++) {
-     _reconstructed5DVelocity[v](x,y,z) = v_vector(v,0);
-     }
-     
-     }
-     }
-     }
-     }
-     
-     
-     
-     //        for (int v=0; v<v_volumes.size(); v++) {
-     //
-     //            sprintf(buffer,"inverted-velocity-%i.nii.gz", v);
-     //            v_volumes[v].Write(buffer);
-     //
-     //        }
-     
-     v_4D.Write("inverted-velocity-vector.nii.gz");
-     
-     }
-     
-     */
+    
+    void ReconstructionCardiacVelocity4D::InitialiseInverse(Array<RealImage> stacks)
+    {
+        
+        char buffer[256];
+        
+        int N = stacks.size();
+        
+        Matrix p_vector(N, 1);
+        Matrix v_vector(N, 1);
+        Matrix g_matrix(N, N);
+        
+        for (int i=0; i<N; i++) {
+            for (int j=0; j<N; j++) {
+                if(i==j)
+                    g_matrix(i,j) = 1;
+                if (j<3)
+                    g_matrix(i,j) = _g_directions[i][j];
+            }
+        }
+        
+        
+        g_matrix.Print();
+        g_matrix.Invert();
+        g_matrix.Print();
+        
+        
+        RealImage tmp_volume = _reconstructed4D;
+        tmp_volume = 0;
+        
+        Array<RealImage> v_volumes;
+        for (int v=0; v<N; v++) {
+            v_volumes.push_back(tmp_volume);
+        }
+        
+        ImageAttributes attr = _reconstructed4D.GetImageAttributes();
+        attr._t = N;
+        
+        RealImage v_4D(attr);
+        v_4D = 0;
+        
+        
+        
+        for (int z=0; z<tmp_volume.GetZ(); z++) {
+            for (int y=0; y<tmp_volume.GetY(); y++) {
+                for (int x=0; x<tmp_volume.GetX(); x++) {
+                    for (int t=0; t<tmp_volume.GetT(); t++) {
+                        
+                        double main_wx, main_wy, main_wz, wx, wy, wz;
+                        int ix, iy, iz;
+                        
+                        main_wx = x;
+                        main_wy = y;
+                        main_wz = z;
+                        
+                        _reconstructed4D.ImageToWorld(main_wx, main_wy, main_wz);
+                        
+                        for (int n=0; n<N; n++) {
+                            
+                            wx = main_wx;
+                            wy = main_wy;
+                            wz = main_wz;
+                            
+                            stacks[n].WorldToImage(wx, wy, wz);
+                            
+                            ix = round(wx);
+                            iy = round(wy);
+                            iz = round(wz);
+                            
+                            if (ix>-1 && ix<stacks[n].GetX() && iy>-1 && iy<stacks[n].GetY() && iz>-1 && iz<stacks[n].GetZ() )
+                                p_vector(n,0) = stacks[n](ix, iy, iz)/(gamma*_g_values[n]);
+                            else
+                                p_vector(n,0) = 0;
+                            
+                            
+                        }
+                        
+                        v_vector = g_matrix * p_vector;
+                        
+                        for (int v=0; v<N; v++) {
+                            v_volumes[v](x,y,z) = v_vector(v,0);
+                            v_4D(x,y,z,v) = v_vector(v,0);
+                        }
+                        
+                        for (int v=0; v<3; v++) {
+                            _reconstructed5DVelocity[v](x,y,z) = v_vector(v,0);
+                        }
+                        
+                    }
+                }
+            }
+        }
+        
+        
+        
+        //        for (int v=0; v<v_volumes.size(); v++) {
+        //
+        //            sprintf(buffer,"inverted-velocity-%i.nii.gz", v);
+        //            v_volumes[v].Write(buffer);
+        //
+        //        }
+        
+        v_4D.Write("inverted-velocity-vector.nii.gz");
+        
+    }
+    
+    
     
     
     

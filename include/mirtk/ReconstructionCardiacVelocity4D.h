@@ -72,6 +72,8 @@ namespace mirtk {
         // what is the correct value / units?
         const double gamma = 1; //42577; //1
         
+        Array<RigidTransformation> _random_transformations;
+        
         
     public:
         
@@ -102,7 +104,7 @@ namespace mirtk {
         void InitialisationCardiacVelocity4D(Array<int> stack_numbers);
         Array<double> InverseVelocitySolution(Array<double> p_values, Array<Array<double>> g_values);
         
-        
+        void RandomRotations();
         
         void MaskSlicesPhase();
         void ResetValues();
@@ -124,6 +126,17 @@ namespace mirtk {
         inline void ItinialiseVelocityBounds();
         
         void StaticMaskReconstructedVolume5D();
+        
+        
+        void InitializeEMVelocity4D();
+        void InitializeEMValuesVelocity4D();
+        void InitializeRobustStatisticsVelocity4D();
+        void EStepVelocity4D();
+        void MStepVelocity4D(int iter);
+
+        friend class ParallelEStepardiacVelocity4D;
+        friend class ParallelMStepCardiacVelocity4D;
+        
         
         
         friend class ParallelSimulateSlicesCardiacVelocity4D;

@@ -1310,7 +1310,7 @@ int main(int argc, char **argv)
         reconstruction.GlobalBiasCorrectionOff();
     
     //Initialise data structures for EM
-    reconstruction.InitializeEM();
+    reconstruction.InitializeEMVelocity4D();
     
     // Calculate Cardiac Phase of Each Slice
     if ( cardPhase.size() == 0 ) {  // no cardiac phases specified
@@ -1332,6 +1332,10 @@ int main(int argc, char **argv)
     
     // Velocity reconstruction (draft version)
     
+    
+//    reconstruction.RandomRotations();
+    
+    
     reconstruction.InitializeVelocityVolumes();
     
     reconstruction.InitializeGradientMoments(g_directions, g_values);
@@ -1345,7 +1349,7 @@ int main(int argc, char **argv)
     if(robust_slices_only)
         reconstruction.ExcludeWholeSlicesOnly();
     
-    reconstruction.InitializeEMValues();
+    reconstruction.InitializeEMValuesVelocity4D();
     
     reconstruction.CoeffInitCardiac4D();
     
@@ -1380,7 +1384,7 @@ int main(int argc, char **argv)
     if (initisaliation) {
         Array<int> init_stack_numbers;
         
-        for (int i=0; i<stacks.size(); i++)
+        for (int i=0; i<stacks.size(); i++) 
             init_stack_numbers.push_back(i);
 
         reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
@@ -1394,13 +1398,13 @@ int main(int argc, char **argv)
 
     
     //Initialize robust statistics parameters
-    reconstruction.InitializeRobustStatistics();
+    reconstruction.InitializeRobustStatisticsVelocity4D();
     
     
     
-    //EStep
-    if(robust_statistics)
-        reconstruction.EStep();
+//    //EStep
+//    if(robust_statistics)
+//        reconstruction.EStepVelocity4D();
     
      
     rec_iterations = rec_iterations_first;      // number of iterations is controlled by '-rec_iterations' flag
@@ -1435,6 +1439,8 @@ int main(int argc, char **argv)
         reconstruction.SetAlpha(alpha_i);
         
 
+        reconstruction.SetAlpha(alpha);
+        
         
         // STEPS 4-5: super-resolution reconstruction and simulation of slices (optimisation loop)
         
@@ -1445,16 +1451,16 @@ int main(int argc, char **argv)
         double consistency = reconstruction.Consistency();
         
         
-        if ((i+1)<rec_iterations) {
-            
-            if(robust_statistics)
-                reconstruction.MStep(i+1);
-            
-            //E-step
-            if(robust_statistics)
-                reconstruction.EStep();
-            
-        }
+//        if ((iteration+1)<rec_iterations && (iteration>(iteration-10))) {
+//
+//            if(robust_statistics)
+//                reconstruction.MStepVelocity4D(iteration+1);
+//
+//            //E-step
+//            if(robust_statistics)
+//                reconstruction.EStepVelocity4D();
+//
+//        }
         
 //        Array<RealImage> tmp_stacks;
 //        tmp_stacks = stacks;

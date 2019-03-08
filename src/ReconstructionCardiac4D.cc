@@ -1055,9 +1055,7 @@ namespace mirtk {
         _volume_weights = 0;
         
         
-        double p_value_limit = 0.3;
-        if (_no_sr)
-            p_value_limit = 0.5;
+        
         
         
         // TODO: investigate if this loop is taking a long time to compute, and consider parallelisation
@@ -1065,6 +1063,25 @@ namespace mirtk {
         unsigned int inputIndex;
         POINT3D p;
         cout << "    ... for input slice: ";
+        
+        double max_P = -1;
+        
+        for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+            for ( i = 0; i < _slices[inputIndex].GetX(); i++)
+                for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    n = _volcoeffs[inputIndex][i][j].size();
+                    for (k = 0; k < n; k++) {
+                        
+                        p = _volcoeffs[inputIndex][i][j][k];
+                        
+                        if (p.value > max_P)
+                            max_P = p.value;
+                    }
+                }
+        }
+        
+        double p_value_limit = max_P*0.2;
+
         for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
             cout << inputIndex << ", ";
             cout.flush();
@@ -3746,17 +3763,20 @@ namespace mirtk {
         char buffer[256];
         RealImage stack;
         Array<RealImage> imagestacks;
+        Array<RealImage> wstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
             ImageAttributes attr = stacks[i].GetImageAttributes();
             stack.Initialize( attr );
             imagestacks.push_back( stack );
+            wstacks.push_back( stack );
         }
         
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
             for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
                 for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
                     imagestacks[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],_stack_dyn_index[inputIndex]) = _slices[inputIndex](i,j,0);
+                    wstacks[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],_stack_dyn_index[inputIndex]) = 10*_weights[inputIndex](i,j,0);
                 }
             }
         }
@@ -3764,6 +3784,9 @@ namespace mirtk {
         for (unsigned int i = 0; i < stacks.size(); i++) {
             sprintf(buffer, "stack%03i.nii.gz", i);
             imagestacks[i].Write(buffer);
+            
+            sprintf(buffer, "w%03i.nii.gz", i);
+            wstacks[i].Write(buffer);
         }
         
         if (_debug)

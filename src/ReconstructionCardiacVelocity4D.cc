@@ -551,8 +551,12 @@ namespace mirtk {
                                                 
                                                 
                                                 
-                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
+//                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+//                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
+                                                
+                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0);
+                                                
+                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0);
                                                 
                                             }
                                             else {
@@ -1095,7 +1099,14 @@ namespace mirtk {
         double ox,oy,oz;
         
         RigidTransformation tmp = _transformations[i];
-
+//
+//
+//        if (_random_transformations.size() > 0 )
+//            tmp = _random_transformations[i];
+        
+        
+//        RigidTransformation tmp = _random_transformations[i];
+        
         
 //        _transformations[i].Invert();
         
@@ -1116,6 +1127,57 @@ namespace mirtk {
         
     }
     
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    
+    void ReconstructionCardiacVelocity4D::RandomRotations()
+    {
+    
+        for (int i=0; i<_transformations.size(); i++) {
+            
+            RigidTransformation *tmp = new RigidTransformation;
+            
+            RigidTransformation random_transf = *tmp; //_transformations[i];
+            
+            int r1, r2;
+            double rx, ry, rz;
+            double range = 2;
+            
+            r1 = rand() % 10 + 0;
+            r2 = rand() % 10 + 0;
+            rx = (double)r1/range - (double)r2/range;
+            
+            r1 = rand() % 10 + 0;
+            r2 = rand() % 10 + 0;
+            ry = (double)r1/range - (double)r2/range;
+            
+            r1 = rand() % 10 + 0;
+            r2 = rand() % 10 + 0;
+            rz = (double)r1/range - (double)r2/range;
+            
+            cout << " - " << rx << " " << ry << " " << rz << endl;
+            
+            
+            random_transf.PutTranslationX(0);
+            random_transf.PutTranslationY(0);
+            random_transf.PutTranslationZ(0);
+            
+            random_transf.PutRotationX(rx);
+            random_transf.PutRotationY(ry);
+            random_transf.PutRotationZ(rz);
+            
+            
+            _random_transformations.push_back(random_transf);
+            
+        }
+        
+        
+        
+        
+    }
  
     
     //-------------------------------------------------------------------
@@ -1157,8 +1219,7 @@ namespace mirtk {
                     y = round(y);
                     z = round(z);
                     //if the voxel is outside mask ROI set it to -1 (padding value)
-                    if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
-                        && (z < _mask.GetZ())) {
+                    if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0) && (z < _mask.GetZ())) {
                         if (_mask(x, y, z) == 0)
                             slice(i, j, 0) = -150;
                     }
@@ -1172,10 +1233,648 @@ namespace mirtk {
     }
     
     
-    
+
+    //-------------------------------------------------------------------
     
     
     //-------------------------------------------------------------------
+    
+    void ReconstructionCardiacVelocity4D::InitializeEMVelocity4D()
+    {
+        if (_debug)
+            cout << "InitializeEM" << endl;
+        
+        _weights.clear();
+        _bias.clear();
+        _scale.clear();
+        _slice_weight.clear();
+        
+        for (unsigned int i = 0; i < _slices.size(); i++) {
+            //Create images for voxel weights and bias fields
+            RealImage tmp = _slices[i];
+            
+            tmp = 1;
+            _weights.push_back(tmp);
+            
+            tmp = 0;
+            _bias.push_back(tmp);
+            
+            //Create and initialize scales
+            _scale.push_back(1);
+            
+            //Create and initialize slice weights
+            _slice_weight.push_back(1);
+        }
+        
+        //Find the range of intensities
+        _max_intensity = voxel_limits<RealPixel>::min();
+        _min_intensity = voxel_limits<RealPixel>::max();
+        
+//        _max_intensity = -3.14;
+//        _min_intensity = 3.14;
+        
+        
+        for (unsigned int i = 0; i < _slices.size(); i++) {
+            //to update minimum we need to exclude padding value
+            RealPixel *ptr = _slices[i].GetPointerToVoxels();
+            
+            for (int ind = 0; ind < _slices[i].GetNumberOfVoxels(); ind++) {
+                if (*ptr > -100) {
+                    
+                    double tmp = abs(*ptr);
+                    
+                    if (tmp > _max_intensity)
+                        _max_intensity = tmp;
+                    if (tmp < _min_intensity)
+                        _min_intensity = tmp;
+                    
+//                    if (*ptr > _max_intensity)
+//                        _max_intensity = *ptr;
+//                    if (*ptr < _min_intensity)
+//                        _min_intensity = *ptr;
+                    
+                    
+                }
+                ptr++;
+            }
+        }
+        
+//        _max_intensity = _max_intensity*2;
+        
+        cout << " - min : " << _min_intensity << " | max : " << _max_intensity << endl;
+    }
+    
+    
+    //-------------------------------------------------------------------
+    
+    void ReconstructionCardiacVelocity4D::InitializeEMValuesVelocity4D()
+    {
+        if (_debug)
+            cout << "InitializeEMValues" << endl;
+        
+        for (unsigned int i = 0; i < _slices.size(); i++) {
+            //Initialise voxel weights and bias values
+            RealPixel *pw = _weights[i].GetPointerToVoxels();
+            RealPixel *pb = _bias[i].GetPointerToVoxels();
+            RealPixel *pi = _slices[i].GetPointerToVoxels();
+            
+            for (int j = 0; j < _weights[i].GetNumberOfVoxels(); j++) {
+                if (*pi > -100) {
+                    *pw = 1;
+                    *pb = 0;
+                }
+                else {
+                    *pw = 0;
+                    *pb = 0;
+                }
+                pi++;
+                pw++;
+                pb++;
+            }
+            
+            //Initialise slice weights
+            _slice_weight[i] = 1;
+            
+            //Initialise scaling factors for intensity matching
+            _scale[i] = 1;
+        }
+        
+        //Force exclusion of slices predefined by user
+        for (unsigned int i = 0; i < _force_excluded.size(); i++)
+            _slice_weight[_force_excluded[i]] = 0;
+        
+    }
+    
+    //-------------------------------------------------------------------
+    
+    void ReconstructionCardiacVelocity4D::InitializeRobustStatisticsVelocity4D()
+    {
+        if (_debug)
+            cout << "InitializeRobustStatistics" << endl;
+        
+        //Initialise parameter of EM robust statistics
+        int i, j;
+        RealImage slice, sim;
+        double sigma = 0;
+        int num = 0;
+        
+        //for each slice
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            slice = _slices[inputIndex];
+            
+            // read the current simulated slice
+            sim = _simulated_slices[inputIndex];
+            RealImage sss = slice - sim;
+
+            for ( int i = 0; i < slice.GetX(); i++ ) {
+                for ( int j = 0; j < slice.GetY(); j++ ) {
+                    if (slice(i,j,0)<-100 )
+                        sss(i,j,0) = -150;
+                    else
+                        sss(i,j,0) = abs(sss(i,j,0));
+                }
+            }
+            slice = sss;
+            
+            
+            //Voxel-wise sigma will be set to stdev of volumetric errors
+            //For each slice voxel
+            for (i = 0; i < slice.GetX(); i++)
+                for (j = 0; j < slice.GetY(); j++)
+                    if (slice(i, j, 0) > -100) {
+                        //calculate stev of the errors
+                        if ( (_simulated_inside[inputIndex](i, j, 0)==1) &&(_simulated_weights[inputIndex](i,j,0)>0.99) ) {
+//                            slice(i,j,0) -= _simulated_slices[inputIndex](i,j,0);
+                            sigma += slice(i, j, 0) * slice(i, j, 0);
+                            num++;
+                        }
+                    }
+            
+            //if slice does not have an overlap with ROI, set its weight to zero
+            if (!_slice_inside[inputIndex])
+                _slice_weight[inputIndex] = 0;
+        }
+        
+        //Force exclusion of slices predefined by user
+        for (unsigned int i = 0; i < _force_excluded.size(); i++)
+            _slice_weight[_force_excluded[i]] = 0;
+        
+        //initialize sigma for voxelwise robust statistics
+        _sigma = sigma / num;
+        //initialize sigma for slice-wise robust statistics
+        _sigma_s = 0.025;
+        //initialize mixing proportion for inlier class in voxel-wise robust statistics
+        _mix = 0.9;
+        //initialize mixing proportion for outlier class in slice-wise robust statistics
+        _mix_s = 0.9;
+        //Initialise value for uniform distribution according to the range of intensities
+        _m = 1 / (2.1 * _max_intensity - 1.9 * _min_intensity);
+        
+        
+//        _mix = 0.8;
+        
+        if (_debug)
+            cout << "Initializing robust statistics: " << "sigma=" << sqrt(_sigma) << " " << "m=" << _m
+            << " " << "mix=" << _mix << " " << "mix_s=" << _mix_s << endl;
+        
+    }
+    
+    
+    //-------------------------------------------------------------------
+    
+    class ParallelEStepardiacVelocity4D {
+        ReconstructionCardiacVelocity4D* reconstructor;
+        Array<double> &slice_potential;
+        
+    public:
+        
+        void operator()( const blocked_range<size_t>& r ) const {
+            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
+                // read the current slice
+                RealImage slice = reconstructor->_slices[inputIndex];
+                
+                //read current weight image
+                reconstructor->_weights[inputIndex] = 0;
+                
+                //alias the current bias image
+//                RealImage& b = reconstructor->_bias[inputIndex];
+                
+                //identify scale factor
+//                double scale = reconstructor->_scale[inputIndex];
+                
+                
+                // read the current simulated slice
+                RealImage sim = reconstructor->_simulated_slices[inputIndex];
+                RealImage sss = slice - sim;
+ 
+                for ( int i = 0; i < slice.GetX(); i++ ) {
+                    for ( int j = 0; j < slice.GetY(); j++ ) {
+                        if (slice(i,j,0)<-100 )
+                            sss(i,j,0) = -150;
+                        else
+                            sss(i,j,0) = abs(sss(i,j,0));
+                    }
+                }
+                slice = sss;
+                
+                double num = 0;
+                //Calculate error, voxel weights, and slice potential
+                for (int i = 0; i < slice.GetX(); i++)
+                    for (int j = 0; j < slice.GetY(); j++)
+                        if (slice(i, j, 0) > -100) {
+                            
+                            //bias correct and scale the slice
+//                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            
+                            //number of volumetric voxels to which
+                            // current slice voxel contributes
+                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                            
+                            // if n == 0, slice voxel has no overlap with volumetric ROI,
+                            // do not process it
+                            
+                            if ( (n>0) && (reconstructor->_simulated_weights[inputIndex](i,j,0) > 0) ) {
+                                
+//                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
+                                
+                                //calculate norm and voxel-wise weights
+                                
+                                //Gaussian distribution for inliers (likelihood)
+                                double g = reconstructor->G(slice(i, j, 0), reconstructor->_sigma);
+                                //Uniform distribution for outliers (likelihood)
+                                double m = reconstructor->M(reconstructor->_m);
+                                
+                                //voxel_wise posterior
+                                double weight = g * reconstructor->_mix / (g *reconstructor->_mix + m * (1 - reconstructor->_mix));
+                                
+//                                weight = slice(i, j, 0);
+                                
+                                reconstructor->_weights[inputIndex].PutAsDouble(i, j, 0, weight);
+                                
+                                //calculate slice potentials
+                                if(reconstructor->_simulated_weights[inputIndex](i,j,0)>0.99) {
+                                    slice_potential[inputIndex] += (1 - weight) * (1 - weight);
+                                    num++;
+                                }
+                            }
+                            else
+                                reconstructor->_weights[inputIndex].PutAsDouble(i, j, 0, 0);
+                        }
+                
+                //evaluate slice potential
+                if (num > 0)
+                    slice_potential[inputIndex] = sqrt(slice_potential[inputIndex] / num);
+                else
+                    slice_potential[inputIndex] = -1; // slice has no unpadded voxels
+            }
+        }
+        
+        ParallelEStepardiacVelocity4D( ReconstructionCardiacVelocity4D *reconstructor, Array<double> &slice_potential ) :
+        reconstructor(reconstructor), slice_potential(slice_potential)
+        { }
+        
+        // execute
+        void operator() () const {
+            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
+        }
+        
+    };
+    
+    
+    //-------------------------------------------------------------------
+    
+    void ReconstructionCardiacVelocity4D::EStepVelocity4D()
+    {
+        //EStep performs calculation of voxel-wise and slice-wise posteriors (weights)
+        if (_debug)
+            cout << "EStep: " << endl;
+        
+        unsigned int inputIndex;
+        RealImage slice, w, b, sim;
+        int num = 0;
+        Array<double> slice_potential(_slices.size(), 0);
+        
+        ParallelEStepardiacVelocity4D parallelEStep( this, slice_potential );
+        parallelEStep();
+        
+        //To force-exclude slices predefined by a user, set their potentials to -1
+        for (unsigned int i = 0; i < _force_excluded.size(); i++)
+            slice_potential[_force_excluded[i]] = -1;
+        
+        //exclude slices identified as having small overlap with ROI, set their potentials to -1
+        for (unsigned int i = 0; i < _small_slices.size(); i++)
+            slice_potential[_small_slices[i]] = -1;
+        
+        //these are unrealistic scales pointing at misregistration - exclude the corresponding slices
+        for (inputIndex = 0; inputIndex < slice_potential.size(); inputIndex++)
+            if ((_scale[inputIndex]<0.2)||(_scale[inputIndex]>5)) {
+                slice_potential[inputIndex] = -1;
+            }
+        
+        // exclude unrealistic transformations
+        if(_debug) {
+            cout<<endl<<"Slice potentials: ";
+            for (inputIndex = 0; inputIndex < slice_potential.size(); inputIndex++)
+                cout<<slice_potential[inputIndex]<<" ";
+            cout<<endl;
+        }
+        
+        
+        //Calulation of slice-wise robust statistics parameters.
+        //This is theoretically M-step,
+        //but we want to use latest estimate of slice potentials
+        //to update the parameters
+        
+        //Calculate means of the inlier and outlier potentials
+        double sum = 0, den = 0, sum2 = 0, den2 = 0, maxs = 0, mins = 1;
+        for (inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            if (slice_potential[inputIndex] >= 0) {
+                //calculate means
+                sum += slice_potential[inputIndex] * _slice_weight[inputIndex];
+                den += _slice_weight[inputIndex];
+                sum2 += slice_potential[inputIndex] * (1 - _slice_weight[inputIndex]);
+                den2 += (1 - _slice_weight[inputIndex]);
+                
+                //calculate min and max of potentials in case means need to be initalized
+                if (slice_potential[inputIndex] > maxs)
+                    maxs = slice_potential[inputIndex];
+                if (slice_potential[inputIndex] < mins)
+                    mins = slice_potential[inputIndex];
+            }
+        
+        if (den > 0)
+            _mean_s = sum / den;
+        else
+            _mean_s = mins;
+        
+        if (den2 > 0)
+            _mean_s2 = sum2 / den2;
+        else
+            _mean_s2 = (maxs + _mean_s) / 2;
+        
+        //Calculate the variances of the potentials
+        sum = 0;
+        den = 0;
+        sum2 = 0;
+        den2 = 0;
+        for (inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            if (slice_potential[inputIndex] >= 0) {
+                sum += (slice_potential[inputIndex] - _mean_s) * (slice_potential[inputIndex] - _mean_s) * _slice_weight[inputIndex];
+                den += _slice_weight[inputIndex];
+                
+                sum2 += (slice_potential[inputIndex] - _mean_s2) * (slice_potential[inputIndex] - _mean_s2) * (1 - _slice_weight[inputIndex]);
+                den2 += (1 - _slice_weight[inputIndex]);
+                
+            }
+        
+        //_sigma_s
+        if ((sum > 0) && (den > 0)) {
+            _sigma_s = sum / den;
+            //do not allow too small sigma
+            if (_sigma_s < _step * _step / 6.28)
+                _sigma_s = _step * _step / 6.28;
+        }
+        else {
+            _sigma_s = 0.025;
+            if (_debug) {
+                if (sum <= 0)
+                    cout << "All slices are equal. ";
+                if (den < 0) //this should not happen
+                    cout << "All slices are outliers. ";
+                cout << "Setting sigma to " << sqrt(_sigma_s) << endl;
+            }
+        }
+        
+        //sigma_s2
+        if ((sum2 > 0) && (den2 > 0)) {
+            _sigma_s2 = sum2 / den2;
+            //do not allow too small sigma
+            if (_sigma_s2 < _step * _step / 6.28)
+                _sigma_s2 = _step * _step / 6.28;
+        }
+        else {
+            _sigma_s2 = (_mean_s2 - _mean_s) * (_mean_s2 - _mean_s) / 4;
+            //do not allow too small sigma
+            if (_sigma_s2 < _step * _step / 6.28)
+                _sigma_s2 = _step * _step / 6.28;
+            
+            if (_debug) {
+                if (sum2 <= 0)
+                    cout << "All slices are equal. ";
+                if (den2 <= 0)
+                    cout << "All slices inliers. ";
+                cout << "Setting sigma_s2 to " << sqrt(_sigma_s2) << endl;
+            }
+        }
+        
+        //Calculate slice weights
+        double gs1, gs2;
+        for (inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            //Slice does not have any voxels in volumetric ROI
+            if (slice_potential[inputIndex] == -1) {
+                _slice_weight[inputIndex] = 0;
+                continue;
+            }
+            
+            //All slices are outliers or the means are not valid
+            if ((den <= 0) || (_mean_s2 <= _mean_s)) {
+                _slice_weight[inputIndex] = 1;
+                continue;
+            }
+            
+            //likelihood for inliers
+            if (slice_potential[inputIndex] < _mean_s2)
+                gs1 = G(slice_potential[inputIndex] - _mean_s, _sigma_s);
+            else
+                gs1 = 0;
+            
+            //likelihood for outliers
+            if (slice_potential[inputIndex] > _mean_s)
+                gs2 = G(slice_potential[inputIndex] - _mean_s2, _sigma_s2);
+            else
+                gs2 = 0;
+            
+            //calculate slice weight
+            double likelihood = gs1 * _mix_s + gs2 * (1 - _mix_s);
+            if (likelihood > 0)
+                _slice_weight[inputIndex] = gs1 * _mix_s / likelihood;
+            else {
+                if (slice_potential[inputIndex] <= _mean_s)
+                    _slice_weight[inputIndex] = 1;
+                if (slice_potential[inputIndex] >= _mean_s2)
+                    _slice_weight[inputIndex] = 0;
+                if ((slice_potential[inputIndex] < _mean_s2) && (slice_potential[inputIndex] > _mean_s)) //should not happen
+                    _slice_weight[inputIndex] = 1;
+            }
+        }
+        
+        //Update _mix_s this should also be part of MStep
+        sum = 0;
+        num = 0;
+        for (inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            if (slice_potential[inputIndex] >= 0) {
+                sum += _slice_weight[inputIndex];
+                num++;
+            }
+        
+        if (num > 0)
+            _mix_s = sum / num;
+        else {
+            cout << "All slices are outliers. Setting _mix_s to 0.9." << endl;
+            _mix_s = 0.9;
+        }
+        
+        if (_debug) {
+            cout << setprecision(3);
+            cout << "Slice robust statistics parameters: ";
+            cout << "means: " << _mean_s << " " << _mean_s2 << "  ";
+            cout << "sigmas: " << sqrt(_sigma_s) << " " << sqrt(_sigma_s2) << "  ";
+            cout << "proportions: " << _mix_s << " " << 1 - _mix_s << endl;
+            cout << "Slice weights: ";
+            for (inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+                cout << _slice_weight[inputIndex] << " ";
+            cout << endl;
+        }
+        
+    }
+    
+    //-------------------------------------------------------------------
+    
+    
+    class ParallelMStepCardiacVelocity4D{
+        ReconstructionCardiacVelocity4D* reconstructor;
+    public:
+        double sigma;
+        double mix;
+        double num;
+        double min;
+        double max;
+        
+        void operator()( const blocked_range<size_t>& r ) {
+            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
+                // read the current slice
+                RealImage slice = reconstructor->_slices[inputIndex];
+                
+                //alias the current weight image
+                RealImage& w = reconstructor->_weights[inputIndex];
+                
+                //alias the current bias image
+//                RealImage& b = reconstructor->_bias[inputIndex];
+                
+                //identify scale factor
+//                double scale = reconstructor->_scale[inputIndex];
+                
+                
+                // read the current simulated slice
+                RealImage sim = reconstructor->_simulated_slices[inputIndex];
+                RealImage sss = slice - sim;
+                
+                
+                for ( int i = 0; i < slice.GetX(); i++ ) {
+                    for ( int j = 0; j < slice.GetY(); j++ ) {
+                        if (slice(i,j,0)<-100 )
+                            sss(i,j,0) = -150;
+                        else
+                            sss(i,j,0) = abs(sss(i,j,0));
+                    }
+                }
+                slice = sss;
+                
+                
+                //calculate error
+                for (int i = 0; i < slice.GetX(); i++)
+                    for (int j = 0; j < slice.GetY(); j++)
+                        if (slice(i, j, 0) > -100) {
+                            //bias correct and scale the slice
+//                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            
+                            //otherwise the error has no meaning - it is equal to slice intensity
+                            if ( reconstructor->_simulated_weights[inputIndex](i,j,0) > 0.99 ) {
+                                
+//                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
+                                
+                                //sigma and mix
+                                double e = slice(i, j, 0);
+                                sigma += e * e * w(i, j, 0);
+                                mix += w(i, j, 0);
+                                
+                                //_m
+                                if (e < min)
+                                    min = e;
+                                if (e > max)
+                                    max = e;
+                                
+                                num++;
+                            }
+                        }
+            } //end of loop for a slice inputIndex
+        }
+        
+        ParallelMStepCardiacVelocity4D( ParallelMStepCardiacVelocity4D& x, split ) :
+        reconstructor(x.reconstructor)
+        {
+            sigma = 0;
+            mix = 0;
+            num = 0;
+            min = 0;
+            max = 0;
+        }
+        
+        void join( const ParallelMStepCardiacVelocity4D& y ) {
+            if (y.min < min)
+                min = y.min;
+            if (y.max > max)
+                max = y.max;
+            
+            sigma += y.sigma;
+            mix += y.mix;
+            num += y.num;
+        }
+        
+        ParallelMStepCardiacVelocity4D( ReconstructionCardiacVelocity4D *reconstructor ) :
+        reconstructor(reconstructor)
+        {
+            sigma = 0;
+            mix = 0;
+            num = 0;
+            min = voxel_limits<RealPixel>::max();
+            max = voxel_limits<RealPixel>::min();
+        }
+        
+        // execute
+        void operator() () {
+            parallel_reduce( blocked_range<size_t>(0, reconstructor->_slices.size()), *this );
+        }
+    };
+    
+    //-------------------------------------------------------------------
+    
+    void ReconstructionCardiacVelocity4D::MStepVelocity4D(int iter)
+    {
+        if (_debug)
+            cout << "MStep" << endl;
+        
+        ParallelMStepCardiacVelocity4D parallelMStep(this);
+        parallelMStep();
+        double sigma = parallelMStep.sigma;
+        double mix = parallelMStep.mix;
+        double num = parallelMStep.num;
+        double min = parallelMStep.min;
+        double max = parallelMStep.max;
+        
+        //Calculate sigma and mix
+        if (mix > 0) {
+            _sigma = sigma / mix;
+        }
+        else {
+            cerr << "Something went wrong: sigma=" << sigma << " mix=" << mix << endl;
+            exit(1);
+        }
+        if (_sigma < _step * _step / 6.28)
+            _sigma = _step * _step / 6.28;
+        if (iter > 1)
+            _mix = mix / num;
+        
+        //Calculate m
+        _m = 1 / (max - min);
+        
+        if (_debug) {
+            cout << "Voxel-wise robust statistics parameters: ";
+            cout << "sigma = " << sqrt(_sigma) << " mix = " << _mix << " ";
+            cout << " m = " << _m; //<< endl;
+            cout << " max = " << max << " min = " << min << endl;
+        }
+        
+    }
+    
+    //-------------------------------------------------------------------
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    //-------------------------------------------------------------------
+    
     
     
     //-------------------------------------------------------------------

@@ -24,6 +24,8 @@
 
 #include "mirtk/Arith.h"
 
+#include "mirtk/Math.h"
+
 
 namespace mirtk {
     
@@ -70,7 +72,7 @@ namespace mirtk {
         double _velocity_scale;
         
         // what is the correct value / units?
-        const double gamma = 1; //42577; //1
+        const double gamma = 0.42577; //1
         
         Array<RigidTransformation> _random_transformations;
         
@@ -104,7 +106,10 @@ namespace mirtk {
         void InitialisationCardiacVelocity4D(Array<int> stack_numbers);
         Array<double> InverseVelocitySolution(Array<double> p_values, Array<Array<double>> g_values);
         
-        void RandomRotations();
+        void RandomRotations(Array<RealImage> stacks);
+        
+        void SaveOriginal( Array<RealImage> stacks );
+        
         
         void MaskSlicesPhase();
         void ResetValues();
@@ -330,35 +335,7 @@ namespace mirtk {
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
         
-        /*
-        
-        for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
-            
-            RealImage subtracted4D = _reconstructed5DVelocity[i];
-            
-            RealImage average3D = subtracted4D.GetRegion(0,0,0,0,subtracted4D.GetX(),subtracted4D.GetY(),subtracted4D.GetZ(),1);
-            average3D = 0;
-            
-            
-            for (int t=0; t<subtracted4D.GetT(); t++)
-                average3D = average3D + subtracted4D.GetRegion(0,0,0,(t),subtracted4D.GetX(),subtracted4D.GetY(),subtracted4D.GetZ(),(t+1));
-            
-            average3D /= subtracted4D.GetT();
-            
-            for (int t=0; t<subtracted4D.GetT(); t++)
-                for (int z=0; z<subtracted4D.GetZ(); z++)
-                    for (int y=0; y<subtracted4D.GetY(); y++)
-                        for (int x=0; x<subtracted4D.GetX(); x++)
-                            subtracted4D(x,y,z,t) = subtracted4D(x,y,z,t) - average3D(x,y,z);
-            
-            subtracted4D *= _velocity_scale;
-            
-            sprintf(buffer,"subtracted-velocity-%i-%i.nii.gz", i, iter);
-            subtracted4D.Write(buffer);
-            
-        }
-        
-        */
+
     }
     
     

@@ -1010,7 +1010,7 @@ namespace mirtk {
 //        Array<Array<Point>> _slice_contributions_array;
         
         POINT3DS pi;
-        pi.x = -1, pi.y = -1, pi.z = -1, pi.i = -1, pi.value = -1000;
+        pi.x = -1, pi.y = -1, pi.z = -1, pi.i = -1, pi.value = -1000, pi.w = 0;
         Array<POINT3DS> p_array;
         p_array.push_back(pi);
         
@@ -1090,6 +1090,9 @@ namespace mirtk {
                     n = _volcoeffs[inputIndex][i][j].size();
                     for (k = 0; k < n; k++) {
                         p = _volcoeffs[inputIndex][i][j][k];
+                        
+//                        _volcoeffs[inputIndex][i][j][k].value = max_P;
+                        
                         for (outputIndex=0; outputIndex<_reconstructed4D.GetT(); outputIndex++)
                         {
                             _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
@@ -1103,7 +1106,7 @@ namespace mirtk {
                                 int array_index = _slice_contributions_volume(p.x, p.y, p.z, outputIndex);
                                 
                                 POINT3DS ps;
-                                ps.x = i, ps.y = j, ps.z = k, ps.i = inputIndex, ps.value = _slices[inputIndex](i,j,0,outputIndex);
+                                ps.x = i, ps.y = j, ps.z = k, ps.i = inputIndex, ps.value = _slices[inputIndex](i,j,0,outputIndex), ps.w = p.value;
                                 
                                 _slice_contributions_array[array_index].push_back(ps);
                                 

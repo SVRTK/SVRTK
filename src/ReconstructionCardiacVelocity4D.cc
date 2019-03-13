@@ -200,8 +200,12 @@ namespace mirtk {
                 double gx = reconstructor->_g_directions[gradientIndex][0];
                 double gy = reconstructor->_g_directions[gradientIndex][1];
                 double gz = reconstructor->_g_directions[gradientIndex][2];
-                reconstructor->RotateDirections(gx, gy, gz, inputIndex);
+                
+                
+//                reconstructor->RotateDirections(gx, gy, gz, inputIndex);
+                
                 double gval = reconstructor->_g_values[gradientIndex];
+                
                 
                 Array<double> g_direction;
                 g_direction.push_back(gx);
@@ -214,7 +218,7 @@ namespace mirtk {
                 POINT3D p;
                 for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ ) {
                     for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ ) {
-                        if ( reconstructor->_slices[inputIndex](i, j, 0) > -100 ) {
+                        if ( reconstructor->_slices[inputIndex](i, j, 0) > -10 ) {
                             weight = 0;
                             int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             
@@ -223,9 +227,9 @@ namespace mirtk {
                                 p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
                                     
-                                    if (reconstructor->_reconstructed4D.GetT() == 1) {
-                                        reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
-                                    }
+//                                    if (reconstructor->_reconstructed4D.GetT() == 1) {
+//                                        reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
+//                                    }
    
                                     // simulation of phase volume from velocity volumes
                                     double sim_signal = 0;
@@ -303,9 +307,10 @@ namespace mirtk {
                         
                         Array<double> p_values;
                         Array<double> v_values;
+                        Array<double> p_weights;
                         Array<Array<double>> g_values;
-                        
-//                        cout << " - [" << x << " " << y << " " << z << "] : " << _slice_contributions_array[c_index].size() << endl;
+                    
+                        double w = 0;
                       
                         for (int s=1; s<_slice_contributions_array[c_index].size(); s++) {
                             
@@ -324,19 +329,75 @@ namespace mirtk {
                             gx = _g_directions[g_index][0];
                             gy = _g_directions[g_index][1];
                             gz = _g_directions[g_index][2];
-                            RotateDirections(gx, gy, gz, ps.i);
+                            
+//                            RotateDirections(gx, gy, gz, ps.i);
+                            
+                            
+                            /*
+                            
+                            double dgx, dgy, dgz;
+                            
+                            dgx = gx;
+                            dgy = gy;
+                            dgz = gz;
+                            
+                            RigidTransformation tmp = _transformations[ps.i];
+                            
+                            double rx, ry, rz;
+                            
+                            rx = tmp.GetRotationX();
+                            ry = tmp.GetRotationY();
+                            rz = tmp.GetRotationZ();
+                            
+                            if ( abs(rx) > 0 || abs(ry) > 0 || abs(rz) > 0 ) {
+
+//                                cout << gx << " " << gy << " " << gz << endl;
+                                
+    //                            tmp.Rotate(gx, gy, gz);
+                                
+                                RotateDirections(gx, gy, gz, ps.i);
+                                
+                                
+//                                dgx = abs(dgx-gx);
+//                                dgy = abs(dgy-gy);
+//                                dgz = abs(dgz-gz);
+//
+//                                if ( dgx > 0.0001 || dgy > 0.0001 || dgz > 0.0001 )
+//                                    cout << dgx << " " << dgy << " " << dgz << " | " << rx << " " << ry << " " << rz << endl;
+//                                cout << gx << " " << gy << " " << gz << endl;
+//
+//                                exit(1);
+                            
+                            }
+                            
+                            */
+                            
                             
                             Array<double> g_value;
                             g_value.push_back(gx);
                             g_value.push_back(gy);
                             g_value.push_back(gz);
                             
-                            double dg_limint = 0.01;
+                            double dg_limint = 0.0001;
+                            
                             
                             for (int a=0; a<p_values.size(); a++) {
                                 
-                                if( abs( gx-g_values[a][0])<dg_limint && abs(gy-g_values[a][1])<dg_limint && abs(gz-g_values[a][2])<dg_limint )
+                                if( abs( gx-g_values[a][0])<dg_limint && abs(gy-g_values[a][1])<dg_limint && abs(gz-g_values[a][2])<dg_limint ) {
+                                    
                                     s_add = false;
+                                    
+                                    if ( ps.w > p_weights[a] ) {
+                                        
+                                        p_weights[a] = ps.w;
+                                        g_values[a][0] = gx;
+                                        g_values[a][1] = gy;
+                                        g_values[a][2] = gz;
+                                        p_values[a] = ps.value;
+                                        
+                                    }
+                                    
+                                }
                             }
                             
                             if (ps.value>3.14 || ps.value<-3.14)
@@ -345,17 +406,32 @@ namespace mirtk {
                             if (s_add) {
                                 g_values.push_back(g_value);
                                 p_values.push_back(ps.value);
+                                p_weights.push_back(ps.w);
                             }
 
                         }
+                        
+//                        cout << " - [" << x << " " << y << " " << z << "] : " << _slice_contributions_array[c_index].size() << " / " << g_values.size() << endl;
+                            
+                        
                         if (g_values.size()>2) {
 
                             v_values = InverseVelocitySolution(p_values, g_values);
                         
-                            for (int v=0; v<_reconstructed5DVelocity.size(); v++)
+                            for (int v=0; v<_reconstructed5DVelocity.size(); v++) {
+                                
+                                if (v_values[v] < _min_velocity)
+                                    v_values[v] = _min_velocity*2;
+                                
+                                if (v_values[v] > _max_velocity)
+                                    v_values[v] = _max_velocity*2;
+                                
                                 _reconstructed5DVelocity[v](x,y,z,t) = v_values[v];
+                            }
                             
                         }
+
+                        
 //                        else {
 //                            for (int v=0; v<_reconstructed5DVelocity.size(); v++)
 //                                _reconstructed5DVelocity[v](x,y,z,t) = -50;
@@ -466,7 +542,7 @@ namespace mirtk {
                 for ( int i = 0; i < slice.GetX(); i++ ) {
                     for ( int j = 0; j < slice.GetY(); j++ ) {
                         
-                        if (slice(i,j,0)>-100 && sim(i,j,0)>-100)
+                        if (slice(i,j,0)>-10 && sim(i,j,0)>-10)
                             reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = sss(i,j,0);
                         else {
                             sss(i,j,0) = 0;
@@ -496,7 +572,7 @@ namespace mirtk {
                 double gy = reconstructor->_g_directions[gradientIndex][1];
                 double gz = reconstructor->_g_directions[gradientIndex][2];
                 
-                reconstructor->RotateDirections(gx,gy,gz,inputIndex);
+//                reconstructor->RotateDirections(gx,gy,gz,inputIndex);
                 
                 double gval = reconstructor->_g_values[gradientIndex];
                 
@@ -504,6 +580,14 @@ namespace mirtk {
                 g_direction.push_back(gx);
                 g_direction.push_back(gy);
                 g_direction.push_back(gz);
+                
+                
+//                char buffer[256];
+//                sprintf(buffer," - %i (%i) : %d %d %d ", inputIndex, gradientIndex, gx, gy, gz);
+//
+//                cout << buffer << endl;
+                
+//                cout << inputIndex << " - " << gradientIndex << " : " << gx << " " << gy << " " << gz << endl;
                 
                 
                 
@@ -522,13 +606,13 @@ namespace mirtk {
                     for ( int i = 0; i < slice.GetX(); i++ ) {
                         for ( int j = 0; j < slice.GetY(); j++ ) {
                             
-                            if (slice(i, j, 0) > -100) {
+                            if (slice(i, j, 0) > -10) {
                                 //bias correct and scale the slice
                                 
                                 //                                slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                 
                                 
-//                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -100 ) {
+//                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -10 ) {
 //                                    slice(i,j,0) = slice(i,j,0) - sim(i,j,0); //reconstructor->_simulated_slices[inputIndex](i,j,0);
 //                                }
 //                                else
@@ -1093,36 +1177,157 @@ namespace mirtk {
     void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, double &dz, int i)
     {
         
-        //vector end-point
-        double x,y,z;
-        //origin
-        double ox,oy,oz;
+//
+//        cout << "................. " << endl;
+//
         
         RigidTransformation tmp = _transformations[i];
+
+        tmp.Invert();
+        
+        double rx, ry, rz;
+        
+        rx = tmp.GetRotationX();
+        ry = tmp.GetRotationY();
+        rz = tmp.GetRotationZ();
+    
+        
+        
+        Matrix m(3,3);
+        for (int i=0; i<3; i++) {
+            for (int j=0; j<3; j++) {
+                
+                if (i==j)
+                    m(i,j) = 1;
+                else
+                    m(i,j) = 0;
+            }
+        }
+        
+
+        Matrix RX, RY, RZ, R;
+        
+        RX = m;
+        RY = m;
+        RZ = m;
+        R = m;
+        
+        RX(1,1) = cos(rx * rad_per_deg);
+        RX(1,2) = -sin(rx * rad_per_deg);
+        RX(2,1) = sin(rx * rad_per_deg);
+        RX(2,2) = cos(rx * rad_per_deg);
+
+        RY(0,0) = cos(ry * rad_per_deg);
+        RY(0,2) = sin(ry * rad_per_deg);
+        RY(2,0) = -sin(ry * rad_per_deg);
+        RY(2,2) = cos(ry * rad_per_deg);
+
+        RZ(0,0) = cos(rz * rad_per_deg);
+        RZ(0,1) = -sin(rz * rad_per_deg);
+        RZ(1,0) = sin(rz * rad_per_deg);
+        RZ(1,1) = cos(rz * rad_per_deg);
+        
+        R = RX*RY*RZ;
+//        R.Print();
+        
+        
+        Matrix G(3,1);
+        Matrix GT(3,1);
+        
+        G(0,0) = dx;
+        G(1,0) = dy;
+        G(2,0) = dz;
+        
+//        G.Print();
 //
 //
-//        if (_random_transformations.size() > 0 )
-//            tmp = _random_transformations[i];
+        
+        GT = R*G;
+//        GT.Print();
+//
+//
+//        cout << "................. " << endl;
+//
+//         _transformations[i].Rotate(dx, dy, dz);
+//
+//
+//        cout << dx << " " << dy << " " << dz << endl;
         
         
-//        RigidTransformation tmp = _random_transformations[i];
+        dx = GT(0,0);
+        dy = GT(1,0);
+        dz = GT(2,0);
+        
+//
+//        cout << "................. " << endl;
+//
+        
+ 
+//        %% DETERMINE AFFINE MATRIX
+//
+//        rx = rotxtar(deg2rad(xTheta));
+//        ry = rotytar(deg2rad(yTheta));
+//        rz = rotztar(deg2rad(zTheta));
+//
+//
+//        % translation matrix
+//        T = [1 0 0 tx; ...
+//             0 1 0 ty; ...
+//             0 0 1 tz; ...
+//             0 0 0 1];
+//
+//        % rotation matrices
+//        rx(:,4) = 0; ry(:,4) = 0; rz(:,4) = 0;
+//        rx(4,:) = [0 0 0 1]; ry(4,:) = [0 0 0 1]; rz(4,:) = [0 0 0 1];
+//        R = rx*ry*rz;
+//
+//        % AFF = M*R*S*T;            % rotation only around (0,0,0)
+//
+//        % rotate gradient moments with slice rotation
+//        G = R(1:3,1:3) * G';
         
         
-//        _transformations[i].Invert();
         
-        //origin
-        ox=0;oy=0;oz=0;
-        tmp.Transform(ox,oy,oz);
         
-        //end-point
-        x=dx;
-        y=dy;
-        z=dz;
-        tmp.Transform(x,y,z);
         
-        dx=x-ox;
-        dy=y-oy;
-        dz=z-oz;
+        
+        
+      
+        //......................
+        
+        
+        
+//        //vector end-point
+//        double x,y,z;
+//        //origin
+//        double ox,oy,oz;
+//
+//        RigidTransformation tmp = _transformations[i];
+//
+//        tmp.PutTranslationX(0);
+//        tmp.PutTranslationY(0);
+//        tmp.PutTranslationZ(0);
+//
+////        RigidTransformation tmp = _random_transformations[i];
+//
+//
+////        tmp.Invert();
+//
+//        //origin
+//        ox=0;
+//        oy=0;
+//        oz=0;
+//        tmp.Transform(ox,oy,oz);
+//
+//        //end-point
+//        x=dx;
+//        y=dy;
+//        z=dz;
+//        tmp.Transform(x,y,z);
+//
+//        dx=x-ox;
+//        dy=y-oy;
+//        dz=z-oz;
         
         
     }
@@ -1133,8 +1338,12 @@ namespace mirtk {
     
     
     
-    void ReconstructionCardiacVelocity4D::RandomRotations()
+    void ReconstructionCardiacVelocity4D::RandomRotations(Array<RealImage> stacks)
     {
+        
+        
+        /*
+        _random_transformations.clear();
     
         for (int i=0; i<_transformations.size(); i++) {
             
@@ -1144,40 +1353,203 @@ namespace mirtk {
             
             int r1, r2;
             double rx, ry, rz;
-            double range = 2;
+            double range;
+            int f;
             
-            r1 = rand() % 10 + 0;
-            r2 = rand() % 10 + 0;
+//            f = 10;
+//            range = 5;
+//
+//            r1 = rand() % f + 0;
+//            r2 = rand() % f + 0;
+//            rx = (double)r1/range - (double)r2/range;
+//
+//            r1 = rand() % f + 0;
+//            r2 = rand() % f + 0;
+//            ry = (double)r1/range - (double)r2/range;
+//
+//            r1 = rand() % f + 0;
+//            r2 = rand() % f + 0;
+//            rz = (double)r1/range - (double)r2/range;
+//
+//            cout << " - " << rx << " " << ry << " " << rz << endl;
+//
+//            random_transf.PutRotationX(rx);
+//            random_transf.PutRotationY(ry);
+//            random_transf.PutRotationZ(rz);
+//
+//
+//
+//            rx = 0;
+//            ry = 0;
+//            rz = 0;
+            
+            
+            f = 8;
+            range = 7;
+
+            r1 = rand() % f + 0;
+            r2 = rand() % f + 0;
             rx = (double)r1/range - (double)r2/range;
-            
-            r1 = rand() % 10 + 0;
-            r2 = rand() % 10 + 0;
+
+            r1 = rand() % f + 0;
+            r2 = rand() % f + 0;
             ry = (double)r1/range - (double)r2/range;
-            
-            r1 = rand() % 10 + 0;
-            r2 = rand() % 10 + 0;
+
+            r1 = rand() % f + 0;
+            r2 = rand() % f + 0;
             rz = (double)r1/range - (double)r2/range;
             
-            cout << " - " << rx << " " << ry << " " << rz << endl;
             
-            
-            random_transf.PutTranslationX(0);
-            random_transf.PutTranslationY(0);
-            random_transf.PutTranslationZ(0);
-            
-            random_transf.PutRotationX(rx);
-            random_transf.PutRotationY(ry);
-            random_transf.PutRotationZ(rz);
-            
-            
+            random_transf.PutTranslationX(rx);
+            random_transf.PutTranslationY(ry);
+            random_transf.PutTranslationZ(rz);
+
             _random_transformations.push_back(random_transf);
             
         }
         
+         */
         
         
+        _random_transformations.clear();
+        _random_transformations = _transformations;
+
+        for (int i=0; i<_transformations.size(); i++) {
+
+            if (_stack_index[i] == 2) {
+
+//                _random_transformations[i].PutTranslationX(-20);
+//                _random_transformations[i].PutTranslationY(-20);
+//                _random_transformations[i].PutTranslationZ(-20);
+                
+                _random_transformations[i].PutRotationX(5);
+                _random_transformations[i].PutRotationY(0);
+                _random_transformations[i].PutRotationZ(0);
+
+                
+            }
+
+
+        }
+        
+        
+        double source_padding = 0;
+        double target_padding = -inf;
+        bool dofin_invert = false;
+        bool twod = false;
+        
+        GenericLinearInterpolateImageFunction<RealImage> interpolator;
+        
+        
+        InterpolationMode interpolation_nn = Interpolation_NN;
+        UniquePtr<InterpolateImageFunction> interpolator_nn;
+        interpolator_nn.reset(InterpolateImageFunction::New(interpolation_nn));
+        
+        
+        
+        _transformations.clear();
+        _transformations = _random_transformations;
+        
+        
+        
+        for (int i=0; i<_random_transformations.size(); i++) {
+        
+            ImageTransformation *imagetransformation = new ImageTransformation;
+            
+            double ox, oy, oz;
+            stacks[_stack_index[i]].GetOrigin(ox,oy,oz);
+            stacks[_stack_index[i]].PutOrigin(0,0,0);
+            
+            
+            RealImage output_volume = stacks[_stack_index[i]];
+            output_volume = 0;
+            
+            imagetransformation->Input(&stacks[_stack_index[i]]);
+            imagetransformation->Transformation(&_random_transformations[i]);
+            imagetransformation->Output(&output_volume);
+            imagetransformation->TargetPaddingValue(target_padding);
+            imagetransformation->SourcePaddingValue(source_padding);
+            imagetransformation->Interpolator(interpolator_nn.get());  // (&interpolator); //
+            imagetransformation->TwoD(twod);
+            imagetransformation->Invert(dofin_invert);
+            imagetransformation->Run();
+            
+            output_volume.PutOrigin(ox,oy,oz);
+            stacks[_stack_index[i]].PutOrigin(ox,oy,oz);
+            
+            RealImage output_slice = _slices[i];
+            
+            int z = 0;
+            for (int x=0; x<stacks[_stack_index[i]].GetX(); x++) {
+                for (int y=0; y<stacks[_stack_index[i]].GetY(); y++) {
+                    
+                    int ix, iy, iz;
+                    double dx, dy, dz;
+                    dx = x;
+                    dy = y;
+                    dz = z;
+                    
+                    _slices[i].ImageToWorld(dx,dy,dz);
+                    output_volume.WorldToImage(dx,dy,dz);
+                    
+                    ix = round(dx);
+                    iy = round(dy);
+                    iz = round(dz);
+                    
+                    _slices[i](x,y,0) = output_volume(ix,iy,iz);
+
+                }
+            }
+            
+//            _random_transformations[i].Invert();
+//            _transformations.push_back(_random_transformations[i]);
+        }
+        
+
         
     }
+    
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    
+    void ReconstructionCardiacVelocity4D::SaveOriginal( Array<RealImage> stacks )
+    {
+        
+        if (_debug)
+            cout << "Saving original slices as stacks ...";
+        
+        char buffer[256];
+        RealImage stack;
+        Array<RealImage> simstacks;
+        
+        for (int i = 0; i < stacks.size(); i++) {
+            stacks[i] = 0;
+        }
+        
+        for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+            for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
+                for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    stacks[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],_stack_dyn_index[inputIndex]) = _slices[inputIndex](i,j,0);
+                }
+            }
+        }
+        
+        for (unsigned int i = 0; i < stacks.size(); i++) {
+            sprintf(buffer, "original%03i.nii.gz", i);
+            stacks[i].Write(buffer);
+        }
+        
+        
+        
+        if (_debug)
+            cout << " done." << endl;
+        
+    }
+    
+    
  
     
     //-------------------------------------------------------------------
@@ -1221,10 +1593,10 @@ namespace mirtk {
                     //if the voxel is outside mask ROI set it to -1 (padding value)
                     if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0) && (z < _mask.GetZ())) {
                         if (_mask(x, y, z) == 0)
-                            slice(i, j, 0) = -150;
+                            slice(i, j, 0) = -15;
                     }
                     else
-                        slice(i, j, 0) = -150;
+                        slice(i, j, 0) = -15;
                 }
             //remember masked slice
             //_slices[inputIndex] = slice;
@@ -1279,7 +1651,7 @@ namespace mirtk {
             RealPixel *ptr = _slices[i].GetPointerToVoxels();
             
             for (int ind = 0; ind < _slices[i].GetNumberOfVoxels(); ind++) {
-                if (*ptr > -100) {
+                if (*ptr > -10) {
                     
                     double tmp = abs(*ptr);
                     
@@ -1319,7 +1691,7 @@ namespace mirtk {
             RealPixel *pi = _slices[i].GetPointerToVoxels();
             
             for (int j = 0; j < _weights[i].GetNumberOfVoxels(); j++) {
-                if (*pi > -100) {
+                if (*pi > -10) {
                     *pw = 1;
                     *pb = 0;
                 }
@@ -1368,10 +1740,10 @@ namespace mirtk {
 
             for ( int i = 0; i < slice.GetX(); i++ ) {
                 for ( int j = 0; j < slice.GetY(); j++ ) {
-                    if (slice(i,j,0)<-100 )
-                        sss(i,j,0) = -150;
+                    if (slice(i,j,0)<-10 )
+                        sss(i,j,0) = -15;
                     else
-                        sss(i,j,0) = abs(sss(i,j,0));
+                        sss(i,j,0) = (sss(i,j,0));
                 }
             }
             slice = sss;
@@ -1381,7 +1753,7 @@ namespace mirtk {
             //For each slice voxel
             for (i = 0; i < slice.GetX(); i++)
                 for (j = 0; j < slice.GetY(); j++)
-                    if (slice(i, j, 0) > -100) {
+                    if (slice(i, j, 0) > -10) {
                         //calculate stev of the errors
                         if ( (_simulated_inside[inputIndex](i, j, 0)==1) &&(_simulated_weights[inputIndex](i,j,0)>0.99) ) {
 //                            slice(i,j,0) -= _simulated_slices[inputIndex](i,j,0);
@@ -1449,10 +1821,10 @@ namespace mirtk {
  
                 for ( int i = 0; i < slice.GetX(); i++ ) {
                     for ( int j = 0; j < slice.GetY(); j++ ) {
-                        if (slice(i,j,0)<-100 )
-                            sss(i,j,0) = -150;
+                        if (slice(i,j,0)<-10 )
+                            sss(i,j,0) = -15;
                         else
-                            sss(i,j,0) = abs(sss(i,j,0));
+                            sss(i,j,0) = (sss(i,j,0));
                     }
                 }
                 slice = sss;
@@ -1461,7 +1833,7 @@ namespace mirtk {
                 //Calculate error, voxel weights, and slice potential
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) > -100) {
+                        if (slice(i, j, 0) > -10) {
                             
                             //bias correct and scale the slice
 //                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
@@ -1752,10 +2124,10 @@ namespace mirtk {
                 
                 for ( int i = 0; i < slice.GetX(); i++ ) {
                     for ( int j = 0; j < slice.GetY(); j++ ) {
-                        if (slice(i,j,0)<-100 )
-                            sss(i,j,0) = -150;
+                        if (slice(i,j,0)<-10 )
+                            sss(i,j,0) = -15;
                         else
-                            sss(i,j,0) = abs(sss(i,j,0));
+                            sss(i,j,0) = (sss(i,j,0));
                     }
                 }
                 slice = sss;
@@ -1764,7 +2136,7 @@ namespace mirtk {
                 //calculate error
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) > -100) {
+                        if (slice(i, j, 0) > -10) {
                             //bias correct and scale the slice
 //                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                             
@@ -1922,9 +2294,9 @@ namespace mirtk {
                 for ( inputIndex = 0; inputIndex < reconstructor->_slices.size(); ++inputIndex ) {
                     
                     
-                    if (reconstructor->_reconstructed4D.GetT() == 1) {
-                        reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
-                    }
+//                    if (reconstructor->_reconstructed4D.GetT() == 1) {
+//                        reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
+//                    }
                     
                     
                     if (reconstructor->_slice_excluded[inputIndex]==0) {
@@ -1972,7 +2344,7 @@ namespace mirtk {
                             for ( int i = 0; i < slice.GetX(); i++ ) {
                                 for ( int j = 0; j < slice.GetY(); j++ ) {
                                     
-                                    if (slice(i, j, 0) > -100) {
+                                    if (slice(i, j, 0) > -10) {
                                         // biascorrect and scale the slice
                                         //                                        slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                         
@@ -2206,7 +2578,7 @@ namespace mirtk {
      for ( int i = 0; i < slice.GetX(); i++ ) {
      for ( int j = 0; j < slice.GetY(); j++ ) {
      
-     if (slice(i, j, 0) > -100) {
+     if (slice(i, j, 0) > -10) {
      // biascorrect and scale the slice
      slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
      

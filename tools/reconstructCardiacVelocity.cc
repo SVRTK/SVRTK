@@ -308,7 +308,7 @@ int main(int argc, char **argv)
         tmp_image.reset(image_reader->Run());
         
         stack = *tmp_image;
-        
+
         argc--;
         argv++;
         stacks.push_back(stack);
@@ -539,6 +539,8 @@ int main(int argc, char **argv)
             argc--;
             argv++;
             mask = new RealImage(argv[1]);
+            
+            
             ok = true;
             argc--;
             argv++;
@@ -1202,6 +1204,7 @@ int main(int argc, char **argv)
     //Mask is transformed to the all stacks and they are cropped
     for (i=0; i<nStacks; i++)
     {
+
         //transform the mask
         RealImage m=reconstruction.GetMask();
         reconstruction.TransformMask(stacks[i],m,stack_transformations[i]);
@@ -1248,9 +1251,10 @@ int main(int argc, char **argv)
         reconstruction.InitError();
     }
     
+//
+//    reconstruction.RandomRotations(stacks);
+//    reconstruction.SaveOriginal(stacks);
     
-    
-    /*
     
     
     //if given, read transformations
@@ -1259,13 +1263,13 @@ int main(int argc, char **argv)
     else {
         if (slice_transformations_folder!=NULL)     // slice-location to volume registrations
             reconstruction.ReadSliceTransformation(slice_transformations_folder);
-        else {
-            cerr<<"5D cardiac velocity MRI reconstruction requires slice transformations from structural reconstruction."<<endl;
-            exit(1);
-        }
+//        else {
+//            cerr<<"5D cardiac velocity MRI reconstruction requires slice transformations from structural reconstruction."<<endl;
+//            exit(1);
+//        }
     }
     
-    */
+    
     
     
     //if given, read reference transformations
@@ -1320,7 +1324,7 @@ int main(int argc, char **argv)
         
     }
     else {
-        reconstruction.SetSliceCardiacPhase( cardPhase );   // set all cardiac phases to given values
+        reconstruction.SetSliceCardiacPhase(cardPhase);   // set all cardiac phases to given values
     }
     // Calculate Target Cardiac Phase in Reconstructed Volume for Slice-To-Volume Registration
     reconstruction.CalculateSliceToVolumeTargetCardiacPhase();
@@ -1331,9 +1335,10 @@ int main(int argc, char **argv)
     // ...........................................................................
     
     // Velocity reconstruction (draft version)
+
     
     
-//    reconstruction.RandomRotations();
+//    exit(1);
     
     
     reconstruction.InitializeVelocityVolumes();
@@ -1363,20 +1368,6 @@ int main(int argc, char **argv)
     //-------------------------------------------------------------------------------------
     // Main velocity reconstruciton steps
  
-
-//
-//    // STEP 1: Gaussian reconstruction of phase volume
-//    reconstruction.GaussianReconstructionCardiac4DxT();
-//
-//
-//    // STEP 2: Gaussian recostruction of velocity volumes
-//    reconstruction.GaussianReconstructionCardiacVelocity4DxT();
-
-    
-//    reconstruction.InitialiseInverse(stacks);
-    
-
-    
     
     // STEP 0: Analytical initisaliation of velocity volumes
     
@@ -1384,12 +1375,14 @@ int main(int argc, char **argv)
     if (initisaliation) {
         Array<int> init_stack_numbers;
         
-        for (int i=0; i<stacks.size(); i++) 
+        for (int i=0; i<stacks.size(); i++)
             init_stack_numbers.push_back(i);
 
         reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
         reconstruction.SaveReconstructedVelocity4D(-1);
     }
+    
+    
     
     
     // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
@@ -1398,7 +1391,7 @@ int main(int argc, char **argv)
 
     
     //Initialize robust statistics parameters
-    reconstruction.InitializeRobustStatisticsVelocity4D();
+//    reconstruction.InitializeRobustStatisticsVelocity4D();
     
     
     
@@ -1447,27 +1440,30 @@ int main(int argc, char **argv)
         reconstruction.SuperresolutionCardiacVelocity4D(iteration);
         reconstruction.SimulateSlicesCardiacVelocity4D();
 
+        if (iteration == 0)
+            reconstruction.InitializeRobustStatisticsVelocity4D();
         
-        double consistency = reconstruction.Consistency();
+        
+//        double consistency = reconstruction.Consistency();
         
         
-//        if ((iteration+1)<rec_iterations && (iteration>(iteration-10))) {
-//
-//            if(robust_statistics)
-//                reconstruction.MStepVelocity4D(iteration+1);
-//
-//            //E-step
-//            if(robust_statistics)
-//                reconstruction.EStepVelocity4D();
-//
-//        }
+        if ((iteration+1)<rec_iterations ) { // && (iteration>(round(rec_iterations/2)))
+
+            if(robust_statistics)
+                reconstruction.MStepVelocity4D(iteration+1);
+
+            //E-step
+            if(robust_statistics)
+                reconstruction.EStepVelocity4D();
+
+        }
         
 //        Array<RealImage> tmp_stacks;
 //        tmp_stacks = stacks;
 //        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
         
 
-//        reconstruction.SaveReconstructedVelocity4D(iteration);
+        reconstruction.SaveReconstructedVelocity4D(iteration);
 //        reconstruction.SaveReconstructedVolume4D(iteration);
         
     } // end of reconstruction loop

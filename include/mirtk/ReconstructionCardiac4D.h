@@ -32,6 +32,7 @@ namespace mirtk {
         short y;
         short z;
         short i;
+        double w;
         double value;
     };
     

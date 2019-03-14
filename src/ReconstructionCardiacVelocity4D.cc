@@ -44,7 +44,7 @@ namespace mirtk {
     {
         _recon_type = _3D;
         
-        _no_sr = true;
+//        _no_sr = true;
         
         
         current_stack_for_processing = 0;

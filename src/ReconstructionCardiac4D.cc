@@ -1002,33 +1002,30 @@ namespace mirtk {
         
         //----------------------------------------------------
         
-        ImageAttributes attr = _reconstructed4D.GetImageAttributes();
-        _slice_contributions_volume.Initialize(attr);
-        
-        
-//        CoordImage _slice_contributions_volume;
-//        Array<Array<Point>> _slice_contributions_array;
-        
-        POINT3DS pi;
-        pi.x = -1, pi.y = -1, pi.z = -1, pi.i = -1, pi.value = -1000, pi.w = 0;
-        Array<POINT3DS> p_array;
-        p_array.push_back(pi);
-        
-        int c_index = 0;
-        
-        for (int x=0; x<_reconstructed4D.GetX(); x++) {
-            for (int y=0; y<_reconstructed4D.GetY(); y++) {
-                for (int z=0; z<_reconstructed4D.GetZ(); z++) {
-                    for (int t=0; t<_reconstructed4D.GetT(); t++) {
-
-                        _slice_contributions_volume(x,y,z,t) = c_index;
-                        _slice_contributions_array.push_back(p_array);
-                        c_index++;
-                        
-                    }
-                }
-            }
-        }
+//        ImageAttributes attr = _reconstructed4D.GetImageAttributes();
+//        _slice_contributions_volume.Initialize(attr);
+//
+//
+//        POINT3DS pi;
+//        pi.x = -1, pi.y = -1, pi.z = -1, pi.i = -1, pi.value = -1000, pi.w = 0;
+//        Array<POINT3DS> p_array;
+//        p_array.push_back(pi);
+//
+//        int c_index = 0;
+//
+//        for (int x=0; x<_reconstructed4D.GetX(); x++) {
+//            for (int y=0; y<_reconstructed4D.GetY(); y++) {
+//                for (int z=0; z<_reconstructed4D.GetZ(); z++) {
+//                    for (int t=0; t<_reconstructed4D.GetT(); t++) {
+//
+//                        _slice_contributions_volume(x,y,z,t) = c_index;
+//                        _slice_contributions_array.push_back(p_array);
+//                        c_index++;
+//
+//                    }
+//                }
+//            }
+//        }
         
         
         //----------------------------------------------------
@@ -1064,23 +1061,23 @@ namespace mirtk {
         POINT3D p;
         cout << "    ... for input slice: ";
         
-        double max_P = -1;
+//        double max_P = -1;
+//
+//        for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+//            for ( i = 0; i < _slices[inputIndex].GetX(); i++)
+//                for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
+//                    n = _volcoeffs[inputIndex][i][j].size();
+//                    for (k = 0; k < n; k++) {
+//
+//                        p = _volcoeffs[inputIndex][i][j][k];
+//
+//                        if (p.value > max_P)
+//                            max_P = p.value;
+//                    }
+//                }
+//        }
         
-        for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-            for ( i = 0; i < _slices[inputIndex].GetX(); i++)
-                for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
-                    n = _volcoeffs[inputIndex][i][j].size();
-                    for (k = 0; k < n; k++) {
-                        
-                        p = _volcoeffs[inputIndex][i][j][k];
-                        
-                        if (p.value > max_P)
-                            max_P = p.value;
-                    }
-                }
-        }
-        
-        double p_value_limit = max_P*0.2;
+//        double p_value_limit = max_P*0.2;
 
         for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
             cout << inputIndex << ", ";
@@ -1097,21 +1094,21 @@ namespace mirtk {
                         {
                             _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
                             
-                            if (_reconstructed4D.GetT() == 1)
-                                _slice_temporal_weight[outputIndex][inputIndex] = 1;
-                            
-                            //----------------------------------------------------
-                            if (p.value>p_value_limit && _slice_temporal_weight[outputIndex][inputIndex]>p_value_limit) {
-
-                                int array_index = _slice_contributions_volume(p.x, p.y, p.z, outputIndex);
-                                
-                                POINT3DS ps;
-                                ps.x = i, ps.y = j, ps.z = k, ps.i = inputIndex, ps.value = _slices[inputIndex](i,j,0,outputIndex), ps.w = p.value;
-                                
-                                _slice_contributions_array[array_index].push_back(ps);
-                                
-                            }
-                            //----------------------------------------------------
+//                            if (_reconstructed4D.GetT() == 1)
+//                                _slice_temporal_weight[outputIndex][inputIndex] = 1;
+//
+//                            //----------------------------------------------------
+//                            if (p.value>p_value_limit && _slice_temporal_weight[outputIndex][inputIndex]>p_value_limit) {
+//
+//                                int array_index = _slice_contributions_volume(p.x, p.y, p.z, outputIndex);
+//
+//                                POINT3DS ps;
+//                                ps.x = i, ps.y = j, ps.z = k, ps.i = inputIndex, ps.value = _slices[inputIndex](i,j,0,outputIndex), ps.w = p.value;
+//
+//                                _slice_contributions_array[array_index].push_back(ps);
+//
+//                            }
+//                            //----------------------------------------------------
                             
                         }
                     }
@@ -1122,6 +1119,7 @@ namespace mirtk {
         //     _volume_weights.Write("volume_weights.nii.gz");
         
         
+        cout << " .... " << endl;
         
         //find average volume weight to modify alpha parameters accordingly
         double sum = 0;
@@ -3556,8 +3554,8 @@ namespace mirtk {
     void ReconstructionCardiac4D::SaveSimulatedSlices( Array<RealImage> &stacks )
     {
         
-        if (_debug)
-            cout << "Saving simulated images as stacks ...";
+//        if (_debug)
+//            cout << "Saving simulated images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3584,16 +3582,16 @@ namespace mirtk {
         
         
         
-        if (_debug)
-            cout << " done." << endl;
+//        if (_debug)
+//            cout << " done." << endl;
         
     }
     
     void ReconstructionCardiac4D::SaveSimulatedSlices( Array<RealImage> &stacks, int iter, int rec_iter )
     {
         
-        if (_debug)
-            cout << "Saving simulated images as stacks ...";
+//        if (_debug)
+//            cout << "Saving simulated images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3625,8 +3623,8 @@ namespace mirtk {
         }
         
         
-        if (_debug)
-            cout << " done." << endl;
+//        if (_debug)
+//            cout << " done." << endl;
         
     }
     

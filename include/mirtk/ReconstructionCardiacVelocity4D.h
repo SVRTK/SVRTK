@@ -272,8 +272,8 @@ namespace mirtk {
         char buffer[256];
         
         
-        cout << ".............................................." << endl;
-        cout << ".............................................." << endl;
+//        cout << ".............................................." << endl;
+//        cout << ".............................................." << endl;
         cout << " - Reconstructed velocity : " << endl;
         
         
@@ -319,7 +319,15 @@ namespace mirtk {
         }
         else {
             
+            ImageAttributes attr = _reconstructed5DVelocity[0].GetImageAttributes();
+            RealImage output_sum(attr);
+            output_sum = 0;
+            
+            
             for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
+                
+                
+                output_sum += _reconstructed5DVelocity[i];
                 
                 if (iter < 50)
                 sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
@@ -329,6 +337,15 @@ namespace mirtk {
                 _reconstructed5DVelocity[i].Write(buffer);
                 cout << "     " << buffer << endl;
             }
+            
+
+            if (iter < 50)
+                sprintf(buffer,"sum-velocity-%i.nii.gz", iter);
+            else
+                sprintf(buffer,"sum-velocity-final.nii.gz");
+            
+            output_sum.Write(buffer);
+            
         }
         
 

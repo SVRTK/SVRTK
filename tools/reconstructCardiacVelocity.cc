@@ -212,8 +212,8 @@ int main(int argc, char **argv)
     double rrDefault = 1;
     double rrInterval = rrDefault;
     bool is_temporalpsf_gauss = false;
-    double lambda = 0.015;  // 0.015;
-    double delta = 100;  // 50 // 70
+    double lambda = 0.01;  // 0.015;
+    double delta = 50; //100;  // 50 // 70
     int levels = 3;
     double lastIterLambda = 0.01; //0.01;
     int rec_iterations = 10;
@@ -1140,35 +1140,6 @@ int main(int argc, char **argv)
     reconstruction.CreateTemplateCardiac4DFromStaticMask( maskCropped, resolution );
     
     
-//    //.........................................................................................
-//
-//    // 10-02
-//
-//    RealImage template_stack = stacks[0].GetRegion(0,0,0,0,stacks[0].GetX(),stacks[0].GetY(),stacks[0].GetZ(),1);
-//
-//    template_stack = 0;
-//
-//    template_stack.Write("hh.nii.gz");
-//
-////    GaussianBlurring<RealPixel> gb(1);
-////    gb.Input(&template_stack);
-////    gb.Output(&template_stack);
-////    gb.Run();
-//
-//
-//    RealImage template_mask = *mask;
-//    RigidTransformation *template_transform = new RigidTransformation;
-//    reconstruction.TransformMask(template_stack, template_mask, *template_transform);
-//    reconstruction.CropImage(template_stack, template_mask);
-//
-//
-//    template_stack.Write("zzz.nii.gz");
-//
-//    reconstruction.CreateTemplateCardiac4DFromStaticMask(template_stack, resolution);
-//
-//
-//    //.........................................................................................
-    
     
     
     
@@ -1241,6 +1212,7 @@ int main(int argc, char **argv)
      average.Write("average2.nii.gz");
      */
     
+
     
     //Create slices and slice-dependent transformations
     reconstruction.CreateSlicesAndTransformationsCardiac4D(stacks,stack_transformations,thickness);
@@ -1251,10 +1223,9 @@ int main(int argc, char **argv)
         reconstruction.InitError();
     }
     
-//
+
 //    reconstruction.RandomRotations(stacks);
 //    reconstruction.SaveOriginal(stacks);
-    
     
     
     //if given, read transformations
@@ -1271,7 +1242,6 @@ int main(int argc, char **argv)
     
     
     
-    
     //if given, read reference transformations
     if ((have_ref_transformations)&(ref_transformations_folder!=NULL))
         reconstruction.ReadRefTransformation(ref_transformations_folder);
@@ -1282,7 +1252,6 @@ int main(int argc, char **argv)
     
     //Mask all the slices
     reconstruction.MaskSlicesPhase(); // 21/02
-    
     
     
     // Set R-R for each image
@@ -1316,6 +1285,8 @@ int main(int argc, char **argv)
     //Initialise data structures for EM
     reconstruction.InitializeEMVelocity4D();
     
+    cout << 6 << endl;
+    
     // Calculate Cardiac Phase of Each Slice
     if ( cardPhase.size() == 0 ) {  // no cardiac phases specified
         
@@ -1337,15 +1308,10 @@ int main(int argc, char **argv)
     // Velocity reconstruction (draft version)
 
     
-    
-//    exit(1);
-    
-    
     reconstruction.InitializeVelocityVolumes();
     
     reconstruction.InitializeGradientMoments(g_directions, g_values);
     
-
     
     reconstruction.SetSmoothingParameters(delta,lastIterLambda);
     reconstruction.SpeedupOff();
@@ -1363,7 +1329,7 @@ int main(int argc, char **argv)
     // Initialise velocity and phase limits
     reconstruction.ItinialiseVelocityBounds(); 
     
-    
+
     
     //-------------------------------------------------------------------------------------
     // Main velocity reconstruciton steps
@@ -1372,24 +1338,22 @@ int main(int argc, char **argv)
     // STEP 0: Analytical initisaliation of velocity volumes
     
     
-    if (initisaliation) {
-        Array<int> init_stack_numbers;
-        
-        for (int i=0; i<stacks.size(); i++)
-            init_stack_numbers.push_back(i);
+//    if (initisaliation) {
+//        Array<int> init_stack_numbers;
+//
+//        for (int i=0; i<stacks.size(); i++)
+//            init_stack_numbers.push_back(i);
+//
+//        reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
+//        reconstruction.SaveReconstructedVelocity4D(-1);
+//    }
+    
 
-        reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
-        reconstruction.SaveReconstructedVelocity4D(-1);
-    }
-    
-    
-    
     
     // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
     reconstruction.SimulateSlicesCardiacVelocity4D();
     
 
-    
     //Initialize robust statistics parameters
 //    reconstruction.InitializeRobustStatisticsVelocity4D();
     
@@ -1410,7 +1374,7 @@ int main(int argc, char **argv)
     // main reconstruction loop
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
         
-        cout<<endl<<" - Reconstruction iteration : "<< iteration <<" ... "<<endl;
+        cout<<endl<<" - Reconstruction iteration : "<< iteration <<"  "<<endl;
 
 
         
@@ -1458,9 +1422,9 @@ int main(int argc, char **argv)
 
         }
         
-//        Array<RealImage> tmp_stacks;
-//        tmp_stacks = stacks;
-//        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
+        Array<RealImage> tmp_stacks;
+        tmp_stacks = stacks;
+        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
         
 
         reconstruction.SaveReconstructedVelocity4D(iteration);

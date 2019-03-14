@@ -202,7 +202,7 @@ namespace mirtk {
                 double gz = reconstructor->_g_directions[gradientIndex][2];
                 
                 
-//                reconstructor->RotateDirections(gx, gy, gz, inputIndex);
+                reconstructor->RotateDirections(gx, gy, gz, inputIndex);
                 
                 double gval = reconstructor->_g_values[gradientIndex];
                 
@@ -276,7 +276,7 @@ namespace mirtk {
     void ReconstructionCardiacVelocity4D::SimulateSlicesCardiacVelocity4D()
     {
         if (_debug)
-            cout<<"Simulating Slices ...";
+            cout<<"Simulating slices ...";
         
         ParallelSimulateSlicesCardiacVelocity4D parallelSimulateSlices( this );
         parallelSimulateSlices();
@@ -572,7 +572,7 @@ namespace mirtk {
                 double gy = reconstructor->_g_directions[gradientIndex][1];
                 double gz = reconstructor->_g_directions[gradientIndex][2];
                 
-//                reconstructor->RotateDirections(gx,gy,gz,inputIndex);
+                reconstructor->RotateDirections(gx,gy,gz,inputIndex);
                 
                 double gval = reconstructor->_g_values[gradientIndex];
                 
@@ -757,7 +757,7 @@ namespace mirtk {
     void ReconstructionCardiacVelocity4D::SuperresolutionCardiacVelocity4D( int iter )
     {
         if (_debug)
-            cout << "Superresolution " << iter << " ( " << _alpha << " )" << endl;
+            cout << "Superresolution ... ";
         
         char buffer[256];
         
@@ -779,13 +779,7 @@ namespace mirtk {
         _confidence_maps_velocity = parallelSuperresolution.confidence_maps;
         
         
-//        for (int i=0; i<_dif_stacks.size(); i++) {
-//            sprintf(buffer,"zdif-%i-%i.nii.gz", i, iter);
-//            _dif_stacks[i].Write(buffer);
-//        }
-        
-        
-        
+
 
         if(_debug) {
             
@@ -805,34 +799,6 @@ namespace mirtk {
                 sprintf(buffer,"addon-velocity-%i.nii.gz", iter);
                 output_4D.Write(buffer);
                 
-
-//                for (int t=0; t<output_4D.GetT(); t++)
-//                    for (int z=0; z<output_4D.GetZ(); z++)
-//                        for (int y=0; y<output_4D.GetY(); y++)
-//                            for (int x=0; x<output_4D.GetX(); x++)
-//                                output_4D(x,y,z,t) = parallelSuperresolution.addons_n[t](x,y,z,0);
-//
-//                sprintf(buffer,"n-addon-velocity-%i.nii.gz", iter);
-//                output_4D.Write(buffer);
-//
-//                for (int t=0; t<output_4D.GetT(); t++)
-//                    for (int z=0; z<output_4D.GetZ(); z++)
-//                        for (int y=0; y<output_4D.GetY(); y++)
-//                            for (int x=0; x<output_4D.GetX(); x++)
-//                                output_4D(x,y,z,t) = parallelSuperresolution.addons_p[t](x,y,z,0);
-//
-//                sprintf(buffer,"p-addon-velocity-%i.nii.gz", iter);
-//                output_4D.Write(buffer);
-//
-//
-//                for (int t=0; t<output_4D.GetT(); t++)
-//                    for (int z=0; z<output_4D.GetZ(); z++)
-//                        for (int y=0; y<output_4D.GetY(); y++)
-//                            for (int x=0; x<output_4D.GetX(); x++)
-//                                output_4D(x,y,z,t) = _confidence_maps_velocity[t](x,y,z,0);
-//
-//                sprintf(buffer,"confidence-map-velocity-%i.nii.gz", iter);
-//                output_4D.Write(buffer);
                 
             }
             else {
@@ -849,7 +815,7 @@ namespace mirtk {
         }
        
 
-        if (!_adaptive_regularisation)
+//        if (!_adaptive_regularisation)
             for ( int v = 0; v < _v_directions.size(); v++ )
                 for ( int x = 0; x < addons[v].GetX(); x++ )
                     for ( int y = 0; y < addons[v].GetY(); y++ )
@@ -868,49 +834,38 @@ namespace mirtk {
             _reconstructed5DVelocity[v] += addons[v] * _alpha; //_average_volume_weight;
         
         
-//        if(_debug) {
-//
-//            for ( int i=0; i<_v_directions.size(); i++ ) {
-//
-//                sprintf(buffer,"new-velocity-%i-%i.nii.gz",i,iter);
-//                _reconstructed5DVelocity[i].Write(buffer);
-//            }
-//
-//        }
-
-        
-        if(_limit_intensities) {
-         
-             //bound the intensities (test whether we need it)
-             for (int x = 0; x < _reconstructed4D.GetX(); x++) {
-                 for (int y = 0; y < _reconstructed4D.GetY(); y++) {
-                     for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
-                         for (int t = 0; t < _reconstructed4D.GetT(); t++) {
-                             
-                             double v_sum = _reconstructed5DVelocity[0](x,y,z,t)+_reconstructed5DVelocity[1](x,y,z,t)+_reconstructed5DVelocity[2](x,y,z,t);
-                             
-                             for ( int v = 0; v < _v_directions.size(); v++ ) {
-                                 
-                                 if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
-                                     _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
-                                 
-                                 if (_reconstructed5DVelocity[v](x, y, z, t) > _max_velocity*1.1)
-                                     _reconstructed5DVelocity[v](x, y, z, t) = _max_velocity*1.1;
-                                 
-                             }
-                             
-                         }
-                     }
-                 }
-             }
-        
-        }
-
 
         if(_adaptive_regularisation) {
 
             // Smooth the reconstructed image
             AdaptiveRegularizationCardiacVelocity4D(iter, originals);
+            
+        }
+        
+        if(_limit_intensities) {
+            
+            //bound the intensities (test whether we need it)
+            for (int x = 0; x < _reconstructed4D.GetX(); x++) {
+                for (int y = 0; y < _reconstructed4D.GetY(); y++) {
+                    for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
+                        for (int t = 0; t < _reconstructed4D.GetT(); t++) {
+                            
+                            double v_sum = _reconstructed5DVelocity[0](x,y,z,t)+_reconstructed5DVelocity[1](x,y,z,t)+_reconstructed5DVelocity[2](x,y,z,t);
+                            
+                            for ( int v = 0; v < _v_directions.size(); v++ ) {
+                                
+                                if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
+                                    _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
+                                
+                                if (_reconstructed5DVelocity[v](x, y, z, t) > _max_velocity*1.1)
+                                    _reconstructed5DVelocity[v](x, y, z, t) = _max_velocity*1.1;
+                                
+                            }
+                            
+                        }
+                    }
+                }
+            }
             
         }
 
@@ -919,6 +874,10 @@ namespace mirtk {
         //  TODO: update adaptive regularisation for 4d
         //  if (_global_bias_correction)
         //  BiasCorrectVolume(original);
+        
+        
+        if (_debug)
+            cout << "done." << endl;
         
         
     }
@@ -1071,8 +1030,8 @@ namespace mirtk {
     
     void ReconstructionCardiacVelocity4D::AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals) //, RealImage& original_main)
     {
-        if (_debug)
-            cout << "AdaptiveRegularizationCardiacVelocity4D."<< endl;
+//        if (_debug)
+//            cout << "AdaptiveRegularizationCardiacVelocity4D."<< endl;
 
         Array<double> factor(13,0);
         for (int i = 0; i < 13; i++) {
@@ -1143,7 +1102,7 @@ namespace mirtk {
                             
                             for ( int t = 0; t < _reconstructed4D.GetT(); t++ ) {
                                 
-                                _reconstructed5DVelocity[v](x,y,z,t) = -1;
+                                _reconstructed5DVelocity[v](x,y,z,t) = -15;
                                 
                             }
                         }
@@ -1177,6 +1136,14 @@ namespace mirtk {
     void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, double &dz, int i)
     {
         
+        RigidTransformation tmp = _transformations[i];
+        
+//        tmp.Invert();
+        
+        tmp.Rotate(dx, dy, dz);
+        
+        
+        /*
 //
 //        cout << "................. " << endl;
 //
@@ -1290,7 +1257,7 @@ namespace mirtk {
         
         
         
-        
+        */
         
       
         //......................

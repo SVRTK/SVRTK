@@ -1404,8 +1404,10 @@ int main(int argc, char **argv)
         reconstruction.SuperresolutionCardiacVelocity4D(iteration);
         reconstruction.SimulateSlicesCardiacVelocity4D();
 
-        if (iteration == 0)
+        if (iteration == 0) {
             reconstruction.InitializeRobustStatisticsVelocity4D();
+            reconstruction.EStepVelocity4D();
+        }
         
         
 //        double consistency = reconstruction.Consistency();

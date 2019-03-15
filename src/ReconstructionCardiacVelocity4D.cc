@@ -44,7 +44,7 @@ namespace mirtk {
     {
         _recon_type = _3D;
         
-//        _no_sr = true;
+       _no_sr = true;
         
         
         current_stack_for_processing = 0;
@@ -330,7 +330,7 @@ namespace mirtk {
                             gy = _g_directions[g_index][1];
                             gz = _g_directions[g_index][2];
                             
-//                            RotateDirections(gx, gy, gz, ps.i);
+                           RotateDirections(gx, gy, gz, ps.i);
                             
                             
                             /*

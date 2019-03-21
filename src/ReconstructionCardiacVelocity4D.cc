@@ -1143,122 +1143,6 @@ namespace mirtk {
         tmp.Rotate(dx, dy, dz);
         
         
-        /*
-//
-//        cout << "................. " << endl;
-//
-        
-        RigidTransformation tmp = _transformations[i];
-
-        tmp.Invert();
-        
-        double rx, ry, rz;
-        
-        rx = tmp.GetRotationX();
-        ry = tmp.GetRotationY();
-        rz = tmp.GetRotationZ();
-    
-        
-        
-        Matrix m(3,3);
-        for (int i=0; i<3; i++) {
-            for (int j=0; j<3; j++) {
-                
-                if (i==j)
-                    m(i,j) = 1;
-                else
-                    m(i,j) = 0;
-            }
-        }
-        
-
-        Matrix RX, RY, RZ, R;
-        
-        RX = m;
-        RY = m;
-        RZ = m;
-        R = m;
-        
-        RX(1,1) = cos(rx * rad_per_deg);
-        RX(1,2) = -sin(rx * rad_per_deg);
-        RX(2,1) = sin(rx * rad_per_deg);
-        RX(2,2) = cos(rx * rad_per_deg);
-
-        RY(0,0) = cos(ry * rad_per_deg);
-        RY(0,2) = sin(ry * rad_per_deg);
-        RY(2,0) = -sin(ry * rad_per_deg);
-        RY(2,2) = cos(ry * rad_per_deg);
-
-        RZ(0,0) = cos(rz * rad_per_deg);
-        RZ(0,1) = -sin(rz * rad_per_deg);
-        RZ(1,0) = sin(rz * rad_per_deg);
-        RZ(1,1) = cos(rz * rad_per_deg);
-        
-        R = RX*RY*RZ;
-//        R.Print();
-        
-        
-        Matrix G(3,1);
-        Matrix GT(3,1);
-        
-        G(0,0) = dx;
-        G(1,0) = dy;
-        G(2,0) = dz;
-        
-//        G.Print();
-//
-//
-        
-        GT = R*G;
-//        GT.Print();
-//
-//
-//        cout << "................. " << endl;
-//
-//         _transformations[i].Rotate(dx, dy, dz);
-//
-//
-//        cout << dx << " " << dy << " " << dz << endl;
-        
-        
-        dx = GT(0,0);
-        dy = GT(1,0);
-        dz = GT(2,0);
-        
-//
-//        cout << "................. " << endl;
-//
-        
- 
-//        %% DETERMINE AFFINE MATRIX
-//
-//        rx = rotxtar(deg2rad(xTheta));
-//        ry = rotytar(deg2rad(yTheta));
-//        rz = rotztar(deg2rad(zTheta));
-//
-//
-//        % translation matrix
-//        T = [1 0 0 tx; ...
-//             0 1 0 ty; ...
-//             0 0 1 tz; ...
-//             0 0 0 1];
-//
-//        % rotation matrices
-//        rx(:,4) = 0; ry(:,4) = 0; rz(:,4) = 0;
-//        rx(4,:) = [0 0 0 1]; ry(4,:) = [0 0 0 1]; rz(4,:) = [0 0 0 1];
-//        R = rx*ry*rz;
-//
-//        % AFF = M*R*S*T;            % rotation only around (0,0,0)
-//
-//        % rotate gradient moments with slice rotation
-//        G = R(1:3,1:3) * G';
-        
-        
-        
-        
-        
-        */
-        
       
         //......................
         
@@ -1270,14 +1154,6 @@ namespace mirtk {
 //        double ox,oy,oz;
 //
 //        RigidTransformation tmp = _transformations[i];
-//
-//        tmp.PutTranslationX(0);
-//        tmp.PutTranslationY(0);
-//        tmp.PutTranslationZ(0);
-//
-////        RigidTransformation tmp = _random_transformations[i];
-//
-//
 ////        tmp.Invert();
 //
 //        //origin

@@ -1136,41 +1136,37 @@ namespace mirtk {
     void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, double &dz, int i)
     {
         
+       //vector end-point
+        double x,y,z;
+        //origin
+        double ox,oy,oz;
+        
         RigidTransformation tmp = _transformations[i];
-        
-//        tmp.Invert();
-        
-        tmp.Rotate(dx, dy, dz);
-        
-        
-      
-        //......................
-        
-        
-        
-//        //vector end-point
-//        double x,y,z;
-//        //origin
-//        double ox,oy,oz;
 //
-//        RigidTransformation tmp = _transformations[i];
-////        tmp.Invert();
 //
-//        //origin
-//        ox=0;
-//        oy=0;
-//        oz=0;
-//        tmp.Transform(ox,oy,oz);
-//
-//        //end-point
-//        x=dx;
-//        y=dy;
-//        z=dz;
-//        tmp.Transform(x,y,z);
-//
-//        dx=x-ox;
-//        dy=y-oy;
-//        dz=z-oz;
+//        if (_random_transformations.size() > 0 )
+//            tmp = _random_transformations[i];
+        
+        
+//        RigidTransformation tmp = _random_transformations[i];
+        
+        
+//        _transformations[i].Invert();
+        
+        //origin
+        ox=0;oy=0;oz=0;
+        tmp.Transform(ox,oy,oz);
+        
+        //end-point
+        x=dx;
+        y=dy;
+        z=dz;
+        tmp.Transform(x,y,z);
+        
+        dx=x-ox;
+        dy=y-oy;
+        dz=z-oz;
+
         
         
     }

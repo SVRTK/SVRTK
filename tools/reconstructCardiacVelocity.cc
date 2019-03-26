@@ -212,8 +212,8 @@ int main(int argc, char **argv)
     double rrDefault = 1;
     double rrInterval = rrDefault;
     bool is_temporalpsf_gauss = false;
-    double lambda = 0.01;  // 0.015;
-    double delta = 50; //100;  // 50 // 70
+    double lambda = 0.015;  // 0.015;
+    double delta = 100; //100;  // 50 // 70
     int levels = 3;
     double lastIterLambda = 0.01; //0.01;
     int rec_iterations = 10;
@@ -1355,7 +1355,7 @@ int main(int argc, char **argv)
     
 
     //Initialize robust statistics parameters
-//    reconstruction.InitializeRobustStatisticsVelocity4D();
+   reconstruction.InitializeRobustStatisticsVelocity4D();
     
     
     
@@ -1404,10 +1404,10 @@ int main(int argc, char **argv)
         reconstruction.SuperresolutionCardiacVelocity4D(iteration);
         reconstruction.SimulateSlicesCardiacVelocity4D();
 
-        if (iteration == 0) {
-            reconstruction.InitializeRobustStatisticsVelocity4D();
-            reconstruction.EStepVelocity4D();
-        }
+//         if (iteration == 0) {
+//             if(robust_statistics)
+//               reconstruction.EStepVelocity4D();
+//         }
         
         
 //        double consistency = reconstruction.Consistency();

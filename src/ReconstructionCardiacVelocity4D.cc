@@ -552,6 +552,20 @@ namespace mirtk {
                     }
                 }
                 
+//                 for ( int i = 0; i < slice.GetX(); i++ ) {
+//                     for ( int j = 0; j < slice.GetY(); j++ ) {
+                        
+//                         if (slice(i,j,0)>-10)
+//                             reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = sss(i,j,0);
+//                         else {
+//                             sss(i,j,0) = -15;
+//                             reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = 0;
+//                         }
+                        
+//                     }
+//                 }
+                
+                
                 slice = sss;
                 
 

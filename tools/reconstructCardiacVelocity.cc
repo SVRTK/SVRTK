@@ -212,8 +212,8 @@ int main(int argc, char **argv)
     double rrDefault = 1;
     double rrInterval = rrDefault;
     bool is_temporalpsf_gauss = false;
-    double lambda = 0.015;  // 0.015;
-    double delta = 100; //100;  // 50 // 70
+    double lambda = 0.010; // 0.015;
+    double delta = 50; //100;  // 50 // 70
     int levels = 3;
     double lastIterLambda = 0.01; //0.01;
     int rec_iterations = 10;

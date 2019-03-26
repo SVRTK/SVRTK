@@ -72,7 +72,7 @@ namespace mirtk {
         double _velocity_scale;
         
         // what is the correct value / units?
-        const double gamma = 0.42577; //1
+        const double gamma = 0.042577; //1
         
         Array<RigidTransformation> _random_transformations;
         

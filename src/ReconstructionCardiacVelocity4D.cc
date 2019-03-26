@@ -227,9 +227,9 @@ namespace mirtk {
                                 p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
                                     
-//                                    if (reconstructor->_reconstructed4D.GetT() == 1) {
-//                                        reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
-//                                    }
+                                   if (reconstructor->_reconstructed4D.GetT() == 1) {
+                                       reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
+                                   }
    
                                     // simulation of phase volume from velocity volumes
                                     double sim_signal = 0;
@@ -545,7 +545,7 @@ namespace mirtk {
                         if (slice(i,j,0)>-10 && sim(i,j,0)>-10)
                             reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = sss(i,j,0);
                         else {
-                            sss(i,j,0) = -15;
+                            sss(i,j,0) = 0;
                             reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = 0;
                         }
                         
@@ -558,11 +558,11 @@ namespace mirtk {
                 //read the current weight image
                 RealImage& w = reconstructor->_weights[inputIndex];
                 
-                //read the current bias image
-                RealImage& b = reconstructor->_bias[inputIndex];
+//                 //read the current bias image
+//                 RealImage& b = reconstructor->_bias[inputIndex];
                 
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
+//                 //identify scale factor
+//                 double scale = reconstructor->_scale[inputIndex];
                 
                 
                 //direction for current slice
@@ -611,7 +611,9 @@ namespace mirtk {
                                 
                                 //                                slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                 
-                                
+                                if (sim(i,j,0)<-10) 
+                                    slice(i,j,0) = 0;
+                                    
 //                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -10 ) {
 //                                    slice(i,j,0) = slice(i,j,0) - sim(i,j,0); //reconstructor->_simulated_slices[inputIndex](i,j,0);
 //                                }

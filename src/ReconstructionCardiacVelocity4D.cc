@@ -195,14 +195,31 @@ namespace mirtk {
                 
                 reconstructor->_slice_inside[inputIndex] = false;
                 
+                
+                
+                
+                reconstructor->_simulated_velocities[inputIndex][0] = 0;
+                reconstructor->_simulated_velocities[inputIndex][1] = 0;
+                reconstructor->_simulated_velocities[inputIndex][2] = 0;
+                
+                
+                
                 // gradient direction for current slice
                 int gradientIndex = reconstructor->_stack_index[inputIndex];
-                double gx = reconstructor->_g_directions[gradientIndex][0];
-                double gy = reconstructor->_g_directions[gradientIndex][1];
-                double gz = reconstructor->_g_directions[gradientIndex][2];
                 
                 
-                reconstructor->RotateDirections(gx, gy, gz, inputIndex);
+//                double gx = reconstructor->_g_directions[gradientIndex][0];
+//                double gy = reconstructor->_g_directions[gradientIndex][1];
+//                double gz = reconstructor->_g_directions[gradientIndex][2];
+//                reconstructor->RotateDirections(gx, gy, gz, inputIndex);
+                
+                
+                double gx, gy, gz;
+                
+                gx = reconstructor->_slice_g_directions[inputIndex][0];
+                gy = reconstructor->_slice_g_directions[inputIndex][1];
+                gz = reconstructor->_slice_g_directions[inputIndex][2];
+                
                 
                 double gval = reconstructor->_g_values[gradientIndex];
                 
@@ -235,7 +252,10 @@ namespace mirtk {
                                     double sim_signal = 0;
                                     
                                     for( int velocityIndex = 0; velocityIndex < reconstructor->_reconstructed5DVelocity.size(); velocityIndex++ ) {
+                                        
                                         sim_signal += reconstructor->_reconstructed5DVelocity[velocityIndex](p.x, p.y, p.z, outputIndex)*g_direction[velocityIndex]*gval;
+                                        
+                                        reconstructor->_simulated_velocities[inputIndex][velocityIndex](i, j, 0) += reconstructor->_reconstructed5DVelocity[velocityIndex](p.x, p.y, p.z, outputIndex) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                     }
                                     
                                     sim_signal = sim_signal * reconstructor->gamma;
@@ -254,6 +274,11 @@ namespace mirtk {
                             if( weight > 0 ) {
                                 reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
                                 reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
+                                
+                                for( int velocityIndex = 0; velocityIndex < reconstructor->_reconstructed5DVelocity.size(); velocityIndex++ ) {
+                                    reconstructor->_simulated_velocities[inputIndex][velocityIndex](i,j,0) /= weight;
+                                }
+                                
                             }
                         }
                     }
@@ -289,6 +314,128 @@ namespace mirtk {
     //-------------------------------------------------------------------
     
 
+    
+    void ReconstructionCardiacVelocity4D::InitializeSliceGradients4D()
+    {
+        
+        _slice_g_directions.clear();
+        
+        for (int i = 0; i < _slices.size(); i++) {
+            
+            double gx, gy, gz;
+            gx = _g_directions[_stack_index[i]][0];
+            gy = _g_directions[_stack_index[i]][1];
+            gz = _g_directions[_stack_index[i]][2];
+            
+            RigidTransformation tmp = _transformations[i];
+            tmp.Rotate(gx, gy, gz);
+            
+            Array<double> g_direction;
+            g_direction.push_back(gx);
+            g_direction.push_back(gy);
+            g_direction.push_back(gz);
+            _slice_g_directions.push_back(g_direction);
+            
+            
+            RealImage slice = _slices[i];
+            slice = 0;
+            
+            Array<RealImage> array_slices;
+            array_slices.push_back(slice);
+            array_slices.push_back(slice);
+            array_slices.push_back(slice);
+            
+            _simulated_velocities.push_back(array_slices);
+            
+        }
+        
+        ofstream GD_csv_file;
+        GD_csv_file.open("input-gradient-directions.csv");
+        
+        GD_csv_file << "Stack" << "," << "Slice" << "," << "Gx - org" << "," << "Gy - org" << "," << "Gz - org" << "," << "Gx - new" << "," << "Gy - new" << "," << "Gz - new" << "," << "Rx" << "," << "Ry" << "," << "Rz" << endl;
+        
+        for (int i=0; i<_slice_g_directions.size(); i++) {
+            
+            double rx = _transformations[i].GetRotationX();
+            double ry = _transformations[i].GetRotationY();
+            double rz = _transformations[i].GetRotationZ();
+            
+            GD_csv_file << _stack_index[i] << "," << i << "," << _g_directions[_stack_index[i]][0] << "," << _g_directions[_stack_index[i]][1] << "," << _g_directions[_stack_index[i]][2] << "," << _slice_g_directions[i][0] << "," << _slice_g_directions[i][1] << "," << _slice_g_directions[i][2] << "," << rx << "," << ry << "," << rz << endl;
+        }
+        
+        GD_csv_file.close();
+        
+        
+        if (_reconstructed4D.GetT() == 1) {
+            for (int i=0; i<_slices.size(); i++) {
+                
+                for (int t=0; t<_reconstructed4D.GetT(); t++) {
+                    
+                    _slice_temporal_weight[t][i] = 1;
+                    
+                }
+            }
+        }
+        
+        
+    }
+    
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    void ReconstructionCardiacVelocity4D::SaveSliceInfo()
+    {
+        
+        ofstream GD_csv_file;
+        GD_csv_file.open("summary-slice-info.csv");
+        
+        
+        GD_csv_file << "Stack" << "," << "Slice" << "," << "G value" << "," << "Gx - org" << "," << "Gy - org" << "," << "Gz - org" << "," << "Gx - new" << "," << "Gy - new" << "," << "Gz - new" << "," << "Rx" << "," << "Ry" << "," << "Rz" << "," << "Tx" << "," << "Ty" << "," << "Tz" << "," << "Weight" << "," << "Inside" << endl;
+        
+        
+        for (int i=0; i<_slice_g_directions.size(); i++) {
+            
+            double rx = _transformations[i].GetRotationX();
+            double ry = _transformations[i].GetRotationY();
+            double rz = _transformations[i].GetRotationZ();
+            
+            double tx = _transformations[i].GetTranslationX();
+            double ty = _transformations[i].GetTranslationY();
+            double tz = _transformations[i].GetTranslationZ();
+            
+            int inside = 0;
+            if (_slice_inside[i])
+                inside = 1;
+            
+            GD_csv_file << _stack_index[i] << "," << i << "," << _g_values[_stack_index[i]] << "," << _g_directions[_stack_index[i]][0] << "," << _g_directions[_stack_index[i]][1] << "," << _g_directions[_stack_index[i]][2] << "," << _slice_g_directions[i][0] << "," << _slice_g_directions[i][1] << "," << _slice_g_directions[i][2] << "," << rx << "," << ry << "," << rz << "," << tx << "," << ty << "," << tz << "," << _slice_weight[i] << "," << inside << endl;
+            
+        }
+        
+        GD_csv_file.close();
+        
+        
+        ofstream W_csv_file;
+        W_csv_file.open("temporal-weights.csv");
+        
+        for (int i=0; i<_slices.size(); i++) {
+            
+            W_csv_file << i << ",";
+            
+            for (int t=0; t<_reconstructed4D.GetT(); t++) {
+                
+                W_csv_file << _slice_temporal_weight[t][i] << ",";
+            }
+            W_csv_file << endl;
+            
+        }
+        W_csv_file.close();
+        
+        
+    }
+    
+    
     
     //-------------------------------------------------------------------
     
@@ -582,11 +729,23 @@ namespace mirtk {
                 //direction for current slice
                 int gradientIndex = reconstructor->_stack_index[inputIndex];
                 
-                double gx = reconstructor->_g_directions[gradientIndex][0];
-                double gy = reconstructor->_g_directions[gradientIndex][1];
-                double gz = reconstructor->_g_directions[gradientIndex][2];
                 
-                reconstructor->RotateDirections(gx,gy,gz,inputIndex);
+                
+//                double gx = reconstructor->_g_directions[gradientIndex][0];
+//                double gy = reconstructor->_g_directions[gradientIndex][1];
+//                double gz = reconstructor->_g_directions[gradientIndex][2];
+//
+//                reconstructor->RotateDirections(gx,gy,gz,inputIndex);
+                
+                
+                double gx, gy, gz;
+                
+                gx = reconstructor->_slice_g_directions[inputIndex][0];
+                gy = reconstructor->_slice_g_directions[inputIndex][1];
+                gz = reconstructor->_slice_g_directions[inputIndex][2];
+                
+                
+                
                 
                 double gval = reconstructor->_g_values[gradientIndex];
                 
@@ -1403,6 +1562,130 @@ namespace mirtk {
             cout << " done." << endl;
         
     }
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    void ReconstructionCardiacVelocity4D::SaveOuput( Array<RealImage> stacks )
+    {
+        
+        if (_debug)
+            cout << "Saving simulated velocity slices as stacks ...";
+        
+        char buffer[256];
+        //        RealImage stack;
+        //        Array<RealImage> simstacks;
+        
+        for (int i = 0; i < stacks.size(); i++) {
+            stacks[i] = 0;
+        }
+        
+        for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+            for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
+                for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    
+                    stacks[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],_stack_dyn_index[inputIndex]) = _simulated_slices[inputIndex](i,j,0);
+                }
+            }
+            
+        }
+        
+        
+        
+        for (int i = 0; i < stacks.size(); i++) {
+            sprintf(buffer, "simulated-phase-%i.nii.gz", i);
+            stacks[i].Write(buffer);
+        }
+        
+        if (_simulated_velocities.size() > 0) {
+            
+            Array<RealImage> velocity_volumes;
+            
+            if (_reconstructed4D.GetT() == 1) {
+                
+                for (int i = 0; i < stacks.size(); i++) {
+                    
+                    ImageAttributes attr = stacks[i].GetImageAttributes();
+                    attr._t = 3;
+                    RealImage stack(attr);
+                    velocity_volumes.push_back(stack);
+                }
+            }
+            
+            for (int v=0; v<3; v++) {
+                
+                for (int i = 0; i < stacks.size(); i++) {
+                    stacks[i] = 0;
+                }
+                
+                for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+                    for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
+                        for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                            
+                            double vel_val = _simulated_velocities[inputIndex][v](i,j,0);
+                            
+                            if (vel_val < _min_velocity || vel_val > _max_velocity)
+                                vel_val = -1;
+                            
+                            if (_reconstructed4D.GetT() > 1)
+                                stacks[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],_stack_dyn_index[inputIndex]) = vel_val;
+                            else
+                                velocity_volumes[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],v) = vel_val;
+                            
+                        }
+                    }
+                }
+                
+                if (_reconstructed4D.GetT() > 1) {
+                    for (int i = 0; i < stacks.size(); i++) {
+                        sprintf(buffer, "simulated-velocity-%i-%i.nii.gz", i, v);
+                        stacks[i].Write(buffer);
+                    }
+                }
+            }
+            
+            if (_reconstructed4D.GetT() == 1) {
+                for (int i = 0; i < stacks.size(); i++) {
+                    sprintf(buffer, "simulated-velocity-vector-%i.nii.gz", i);
+                    velocity_volumes[i].Write(buffer);
+                }
+            }
+            
+            
+        }
+        
+        
+        for (int v=0; v<3; v++) {
+            
+            for (int i = 0; i < stacks.size(); i++) {
+                stacks[i] = 0;
+            }
+            
+            for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+                for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
+                    for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                        
+                        stacks[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],_stack_dyn_index[inputIndex]) = _weights[inputIndex](i,j,0);
+                    }
+                }
+            }
+            
+            
+            for (int i = 0; i < stacks.size(); i++) {
+                sprintf(buffer, "weight-%i-%i.nii.gz", i, v);
+                stacks[i].Write(buffer);
+            }
+            
+        }
+        
+        
+        
+        if (_debug)
+            cout << " done." << endl;
+        
+    }
+    
     
     
  

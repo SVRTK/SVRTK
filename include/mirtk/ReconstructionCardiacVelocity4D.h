@@ -77,6 +77,11 @@ namespace mirtk {
         Array<RigidTransformation> _random_transformations;
         
         
+        Array<Array<RealImage>> _simulated_velocities;
+        
+        Array<Array<double> > _slice_g_directions;
+        
+        
     public:
         
         int current_stack_for_processing;
@@ -99,6 +104,12 @@ namespace mirtk {
         void GaussianReconstructionCardiacVelocity4DxT();
         void GaussianReconstructionCardiac4DxT();
         
+        
+        void SaveSliceInfo();
+        
+        void SaveOuput( Array<RealImage> stacks );
+        
+        void InitializeSliceGradients4D();
         
         void InitialiseInverse(Array<RealImage> stacks);
         

@@ -1330,6 +1330,8 @@ int main(int argc, char **argv)
     reconstruction.ItinialiseVelocityBounds(); 
     
 
+    cout << "InitializeSliceGradients4D" << endl;
+    reconstruction.InitializeSliceGradients4D();
     
     //-------------------------------------------------------------------------------------
     // Main velocity reconstruciton steps
@@ -1369,6 +1371,9 @@ int main(int argc, char **argv)
     
 
     reconstruction._dif_stacks = stacks;
+    
+    
+    reconstruction.SaveSliceInfo();
 
     
     // main reconstruction loop
@@ -1424,15 +1429,20 @@ int main(int argc, char **argv)
 
         }
         
-        Array<RealImage> tmp_stacks;
-        tmp_stacks = stacks;
-        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
+//        Array<RealImage> tmp_stacks;
+//        tmp_stacks = stacks;
+//        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
+        
+        reconstruction.SaveOuput(stacks);
         
 
         reconstruction.SaveReconstructedVelocity4D(iteration);
 //        reconstruction.SaveReconstructedVolume4D(iteration);
         
     } // end of reconstruction loop
+    
+    
+    reconstruction.SaveSliceInfo();
     
     //-------------------------------------------------------------------------------------
     

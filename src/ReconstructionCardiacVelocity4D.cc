@@ -322,6 +322,7 @@ namespace mirtk {
     {
         
         _slice_g_directions.clear();
+        _simulated_velocities.clear();
         
         for (int i = 0; i < _slices.size(); i++) {
             
@@ -369,17 +370,18 @@ namespace mirtk {
         GD_csv_file.close();
         
         
-        if (_reconstructed4D.GetT() == 1) {
-            for (int i=0; i<_slices.size(); i++) {
-                
-                for (int t=0; t<_reconstructed4D.GetT(); t++) {
+        if (_slice_temporal_weight.size()>0) {
+            if (_reconstructed4D.GetT() == 1) {
+                for (int i=0; i<_slices.size(); i++) {
                     
-                    _slice_temporal_weight[t][i] = 1;
-                    
+                    for (int t=0; t<_reconstructed4D.GetT(); t++) {
+                        
+                        _slice_temporal_weight[t][i] = 1;
+                        
+                    }
                 }
             }
         }
-        
         
     }
     
@@ -1348,6 +1350,318 @@ namespace mirtk {
         
         
     }
+    
+     //-------------------------------------------------------------------
+    
+    
+     //-------------------------------------------------------------------
+    
+    
+     //-------------------------------------------------------------------
+    
+    
+     //-------------------------------------------------------------------
+    
+    
+    void ReconstructionCardiacVelocity4D::GenerateRandomTranfromation( int slice_index, int t_range, int r_range )
+    {
+        
+        
+        double tx, ty, tz, rx, ry, rz;
+        tx = 0;
+        ty = 0;
+        tz = 0;
+        rx = 0;
+        ry = 0;
+        rz = 0;
+        
+        _transformations[slice_index].PutTranslationX(tx);
+        _transformations[slice_index].PutTranslationY(ty);
+        _transformations[slice_index].PutTranslationZ(tz);
+        _transformations[slice_index].PutRotationX(rx);
+        _transformations[slice_index].PutRotationY(ry);
+        _transformations[slice_index].PutRotationZ(rz);
+        
+        if (t_range > 0) {
+            
+            int v1, v2;
+            
+            v1 = rand() % t_range + 0;
+            v2 = rand() % t_range  + 0;
+            tx = (double)v1 - (double)v2;
+            
+            v1 = rand() % t_range + 0;
+            v2 = rand() % t_range  + 0;
+            ty = (double)v1 - (double)v2;
+            
+            v1 = rand() % t_range + 0;
+            v2 = rand() % t_range  + 0;
+            tz = (double)v1 - (double)v2;
+            
+            _transformations[slice_index].PutTranslationX(tx);
+            _transformations[slice_index].PutTranslationY(ty);
+            _transformations[slice_index].PutTranslationZ(tz);
+            
+        }
+        
+        
+        if (r_range > 0) {
+            
+            int v1, v2;
+            
+            v1 = rand() % r_range + 0;
+            v2 = rand() % r_range  + 0;
+            rx = (double)v1 - (double)v2;
+            
+            v1 = rand() % r_range + 0;
+            v2 = rand() % r_range  + 0;
+            ry = (double)v1 - (double)v2;
+            
+            v1 = rand() % r_range + 0;
+            v2 = rand() % r_range  + 0;
+            rz = (double)v1 - (double)v2;
+            
+            _transformations[slice_index].PutRotationX(rx);
+            _transformations[slice_index].PutRotationY(ry);
+            _transformations[slice_index].PutRotationZ(rz);
+            
+        }
+        
+        cout << " - transformation for slice " << slice_index << " ( " << _stack_index[slice_index] <<  " ) : " << tx << " " << ty << " " << tz << " | " << rx << " " << ry << " " << rz  << endl;
+        
+        
+    }
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    void ReconstructionCardiacVelocity4D::GenerateRandomPhaseVolumes(Array<RealImage> velocity_volumes, Array<RealImage> stacks, int t_range, int r_range, bool all_slices, Array<int> stack_numbers )
+    {
+        
+        char buffer[256];
+        
+        _simulated_velocities.clear();
+        _generated_velocities.clear();
+        
+        for (int i=0; i<_transformations.size(); i++) {
+            
+            RealImage slice = _slices[i];
+            slice = 0;
+            
+            Array<RealImage> array_slices;
+            array_slices.push_back(slice);
+            array_slices.push_back(slice);
+            array_slices.push_back(slice);
+            
+            _simulated_velocities.push_back(array_slices);
+            _generated_velocities.push_back(array_slices);
+        }
+        
+        srand(time(0));
+        
+        for (int i=0; i<_transformations.size(); i++) {
+            
+            for (int j=0; j<stack_numbers.size(); j++) {
+                
+                if (_stack_index[i] == stack_numbers[j]) {
+                    
+                    GenerateRandomTranfromation(i, t_range, r_range);
+                }
+            }
+        }
+        
+        InitializeSliceGradients4D();
+        
+        cout << "................................................................" << endl;
+        
+        
+        double source_padding = -10;
+        double target_padding = -inf;
+        bool dofin_invert = false;
+        bool twod = false;
+        
+        GenericLinearInterpolateImageFunction<RealImage> interpolator;
+        
+        InterpolationMode interpolation_nn = Interpolation_NN;
+        UniquePtr<InterpolateImageFunction> interpolator_nn;
+        interpolator_nn.reset(InterpolateImageFunction::New(interpolation_nn));
+        
+        
+        for (int i=0; i<_transformations.size(); i++) {
+            
+            cout << " - transforming slice : " << i << " ... " << endl;
+            
+            Array<RealImage> corrupted_velocity_volumes;
+            
+            
+            for (int v=0; v<velocity_volumes.size(); v++) {
+                
+                ImageTransformation *imagetransformation = new ImageTransformation;
+                
+                RealImage input_volume = velocity_volumes[v];
+                
+                RealImage output_volume = velocity_volumes[v];
+                output_volume = 0;
+                
+                RigidTransformation tmp2 = _transformations[i];
+                
+                
+                //                double xaxis[3], yaxis[3], zaxis[3];
+                //                output_volume.GetOrientation(xaxis, yaxis, zaxis);
+                //                tmp2.Rotate(xaxis[0],yaxis[0],zaxis[0]);
+                //                tmp2.Rotate(xaxis[1],yaxis[1],zaxis[1]);
+                //                tmp2.Rotate(xaxis[2],yaxis[2],zaxis[2]);
+                //                output_volume.PutOrientation(xaxis, yaxis, zaxis);
+                
+                
+                imagetransformation->Input(&velocity_volumes[v]);
+                imagetransformation->Transformation(&tmp2);
+                imagetransformation->Output(&output_volume);
+                imagetransformation->TargetPaddingValue(target_padding);
+                imagetransformation->SourcePaddingValue(source_padding);
+                imagetransformation->Interpolator(&interpolator); // (interpolator_nn.get());  //
+                imagetransformation->TwoD(twod);
+                imagetransformation->Invert(dofin_invert);
+                imagetransformation->Run();
+                
+                for (int x=0; x<output_volume.GetX(); x++)
+                for (int y=0; y<output_volume.GetY(); y++)
+                for (int z=0; z<output_volume.GetZ(); z++)
+                if(output_volume(x,y,z) < -9)
+                output_volume(x,y,z) = 0;
+                
+                
+                corrupted_velocity_volumes.push_back(output_volume);
+                
+            }
+            
+            
+            
+            Array<Array<double>> g_directions;
+            Array<double> g_values;
+            Array<RealImage> corrupted_stacks;
+            
+            g_directions.push_back(_slice_g_directions[i]);
+            g_values.push_back(_g_values[_stack_index[i]]);
+            
+            corrupted_stacks = GeneratePhaseVolumes(corrupted_velocity_volumes, g_directions, g_values);
+            
+            
+            RealImage output_slice = _slices[i];
+            
+            
+            double z = 0;
+            for (int x=0; x<_slices[i].GetX(); x++) {
+                for (int y=0; y<_slices[i].GetY(); y++) {
+                    
+                    int ix, iy, iz;
+                    double dx, dy, dz;
+                    dx = x;
+                    dy = y;
+                    dz = z;
+                    
+                    _slices[i].ImageToWorld(dx,dy,dz);
+                    corrupted_stacks[0].WorldToImage(dx,dy,dz);
+                    
+                    ix = round(dx);
+                    iy = round(dy);
+                    iz = round(dz);
+                    
+                    
+                    if ( ix>-1 && iy>-1 && iz>-1 && ix<corrupted_stacks[0].GetX() && iy<corrupted_stacks[0].GetY() && iz<corrupted_stacks[0].GetZ() ) {
+                        _slices[i](x,y,0) = corrupted_stacks[0](ix,iy,iz);
+                    }
+                    else {
+                        _slices[i](x,y,0) = 0;
+                    }
+                    
+                    
+                    for (int v=0; v<3; v++) {
+                        
+                        if ( ix>-1 && iy>-1 && iz>-1 && ix<corrupted_velocity_volumes[0].GetX() && iy<corrupted_velocity_volumes[0].GetY() && iz<corrupted_velocity_volumes[0].GetZ() ) {
+                            _generated_velocities[i][v](x,y,0) = corrupted_velocity_volumes[v](ix,iy,iz);
+                        }
+                        else {
+                            _generated_velocities[i][v](x,y,0) = 0;
+                        }
+                    }
+                    
+                }
+                
+            }
+            
+            
+        }
+        
+        cout << "................................................................" << endl;
+        
+        cout << " - slice information : generated-gradient-directions.csv " << endl;
+        
+        {
+            sprintf(buffer, "generated-gradient-directions.csv");
+            ofstream GD_csv_file;
+            GD_csv_file.open(buffer);
+            
+            for (int i=0; i<_slice_g_directions.size(); i++) {
+                
+                double rx, ry, rz;
+                
+                rx = _transformations[i].GetRotationX();
+                ry = _transformations[i].GetRotationY();
+                rz = _transformations[i].GetRotationZ();
+                
+                GD_csv_file << _stack_index[i] << "," << _g_directions[_stack_index[i]][0] << "," << _g_directions[_stack_index[i]][1] << "," << _g_directions[_stack_index[i]][2]  << "," << i << "," << _slice_g_directions[i][0] << "," << _slice_g_directions[i][1] << "," << _slice_g_directions[i][2] << "," << rx << "," << ry << "," << rz << endl;
+            }
+            
+            GD_csv_file.close();
+        }
+        
+        cout << endl;
+        
+        
+        
+    }
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    Array<RealImage> ReconstructionCardiacVelocity4D::GeneratePhaseVolumes(Array<RealImage> velocity_volumes, Array<Array<double> > g_directions, Array<double> g_values)
+    {
+        
+        RealImage stack = velocity_volumes[0];
+        stack = 0;
+        
+        Array<RealImage> stacks;
+        
+        for (int i=0; i<g_values.size(); i++) {
+            
+            stack = 0;
+            double velocity = 0;
+            
+            for (int z=0; z<stack.GetZ(); z++) {
+                for (int y=0; y<stack.GetY(); y++) {
+                    for (int x=0; x<stack.GetX(); x++) {
+                        
+                        velocity = 0;
+                        for (int v=0; v<velocity_volumes.size(); v++)
+                        velocity += velocity_volumes[v](x,y,z)*g_directions[i][v];
+                        
+                        stack(x,y,z) = gamma*g_values[0]*velocity;
+                        
+                    }
+                }
+            }
+            
+            
+            stacks.push_back(stack);
+        }
+        
+        
+        return stacks;
+    }
+    
     
      
     

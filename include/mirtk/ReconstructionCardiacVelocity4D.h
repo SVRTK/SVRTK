@@ -77,9 +77,10 @@ namespace mirtk {
         Array<RigidTransformation> _random_transformations;
         
         
-        Array<Array<RealImage>> _simulated_velocities;
-        
         Array<Array<double> > _slice_g_directions;
+        
+        Array<Array<RealImage>> _simulated_velocities;
+        Array<Array<RealImage>> _generated_velocities;
         
         
     public:
@@ -120,6 +121,15 @@ namespace mirtk {
         void RandomRotations(Array<RealImage> stacks);
         
         void SaveOriginal( Array<RealImage> stacks );
+        
+        
+        //11-04 (random transformations for 3D case)
+        
+        Array<RealImage> GeneratePhaseVolumes( Array<RealImage> velocity_volumes, Array<Array<double> > g_directions, Array<double> g_values );
+        void GenerateRandomPhaseVolumes( Array<RealImage> velocity_volumes, Array<RealImage> stacks, int t_range, int f_range, bool all_slices, Array<int> stack_numbers );
+        
+        void GenerateRandomTranfromation( int slice_index, int t_range, int r_range );
+        
         
         
         void MaskSlicesPhase();

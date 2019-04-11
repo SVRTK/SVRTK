@@ -568,17 +568,58 @@ namespace mirtk {
         if (_debug)
             cout << "CalculateSliceTemporalWeights" << endl;
         InitSliceTemporalWeights();
+        
+        Array<double> max_t_weights;
+        Array<int> loc_t_weights;
+        
+        // 11/04 II
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            max_t_weights.push_back(-10);
+            loc_t_weights.push_back(0);
+        }
+        
+        
+        
         for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++)
         {
             for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             {
                 _slice_temporal_weight[outputIndex][inputIndex] = CalculateTemporalWeight( _reconstructed_cardiac_phases[outputIndex], _slice_cardphase[inputIndex], _slice_dt[inputIndex], _slice_rr[inputIndex], _wintukeypct );
                 
-                // 11/04 - for velocity only
-                if (_slice_temporal_weight[outputIndex][inputIndex] < 0.85)
-                    _slice_temporal_weight[outputIndex][inputIndex] = 0; 
+                // 11/04 II
+                if (_slice_temporal_weight[outputIndex][inputIndex] > max_t_weights[inputIndex]) {
+                    
+                    loc_t_weights[inputIndex] = outputIndex;
+                    max_t_weights[inputIndex] = _slice_temporal_weight[outputIndex][inputIndex];
+                    
+                }
+                
+//                // 11/04 - for velocity only
+//                if (_slice_temporal_weight[outputIndex][inputIndex] < 0.85)
+//                    _slice_temporal_weight[outputIndex][inputIndex] = 0;
+
             }
         }
+        
+        
+        // 11/04 II
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++) {
+                
+                if (outputIndex == loc_t_weights[inputIndex]) {
+                    _slice_temporal_weight[outputIndex][inputIndex] = max_t_weights[inputIndex];
+                }
+                else {
+                    _slice_temporal_weight[outputIndex][inputIndex] = 0;
+                }
+                
+
+            }
+        }
+        
+        
+        
+        
     }
     
     

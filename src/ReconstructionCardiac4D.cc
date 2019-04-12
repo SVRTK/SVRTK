@@ -601,6 +601,7 @@ namespace mirtk {
             }
         }
         
+        /*
         
         // 11/04 II
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
@@ -617,6 +618,7 @@ namespace mirtk {
             }
         }
         
+        */
         
         
         

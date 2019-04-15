@@ -43,6 +43,8 @@ namespace mirtk {
         _recon_type = _3D;
         
         _no_sr = false;
+        
+        _no_ts = false;
     }
     
     // -----------------------------------------------------------------------------
@@ -594,9 +596,11 @@ namespace mirtk {
                     
                 }
                 
-//                // 11/04 - for velocity only
-//                if (_slice_temporal_weight[outputIndex][inputIndex] < 0.85)
-//                    _slice_temporal_weight[outputIndex][inputIndex] = 0;
+               // 11/04 - for velocity only
+               if (_no_ts) {
+                   if (_slice_temporal_weight[outputIndex][inputIndex] < 0.9)
+                       _slice_temporal_weight[outputIndex][inputIndex] = 0;
+               }
 
             }
         }

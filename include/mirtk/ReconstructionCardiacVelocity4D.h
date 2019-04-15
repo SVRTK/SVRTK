@@ -149,6 +149,9 @@ namespace mirtk {
         inline void SetAdaptiveRegularisation(bool flag);
         inline void SetLimitIntensities(bool flag);
         
+        inline void LimitTimeWindow();
+        
+        
         inline void ItinialiseVelocityBounds();
         
         void StaticMaskReconstructedVolume5D();
@@ -186,7 +189,17 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     // ...
     // -----------------------------------------------------------------------------
+
     
+    inline void ReconstructionCardiacVelocity4D::LimitTimeWindow()
+    {
+        _no_ts = true;
+        
+    }
+    
+    // -----------------------------------------------------------------------------
+    // ...
+    // -----------------------------------------------------------------------------
     
     inline void ReconstructionCardiacVelocity4D::ResetValues()
     {

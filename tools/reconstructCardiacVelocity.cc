@@ -99,6 +99,7 @@ void usage()
     cerr << "\t-no_robust_statistics      Switch off robust statistics."<<endl;
     cerr << "\t-no_regularisation         Switch off adaptive regularisation."<<endl;
     cerr << "\t-limit_intensities         Limit velocity magnitude according to the maximum/minimum values."<<endl;
+    cerr << "\t-limit_time_window         Crop time window to 0.9."<<endl;
     cerr << "\t-exclude_slices_only       Do not exclude individual voxels."<<endl;
     cerr << "\t-ref_vol                   Reference volume for adjustment of spatial position of reconstructed volume."<<endl;
     cerr << "\t-rreg_recon_to_ref         Register reconstructed volume to reference volume [Default: recon to ref]"<<endl;
@@ -732,6 +733,18 @@ int main(int argc, char **argv)
             
             ok = true;
         }
+        
+        
+        
+        //Crop time window
+        if ((ok == false) && (strcmp(argv[1], "-limit_time_window") == 0)){
+            argc--;
+            argv++;
+            reconstruction.LimitTimeWindow();
+            
+            ok = true;
+        }
+            
         
         //Alpha for super-resolution loop [alpha; 1]
         if ((ok == false) && (strcmp(argv[1], "-alpha") == 0)){

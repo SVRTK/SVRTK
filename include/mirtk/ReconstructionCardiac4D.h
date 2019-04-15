@@ -49,6 +49,7 @@ namespace mirtk {
         Array<int> _stack_dyn_index;  // index of dynamic in M2D stack
         
         
+        bool _no_ts;
         
         bool _no_sr;
         

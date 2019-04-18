@@ -1183,10 +1183,8 @@ namespace mirtk {
                                     
                                     val -= sum * original(x, y, z, t);
                                     
-                                    // 16/04
-                                    
                                     val = original(x, y, z, t)
-                                    + ( reconstructor->_alpha / 5 )* reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
+                                    + ( reconstructor->_alpha )* reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
                                     reconstructor->_reconstructed4D(x, y, z, t) = val;
                                 }
                             }

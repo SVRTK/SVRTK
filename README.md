@@ -9,6 +9,8 @@ SVR reconstruction package for MIRTK, originally known as `reconstruction` as pa
 Installation 
 ------------
 
+For Angio branch : git clone -b Angio https://github.com/SVRTK/SVRTK.git .
+
 SVRTK requires installation of MIRTK (https://github.com/BioMedIA/MIRTK) with TBB option.  
 
 

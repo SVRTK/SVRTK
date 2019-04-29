@@ -15,9 +15,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+ */ 
 
-#ifndef MIRTK_Reconstruction_H 
+#ifndef MIRTK_Reconstruction_H
 #define MIRTK_Reconstruction_H
 
 #include "mirtk/Common.h"
@@ -62,10 +62,10 @@ typedef Array<Array<VOXELCOEFFS> > SLICECOEFFS;
 class Reconstruction 
 {
 
+//protected: // will be changed back to proctected with -fno-new-inheriting-ctors compilation option
 protected: 
     
     // ---------------------------------------------------------------------------
-
 
     //Reconstruction type
     RECON_TYPE _recon_type;
@@ -135,8 +135,11 @@ protected:
     double _step;
     /// Voxel posteriors
     Array<RealImage> _weights;
-    ///Slice posteriors
+    /// Slice posteriors
     Array<double> _slice_weight;
+    
+    /// NMI registration bins
+    int _nmi_bins;
     
     //Bias field
     ///Variance for bias field
@@ -242,7 +245,8 @@ public:
                   double threshold=0.5 );
     
     /// Set gestational age (to compute expected brain volume)
-    void SetGA(double ga);
+    void SetGA( double ga );
+    
     
     ///Center stacks
     void CenterStacks( Array<RealImage>& stacks,
@@ -446,6 +450,8 @@ public:
     inline int GetNumberOfTransformations();
     inline RigidTransformation GetTransformation(int n);
 
+    
+    inline void SetNMIBins( int nmi_bins );
 
 
     //utility
@@ -534,6 +540,8 @@ public:
     // Calculate relative change of displacement field across different iterations
     double calculateResidual(int padding);
 
+
+    void RemoveSpinHistory( Array<RealImage>& stacks, double fg_sigma , double bg_sigma );
 
 
     ///Splits stacks into packages
@@ -699,6 +707,11 @@ inline void Reconstruction::SetForceExcludedSlices(Array<int>& force_excluded)
     _force_excluded = force_excluded;  
 }
 
+inline void Reconstruction::SetNMIBins( int nmi_bins )
+{
+    _nmi_bins = nmi_bins;
+    
+}
 
 
 inline void Reconstruction::Set3DRecon()

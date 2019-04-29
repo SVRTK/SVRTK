@@ -8,7 +8,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0   
+ *     http://www.apache.org/licenses/LICENSE-2.0  
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#include "mirtk/Reconstruction.h"
+#include "mirtk/Reconstruction.h" 
 
 using namespace std;
 
@@ -164,6 +164,8 @@ void bboxCrop( RealImage &image ) {
         _adaptive = false;
         _robust_slices_only = false;
         _recon_type = _3D;
+        
+        _nmi_bins = -1; // 16
 
         int directions[13][3] = {
             { 1, 0, -1},
@@ -519,7 +521,7 @@ void bboxCrop( RealImage &image ) {
         _reconstructed = enlarged;
         _template_created = true;
         
-        if (_debug)
+        // if (_debug)
             _reconstructed.Write("template.nii.gz");
         
         //return resulting resolution of the template image
@@ -791,79 +793,97 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
                 //do not perform registration for template
                 if (i == templateNumber)
                     continue;
-                
-                //rigid registration object
-                //RigidRegistrationWithPadding registration;
-
-                //set target and source (need to be converted to irtkGreyImage)
 
                 RealImage r_source = stacks[i];
-                //RealImage r_target = target; //stacks[templateNumber];
-
+                RealImage r_target = target;
                 
-                //include offset in transformation
+//                r_target = stacks[templateNumber];
+//                r_target.PutOrigin(0, 0, 0);
+                
+                RealImage tmp_stack;
+
+                ResamplingWithPadding<RealPixel> resampling2(1.25, 1.25, 1.25,-1);
+                GenericLinearInterpolateImageFunction<RealImage> interpolator2;
+                resampling2.Interpolator(&interpolator2);
+
+                tmp_stack = r_source;
+                resampling2.Input(&tmp_stack);
+                resampling2.Output(&r_source);
+                resampling2.Run();
+
+                // GenericNearestNeighborInterpolateImageFunction<RealImage> interpolator3;
+                // resampling2.Interpolator(&interpolator3);
+
+                tmp_stack = r_target;
+                resampling2.Input(&tmp_stack);
+                resampling2.Output(&r_target);
+                resampling2.Run();
+
+                // GaussianBlurring<RealPixel> gb2(0.7);
+                // gb2.Input(&r_source);
+                // gb2.Output(&r_source);
+                // gb2.Run();
+
                 Matrix mo = offset.GetMatrix();
                 Matrix m = stack_transformations[i].GetMatrix();
                 m=m*mo;
                 stack_transformations[i].PutMatrix(m);
-                
-                /*
-                //perform rigid registration
-                registration.SetInput(&target, &source);
-                registration.SetOutput(&stack_transformations[i]);
-                registration.GuessParameterThickSlices();
-                registration.SetTargetPadding(0);
-                registration.Run();
-                */
 
                 ParameterList params;
                 Insert(params, "Transformation model", "Rigid");
-                Insert(params, "Image (dis-)similarity measure", "NMI");
-                Insert(params, "No. of bins", 64);
+                 Insert(params, "Image (dis-)similarity measure", "NMI");
+                 if (reconstructor->_nmi_bins>0)
+                    Insert(params, "No. of bins", reconstructor->_nmi_bins);
                 Insert(params, "Image interpolation mode", "Linear");
                 Insert(params, "Background value", 0);
-          
+                 Insert(params, "Optimisation method", "GradientDescent");
+
+            //     Insert(params, "Image (dis-)similarity measure", "NCC");
+            //     // Insert(params_ncc, "Image interpolation mode", "Linear");
+            //    string type = "box";
+            //    string units = "vox";
+            //    double width = 0;
+            //    Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+
 
                 GenericRegistrationFilter registration;
                 registration.Parameter(params);
-                registration.Input(&target, &r_source);
-                
+                registration.Input(&r_target, &r_source);
 
-                GenericRegistrationFilter rigidregistration_ncc;
-                ParameterList params_ncc;
-                Insert(params_ncc, "Transformation model", "Rigid");
-                Insert(params_ncc, "Background value", 0);
-                Insert(params_ncc, "Image (dis-)similarity measure", "NCC");
-                Insert(params_ncc, "Image interpolation mode", "Linear");
-                string type = "box";
-                string units = "vox";
-                double width = 0;
-                Insert(params_ncc, string("Local window size [") + type + string("]"), ToString(width) + units);
-                
-                rigidregistration_ncc.Parameter(params_ncc);
-                rigidregistration_ncc.Input(&target, &r_source);
-                
-
-//                sprintf(buffer, "ut-%i.nii.gz", i);
-//                r_target.Write(buffer);
-//                sprintf(buffer, "us-%i.nii.gz", i);
-//                r_source.Write(buffer);
-//                sprintf(buffer, "uo-%i.dof", i);
-//                offset.Write(buffer);
-                
-                RigidTransformation dofin = offset;
+                RigidTransformation dofin = stack_transformations[i];
 //                dofin.Invert();
-                
-                
+
                 Transformation *dofout = nullptr;
                 registration.Output(&dofout);
+                
                 registration.InitialGuess(&dofin);
+                
                 registration.GuessParameter();
                 registration.Run();
                 
                 RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
                 stack_transformations[i] = *rigidTransf;
-                
+
+
+
+
+
+
+//               ParameterList params_ncc;
+//                 Insert(params_ncc, "Optimisation method", "GradientDescent");
+//               Insert(params_ncc, "Transformation model", "Rigid");
+//               Insert(params_ncc, "Background value", 0);
+//               Insert(params_ncc, "Image (dis-)similarity measure", "NCC");
+//                Insert(params_ncc, "Image interpolation mode", "Linear");
+//               string type = "sigma";
+//               string units = "mm";
+//               double width = 5;
+//               Insert(params_ncc, string("Local window size [") + type + string("]"), ToString(width) + units);
+
+               GenericRegistrationFilter rigidregistration_ncc;
+                rigidregistration_ncc.Parameter(params);
+                rigidregistration_ncc.Input(&r_target, &r_source);
+
 
                 dofout = nullptr;
                 rigidregistration_ncc.Output(&dofout);
@@ -874,22 +894,20 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
                 RigidTransformation *rigidTransf_ncc = dynamic_cast<RigidTransformation*> (dofout);
                 stack_transformations[i] = *rigidTransf_ncc;
       
-//                sprintf(buffer, "ud-%i.dof", i);
-//                stack_transformations[i].Write(buffer);
-//                stack_transformations[i].Invert();
+
+                           
+               mo.Invert();
+               m = stack_transformations[i].GetMatrix();
+               m=m*mo;
+               stack_transformations[i].PutMatrix(m);
                 
-            
-                mo.Invert();
-                m = stack_transformations[i].GetMatrix();
-                m=m*mo;
-                stack_transformations[i].PutMatrix(m);
                 
                 
                 //save volumetric registrations
                 if (reconstructor->_debug) {
                     //buffer to create the name
                     
-                    sprintf(buffer, "stack-transformation%i.dof.gz", i);
+                    sprintf(buffer, "stack-transformation%i.dof", i);
                     stack_transformations[i].Write(buffer);
                     sprintf(buffer, "stack%i.nii.gz", i);
                     stacks[i].Write(buffer);
@@ -905,7 +923,16 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
         }
         
     };
+    
+    
+    //-------------------------------------------------------------------
 
+    
+//    void Reconstruction::SequentialRegistrations(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber)
+//    {
+//        char buffer[256];
+//
+//    }
     
     //------------------------------------------------------------------- 
     
@@ -915,7 +942,8 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
         cout << "StackRegistrations" << endl;
         
         InvertStackTransformations(stack_transformations);
-        
+
+
         RealImage target;
         target = stacks[templateNumber];
         RealImage m_tmp = _mask;
@@ -932,7 +960,7 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
         }
         
         RigidTransformation offset;
-        //ResetOrigin(target, offset);
+        ResetOrigin(target, offset);
         
         //register all stacks to the target
         ParallelStackRegistrations registration( this,
@@ -1095,8 +1123,8 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
     
     void Reconstruction::SimulateStacks( Array<RealImage>& stacks )
     {
-        if (_debug)
-        cout<<"Simulating stacks."<<endl;
+        // if (_debug)
+        // cout<<"Simulating stacks."<<endl;
         
         unsigned int inputIndex;
         int i, j, k, n;
@@ -1632,17 +1660,22 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
         void operator() (const blocked_range<size_t> &r) const {
             
             ImageAttributes attr = reconstructor->_reconstructed.GetImageAttributes();
-            GreyImage source = reconstructor->_reconstructed;
+            // GreyImage source = ;
+
+            // source.Write("s.nii.gz");
 
             
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
+
                 char buffer[256];
                 
                 GreyPixel smin, smax;
                 GreyImage target;
                 GreyImage slice, w, b;
                 RealImage t;
+
+                Reconstruction dummy_reconstruction;
                 
                 ResamplingWithPadding<RealPixel> resampling(attr._dx,attr._dx,attr._dx,-1);
 
@@ -1650,6 +1683,7 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                 GenericLinearInterpolateImageFunction<RealImage> interpolator;
 
                 t = reconstructor->_slices[inputIndex];
+                
                 
                 resampling.Input(&reconstructor->_slices[inputIndex]);
                 resampling.Output(&t);
@@ -1659,7 +1693,7 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                 target=t;
 
                 target.GetMinMax(&smin, &smax);
-                
+
                 
                 if (smax > 1 && (smax - smin) > 1) {
                     
@@ -1668,9 +1702,12 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                     Insert(params, "Transformation model", "Rigid");
                     // Insert(params, "Optimisation method", "GradientDescent");
                     Insert(params, "Image (dis-)similarity measure", "NMI");
-                    Insert(params, "No. of bins", 64);
+                    if (reconstructor->_nmi_bins>0)
+                        Insert(params, "No. of bins", reconstructor->_nmi_bins);
                     Insert(params, "Image interpolation mode", "Linear");
                     // Insert(params, "Background value", -1);
+                    // Insert(params, "Background value for image 1", 0);
+                    // Insert(params, "Background value for image 2", -1);
                     
                     GenericRegistrationFilter *registration = new GenericRegistrationFilter();
                     registration->Parameter(params);
@@ -1679,36 +1716,28 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
                     //put origin to zero
                     RigidTransformation offset;
 
-                    double ox,oy,oz;
-                    target.GetOrigin(ox,oy,oz);
-                    target.PutOrigin(0,0,0);
-                    offset.PutTranslationX(ox);
-                    offset.PutTranslationY(oy);
-                    offset.PutTranslationZ(oz);
-                    offset.PutRotationX(0);
-                    offset.PutRotationY(0);
-                    offset.PutRotationZ(0);
-                    
-                    
-                    
+                    dummy_reconstruction.ResetOrigin(target,offset);
                     Matrix mo = offset.GetMatrix();
                     Matrix m = reconstructor->_transformations[inputIndex].GetMatrix();
                     m=m*mo;
                     reconstructor->_transformations[inputIndex].PutMatrix(m);
 
 
-                    registration->Input(&target, &source);
+                    registration->Input(&target, &reconstructor->_reconstructed);
                     Transformation *dofout = nullptr;
                     registration->Output(&dofout);
 
-                    
+
                     RigidTransformation tmp_dofin = reconstructor->_transformations[inputIndex];
-                    
-                    
                     
                     registration->InitialGuess(&tmp_dofin);
                     registration->GuessParameter();
+
+                    // cout << inputIndex << " - " << endl;
+
                     registration->Run();
+
+                    // cout << inputIndex << " + " << endl;
 
                     RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
 
@@ -1743,8 +1772,12 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
         if (_debug)
             cout << "SliceToVolumeRegistration" << endl;
 
+        _reconstructed.Write("target.nii.gz");
+
+
         ParallelSliceToVolumeRegistration registration(this);
         registration();
+
 
         
     }
@@ -2188,7 +2221,7 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
         
         cout << "done." << endl;
         
-        if (_debug)
+        // if (_debug)
         _reconstructed.Write("init.nii.gz");
         
         //now find slices with small overlap with ROI and exclude them.
@@ -4952,9 +4985,12 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
 	ParameterList params;
         Insert(params, "Transformation model", "Rigid");
         Insert(params, "Image (dis-)similarity measure", "NMI");
-        Insert(params, "No. of bins", 128);
+        if (_nmi_bins>0)
+            Insert(params, "No. of bins", _nmi_bins);
 	Insert(params, "Image interpolation mode", "Linear");
-	Insert(params, "Background value", 0);
+//    Insert(params, "Background value", 0);
+    Insert(params, "Background value for image 1", -1);
+    Insert(params, "Background value for image 2", -1);
 
 	GenericRegistrationFilter *rigidregistration = new GenericRegistrationFilter();
         rigidregistration->Parameter(params);
@@ -5306,9 +5342,12 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
         Insert(params, "Background value", -1);
 
         Insert(params, "Image (dis-)similarity measure", "NMI");
-        Insert(params, "No. of bins", 64);
+        if (_nmi_bins>0)
+            Insert(params, "No. of bins", _nmi_bins);
 
-        rigidregistration.Parameter(params);        
+        rigidregistration.Parameter(params);   
+
+        // _reconstructed.Write("s.nii.gz"); 
         
 
         RealImage t,s;
@@ -5385,6 +5424,13 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
                 Transformation *dofout = nullptr;
                 rigidregistration.Output(&dofout);
                 
+
+                // sprintf(buffer,"p-%i.nii.gz",j);
+                // t.Write(buffer);
+
+                // sprintf(buffer,"r-%i.dof",j);
+                // _transformations[firstSliceIndex].Write(buffer);
+
                 
                 RigidTransformation tmp_dofin = _transformations[firstSliceIndex]; //offset;            
 
@@ -5758,5 +5804,86 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
     }
     
     //-------------------------------------------------------------------
+
+
+
+    void Reconstruction::RemoveSpinHistory( Array<RealImage>& stacks, double fg_sigma , double bg_sigma ) 
+    {
+
+        // double fg_sigma = 0.3;
+        // double bg_sigma = 10;
+
+        char buffer[256];
+
+        GaussianBlurring<RealPixel> gb3(stacks[0].GetXSize()*fg_sigma);     //0.85);
+        
+        GaussianBlurring<RealPixel> gb2(stacks[0].GetXSize()*bg_sigma);       //2);
+        RealImage tmp_slice, tmp_slice_b;
+
+        RealImage global_blurred, stack;
+
+
+        for (int j = 0; j<stacks.size(); j++) {
+
+            stack = stacks[j];
+
+            sprintf(buffer,"original-%i.nii.gz",j);
+            stack.Write(buffer);
+
+            
+            
+            global_blurred = stacks[j];
+            gb2.Input(&global_blurred);
+            gb2.Output(&global_blurred);
+            gb2.Run();
+            
+            
+            for (int i = 0; i<stacks[j].GetZ(); i++) {
+
+                
+                tmp_slice = stacks[j].GetRegion(0,0,i,stacks[j].GetX(),stacks[j].GetY(),(i+1));
+                tmp_slice_b = stacks[j].GetRegion(0,0,i,stacks[j].GetX(),stacks[j].GetY(),(i+1));
+                
+                gb3.Input(&tmp_slice_b);
+                gb3.Output(&tmp_slice_b);
+                gb3.Run();
+                
+                gb2.Input(&tmp_slice);
+                gb2.Output(&tmp_slice);
+                gb2.Run();
+                
+                
+                for (int x = 0; x < stacks[j].GetX(); x++) {
+                    for (int y = 0; y < stacks[j].GetY(); y++) {
+
+    //                    stack(x,y,i) = tmp_slice_b(x,y,0) - 0.95*tmp_slice(x,y,0);
+    //                    if (stack(x, y, i) < 0)
+    //                        stack(x, y, i) = 1;
+
+                        
+    //                    dif_stack(x,y,i) = global_blurred(x,y,i) - tmp_slice(x,y,0);
+
+                        stack(x,y,i) = tmp_slice_b(x,y,0) + global_blurred(x,y,i) - tmp_slice(x,y,0);
+                        if(stack(x,y,i) < 0)
+                            stack(x,y,i) = 1;
+                        
+                    }
+                }
+            }
+
+            stacks[j] = stack;
+
+            
+            sprintf(buffer,"filtered-%i.nii.gz",j);
+            stack.Write(buffer);
+            
+            
+        }
+
+    }
+
+
+
+
     
 } // namespace mirtk

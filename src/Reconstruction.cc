@@ -2183,37 +2183,50 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
             scale = _scale[inputIndex];
             
             slice_vox_num=0;
-            
-            //Distribute slice intensities to the volume
-            for (i = 0; i < slice.GetX(); i++)
-            for (j = 0; j < slice.GetY(); j++)
-            if (slice(i, j, 0) != -1) {
-                //biascorrect and scale the slice
-                slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                
-                //number of volume voxels with non-zero coefficients
-                //for current slice voxel
-                n = _volcoeffs[inputIndex][i][j].size();
-                
-                //if given voxel is not present in reconstructed volume at all,
-                //pad it
-                
-                //if (n == 0)
-                //_slices[inputIndex].PutAsDouble(i, j, 0, -1);
-                //calculate num of vox in a slice that have overlap with roi
-                if (n>0)
-                slice_vox_num++;
-                
-                //add contribution of current slice voxel to all voxel volumes
-                //to which it contributes
-                for (k = 0; k < n; k++) {
-                    p = _volcoeffs[inputIndex][i][j][k];
-                    _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
-                }
+
+            bool excluded = false;
+
+            for (int fe=0; fe<_force_excluded.size(); fe++) {
+
+                if (inputIndex == _force_excluded[fe])
+                    excluded = true;
+
             }
-            voxel_num.push_back(slice_vox_num);
-            //end of loop for a slice inputIndex
+
+            if (!excluded) {
+
+                //Distribute slice intensities to the volume
+                for (i = 0; i < slice.GetX(); i++)
+                for (j = 0; j < slice.GetY(); j++)
+                if (slice(i, j, 0) != -1) {
+                    //biascorrect and scale the slice
+                    slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                    
+                    //number of volume voxels with non-zero coefficients
+                    //for current slice voxel
+                    n = _volcoeffs[inputIndex][i][j].size();
+                    
+                    //if given voxel is not present in reconstructed volume at all,
+                    //pad it
+                    
+                    //if (n == 0)
+                    //_slices[inputIndex].PutAsDouble(i, j, 0, -1);
+                    //calculate num of vox in a slice that have overlap with roi
+                    if (n>0)
+                    slice_vox_num++;
+                    
+                    //add contribution of current slice voxel to all voxel volumes
+                    //to which it contributes
+                    for (k = 0; k < n; k++) {
+                        p = _volcoeffs[inputIndex][i][j][k];
+                        _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
+                    }
+                }
+                voxel_num.push_back(slice_vox_num);
+                //end of loop for a slice inputIndex
+            }
         }
+
         
         //normalize the volume by proportion of contributing slice voxels
         //for each volume voxe
@@ -2880,8 +2893,11 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
         }
 
 	//Force exclusion of slices predefined by user
-    	for (unsigned int i = 0; i < _force_excluded.size(); i++)
-        	_slice_weight[_force_excluded[i]] = 0;
+    	for (unsigned int i = 0; i < _force_excluded.size(); i++){
+
+            if (_force_excluded[i] > 0 && _force_excluded[i] < _slices.size()) 
+        	    _slice_weight[_force_excluded[i]] = 0;
+        }
 
     }
     
@@ -2922,8 +2938,10 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
         }
         
         //Force exclusion of slices predefined by user
-        for (unsigned int i = 0; i < _force_excluded.size(); i++)
-        _slice_weight[_force_excluded[i]] = 0;
+        for (unsigned int i = 0; i < _force_excluded.size(); i++) {
+            if (_force_excluded[i] > 0 && _force_excluded[i] < _slices.size())
+                _slice_weight[_force_excluded[i]] = 0;
+        }
         
         //initialize sigma for voxelwise robust statistics
         _sigma = sigma / num;
@@ -3045,8 +3063,11 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
         parallelEStep();
         
         //To force-exclude slices predefined by a user, set their potentials to -1
-        for (unsigned int i = 0; i < _force_excluded.size(); i++)
-        slice_potential[_force_excluded[i]] = -1;
+        for (unsigned int i = 0; i < _force_excluded.size(); i++) {
+
+            if (_force_excluded[i] > 0 && _force_excluded[i] < _slices.size())
+                slice_potential[_force_excluded[i]] = -1;
+        }
         
         //exclude slices identified as having small overlap with ROI, set their potentials to -1
         for (unsigned int i = 0; i < _small_slices.size(); i++)

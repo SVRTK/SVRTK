@@ -232,7 +232,6 @@ int main(int argc, char **argv)
         if (smin < 0 || smax < 0) {
 
             stack.PutMinMaxAsDouble(0, 1000);
-
         }
         
         argc--;
@@ -322,6 +321,15 @@ int main(int argc, char **argv)
             cout<<"Reading template : "<<argv[1]<<endl;
 
             template_stack.Read(argv[1]); 
+
+            double smin, smax;
+            template_stack.GetMinMax(&smin, &smax);
+
+            if (smin < 0 || smax < 0) {
+
+                template_stack.PutMinMaxAsDouble(0, 1000);
+            }
+
 
             ok = true;
             argc--;

@@ -756,7 +756,7 @@ inline RigidTransformation Reconstruction::GetTransformation(int n)
 
 
 
-
+ 
 } // namespace mirtk
 
 

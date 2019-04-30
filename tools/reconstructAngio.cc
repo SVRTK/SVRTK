@@ -84,6 +84,8 @@ void usage()
     cout << "\t-remove_black_background  Create mask from black background."<<endl;
     cout << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction."<<endl;
     cout << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
+    cout << "\t-excluded_file [file]     .xt file with the excluded slice numbers."<<endl;
+    cout << "\t-gaussian_only            Only Gaussian PSF interpolation."<<endl;;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
     cout << "\t" << endl;

@@ -413,6 +413,8 @@ int main(int argc, char **argv)
 
             //Read the name of the text file with gradient values
             char *e_file = argv[1];
+
+            // reconstruction._excluded_entirely.clear(); 
             
             //Read the gradient values from the text file
             ifstream in_e_file(e_file);
@@ -426,11 +428,15 @@ int main(int argc, char **argv)
                 while (!in_e_file.eof()) {
                     in_e_file >> num;
 
+                    // force_excluded.push_back(num);
+
                     force_excluded.push_back(num);
+
                 }
                 in_e_file.close();
                 
                 for (i=0; i<force_excluded.size(); i++)
+
                     cout << force_excluded[i] << " ";
                 cout << endl;
             }
@@ -441,8 +447,7 @@ int main(int argc, char **argv)
 
             number_of_force_excluded_slices = force_excluded.size();
             
-            cout <<" - Number of excluded slices : " << force_excluded.size() << endl;
-
+            cout <<" - Number of excluded slices : " << number_of_force_excluded_slices << endl;
 
             argc--;
             argv++;
@@ -642,7 +647,11 @@ int main(int argc, char **argv)
     }
 
         
-
+    GaussianBlurring<RealPixel> gbt(1.2*template_stack.GetXSize());           
+    gbt.Input(&template_stack);
+    gbt.Output(&template_stack);
+    gbt.Run();
+    
  
     //Create template volume with isotropic resolution
     //if resolution==0 it will be determined from in-plane resolution of the image
@@ -789,6 +798,7 @@ int main(int argc, char **argv)
     
 
     //Rescale intensities of the stacks to have the same average
+    cout << "MatchStackIntensities" << endl;
     if (intensity_matching)
         reconstruction.MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
     else
@@ -802,6 +812,7 @@ int main(int argc, char **argv)
 
     //Create slices and slice-dependent transformations
     Array<RealImage> probability_maps;
+    cout << "CreateSlicesAndTransformations" << endl;
     reconstruction.CreateSlicesAndTransformations(stacks,stack_transformations,thickness,probability_maps);
     
     //Mask all the slices
@@ -824,6 +835,7 @@ int main(int argc, char **argv)
         reconstruction.ReadTransformation(folder);
     
     //Initialise data structures for EM
+    cout << "InitializeEM" << endl;
     reconstruction.InitializeEM();
     
     //If registration was switched off - only 1 iteration is required
@@ -841,13 +853,13 @@ int main(int argc, char **argv)
         cout<<"Iteration : "<<iter<<endl;
 
 
-        if ( ! no_log ) {
-                cerr.rdbuf(file_e.rdbuf());
-                cout.rdbuf (file.rdbuf());
-        }
+        // if ( ! no_log ) {
+        //         cerr.rdbuf(file_e.rdbuf());
+        //         cout.rdbuf (file.rdbuf());
+        // }
 
         if (svr_only) {
-            // cout<<"SVR iteration : "<<iter<<endl;
+            cout<< "SliceToVolumeRegistration" << endl;
             reconstruction.SliceToVolumeRegistration();
 
         }
@@ -890,16 +902,16 @@ int main(int argc, char **argv)
             }
         }
         
-        cout<<endl;
-        if ( ! no_log ) {
-            cerr.rdbuf (strm_buffer_e);
-        }
+        // cout<<endl;
+        // if ( ! no_log ) {
+        //     cerr.rdbuf (strm_buffer_e);
+        // }
 
-        //Write to file
-        if ( ! no_log ) {
-            cout.rdbuf (file2.rdbuf());
-        }
-        cout<<endl<<endl<<"Iteration : "<<iter<<endl<<endl;
+        // //Write to file
+        // if ( ! no_log ) {
+        //     cout.rdbuf (file2.rdbuf());
+        // }
+        // cout<<endl<<endl<<"Iteration : "<<iter<<endl<<endl;
         
         //Set smoothing parameters
         //amount of smoothing (given by lambda) is decreased with improving alignment
@@ -926,13 +938,16 @@ int main(int argc, char **argv)
             reconstruction.ExcludeWholeSlicesOnly();
         
         //Initialise values of weights, scales and bias fields
+        cout << "InitializeEMValues" << endl;
         reconstruction.InitializeEMValues();
  
 
         //Calculate matrix of transformation between voxels of slices and volume
+        cout << "CoeffInit" << endl;
         reconstruction.CoeffInit();
 
         //Initialize reconstructed image with Gaussian weighted reconstruction
+        cout << "GaussianReconstruction" << endl;
         reconstruction.GaussianReconstruction();
 
 
@@ -940,14 +955,18 @@ int main(int argc, char **argv)
 
 
             //Simulate slices (needs to be done after Gaussian reconstruction)
+            cout << "SimulateSlices" << endl;
             reconstruction.SimulateSlices();
             
             //Initialize robust statistics parameters
+            cout << "InitializeRobustStatistics" << endl;
             reconstruction.InitializeRobustStatistics();
             
             //EStep
-            if(robust_statistics)
+            if(robust_statistics) {
+                cout << "EStep" << endl;
                 reconstruction.EStep();
+            }
             
             //number of reconstruction iterations
             if ( iter==(iterations-1) )
@@ -963,30 +982,40 @@ int main(int argc, char **argv)
                 
                 if (intensity_matching) {
                     //calculate bias fields
+
+                    cout << "Bias" << endl;
                     if (sigma>0)
                         reconstruction.Bias();
                     //calculate scales
+                    cout << "Scale" << endl;
                     reconstruction.Scale();
                 }
                 
                 //Update reconstructed volume
+                cout << "Superresolution" << endl;
                 reconstruction.Superresolution(i+1);
                 
                 if (intensity_matching) {
+                    cout << "NormaliseBias" << endl;
                     if((sigma>0)&&(!global_bias_correction))
                         reconstruction.NormaliseBias(i);
                 }
                 
                 // Simulate slices (needs to be done
                 // after the update of the reconstructed volume)
+                cout << "SimulateSlices" << endl;
                 reconstruction.SimulateSlices();
                 
-                if(robust_statistics)
+                if(robust_statistics) {
+                    cout << "MStep" << endl;
                     reconstruction.MStep(i+1);
+                }
                 
                 //E-step
-                if(robust_statistics)
+                if(robust_statistics) {
+                    cout << "EStep" << endl;
                     reconstruction.EStep();
+                }
                 
                 //Save intermediate reconstructed image
                 if (debug) {
@@ -1009,18 +1038,18 @@ int main(int argc, char **argv)
                 reconstructed.Write(buffer);
             }
             
-            //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            if ( ! no_log ) {
-                cout.rdbuf (fileEv.rdbuf());
-            }
+            // //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
+            // if ( ! no_log ) {
+            //     cout.rdbuf (fileEv.rdbuf());
+            // }
             
             reconstruction.Evaluate(iter);
             
             cout<<endl;
             
-            if ( ! no_log ) {
-                cout.rdbuf (strm_buffer);
-            }
+            // if ( ! no_log ) {
+            //     cout.rdbuf (strm_buffer);
+            // }
 
         }
 
@@ -1059,5 +1088,5 @@ int main(int argc, char **argv)
     
     //The end of main()
     
-    return 0; 
+    return 0;
 }

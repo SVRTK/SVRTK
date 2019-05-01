@@ -166,6 +166,7 @@ namespace mirtk {
         _recon_type = _3D;
         
         _ffd = false;
+        _blurring = false;
         
         _nmi_bins = -1; // 16
         
@@ -1510,6 +1511,19 @@ namespace mirtk {
                     //set correct voxel size in the stack. Z size is equal to slice thickness.
                     slice.PutPixelSize(attr._dx, attr._dy, thickness[i]);
                     //remember the slice
+                    
+                    
+                    if (_blurring) {
+                        
+                        GaussianBlurring<RealPixel> gbt(0.75*slice.GetXSize());
+                        gbt.Input(&slice);
+                        gbt.Output(&slice);
+                        gbt.Run();
+                        
+                        
+                    }
+                    
+                    
                     _slices.push_back(slice);
                     _simulated_slices.push_back(slice);
                     _simulated_weights.push_back(slice);
@@ -1899,7 +1913,7 @@ namespace mirtk {
                     registration->InitialGuess(&(reconstructor->_mffd_transformations[inputIndex]));
                     registration->GuessParameter();
                     
-//                     cout << inputIndex << endl;
+//                    cout << inputIndex << endl;
                     
                     registration->Run();
                     
@@ -1971,6 +1985,9 @@ namespace mirtk {
         char buffer[256];
         
         RealImage tmp_stack;
+        
+        
+        
         
         NLDenoising *denoising = new NLDenoising;
         

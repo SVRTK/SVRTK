@@ -938,8 +938,8 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
     
     void Reconstruction::StackRegistrations(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber)
     {
-        if (_debug)
-        cout << "StackRegistrations" << endl;
+        // if (_debug)
+        // cout << "StackRegistrations" << endl;
         
         InvertStackTransformations(stack_transformations);
 
@@ -1005,8 +1005,8 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
     
     void Reconstruction::ScaleVolume()
     {
-        if (_debug)
-        cout << "Scaling volume: ";
+        // if (_debug)
+        // cout << "Scaling volume: ";
         
         unsigned int inputIndex;
         int i, j;
@@ -1108,14 +1108,14 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
     
     void Reconstruction::SimulateSlices()
     {
-        if (_debug)
-        cout<<"Simulating slices."<<endl;
+        // if (_debug)
+        // cout<<"Simulating slices."<<endl;
         
         ParallelSimulateSlices parallelSimulateSlices( this );
         parallelSimulateSlices();
         
-        if (_debug)
-        cout<<"done."<<endl;
+        // if (_debug)
+        // cout<<"done."<<endl;
     }
 
     
@@ -1187,8 +1187,8 @@ double Reconstruction::CreateTemplateAniso(RealImage stack)
     
     void Reconstruction::MatchStackIntensities( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together )
     {
-        if (_debug)
-        cout << "Matching intensities of stacks. ";
+        // if (_debug)
+        // cout << "Matching intensities of stacks. ";
         
         //Calculate the averages of intensities for all stacks
         double sum, num;
@@ -1358,8 +1358,8 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
     
     void Reconstruction::MatchStackIntensitiesWithMasking( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together )
     {
-        if (_debug)
-        cout << "Matching intensities of stacks. ";
+        // if (_debug)
+        // cout << "Matching intensities of stacks. ";
         
         //Calculate the averages of intensities for all stacks
         double sum, num;
@@ -1480,35 +1480,51 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
     
     void Reconstruction::CreateSlicesAndTransformations( Array<RealImage> &stacks, Array<RigidTransformation> &stack_transformations, Array<double> &thickness, const Array<RealImage> &probability_maps )
     {
-        if (_debug)
-        cout << "CreateSlicesAndTransformations" << endl;
+        // if (_debug)
+        // cout << "CreateSlicesAndTransformations" << endl;
         
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
             ImageAttributes attr = stacks[i].GetImageAttributes();
+
+
+            // bool excluded = false;
+
+            // for (int fe=0; fe<_excluded_entirely.size(); fe++) {
+
+            //     if (i == _excluded_entirely[fe])
+            //         excluded = true;
+
+            // }
+
+            // if (!excluded) {
             
-            //attr._z is number of slices in the stack
-            for (int j = 0; j < attr._z; j++) {
-                //create slice by selecting the appropreate region of the stack
-                RealImage slice = stacks[i].GetRegion(0, 0, j, attr._x, attr._y, j + 1);
-                //set correct voxel size in the stack. Z size is equal to slice thickness.
-                slice.PutPixelSize(attr._dx, attr._dy, thickness[i]);
-                //remember the slice
-                _slices.push_back(slice);
-                _simulated_slices.push_back(slice);
-                _simulated_weights.push_back(slice);
-                _simulated_inside.push_back(slice);
-                //remeber stack index for this slice
-                _stack_index.push_back(i);
-                //initialize slice transformation with the stack transformation
-                _transformations.push_back(stack_transformations[i]);
-                if ( probability_maps.size() > 0 ) {
-                    RealImage proba = probability_maps[i].GetRegion(0, 0, j, attr._x, attr._y, j + 1);
-                    proba.PutPixelSize(attr._dx, attr._dy, thickness[i]);
-                    _probability_maps.push_back(proba);
+                //attr._z is number of slices in the stack
+                for (int j = 0; j < attr._z; j++) {
+                    //create slice by selecting the appropreate region of the stack
+                    RealImage slice = stacks[i].GetRegion(0, 0, j, attr._x, attr._y, j + 1);
+                    //set correct voxel size in the stack. Z size is equal to slice thickness.
+                    slice.PutPixelSize(attr._dx, attr._dy, thickness[i]);
+                    //remember the slice
+                    _slices.push_back(slice);
+                    _simulated_slices.push_back(slice);
+                    _simulated_weights.push_back(slice);
+                    _simulated_inside.push_back(slice);
+                    //remeber stack index for this slice
+                    _stack_index.push_back(i);
+                    //initialize slice transformation with the stack transformation
+                    _transformations.push_back(stack_transformations[i]);
+                    if ( probability_maps.size() > 0 ) {
+                        RealImage proba = probability_maps[i].GetRegion(0, 0, j, attr._x, attr._y, j + 1);
+                        proba.PutPixelSize(attr._dx, attr._dy, thickness[i]);
+                        _probability_maps.push_back(proba);
+                    }
                 }
-            }
+
+            // }
+
+
         }
         cout << "Number of slices: " << _slices.size() << endl;
         
@@ -1666,8 +1682,9 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
 
             
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                
 
+                cout << inputIndex << " ";
+                
                 char buffer[256];
                 
                 GreyPixel smin, smax;
@@ -1769,14 +1786,17 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
 
     void Reconstruction::SliceToVolumeRegistration()
     {
-        if (_debug)
-            cout << "SliceToVolumeRegistration" << endl;
+        // if (_debug)
+        //     cout << "SliceToVolumeRegistration" << endl;
 
         _reconstructed.Write("target.nii.gz");
 
+        cout << "Slices : ";
 
         ParallelSliceToVolumeRegistration registration(this);
         registration();
+
+        cout << endl;
 
 
         
@@ -2101,8 +2121,8 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
     
     void Reconstruction::CoeffInit()
     {
-        if (_debug)
-        cout << "CoeffInit" << endl;
+        // if (_debug)
+        // cout << "CoeffInit" << endl;
         
         //clear slice-volume matrix from previous iteration
         _volcoeffs.clear();
@@ -2124,14 +2144,28 @@ void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformat
         int inputIndex, i, j, n, k;
         POINT3D p;
         for ( inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-            for ( i = 0; i < _slices[inputIndex].GetX(); i++)
-            for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
-                n = _volcoeffs[inputIndex][i][j].size();
-                for (k = 0; k < n; k++) {
-                    p = _volcoeffs[inputIndex][i][j][k];
-                    _volume_weights(p.x, p.y, p.z) += p.value;
+
+            bool excluded = false;
+
+            for (int fe=0; fe<_force_excluded.size(); fe++) {
+
+                if (inputIndex == _force_excluded[fe])
+                    excluded = true;
+
+            }
+
+            if (!excluded) {
+
+                for ( i = 0; i < _slices[inputIndex].GetX(); i++)
+                for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    n = _volcoeffs[inputIndex][i][j].size();
+                    for (k = 0; k < n; k++) {
+                        p = _volcoeffs[inputIndex][i][j][k];
+                        _volume_weights(p.x, p.y, p.z) += p.value;
+                    }
                 }
             }
+            
         }
         if (_debug)
         _volume_weights.Write("volume_weights.nii.gz");
@@ -2820,8 +2854,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     
     void Reconstruction::InitializeEM()
     {
-        if (_debug)
-        cout << "InitializeEM" << endl;
+        // if (_debug)
+        // cout << "InitializeEM" << endl;
         
         _weights.clear();
         _bias.clear();
@@ -2863,8 +2897,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     
     void Reconstruction::InitializeEMValues()
     {
-        if (_debug)
-        cout << "InitializeEMValues" << endl;
+        // if (_debug)
+        // cout << "InitializeEMValues" << endl;
         
         for (unsigned int i = 0; i < _slices.size(); i++) {
             //Initialise voxel weights and bias values
@@ -2905,8 +2939,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     
     void Reconstruction::InitializeRobustStatistics()
     {
-        if (_debug)
-        cout << "InitializeRobustStatistics" << endl;
+        // if (_debug)
+        // cout << "InitializeRobustStatistics" << endl;
         
         //Initialise parameter of EM robust statistics
         int i, j;
@@ -3051,8 +3085,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     void Reconstruction::EStep()
     {
         //EStep performs calculation of voxel-wise and slice-wise posteriors (weights)
-        if (_debug)
-        cout << "EStep: " << endl;
+        // if (_debug)
+        // cout << "EStep: " << endl;
         
         unsigned int inputIndex;
         RealImage slice, w, b, sim;
@@ -3309,8 +3343,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     
     void Reconstruction::Scale()
     {
-        if (_debug)
-        cout << "Scale" << endl;
+        // if (_debug)
+        // cout << "Scale" << endl;
         
         ParallelScale parallelScale( this );
         parallelScale();
@@ -3438,8 +3472,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     
     void Reconstruction::Bias()
     {
-        if (_debug)
-        cout << "Correcting bias ...";
+        // if (_debug)
+        // cout << "Correcting bias ...";
         
         ParallelBias parallelBias( this );
         parallelBias();
@@ -3544,8 +3578,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     
     void Reconstruction::Superresolution(int iter)
     {
-        if (_debug)
-        cout << "Superresolution " << iter << endl;
+        // if (_debug)
+        // cout << "Superresolution " << iter << endl;
         
         int i, j, k;
         RealImage addon, original;
@@ -3698,8 +3732,8 @@ void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     
     void Reconstruction::MStep(int iter)
     {
-        if (_debug)
-        cout << "MStep" << endl;
+        // if (_debug)
+        // cout << "MStep" << endl;
         
         ParallelMStep parallelMStep(this);
         parallelMStep();
@@ -5744,9 +5778,9 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
 
         x1 = i;
 
-        if (_debug)
-            cout << "Region of interest is " << x1 << " " << y1 << " " << z1 << " " << x2 << " " << y2
-                << " " << z2 << endl;
+        // if (_debug)
+        //     cout << "Region of interest is " << x1 << " " << y1 << " " << z1 << " " << x2 << " " << y2
+        //         << " " << z2 << endl;
 
         // if no intersection with mask, force exclude
         if ((x2 < x1) || (y2 < y1) || (z2 < z1) ) {
@@ -5904,7 +5938,7 @@ void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pa
     }
 
 
- 
+
 
      
 } // namespace mirtk

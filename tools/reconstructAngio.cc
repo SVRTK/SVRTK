@@ -87,6 +87,7 @@ void usage()
     cout << "\t-excluded_file [file]     .xt file with the excluded slice numbers."<<endl;
     cout << "\t-gaussian_only            Only Gaussian PSF interpolation."<<endl;
     cout << "\t-denoise                  Apply NLM denoising."<<endl;
+    cout << "\t-blur                     Apply Gaussian filtering for slices with sigma = 0.75 x voxel size."<<endl;
     cout << "\t-filter [sigma]           Apply background filtering (based on non-uniform lighting correction) with sigma defining "<< endl;
     cout << "\t                          background features (use values from [5; 10] range)."<<endl;
     cout << "\t-ffd                      Use FFD registration for SVR."<<endl;
@@ -176,6 +177,9 @@ int main(int argc, char **argv)
     bool flag_filter = false;
     
     bool flag_ffd = false;
+    
+    bool flag_blurring = false;
+    
     
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
@@ -417,6 +421,19 @@ int main(int argc, char **argv)
             ok = true;
         }
         
+        
+        
+        
+        //Blurring filtering
+        if ((ok == false) && (strcmp(argv[1], "-blur") == 0)){
+            argc--;
+            argv++;
+            flag_blurring=true;
+
+            ok = true;
+        }
+        
+        
         //Apply NLM denoising as preprocessing
         if ((ok == false) && (strcmp(argv[1], "-denoise") == 0)){
             argc--;
@@ -646,6 +663,8 @@ int main(int argc, char **argv)
     
     reconstruction.SetFFD(flag_ffd);
     
+    reconstruction.SetBlurring(flag_blurring);
+    
     
     //Set force excluded slices
     reconstruction.SetForceExcludedSlices(force_excluded);
@@ -710,7 +729,7 @@ int main(int argc, char **argv)
     }
     
     
-    GaussianBlurring<RealPixel> gbt(0.75*template_stack.GetXSize());
+    GaussianBlurring<RealPixel> gbt(1.2*template_stack.GetXSize());
     gbt.Input(&template_stack);
     gbt.Output(&template_stack);
     gbt.Run();

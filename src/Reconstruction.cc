@@ -1899,7 +1899,7 @@ namespace mirtk {
                     registration->InitialGuess(&(reconstructor->_mffd_transformations[inputIndex]));
                     registration->GuessParameter();
                     
-                    cout << inputIndex << endl;
+//                     cout << inputIndex << endl;
                     
                     registration->Run();
                     

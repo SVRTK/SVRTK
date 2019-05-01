@@ -113,6 +113,7 @@ protected:
 
     /// Weights for regularization
     RealImage _confidence_map;
+
     
     //EM algorithm
     /// Variance for inlier voxel errors
@@ -215,9 +216,12 @@ protected:
     double _GA;
     
     
+    
     // ---------------------------------------------------------------------------
     
 public: 
+
+    
     
     ///Constructor
     Reconstruction();
@@ -238,6 +242,8 @@ public:
                                 double smooth_mask,
                                 double threshold_mask,
                                 double expand=0 );
+
+    Array<int> _excluded_entirely; 
 
     ///Remember volumetric mask and smooth it if necessary
     void SetMask( RealImage* mask,
@@ -756,7 +762,7 @@ inline RigidTransformation Reconstruction::GetTransformation(int n)
 
 
 
- 
+
 } // namespace mirtk
 
 

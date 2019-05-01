@@ -38,8 +38,13 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageTransformation.h"
 
+#include "mirtk/MultiLevelFreeFormTransformation.h"
+#include "mirtk/FreeFormTransformation.h"
+#include "mirtk/LinearFreeFormTransformation3D.h"
+
 
 #include "mirtk/MeanShift.h"
+#include "mirtk/NLDenoising.h"
 
 
 namespace mirtk {
@@ -75,8 +80,13 @@ protected:
     Array<SLICECOEFFS> _volcoeffsSF;
     
     int _slicePerDyn;
+    
+    bool _ffd;
 
 
+    Array<MultiLevelFreeFormTransformation> _mffd_transformations;
+    
+    
     /// Slices
     Array<RealImage> _slices;
     Array<RealImage> _slicesRwithMB;
@@ -345,6 +355,9 @@ public:
     void GaussianReconstructionSF(Array<RealImage>& stacks);
     
     
+    void NLMFiltering(Array<RealImage>& stacks);
+    
+    
     ///Initialise variables and parameters for EM
     void InitializeEM();
   
@@ -470,6 +483,9 @@ public:
     
     inline void ExcludeWholeSlicesOnly();
     
+    inline void SetFFD(bool flag_ffd);
+    
+    
     ///Write included/excluded/outside slices
     void Evaluate( int iter );
     void EvaluateWithTiming( int iter );
@@ -547,7 +563,7 @@ public:
     double calculateResidual(int padding);
 
 
-    void RemoveSpinHistory( Array<RealImage>& stacks, double fg_sigma , double bg_sigma );
+    void BackgroundFiltering( Array<RealImage>& stacks, double fg_sigma , double bg_sigma );
 
 
     ///Splits stacks into packages
@@ -578,6 +594,9 @@ public:
 
     friend class ParallelStackRegistrations;
     friend class ParallelSliceToVolumeRegistration;
+    
+    friend class ParallelSliceToVolumeRegistrationFFD;
+    
     friend class ParallelCoeffInit;
     friend class ParallelCoeffInitSF;
     friend class ParallelSuperresolution;
@@ -633,9 +652,14 @@ inline RealImage Reconstruction::GetMask()
 
 inline void Reconstruction::PutMask(RealImage mask)
 {
-    _mask=mask;;
+    _mask=mask;
 }
 
+
+inline void Reconstruction::SetFFD(bool flag_ffd)
+{
+    _ffd=true;
+}
 
 inline void Reconstruction::DebugOn()
 {

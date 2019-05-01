@@ -27,11 +27,13 @@ set(HEADERS
   ${BINARY_INCLUDE_DIR}/mirtk/SVRTKExport.h
   Reconstruction.h
   MeanShift.h
+  NLDenoising.h
 )
 
 set(SOURCES
   Reconstruction.cc
   MeanShift.cc
+  NLDenoising.cc
 )
 
 set(DEPENDS

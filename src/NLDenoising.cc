@@ -684,7 +684,7 @@ RealImage NLDenoising::Run(RealImage input_image, int input_param_w, int input_p
             if (variances[i] > 0) {
                 SNR = means[i] / sqrt(variances[i]);
                 bias[i] = 2*(variances[i] / Epsi(SNR));
-                if (isnan(bias[i])) {
+                if (std::isnan(bias[i])) {
                     bias[i] = 0;
                 }
             }

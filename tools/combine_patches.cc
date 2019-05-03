@@ -95,25 +95,28 @@ int main(int argc, char **argv)
     
     //read name of the target volume
     target_volume.Read(argv[1]);
+    cout<<"Original volume: "<<argv[1]<<endl;
     argc--;
     argv++;
-    cout<<"Original volume: "<<argv[1]<<endl;
+    
     
     
     double output_resolution;
     
     //resolution
     output_resolution = atoi(argv[1]);
+    cout<<"Output resolution : "<<output_resolution<<endl;
     argc--;
     argv++;
-    cout<<"Output resolution : "<<output_resolution<<endl;
+    
     
     
     //read number of stacks
     nStacks = atoi(argv[1]);
+    cout<<"Number of stacks : "<<nStacks<<endl;
     argc--;
     argv++;
-    cout<<"Number of stacks : "<<nStacks<<endl;
+    
     
     
     

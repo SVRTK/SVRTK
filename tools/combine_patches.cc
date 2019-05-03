@@ -104,7 +104,7 @@ int main(int argc, char **argv)
     double output_resolution;
     
     //resolution
-    output_resolution = atoi(argv[1]);
+    output_resolution = atof(argv[1]);
     cout<<"Output resolution : "<<output_resolution<<endl;
     argc--;
     argv++;
@@ -152,20 +152,39 @@ int main(int argc, char **argv)
         stacks.push_back(stack);
     }
     
-    
-    
-    RealImage output_volume = target_volume;
-    target_volume = 0;
 
     InterpolationMode interpolation = Interpolation_Linear;
     UniquePtr<InterpolateImageFunction> interpolator;
     interpolator.reset(InterpolateImageFunction::New(interpolation));
     
     Resampling<RealPixel> resampler(output_resolution, output_resolution, output_resolution);
-    resampler.Input(&output_volume);
-    resampler.Output(&output_volume);
     resampler.Interpolator(interpolator.get());
+    
+    resampler.Input(&target_volume);
+    resampler.Output(&target_volume);
     resampler.Run();
+    
+
+    
+    
+    RealImage output_volume;
+    output_volume.Initialize(target_volume.GetImageAttributes());
+    
+    
+    //-------------------------------------------------------------------
+    
+    double patch_resolution = output_resolution;
+    
+    Resampling<RealPixel> resampler2(patch_resolution, patch_resolution, patch_resolution);
+    resampler2.Interpolator(interpolator.get());
+    
+    for (int i=0; i<stacks.size(); i++) {
+
+        resampler2.Input(&stacks[i]);
+        resampler2.Output(&stacks[i]);
+        resampler2.Run();
+    }
+    
     
     //-------------------------------------------------------------------
     
@@ -173,41 +192,93 @@ int main(int argc, char **argv)
     double wx, wy, wz;
     int rx, ry, rz;
     
-    for (int i=0; i<stacks.size(); i++) {
-        
-        for (int z=0; z<stacks[i].GetZ(); z++) {
-            
-            for (int y=0; y<stacks[i].GetY(); y++) {
-                for (int x=0; x<stacks[i].GetX(); x++) {
-                    
+    RealImage weights = output_volume;
+    weights = 0;
+    
+//    for (int i=0; i<stacks.size(); i++) {
+//
+//        for (int z=1; z<stacks[i].GetZ()-1; z++) {
+//            for (int y=1; y<stacks[i].GetY()-1; y++) {
+//                for (int x=1; x<stacks[i].GetX()-1; x++) {
+//
+//                    wx = x;
+//                    wy = y;
+//                    wz = z;
+//
+//                    stacks[i].ImageToWorld(wx, wy, wz);
+//                    output_volume.WorldToImage(wx, wy, wz);
+//
+//                    rx = round(wx);
+//                    ry = round(wy);
+//                    rz = round(wz);
+//
+//                    if (rx > -1 && ry > -1 && rz > -1 && rx < output_volume.GetX() && ry < output_volume.GetY() && rz < output_volume.GetZ() ) {
+//
+//                        output_volume(rx, ry, rz) = stacks[i](x, y, z);
+//                        weights(rx, ry, rz) += 1;
+//                    }
+//
+//
+//                }
+//            }
+//        }
+//
+//
+//    }
+    
+    
+    output_volume = 0;
+
+    double val, num;
+
+    for (int z=0; z<output_volume.GetZ(); z++) {
+        for (int y=0; y<output_volume.GetY(); y++) {
+            for (int x=0; x<output_volume.GetX(); x++) {
+
+                val = 0;
+                num = 0;
+
+                for (int i=0; i<stacks.size(); i++) {
+
                     wx = x;
                     wy = y;
                     wz = z;
 
-                    stacks[i].ImageToWorld(wx, wy, wz);
-                    output_volume.WorldToImage(wx, wy, wz);
-                    
+                    output_volume.ImageToWorld(wx, wy, wz);
+                    stacks[i].WorldToImage(wx, wy, wz);
+
                     rx = round(wx);
                     ry = round(wy);
                     rz = round(wz);
-                    
-                    if (rx > -1 && ry > -1 && rz > -1 && rx < output_volume.GetX() && ry < output_volume.GetY() && rz < output_volume.GetZ() ) {
-                    
-                        output_volume(rx, ry, rz) = stacks[i](x, y, z);
+
+                    if (rx > -1 && ry > -1 && rz > -1 && rx < stacks[i].GetX() && ry < stacks[i].GetY() && rz < stacks[i].GetZ() ) {
+
+                        val += stacks[i](rx, ry, rz);
+                        num++;
                     }
-                    
                 }
+
+                if (num >0)
+                    val = val/num;
+
+                output_volume(x, y, z) = val;
+                weights(x, y, z) = num;
+
+
             }
         }
-        
-        
     }
+
+
+    
     
     cout << "---------------------------------------------------------------------" << endl;
     
     cout<<"Output volume : combined.nii.gz "<<endl;
     
     output_volume.Write("combined.nii.gz");
+    
+    weights.Write("overlap-weights.nii.gz");
     
     cout << "---------------------------------------------------------------------" << endl;
     

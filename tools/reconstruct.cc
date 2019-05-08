@@ -222,18 +222,16 @@ int main(int argc, char **argv)
             
             for (i=0;i<nStacks;i++) {
                 
-                
                 cout<<"Reading transformation : "<<argv[1]<<endl;
+                Transformation *t = Transformation::New(argv[1]);
+                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t);
 
-                UniquePtr<Transformation> t(Transformation::New(argv[1]));
+                stack_transformations.push_back(*rigidTransf);
+                delete rigidTransf;
 
                 argc--;
                 argv++;
                 
-                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t.get());
-
-                stack_transformations.push_back(*rigidTransf);
-                delete rigidTransf;
             }
             reconstruction.InvertStackTransformations(stack_transformations);
             have_stack_transformations = true;

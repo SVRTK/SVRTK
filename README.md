@@ -22,15 +22,15 @@ Run
 Examples: 
 
 
-# brain reconstruction
+brain reconstruction:
 
-reconstruct   ../outputSVR.nii.gz  4 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz  -mask ../mask.nii.gz  -template_number 2  -thickness 2 2 2 2 -packages 4 4 4 4  -resolution 0.75 -iterations 3 
+reconstruct ../outputSVR.nii.gz  4 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz  -mask ../mask.nii.gz  -template_number 2  -thickness 2 2 2 2 -packages 4 4 4 4  -resolution 0.75 -iterations 3 
  
  ---
  
- # placenta reconstruction
+placenta reconstruction:
  
-reconstruct_ffd   ../outputSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz   -mask ../mask.nii.gz  -thickness 2  -resolution 1.0 -iterations 2 -template ../template.nii.gz -ffd
+reconstruct_ffd ../outputSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz   -mask ../mask.nii.gz  -thickness 2  -resolution 1.0 -iterations 2 -template ../template.nii.gz -ffd
  
   ---
  

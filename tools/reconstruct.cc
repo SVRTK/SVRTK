@@ -49,7 +49,7 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: reconstruction [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
+    cout << "Usage: reconstruct [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
     cout << endl;
     
     cout << "\t[reconstructed]         Name for the reconstructed volume. Nifti or Analyze format." << endl;
@@ -230,8 +230,7 @@ int main(int argc, char **argv)
                 delete rigidTransf;
 
                 argc--;
-                argv++;
-                
+                argv++;            
             }
             reconstruction.InvertStackTransformations(stack_transformations);
             have_stack_transformations = true;

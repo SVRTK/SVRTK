@@ -30,7 +30,7 @@ reconstruct ../outputSVR.nii.gz  4 ../stack1.nii.gz ../stack2.nii.gz ../stack3.n
  
 placenta reconstruction:
  
-reconstruct_ffd ../outputSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz   -mask ../mask.nii.gz  -thickness 2  -resolution 1.0 -iterations 2 -template ../template.nii.gz -ffd
+reconstruct_ffd ../outputSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz   -mask ../mask.nii.gz  -thickness 2 2 -resolution 1.0 -iterations 2 -template ../template.nii.gz -ffd
  
   ---
  

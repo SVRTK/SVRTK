@@ -11,6 +11,7 @@ Installation
 
 SVRTK requires installation of MIRTK (https://github.com/BioMedIA/MIRTK) with TBB option.  
 
+git clone https://github.com/SVRTK/MIRTK.git
 
 
 Run

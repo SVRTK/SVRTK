@@ -834,12 +834,12 @@ namespace mirtk {
                 
                 ParameterList params;
                 Insert(params, "Transformation model", "Rigid");
-                Insert(params, "Image (dis-)similarity measure", "NMI");
+//                 Insert(params, "Image (dis-)similarity measure", "NMI");
                 if (reconstructor->_nmi_bins>0)
                     Insert(params, "No. of bins", reconstructor->_nmi_bins);
-                Insert(params, "Image interpolation mode", "Linear");
+//                 Insert(params, "Image interpolation mode", "Linear");
                 Insert(params, "Background value", 0);
-                Insert(params, "Optimisation method", "GradientDescent");
+//                 Insert(params, "Optimisation method", "GradientDescent");
                 
                 //     Insert(params, "Image (dis-)similarity measure", "NCC");
                 //     // Insert(params_ncc, "Image interpolation mode", "Linear");
@@ -1750,11 +1750,11 @@ namespace mirtk {
                     ParameterList params;
                     Insert(params, "Transformation model", "Rigid");
                     // Insert(params, "Optimisation method", "GradientDescent");
-                    Insert(params, "Image (dis-)similarity measure", "NMI");
+//                     Insert(params, "Image (dis-)similarity measure", "NMI");
                     if (reconstructor->_nmi_bins>0)
                         Insert(params, "No. of bins", reconstructor->_nmi_bins);
-                    Insert(params, "Image interpolation mode", "Linear");
-                    // Insert(params, "Background value", -1);
+//                     Insert(params, "Image interpolation mode", "Linear");
+                    Insert(params, "Background value", -1);
                     // Insert(params, "Background value for image 1", 0);
                     // Insert(params, "Background value for image 2", -1);
                     
@@ -5263,10 +5263,10 @@ namespace mirtk {
         Insert(params, "Image (dis-)similarity measure", "NMI");
         if (_nmi_bins>0)
             Insert(params, "No. of bins", _nmi_bins);
-        Insert(params, "Image interpolation mode", "Linear");
-        //    Insert(params, "Background value", 0);
-        Insert(params, "Background value for image 1", -1);
-        Insert(params, "Background value for image 2", -1);
+//         Insert(params, "Image interpolation mode", "Linear");
+           Insert(params, "Background value", -1);
+//         Insert(params, "Background value for image 1", -1);
+//         Insert(params, "Background value for image 2", -1);
         
         GenericRegistrationFilter *rigidregistration = new GenericRegistrationFilter();
         rigidregistration->Parameter(params);
@@ -5614,10 +5614,10 @@ namespace mirtk {
         GenericRegistrationFilter rigidregistration;
         ParameterList params;
         Insert(params, "Transformation model", "Rigid");
-        Insert(params, "Image interpolation mode", "Linear");
+//         Insert(params, "Image interpolation mode", "Linear");
         Insert(params, "Background value", -1);
         
-        Insert(params, "Image (dis-)similarity measure", "NMI");
+//         Insert(params, "Image (dis-)similarity measure", "NMI");
         if (_nmi_bins>0)
             Insert(params, "No. of bins", _nmi_bins);
         

@@ -6,7 +6,7 @@
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at 
+ * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -15,7 +15,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+ */  
 
 
 #include "mirtk/Common.h"
@@ -49,7 +49,7 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: reconstruct [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
+    cout << "Usage: reconstruction [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
     cout << endl;
     
     cout << "\t[reconstructed]         Name for the reconstructed volume. Nifti or Analyze format." << endl;
@@ -74,14 +74,16 @@ void usage()
     cout << "\t-template_number          Number of the template stack. [Default: 0]"<<endl;
     cout << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 3]"<<endl;
     cout << "\t-resolution [res]         Isotropic resolution of the volume. [Default: 0.75mm]"<<endl;
+    cout << "\t-nmi_bins [nmi_bins]      Number of NMI bins for registration. [Default: 16]"<<endl;
+    cout << "\t-svr_only                 Only SVR registration to a template stack."<<endl;
     cout << "\t-global_bias_correction   Correct the bias in reconstructed image against previous estimation."<<endl;
     cout << "\t-no_intensity_matching    Switch off intensity matching."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-exclude_slices_only      Robust statistics for exclusion of slices only."<<endl;
-    cerr << "\t-remove_black_background  Create mask from black background."<<endl;
-    cerr << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction."<<endl;
-    cerr << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
+    cout << "\t-remove_black_background  Create mask from black background."<<endl;
+    cout << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction."<<endl;
+    cout << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
@@ -123,6 +125,8 @@ int main(int argc, char **argv)
     /// number of packages for each stack
     Array<int> packages;
     
+    // Numbers of NMI bins for registration
+    int nmi_bins = -1; //16;
     
     // Default values.
     int templateNumber=0;
@@ -152,6 +156,9 @@ int main(int argc, char **argv)
     //flags to switch the robust statistics on and off
     bool robust_statistics = true;
     bool robust_slices_only = false;
+
+    //flag for SVR registration to a template (without packages)
+    bool svr_only = false;
     
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
@@ -222,15 +229,18 @@ int main(int argc, char **argv)
             
             for (i=0;i<nStacks;i++) {
                 
+                
                 cout<<"Reading transformation : "<<argv[1]<<endl;
-                Transformation *t = Transformation::New(argv[1]);
-                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t);
+
+                UniquePtr<Transformation> t(Transformation::New(argv[1]));
+
+                argc--;
+                argv++;
+                
+                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t.get());
 
                 stack_transformations.push_back(*rigidTransf);
                 delete rigidTransf;
-
-                argc--;
-                argv++;            
             }
             reconstruction.InvertStackTransformations(stack_transformations);
             have_stack_transformations = true;
@@ -310,6 +320,16 @@ int main(int argc, char **argv)
             argv++;
         }
         
+        //Bins for NMI registration
+        if ((ok == false) && (strcmp(argv[1], "-nmi_bins") == 0)){
+            argc--;
+            argv++;
+            nmi_bins=atoi(argv[1]);
+            ok = true;
+            argc--;
+            argv++;
+        }
+        
         //Read transformations from this folder
         if ((ok == false) && (strcmp(argv[1], "-transformations") == 0)){
             argc--;
@@ -381,6 +401,14 @@ int main(int argc, char **argv)
             ok = true;
         }
 
+        //Use only SVR to a template
+        if ((ok == false) && (strcmp(argv[1], "-svr_only") == 0)) {
+            argc--;
+            argv++;
+            svr_only=true;
+            ok = true;
+        }
+
         //Perform bias correction of the reconstructed image agains the GW image in the same motion correction iteration
         if ((ok == false) && (strcmp(argv[1], "-global_bias_correction") == 0)) {
             argc--;
@@ -437,6 +465,9 @@ int main(int argc, char **argv)
     //Set debug mode
     if (debug) reconstruction.DebugOn();
     else reconstruction.DebugOff();
+    
+    //Set NMI bins for registration
+    reconstruction.SetNMIBins(nmi_bins);
     
     //Set force excluded slices
     reconstruction.SetForceExcludedSlices(force_excluded);
@@ -658,24 +689,62 @@ int main(int argc, char **argv)
             cout.rdbuf (strm_buffer);
         }
         cout<<"Iteration : "<<iter<<endl;
-        
-        //perform slice-to-volume registrations - skip the first iteration
-        if (iter>-1) {
-            if ( ! no_log ) {
+
+
+        if ( ! no_log ) {
                 cerr.rdbuf(file_e.rdbuf());
                 cout.rdbuf (file.rdbuf());
             }
-            if (registration_flag) {
-                cout<<"SVR iteration : "<<iter<<endl;
-                reconstruction.SliceToVolumeRegistration();
-            }
-            
-            cout<<endl;
-            if ( ! no_log ) {
-                cerr.rdbuf (strm_buffer_e);
+
+        if (svr_only) {
+            cout<<"SVR iteration : "<<iter<<endl;
+            reconstruction.SliceToVolumeRegistration();
+
+        }
+        else {
+        //perform slice-to-volume registrations - skip the first iteration
+            if (iter>0) {
+
+                if (registration_flag) {
+                    // cout<<"SVR iteration : "<<iter<<endl;
+                    // reconstruction.SliceToVolumeRegistration();
+
+                    //if((packages.size()>0)&&(iter<(iterations-1)))
+                    if((packages.size()>0)&&(iter<=iterations*(levels-1)/levels)&&(iter<(iterations-1)))
+                    {
+                        if(iter==1)
+                            reconstruction.PackageToVolume(stacks,packages,iter);
+                        else
+                        {
+                            if(iter==2)
+                                reconstruction.PackageToVolume(stacks,packages,iter,true);
+                            else
+                            {
+                                if(iter==3)
+                                    reconstruction.PackageToVolume(stacks,packages,iter,true,true);
+                                else
+                                {
+                                    if(iter>=4)
+                                        reconstruction.PackageToVolume(stacks,packages,iter,true,true,iter-2);
+                                    else
+                                        reconstruction.SliceToVolumeRegistration();
+                                }
+                            }
+                        }
+                    }
+                    else
+                        reconstruction.SliceToVolumeRegistration();
+
+                }
+ 
             }
         }
         
+        cout<<endl;
+        if ( ! no_log ) {
+            cerr.rdbuf (strm_buffer_e);
+        }
+
         //Write to file
         if ( ! no_log ) {
             cout.rdbuf (file2.rdbuf());

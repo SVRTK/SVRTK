@@ -15,7 +15,7 @@ git clone https://github.com/SVRTK/MIRTK.git
 
 git clone https://github.com/SVRTK/SVRTK.git
 
- (Note: the bin files will be in: /SVRTK/build/lib/tools/ folder)
+ (Note: the executable files will be in: /SVRTK/build/lib/tools/ folder)
 
 Run
 ---

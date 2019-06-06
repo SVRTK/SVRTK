@@ -52,15 +52,14 @@ using namespace std;
 
 void usage()
 {
-    cerr << "Usage: reconstructionCardiacVelocity [reconstructed] [N] [stack_1] .. [stack_N] [g_values] [g_directions] <options>\n" << endl;
+    cerr << "Usage: reconstructionCardiacVelocity [N] [stack_1] .. [stack_N] [g_values] [g_directions] <options>\n" << endl;
+    cerr << "- the output files will be in velocity-*.nii.gz files" << endl;
     cerr << endl;
-    
-    cerr << "\t[reconstructed]            Name for the reconstructed volume. Nifti or Analyze format." << endl;
+
     cerr << "\t[N]                        Number of stacks." << endl;
     cerr << "\t[stack_1]..[stack_N]       The input stacks. Nifti or Analyze format." << endl;
     cerr << "\t" << endl;
     cerr << "Options:" << endl;
-    cerr << "\t-stack_registration        Perform stack-stack regisrtation." << endl;
     cerr << "\t-target_stack [stack_no]   Stack number of target for stack-stack registration." << endl;
     cerr << "\t-dofin [dof_1]..[dof_N]    The transformations of the input stack to template" << endl;
     cerr << "\t                           in \'dof\' format used in IRTK/MIRTK." <<endl;
@@ -69,7 +68,6 @@ void usage()
     cerr << "\t                           Use \'id\' for an identity transformation." << endl;
     cerr << "\t-thickness [th_1]..[th_N]  Give slice thickness.[Default: twice voxel size in z direction]"<<endl;
     cerr << "\t-mask [mask]               Binary mask to define the region of interest. [Default: whole image]"<<endl;
-    cerr << "\t-masks [stack_1]..[stack_N]  Binary masks for the ROI in each of the stacks. [Default: none]"<<endl;
     cerr << "\t-transformations [folder]  Use existing image-frame to volume transformations to initialize the reconstruction."<<endl;
     cerr << "\t-slice_transformations [folder]  Use existing slice-location transformations to initialize the reconstruction."<<endl;
     cerr << "\t-motion_sigma [sigma]      Stdev for smoothing transformations. [Default: 0s, no smoothing]"<<endl;
@@ -79,27 +77,19 @@ void usage()
     cerr << "\t-resolution [res]          Isotropic resolution of the volume. [Default: 0.75mm]"<<endl;
     cerr << "\t-numcardphase              Number of cardiac phases to reconstruct. [Default: 15]."<<endl;
     cerr << "\t-rrinterval [rr]           R-R interval of reconstructed cine volume. [Default: 1 s]."<<endl;
-    cerr << "\t-iterations [n]            Number of registration-reconstruction iterations. [Default: 4]"<<endl;
-    cerr << "\t-rec_iterations [n]        Number of super-resolution reconstruction iterations. [Default: 10]"<<endl;
-    cerr << "\t-rec_iterations_last [n]   Number of super-resolution reconstruction iterations for last iteration. [Default: 2 x rec_iterations]"<<endl;
-    cerr << "\t-sigma [sigma]             Stdev for bias field. [Default: 12mm]"<<endl;
-    cerr << "\t-nmi_bins [nmi_bins]       Number of NMI bins for registration. [Default: 16]"<<endl;
-    cerr << "\t-alpha [alpha]             Alpha value for super-resolution loop. [Default: 1]"<<endl;
-    cerr << "\t-average [average]         Average intensity value for stacks [Default: 700]"<<endl;
-    cerr << "\t-delta [delta]             Parameter to define what is an edge. [Default: 150]"<<endl;
-    cerr << "\t-lambda [lambda]           Smoothing parameter. [Default: 0.02]"<<endl;
-    cerr << "\t-lastIter [lambda]         Smoothing parameter for last iteration. [Default: 0.01]"<<endl;
-    cerr << "\t-multires [levels]         Multiresolution smooting with given number of levels. [Default: 3]"<<endl;
+    cerr << "\t-rec_iterations [n]        Number of super-resolution reconstruction iterations. [Default: 40]"<<endl;
+    cerr << "\t-alpha [alpha]             Alpha value for super-resolution loop. [Default: 3]"<<endl;
+    cerr << "\t-average [average]         Average intensity value for stacks [Default: 1]"<<endl;
+    cerr << "\t-delta [delta]             Parameter to define what is an edge. [Default: 50]"<<endl;
+    cerr << "\t-lambda [lambda]           Smoothing parameter. [Default: 0.01]"<<endl;
     cerr << "\t-smooth_mask [sigma]       Smooth the mask to reduce artefacts of manual segmentation. [Default: 4mm]"<<endl;
     cerr << "\t-force_exclude [n] [ind1]..[indN]  Force exclusion of image-frames with these indices."<<endl;
     cerr << "\t-force_exclude_sliceloc [n] [ind1]..[indN]  Force exclusion of slice-locations with these indices."<<endl;
     cerr << "\t-force_exclude_stack [n] [ind1]..[indN]  Force exclusion of stacks with these indices."<<endl;
-    cerr << "\t-no_stack_intensity_matching  Switch off stack intensity matching."<<endl;
-    cerr << "\t-no_intensity_matching     Switch off intensity matching."<<endl;
-    cerr << "\t-no_robust_statistics      Switch off robust statistics."<<endl;
+    cerr << "\t-robust_statistics         Switch on robust statistics. [Defaul: off]"<<endl;
     cerr << "\t-no_regularisation         Switch off adaptive regularisation."<<endl;
     cerr << "\t-limit_intensities         Limit velocity magnitude according to the maximum/minimum values."<<endl;
-    cerr << "\t-limit_time_window         Crop time window to 0.9."<<endl;
+    cerr << "\t-limit_time_window         Threshol time window to 90%."<<endl;
     cerr << "\t-exclude_slices_only       Do not exclude individual voxels."<<endl;
     cerr << "\t-ref_vol                   Reference volume for adjustment of spatial position of reconstructed volume."<<endl;
     cerr << "\t-rreg_recon_to_ref         Register reconstructed volume to reference volume [Default: recon to ref]"<<endl;
@@ -108,27 +98,10 @@ void usage()
     cerr << "\t-info [filename]           Filename for slice information in tab-sparated columns."<<endl;
     cerr << "\t-debug                     Debug mode - save intermediate results."<<endl;
     cerr << "\t-no_log                    Do not redirect cout and cerr to log files."<<endl;
-    // cerr << "\t-global_bias_correction   Correct the bias in reconstructed image against previous estimation."<<endl;
-    // cerr << "\t-low_intensity_cutoff     Lower intensity threshold for inclusion of voxels in global bias correction."<<endl;
-    // cerr << "\t-remove_black_background  Create mask from black background."<<endl;
-    //cerr << "\t-multiband [num_1] .. [num_N]  Multiband factor for each stack for each stack. [Default: 1]"<<endl;
-    //cerr << "\t-packages [num_1] .. [num_N]   Give number of packages used during acquisition for each stack. [Default: 1]"<<endl;
-    //cerr << "\t                          The stacks will be split into packages during registration iteration 1"<<endl;
-    // cerr << "\t                          and then following the specific slice ordering "<<endl;
-    // cerr << "\t                          from iteration 2. The method will then perform slice to"<<endl;
-    // cerr << "\t                          volume (or multiband registration)."<<endl;
-    // cerr << "\t-order                    Array of slice acquisition orders used at acquisition. [Default: (1)]"<<endl;
-    // cerr << "\t                          Possible values: 1 (ascending), 2 (descending), 3 (default), 4 (interleaved)"<<endl;
-    // cerr << "\t                          and 5 (Customized)."<<endl;
-    // cerr << "\t-step                     Forward slice jump for customized (C) slice ordering [Default: 1]"<<endl;
-    // cerr << "\t-rewinder              Rewinder for customized slice ordering [Default: 1]"<<endl;
-    // cerr << "\t-bspline                  Use multi-level bspline interpolation instead of super-resolution."<<endl;
-    // cerr << "\t" << endl;
-    // cerr << "\tNOTE: work in progress, use of following options is not recommended..." << endl;
-    // cerr << "\t\tmultiband, packages, order, step, rewinder, rescale_stacks" << endl;
     cerr << "\t" << endl;
     cerr << "\t" << endl;
     exit(1);
+
 }
 
 // -----------------------------------------------------------------------------
@@ -142,9 +115,6 @@ void usage()
 
 int main(int argc, char **argv)
 {
-    
-    cout << UnitRandom() << " " << UnitRandom() << " " << UnitRandom() << endl;
-    
     
     //utility variables
     int i, j, ok;
@@ -165,9 +135,7 @@ int main(int argc, char **argv)
     Array<string> stack_files;
     /// Stack transformation
     Array<RigidTransformation> stack_transformations;
-    /// Stack heart masks
-    Array<RealImage> masks;
-    
+
     /// user defined transformations
     bool have_stack_transformations = false;
     /// Stack thickness
@@ -188,39 +156,27 @@ int main(int argc, char **argv)
     Array<double> mean_weighted_displacement;
     // Mean target registration error
     Array<double> mean_tre;
+
     
-    // int step = 1;
-    // int rewinder = 1;
-    
-    
-    // Numbers of NMI bins for registration
-    int nmi_bins = 16;
-    double velocity_scale = 1;
-    double alpha = 1;
-    
-    bool initisaliation = false;
-    
+    // alpha for gradient descend step
+    double alpha = 3;
+
     
     // Default values
     int templateNumber = 0;
     RealImage *mask=NULL;
-    int iterations = 4;
     bool debug = false;
     double sigma=20;
     double motion_sigma = 0;
-    double resolution = 0.75;
+    double resolution = 1.25;
     int numCardPhase = 15;
     double rrDefault = 1;
     double rrInterval = rrDefault;
     bool is_temporalpsf_gauss = false;
-    double lambda = 0.010; // 0.015;
-    double delta = 50; //100;  // 50 // 70
-    int levels = 3;
-    double lastIterLambda = 0.01; //0.01;
-    int rec_iterations = 10;
-    int rec_iterations_first = 10;
-    int rec_iterations_last = -1;
-    double averageValue = 700;
+    double lambda = 0.010;
+    double delta = 50;
+    int rec_iterations = 40;
+    double averageValue = 1;
     double smooth_mask = 4;
     bool global_bias_correction = false;
     // double low_intensity_cutoff = 0.01;
@@ -231,22 +187,15 @@ int main(int argc, char **argv)
     //folder for reference slice-to-volume registrations, if given
     char *ref_transformations_folder=NULL;
     bool have_ref_transformations = false;
-    //flag to remove black background, e.g. when neonatal motion correction is performed
-    bool remove_black_background = false;
-    //flag to swich the intensity matching on and off
-    bool stack_intensity_matching = false; //true;
-    bool intensity_matching = false; //true;
-    bool rescale_stacks = false;
-    bool stack_registration = false;
 
+    //flags for adaptive regularisation and velocity limits
     bool adaptive_regularisation = true;
     bool limit_intensities = false;
     
     //flag to swich the robust statistics on and off
-    bool robust_statistics = true; //true;
+    bool robust_statistics = false;
     bool robust_slices_only = false;
-    //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
-    bool bspline = false;
+
     Array<int> multiband_Array;
     // int multiband_factor=1;
     
@@ -267,19 +216,10 @@ int main(int argc, char **argv)
     //Create reconstruction object
     ReconstructionCardiacVelocity4D reconstruction;
     
-    //Entropy of reconstructed volume
-    Array<double> e;
-    Array< Array<double> > entropy;
     
     //if not enough arguments print help
     if (argc < 5)
         usage();
-
-    //read output name
-    output_name = argv[1];
-    argc--;
-    argv++;
-    cout<<"Recontructed volume name ... "<<output_name<<endl;
 
     //read number of stacks
     nStacks = atoi(argv[1]);
@@ -288,36 +228,26 @@ int main(int argc, char **argv)
     cout<<"Number of stacks ... "<<nStacks<<endl;
     
     // Read stacks
-    
     const char *tmp_fname;
     UniquePtr<BaseImage> tmp_image;
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
 
-    
-    
+
     for (i=0; i<nStacks; i++)
     {
         stack_files.push_back(argv[1]);
-        
-        //stack.Read(argv[1]);
-        
+
         cout<<"Reading stack ... "<<argv[1]<<endl;
         
         tmp_fname = argv[1];
-        image_reader.reset(ImageReader::TryNew(tmp_fname));
-        tmp_image.reset(image_reader->Run());
-        
-        stack = *tmp_image;
+        stack.Read(tmp_fname);
 
         argc--;
         argv++;
         stacks.push_back(stack);
     }
-    
-    
-    
-    
+
     Array<Array<double> > g_directions;
     Array<double> g_values;
     
@@ -330,7 +260,6 @@ int main(int argc, char **argv)
         g_directions.push_back(tmp_array);
         
     }
-    
     
     //Read the name of the text file with gradient values
     char *g_val_file = argv[1];
@@ -359,7 +288,6 @@ int main(int argc, char **argv)
         cout << " - Unable to open file " << g_val_file << endl;
         exit(1);
     }
-    
     
     //Read the gradient directions from the text file
     char *g_dir_file = argv[1];
@@ -442,14 +370,6 @@ int main(int argc, char **argv)
             have_stack_transformations = true;
         }
         
-        //Stack registration
-        if ((ok == false) && (strcmp(argv[1], "-stack_registration") == 0)){
-            argc--;
-            argv++;
-            stack_registration=true;
-            ok = true;
-            cout << "Stack-stack registrations, if possible."<<endl;
-        }
         
         //Read slice thickness
         if ((ok == false) && (strcmp(argv[1], "-thickness") == 0)){
@@ -534,52 +454,12 @@ int main(int argc, char **argv)
             ok = true;
         }
         
-        
         //Read binary mask for final volume
         if ((ok == false) && (strcmp(argv[1], "-mask") == 0)){
             argc--;
             argv++;
             mask = new RealImage(argv[1]);
-            
-            
-            ok = true;
-            argc--;
-            argv++;
-        }
-        
-        //Read binary masks for all stacks
-        if ((ok == false) && (strcmp(argv[1], "-masks") == 0)){
-            
-            argc--;
-            argv++;
-            cout<< "Reading heart masks.";
-            for (i=0;i<nStacks;i++)
-            {
-                RealImage *tmp_mask_p;
-                tmp_mask_p = new RealImage(argv[1]);
-                
-                RealImage tmp_mask = *tmp_mask_p;
-                
-                // dilate the stack heart masks (tmp)
-                // ConnectivityType connectivity = CONNECTIVITY_26;
-                // Dilate<RealPixel>(&tmp_mask, 9, connectivity);
-                
-                masks.push_back(tmp_mask);
-                
-                argc--;
-                argv++;
-            }
-            
-            ok = true;
-            
-        }
-        
-        
-        //Read number of registration-reconstruction iterations
-        if ((ok == false) && (strcmp(argv[1], "-iterations") == 0)){
-            argc--;
-            argv++;
-            iterations=atoi(argv[1]);
+
             ok = true;
             argc--;
             argv++;
@@ -589,47 +469,7 @@ int main(int argc, char **argv)
         if ((ok == false) && (strcmp(argv[1], "-rec_iterations") == 0)){
             argc--;
             argv++;
-            rec_iterations_first=atoi(argv[1]);
-            ok = true;
-            argc--;
-            argv++;
-        }
-        
-        //Read number of reconstruction iterations for last registration-reconstruction iteration
-        if ((ok == false) && (strcmp(argv[1], "-rec_iterations_last") == 0)){
-            argc--;
-            argv++;
-            rec_iterations_last=atoi(argv[1]);
-            ok = true;
-            argc--;
-            argv++;
-        }
-        
-        //Bins for NMI registration.
-        if ((ok == false) && (strcmp(argv[1], "-nmi_bins") == 0)){
-            argc--;
-            argv++;
-            nmi_bins=atoi(argv[1]);
-            ok = true;
-            argc--;
-            argv++;
-        }
-        
-        //Variance of Gaussian kernel to smooth the bias field.
-        if ((ok == false) && (strcmp(argv[1], "-sigma") == 0)){
-            argc--;
-            argv++;
-            sigma=atof(argv[1]);
-            ok = true;
-            argc--;
-            argv++;
-        }
-        
-        //Variance of Gaussian kernel to smooth the motion
-        if ((ok == false) && (strcmp(argv[1], "-motion_sigma") == 0)){
-            argc--;
-            argv++;
-            motion_sigma=atof(argv[1]);
+            rec_iterations=atoi(argv[1]);
             ok = true;
             argc--;
             argv++;
@@ -640,16 +480,6 @@ int main(int argc, char **argv)
             argc--;
             argv++;
             lambda=atof(argv[1]);
-            ok = true;
-            argc--;
-            argv++;
-        }
-        
-        //Smoothing parameter for last iteration
-        if ((ok == false) && (strcmp(argv[1], "-lastIter") == 0)){
-            argc--;
-            argv++;
-            lastIterLambda=atof(argv[1]);
             ok = true;
             argc--;
             argv++;
@@ -674,36 +504,7 @@ int main(int argc, char **argv)
             argc--;
             argv++;
         }
-        
-        //Number of resolution levels
-        if ((ok == false) && (strcmp(argv[1], "-multires") == 0)){
-            argc--;
-            argv++;
-            levels=atoi(argv[1]);
-            argc--;
-            argv++;
-            ok = true;
-        }
-        
-        //Smooth mask to remove effects of manual segmentation
-        if ((ok == false) && (strcmp(argv[1], "-smooth_mask") == 0)){
-            argc--;
-            argv++;
-            smooth_mask=atof(argv[1]);
-            argc--;
-            argv++;
-            ok = true;
-        }
-        
-        //Scale for output velocity volumes
-        if ((ok == false) && (strcmp(argv[1], "-velocity_scale") == 0)){
-            argc--;
-            argv++;
-            velocity_scale=atof(argv[1]);
-            argc--;
-            argv++;
-            ok = true;
-        }
+
         
         //No adaptive regularisation
         if ((ok == false) && (strcmp(argv[1], "-no_regularisation") == 0)){
@@ -713,16 +514,6 @@ int main(int argc, char **argv)
 
             ok = true;
         }
-        
-        //With analytical initialisation
-        if ((ok == false) && (strcmp(argv[1], "-initialisation") == 0)){
-            argc--;
-            argv++;
-            initisaliation=true;
-            
-            ok = true;
-        }
-        
         
         
         //Limit velocity magnitude values
@@ -757,29 +548,11 @@ int main(int argc, char **argv)
         }
         
         
-        //Match stack intensities
-        if ((ok == false) && (strcmp(argv[1], "-no_stack_intensity_matching") == 0)){
-            argc--;
-            argv++;
-            stack_intensity_matching=false;
-            ok = true;
-            cout << "No stack intensity matching."<<endl;
-        }
-        
-        //Switch off intensity matching
-        if ((ok == false) && (strcmp(argv[1], "-no_intensity_matching") == 0)){
-            argc--;
-            argv++;
-            intensity_matching=false;
-            ok = true;
-            cout << "No intensity matching."<<endl;
-        }
-        
         //Switch off robust statistics
-        if ((ok == false) && (strcmp(argv[1], "-no_robust_statistics") == 0)){
+        if ((ok == false) && (strcmp(argv[1], "-robust_statistics") == 0)){
             argc--;
             argv++;
-            robust_statistics=false;
+            robust_statistics=true;
             ok = true;
         }
         
@@ -790,31 +563,7 @@ int main(int argc, char **argv)
             robust_slices_only=true;
             ok = true;
         }
-        
-        //Use multilevel B-spline interpolation instead of super-resolution
-        // if ((ok == false) && (strcmp(argv[1], "-bspline") == 0)){
-        //   argc--;
-        //   argv++;
-        //   bspline=true;
-        //   ok = true;
-        // }
-        
-        //Perform bias correction of the reconstructed image agains the GW image in the same motion correction iteration
-        // if ((ok == false) && (strcmp(argv[1], "-global_bias_correction") == 0)){
-        //   argc--;
-        //   argv++;
-        //   global_bias_correction=true;
-        //   ok = true;
-        // }
-        
-        // if ((ok == false) && (strcmp(argv[1], "-low_intensity_cutoff") == 0)){
-        //   argc--;
-        //   argv++;
-        //   low_intensity_cutoff=atof(argv[1]);
-        //   argc--;
-        //   argv++;
-        //   ok = true;
-        // }
+
         
         //Debug mode
         if ((ok == false) && (strcmp(argv[1], "-debug") == 0)){
@@ -841,17 +590,7 @@ int main(int argc, char **argv)
             no_log=true;
             ok = true;
         }
-        
-        // rescale stacks to avoid error:
-        // irtkImageRigidRegistrationWithPadding::Initialize: Dynamic range of source is too large
-        if ((ok == false) && (strcmp(argv[1], "-rescale_stacks") == 0)){
-            argc--;
-            argv++;
-            rescale_stacks=true;
-            ok = true;
-        }
-        
-        
+
         
         // Save slice info
         if ((ok == false) && (strcmp(argv[1], "-info") == 0)) {
@@ -979,17 +718,6 @@ int main(int argc, char **argv)
         }
     }
     
-    
-    // if (masks.size()>0) {
-    //     for (i=0;i<nStacks;i++)    {
-    //         RealImage m=masks[i];
-    //         RigidTransformation *rigidTransf3 = new RigidTransformation;
-    //         reconstruction.TransformMask(stacks[i],m,*rigidTransf3);
-    //         reconstruction.CropImageIgnoreZ(stacks[i],m);
-    //     }
-    // }
-    
-    
     // check that conflicting transformation folders haven't been given
     if ((folder!=NULL)&(slice_transformations_folder!=NULL))
     {
@@ -997,12 +725,7 @@ int main(int argc, char **argv)
         exit(1);
     }
     
-    if (rescale_stacks)
-    {
-        for (i=0;i<nStacks;i++)
-            reconstruction.Rescale(stacks[i],1000);
-    }
-    
+
     // set packages to 1 if not given by user
     if (packages.size() == 0)
         for (i=0;i<nStacks;i++)    {
@@ -1049,22 +772,6 @@ int main(int argc, char **argv)
         cout<<"."<<endl;
     }
     
-    //Heart mask-based centering (not required for velocity)
-    if (masks.size()>0) {
-        
-        for (i=0;i<masks.size();i++) {
-            reconstruction.CropImage(masks[i],masks[i]);
-        }
-        
-        reconstruction.CenterStacks(masks, stack_transformations, templateNumber);
-        
-        for (i=0;i<masks.size();i++) {
-            sprintf(buffer, "centered-mask-transformations-%i.dof", i);
-            stack_transformations[i].Write(buffer);
-        }
-        
-    }
-    
     
     //Set temporal point spread function
     if (is_temporalpsf_gauss)
@@ -1098,17 +805,12 @@ int main(int argc, char **argv)
     if (debug) reconstruction.DebugOn();
     else reconstruction.DebugOff();
     
-    //Set NMI bins for registration
-    reconstruction.SetNMIBins(nmi_bins);
     
     //Set adaptive regularisation option flag
     reconstruction.SetAdaptiveRegularisation(adaptive_regularisation);
     
     //Set limit velocity magnitude intensities flag
     reconstruction.SetLimitIntensities(limit_intensities);
-    
-    //Set scale for ouput velocity volumes
-    reconstruction.SetVelocityScale(velocity_scale);
     
     //Set force excluded slices
     reconstruction.SetForceExcludedSlices(force_excluded);
@@ -1151,12 +853,7 @@ int main(int argc, char **argv)
     
     // Create template 4D volume
     reconstruction.CreateTemplateCardiac4DFromStaticMask( maskCropped, resolution );
-    
-    
-    
-    
-    
-    
+
     // Set mask to reconstruction object
     reconstruction.SetMask(mask,smooth_mask);
     
@@ -1182,9 +879,9 @@ int main(int argc, char **argv)
     
     
     average = reconstruction.CreateAverage(stacks,stack_transformations);
-    //    if (debug)
-    //    average.Write("average1.nii.gz");
-    
+    if (debug)
+        average.Write("average1.nii.gz");
+
     //Mask is transformed to the all stacks and they are cropped
     for (i=0; i<nStacks; i++)
     {
@@ -1192,12 +889,8 @@ int main(int argc, char **argv)
         //transform the mask
         RealImage m=reconstruction.GetMask();
         reconstruction.TransformMask(stacks[i],m,stack_transformations[i]);
+        
         //Crop template stack
-        
-        // ConnectivityType connectivity2 = CONNECTIVITY_26;
-        // Dilate<RealPixel>(&m, 5, connectivity2);
-        
-        
         reconstruction.CropImageIgnoreZ(stacks[i],m);
         if (debug)
         {
@@ -1208,25 +901,6 @@ int main(int argc, char **argv)
         }
     }
     
-    /*
-     //Rescale intensities of the stacks to have the same average
-     if (stack_intensity_matching)
-     reconstruction.MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
-     else
-     reconstruction.MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue,true);
-     if (debug) {
-     for (i=0; i<nStacks; i++) {
-     sprintf(buffer,"rescaledstack%03i.nii.gz",i);
-     stacks[i].Write(buffer);
-     }
-     }
-     average = reconstruction.CreateAverage(stacks,stack_transformations);
-     if (debug)
-     average.Write("average2.nii.gz");
-     */
-    
-
-    
     //Create slices and slice-dependent transformations
     reconstruction.CreateSlicesAndTransformationsCardiac4D(stacks,stack_transformations,thickness);
     // reconstruction.CreateSliceDirections(directions,bvalues);
@@ -1236,10 +910,6 @@ int main(int argc, char **argv)
         reconstruction.InitError();
     }
     
-
-//    reconstruction.RandomRotations(stacks);
-//    reconstruction.SaveOriginal(stacks);
-    
     
     //if given, read transformations
     if (folder!=NULL)
@@ -1247,13 +917,8 @@ int main(int argc, char **argv)
     else {
         if (slice_transformations_folder!=NULL)     // slice-location to volume registrations
             reconstruction.ReadSliceTransformation(slice_transformations_folder);
-//        else {
-//            cerr<<"5D cardiac velocity MRI reconstruction requires slice transformations from structural reconstruction."<<endl;
-//            exit(1);
-//        }
+
     }
-    
-    
     
     //if given, read reference transformations
     if ((have_ref_transformations)&(ref_transformations_folder!=NULL))
@@ -1263,8 +928,8 @@ int main(int argc, char **argv)
     if (!have_ref_transformations)
         reconstruction.InitTRE();
     
-    //Mask all the slices
-    reconstruction.MaskSlicesPhase(); // 21/02
+    //Mask all the phase slices
+    reconstruction.MaskSlicesPhase();
     
     
     // Set R-R for each image
@@ -1298,14 +963,11 @@ int main(int argc, char **argv)
     //Initialise data structures for EM
     reconstruction.InitializeEMVelocity4D();
     
-    cout << 6 << endl;
-    
     // Calculate Cardiac Phase of Each Slice
     if ( cardPhase.size() == 0 ) {  // no cardiac phases specified
         
         cerr<<"5D cardiac velocity MRI reconstruction requires specification of cardiac phases."<<endl;
         exit(1);
-        
     }
     else {
         reconstruction.SetSliceCardiacPhase(cardPhase);   // set all cardiac phases to given values
@@ -1315,18 +977,10 @@ int main(int argc, char **argv)
     // Calculate Temporal Weight for Each Slice
     reconstruction.CalculateSliceTemporalWeights();
     
-    
-    // ...........................................................................
-    
-    // Velocity reconstruction (draft version)
-
-    
     reconstruction.InitializeVelocityVolumes();
-    
     reconstruction.InitializeGradientMoments(g_directions, g_values);
     
-    
-    reconstruction.SetSmoothingParameters(delta,lastIterLambda);
+    reconstruction.SetSmoothingParameters(delta, lambda);
     reconstruction.SpeedupOff();
     
     
@@ -1334,128 +988,58 @@ int main(int argc, char **argv)
         reconstruction.ExcludeWholeSlicesOnly();
     
     reconstruction.InitializeEMValuesVelocity4D();
-    
+
+    // Generation of spacial coefficients
     reconstruction.CoeffInitCardiac4D();
     
     reconstruction.Set3DRecon();
     
     // Initialise velocity and phase limits
-    reconstruction.ItinialiseVelocityBounds(); 
+    reconstruction.ItinialiseVelocityLimits();
     
 
     cout << "InitializeSliceGradients4D" << endl;
     reconstruction.InitializeSliceGradients4D();
     
     //-------------------------------------------------------------------------------------
-    // Main velocity reconstruciton steps
- 
+    // Velocity reconstruction loop
     
-    // STEP 0: Analytical initisaliation of velocity volumes
-    
-    
-//    if (initisaliation) {
-//        Array<int> init_stack_numbers;
-//
-//        for (int i=0; i<stacks.size(); i++)
-//            init_stack_numbers.push_back(i);
-//
-//        reconstruction.InitialisationCardiacVelocity4D(init_stack_numbers);
-//        reconstruction.SaveReconstructedVelocity4D(-1);
-//    }
-    
-
-    
-    // STEP 3: Simulate slices (should be done after Gaussian reconstruction)
+    //Simulate slices
     reconstruction.SimulateSlicesCardiacVelocity4D();
     
-
     //Initialize robust statistics parameters
-   reconstruction.InitializeRobustStatisticsVelocity4D();
-    
-    
-    
-//    //EStep
-//    if(robust_statistics)
-//        reconstruction.EStepVelocity4D();
-    
-     
-    rec_iterations = rec_iterations_first;      // number of iterations is controlled by '-rec_iterations' flag
-    
-    
+    reconstruction.InitializeRobustStatisticsVelocity4D();
 
-    reconstruction._dif_stacks = stacks;
-    
-    
-    reconstruction.SaveSliceInfo();
+    if (debug)
+        reconstruction.SaveSliceInfo();
 
-    
-    // main reconstruction loop
     for(int iteration = 0; iteration < rec_iterations; iteration++ ) {
         
         cout<<endl<<" - Reconstruction iteration : "<< iteration <<"  "<<endl;
 
-
-        
-//        if(iterations==(rec_iterations-1))
-//            reconstruction.SetSmoothingParameters(delta,lastIterLambda);
-//        else
-//        {
-//            double l=lambda;
-//            for (i=0;i<levels;i++)
-//            {
-//                if (iterations==rec_iterations*(levels-i-1)/levels)
-//                    reconstruction.SetSmoothingParameters(delta, l);
-//                l*=2;
-//            }
-//        }
-        
-        
-        double alpha_i = alpha + (1-alpha)*double(iteration)/double(rec_iterations);
-        reconstruction.SetAlpha(alpha_i);
-        
-
+        //Gradient descent step
         reconstruction.SetAlpha(alpha);
-        
-        
-        // STEPS 4-5: super-resolution reconstruction and simulation of slices (optimisation loop)
-        
         reconstruction.SuperresolutionCardiacVelocity4D(iteration);
         reconstruction.SimulateSlicesCardiacVelocity4D();
+        
+        if ((iteration+1)<rec_iterations) {
 
-//         if (iteration == 0) {
-//             if(robust_statistics)
-//               reconstruction.EStepVelocity4D();
-//         }
-        
-        
-//        double consistency = reconstruction.Consistency();
-        
-        
-        if ((iteration+1)<rec_iterations ) { // && (iteration>(round(rec_iterations/2)))
-
-            if(robust_statistics)
+            if(robust_statistics) {
                 reconstruction.MStepVelocity4D(iteration+1);
-
-            //E-step
-            if(robust_statistics)
                 reconstruction.EStepVelocity4D();
+            }
 
         }
         
-//        Array<RealImage> tmp_stacks;
-//        tmp_stacks = stacks;
-//        reconstruction.SaveSimulatedSlices(tmp_stacks, iteration, iteration);
-        
-        reconstruction.SaveOuput(stacks);
-        
-
-        reconstruction.SaveReconstructedVelocity4D(iteration);
-//        reconstruction.SaveReconstructedVolume4D(iteration);
+        if (debug) {
+            reconstruction.SaveOuput(stacks);
+            reconstruction.SaveReconstructedVelocity4D(iteration);
+        }
         
     } // end of reconstruction loop
     
-    
-    reconstruction.SaveSliceInfo();
+    if (debug)
+        reconstruction.SaveSliceInfo();
     
     //-------------------------------------------------------------------------------------
     
@@ -1464,20 +1048,12 @@ int main(int argc, char **argv)
     reconstruction.SaveReconstructedVelocity4D(100);
     
     
-    reconstruction.StaticMaskReconstructedVolume4D();
-    // reconstruction.RestoreSliceIntensities();
-    // reconstruction.ScaleVolumeCardiac4D();
-    reconstructed=reconstruction.GetReconstructedCardiac4D();
-    reconstructed.Write(output_name);
-    
-    reconstruction.SaveSlices(stacks);
-    // reconstruction.SaveTransformations();
-    
-    reconstruction.SaveSimulatedSlices(stacks);
-    
-    // reconstruction.SaveSimulatedSlices();
-    
-    
+    if (debug) {
+        reconstruction.SaveSlices(stacks);
+        reconstruction.SaveSimulatedSlices(stacks);
+    }
+
+
     //The end of main()
     
 }

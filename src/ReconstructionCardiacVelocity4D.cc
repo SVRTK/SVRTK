@@ -28,14 +28,9 @@
 #include <math.h>
 
 
-
-
 using namespace std;
 
 namespace mirtk {
-    
-    // -----------------------------------------------------------------------------
-    
     
     // -----------------------------------------------------------------------------
     // Constructor
@@ -44,19 +39,14 @@ namespace mirtk {
     {
         _recon_type = _3D;
         
-       _no_sr = true;
+        _no_sr = true;
+        _adaptive_regularisation = true;
+        _limit_intensities = false;
         
-        
-        current_stack_for_processing = 0;
-        
+
         // initialise velocity direction array
         Array<double> tmp;
         double t;
-        
-        _velocity_scale = 1;
-        
-        _adaptive_regularisation = true;
-        _limit_intensities = false;
         
         _v_directions.clear();
         for (int i=0; i<3; i++) {
@@ -71,10 +61,7 @@ namespace mirtk {
             _v_directions.push_back(tmp);
         }
         
-        
-        cout << "- gamma : " << gamma << endl;
-        
-        
+
     }
     
     // -----------------------------------------------------------------------------
@@ -83,7 +70,9 @@ namespace mirtk {
     ReconstructionCardiacVelocity4D::~ReconstructionCardiacVelocity4D() { }
     
 
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Initialisation of velocity volumes
+    // -----------------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::InitializeVelocityVolumes()
     {
@@ -103,49 +92,9 @@ namespace mirtk {
     }
     
     
-    //-------------------------------------------------------------------
-    
-    
-    void ReconstructionCardiacVelocity4D::SimulateSignal(int iter)
-    {
-        _simulated_signal = _reconstructed4D;
-        _simulated_signal = 0;
-        
-        double tmp_signal;
-        
-        int gradientIndex = 1;
-        
-        double gval = _g_values[gradientIndex];
-        Array<double> g_direction = _g_directions[gradientIndex];
-        
-        for (int t=0; t<_simulated_signal.GetT(); t++) {
-            for (int z=0; z<_simulated_signal.GetZ(); z++) {
-                for (int y=0; y<_simulated_signal.GetY(); y++) {
-                    for (int x=0; x<_simulated_signal.GetX(); x++) {
-                        
-                        tmp_signal = 0;
-                        for (int v=0; v<_reconstructed5DVelocity.size(); v++) {
-                            tmp_signal += _reconstructed5DVelocity[v](x, y, z, t)*g_direction[v]*gval;
-                        }
-                        
-                        _simulated_signal(x,y,z,t) = tmp_signal;
-                        
-                    }
-                }
-            }
-        }
-        
-        
-        char buffer[256];
-        
-        sprintf(buffer,"simulated-signal-%i.nii.gz", iter);
-        _simulated_signal.Write(buffer);
-        
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
+    // -----------------------------------------------------------------------------
+    // Check reconstruction quality
+    // -----------------------------------------------------------------------------
     
     double ReconstructionCardiacVelocity4D::Consistency()
     {
@@ -170,11 +119,9 @@ namespace mirtk {
     
     
     
-    //-------------------------------------------------------------------
-    
-    
-    
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Simulation of phase slices from velocity volumes
+    // -----------------------------------------------------------------------------
     
     class ParallelSimulateSlicesCardiacVelocity4D {
         ReconstructionCardiacVelocity4D *reconstructor;
@@ -198,42 +145,15 @@ namespace mirtk {
                 
                 reconstructor->_slice_inside[inputIndex] = false;
                 
-                
-                
-                
                 reconstructor->_simulated_velocities[inputIndex][0] = 0;
                 reconstructor->_simulated_velocities[inputIndex][1] = 0;
                 reconstructor->_simulated_velocities[inputIndex][2] = 0;
                 
-                
-                
-                // gradient direction for current slice
+                // Gradient magnitude for the current slice
                 int gradientIndex = reconstructor->_stack_index[inputIndex];
-                
-                
-//                double gx = reconstructor->_g_directions[gradientIndex][0];
-//                double gy = reconstructor->_g_directions[gradientIndex][1];
-//                double gz = reconstructor->_g_directions[gradientIndex][2];
-//                reconstructor->RotateDirections(gx, gy, gz, inputIndex);
-                
-                
-                double gx, gy, gz;
-                
-                gx = reconstructor->_slice_g_directions[inputIndex][0];
-                gy = reconstructor->_slice_g_directions[inputIndex][1];
-                gz = reconstructor->_slice_g_directions[inputIndex][2];
-                
-                
                 double gval = reconstructor->_g_values[gradientIndex];
                 
-                
-                Array<double> g_direction;
-                g_direction.push_back(gx);
-                g_direction.push_back(gy);
-                g_direction.push_back(gz);
-                
-                
-                
+
                 double weight;
                 POINT3D p;
                 for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ ) {
@@ -251,20 +171,20 @@ namespace mirtk {
                                        reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
                                    }
    
-                                    // simulation of phase volume from velocity volumes
+                                    // Simulation of phase signal from velocity volumes
                                     double sim_signal = 0;
                                     
                                     for( int velocityIndex = 0; velocityIndex < reconstructor->_reconstructed5DVelocity.size(); velocityIndex++ ) {
                                         
-                                        sim_signal += reconstructor->_reconstructed5DVelocity[velocityIndex](p.x, p.y, p.z, outputIndex)*g_direction[velocityIndex]*gval;
+                                        sim_signal += reconstructor->_reconstructed5DVelocity[velocityIndex](p.x, p.y, p.z, outputIndex)*gval*reconstructor->_slice_g_directions[inputIndex][velocityIndex];
                                         
                                         reconstructor->_simulated_velocities[inputIndex][velocityIndex](i, j, 0) += reconstructor->_reconstructed5DVelocity[velocityIndex](p.x, p.y, p.z, outputIndex) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                     }
                                     
                                     sim_signal = sim_signal * reconstructor->gamma;
+
                                     
-                                    // reconstruction from velocity
-                                    reconstructor->_simulated_slices[inputIndex](i, j, 0) += sim_signal * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value; // * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
+                                    reconstructor->_simulated_slices[inputIndex](i, j, 0) += sim_signal * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
 
                                     weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                     
@@ -291,15 +211,14 @@ namespace mirtk {
         
         // execute
         void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
+            
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
                          *this );
-            //init.terminate();
+            
         }
         
     };
     
-    //-------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::SimulateSlicesCardiacVelocity4D()
     {
@@ -314,10 +233,11 @@ namespace mirtk {
     }
     
     
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Initialisation of slice gradients with respect to slice transformations
+    // -----------------------------------------------------------------------------
     
 
-    
     void ReconstructionCardiacVelocity4D::InitializeSliceGradients4D()
     {
         
@@ -353,21 +273,25 @@ namespace mirtk {
             
         }
         
-        ofstream GD_csv_file;
-        GD_csv_file.open("input-gradient-directions.csv");
         
-        GD_csv_file << "Stack" << "," << "Slice" << "," << "Gx - org" << "," << "Gy - org" << "," << "Gz - org" << "," << "Gx - new" << "," << "Gy - new" << "," << "Gz - new" << "," << "Rx" << "," << "Ry" << "," << "Rz" << endl;
-        
-        for (int i=0; i<_slice_g_directions.size(); i++) {
+        if (_debug) {
             
-            double rx = _transformations[i].GetRotationX();
-            double ry = _transformations[i].GetRotationY();
-            double rz = _transformations[i].GetRotationZ();
+            ofstream GD_csv_file;
+            GD_csv_file.open("input-gradient-directions.csv");
             
-            GD_csv_file << _stack_index[i] << "," << i << "," << _g_directions[_stack_index[i]][0] << "," << _g_directions[_stack_index[i]][1] << "," << _g_directions[_stack_index[i]][2] << "," << _slice_g_directions[i][0] << "," << _slice_g_directions[i][1] << "," << _slice_g_directions[i][2] << "," << rx << "," << ry << "," << rz << endl;
+            GD_csv_file << "Stack" << "," << "Slice" << "," << "Gx - org" << "," << "Gy - org" << "," << "Gz - org" << "," << "Gx - new" << "," << "Gy - new" << "," << "Gz - new" << "," << "Rx" << "," << "Ry" << "," << "Rz" << endl;
+            
+            for (int i=0; i<_slice_g_directions.size(); i++) {
+                
+                double rx = _transformations[i].GetRotationX();
+                double ry = _transformations[i].GetRotationY();
+                double rz = _transformations[i].GetRotationZ();
+                
+                GD_csv_file << _stack_index[i] << "," << i << "," << _g_directions[_stack_index[i]][0] << "," << _g_directions[_stack_index[i]][1] << "," << _g_directions[_stack_index[i]][2] << "," << _slice_g_directions[i][0] << "," << _slice_g_directions[i][1] << "," << _slice_g_directions[i][2] << "," << rx << "," << ry << "," << rz << endl;
+            }
+            
+            GD_csv_file.close();
         }
-        
-        GD_csv_file.close();
         
         
         if (_slice_temporal_weight.size()>0) {
@@ -383,11 +307,13 @@ namespace mirtk {
             }
         }
         
+        
     }
     
     
-    
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Saving slice info int .csv
+    // -----------------------------------------------------------------------------
     
     
     void ReconstructionCardiacVelocity4D::SaveSliceInfo()
@@ -441,233 +367,9 @@ namespace mirtk {
     }
     
     
-    
-    //-------------------------------------------------------------------
-    
-    
-    void ReconstructionCardiacVelocity4D::InitialisationCardiacVelocity4D(Array<int> stack_numbers)
-    {
-        
-        cout << "Analytical initialisation." << endl;
-        
-        for (int x=0; x<_reconstructed4D.GetX(); x++) {
-            for (int y=0; y<_reconstructed4D.GetY(); y++) {
-                for (int z=0; z<_reconstructed4D.GetZ(); z++) {
-                    for (int t=0; t<_reconstructed4D.GetT(); t++) {
-                        
-                        int c_index = _slice_contributions_volume(x,y,z,t);
-                        
-                        Array<double> p_values;
-                        Array<double> v_values;
-                        Array<double> p_weights;
-                        Array<Array<double>> g_values;
-                    
-                        double w = 0;
-                      
-                        for (int s=1; s<_slice_contributions_array[c_index].size(); s++) {
-                            
-                            POINT3DS ps;
-                            ps = _slice_contributions_array[c_index][s];
-                            
-                            bool s_add = false;
-                            for (int a=0; a<stack_numbers.size(); a++) {
-                                if(_stack_index[ps.i] == stack_numbers[a])
-                                    s_add = true;
-                            }
-                                
-
-                            int g_index = _stack_index[ps.i];
-                            double gx, gy, gz;
-                            gx = _g_directions[g_index][0];
-                            gy = _g_directions[g_index][1];
-                            gz = _g_directions[g_index][2];
-                            
-                           RotateDirections(gx, gy, gz, ps.i);
-                            
-                            
-                            /*
-                            
-                            double dgx, dgy, dgz;
-                            
-                            dgx = gx;
-                            dgy = gy;
-                            dgz = gz;
-                            
-                            RigidTransformation tmp = _transformations[ps.i];
-                            
-                            double rx, ry, rz;
-                            
-                            rx = tmp.GetRotationX();
-                            ry = tmp.GetRotationY();
-                            rz = tmp.GetRotationZ();
-                            
-                            if ( abs(rx) > 0 || abs(ry) > 0 || abs(rz) > 0 ) {
-
-//                                cout << gx << " " << gy << " " << gz << endl;
-                                
-    //                            tmp.Rotate(gx, gy, gz);
-                                
-                                RotateDirections(gx, gy, gz, ps.i);
-                                
-                                
-//                                dgx = abs(dgx-gx);
-//                                dgy = abs(dgy-gy);
-//                                dgz = abs(dgz-gz);
-//
-//                                if ( dgx > 0.0001 || dgy > 0.0001 || dgz > 0.0001 )
-//                                    cout << dgx << " " << dgy << " " << dgz << " | " << rx << " " << ry << " " << rz << endl;
-//                                cout << gx << " " << gy << " " << gz << endl;
-//
-//                                exit(1);
-                            
-                            }
-                            
-                            */
-                            
-                            
-                            Array<double> g_value;
-                            g_value.push_back(gx);
-                            g_value.push_back(gy);
-                            g_value.push_back(gz);
-                            
-                            double dg_limint = 0.0001;
-                            
-                            
-                            for (int a=0; a<p_values.size(); a++) {
-                                
-                                if( abs( gx-g_values[a][0])<dg_limint && abs(gy-g_values[a][1])<dg_limint && abs(gz-g_values[a][2])<dg_limint ) {
-                                    
-                                    s_add = false;
-                                    
-                                    if ( ps.w > p_weights[a] ) {
-                                        
-                                        p_weights[a] = ps.w;
-                                        g_values[a][0] = gx;
-                                        g_values[a][1] = gy;
-                                        g_values[a][2] = gz;
-                                        p_values[a] = ps.value;
-                                        
-                                    }
-                                    
-                                }
-                            }
-                            
-                            if (ps.value>3.14 || ps.value<-3.14)
-                                s_add = false;
-
-                            if (s_add) {
-                                g_values.push_back(g_value);
-                                p_values.push_back(ps.value);
-                                p_weights.push_back(ps.w);
-                            }
-
-                        }
-                        
-//                        cout << " - [" << x << " " << y << " " << z << "] : " << _slice_contributions_array[c_index].size() << " / " << g_values.size() << endl;
-                            
-                        
-                        if (g_values.size()>2) {
-
-                            v_values = InverseVelocitySolution(p_values, g_values);
-                        
-                            for (int v=0; v<_reconstructed5DVelocity.size(); v++) {
-                                
-                                if (v_values[v] < _min_velocity)
-                                    v_values[v] = _min_velocity*2;
-                                
-                                if (v_values[v] > _max_velocity)
-                                    v_values[v] = _max_velocity*2;
-                                
-                                _reconstructed5DVelocity[v](x,y,z,t) = v_values[v];
-                            }
-                            
-                        }
-
-                        
-//                        else {
-//                            for (int v=0; v<_reconstructed5DVelocity.size(); v++)
-//                                _reconstructed5DVelocity[v](x,y,z,t) = -50;
-//                        }
-                        
-                        
-                    }
-                }
-            }
-        }
-
-        
-        
-        
-        char buffer[256];
-        
-        for (int v=0; v<_reconstructed5DVelocity.size(); v++) {
-            
-            GaussianBlurring<RealPixel> gb(_reconstructed5DVelocity[0].GetXSize()*0.25);
-            gb.Input(&_reconstructed5DVelocity[v]);
-            gb.Output(&_reconstructed5DVelocity[v]);
-            gb.Run();
-            
-            sprintf(buffer,"init-velocity-%i.nii.gz", v);
-            _reconstructed5DVelocity[v].Write(buffer);
-        }
-        
-
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    Array<double> ReconstructionCardiacVelocity4D::InverseVelocitySolution(Array<double> p_values, Array<Array<double>> g_values)
-    {
-        
-        int N = p_values.size();
-        Matrix p_vector(N, 1);
-        Matrix v_vector(N, 1);
-        Matrix g_matrix(N, N);
-
-        for (int i=0; i<N; i++) {
-            for (int j=0; j<N; j++) {
-                if(i==j)
-                    g_matrix(i,j) = 1;
-                if (j<3)
-                    g_matrix(i,j) = g_values[i][j];
-            }
-            p_vector(i,0) = p_values[i];
-        }
-        
-        g_matrix.Invert();
-
-        v_vector = g_matrix * p_vector;
-        
-        v_vector /= _g_values[0]*gamma;
-        
-        Array<double> v_values;
-        
-        for (int v=0; v<_reconstructed5DVelocity.size(); v++)
-            v_values.push_back(v_vector(v));
-        
-        
-        return v_values;
-        
-    }
-    
-    
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
-
-    
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Gradient descend step of velocity estimation
+    // -----------------------------------------------------------------------------
     
     class ParallelSuperresolutionCardiacVelocity4D {
         ReconstructionCardiacVelocity4D* reconstructor;
@@ -682,163 +384,69 @@ namespace mirtk {
             
             for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
                 
-                // read the current slice
+                // Read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
                 
-                // read the current simulated slice
+                // Read the current simulated slice
                 RealImage sim = reconstructor->_simulated_slices[inputIndex];
                 
-                RealImage sss = slice - sim;
                 
-                
+                // Compute error between simulated and original slices
+                RealImage slice_dif = slice - sim;
                 for ( int i = 0; i < slice.GetX(); i++ ) {
                     for ( int j = 0; j < slice.GetY(); j++ ) {
                         
-                        if (slice(i,j,0)>-10 && sim(i,j,0)>-10)
-                            reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = sss(i,j,0);
-                        else {
-                            sss(i,j,0) = 0;
-                            reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = 0;
+                        if (slice(i,j,0)>-10 && sim(i,j,0)<-10) {
+                            slice_dif(i,j,0) = 0;
                         }
                         
                     }
                 }
-                
-//                 for ( int i = 0; i < slice.GetX(); i++ ) {
-//                     for ( int j = 0; j < slice.GetY(); j++ ) {
-                        
-//                         if (slice(i,j,0)>-10)
-//                             reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = sss(i,j,0);
-//                         else {
-//                             sss(i,j,0) = -15;
-//                             reconstructor->_dif_stacks[reconstructor->_stack_index[inputIndex]](i,j,reconstructor->_stack_loc_index[inputIndex],0) = 0;
-//                         }
-                        
-//                     }
-//                 }
-                
-                
-                slice = sss;
-                
+                slice = slice_dif;
 
-                //read the current weight image
+                // Read the current weight image
                 RealImage& w = reconstructor->_weights[inputIndex];
                 
-//                 //read the current bias image
-//                 RealImage& b = reconstructor->_bias[inputIndex];
-                
-//                 //identify scale factor
-//                 double scale = reconstructor->_scale[inputIndex];
-                
-                
-                //direction for current slice
+                // Gradient moment magnitude for the current slice
                 int gradientIndex = reconstructor->_stack_index[inputIndex];
-                
-                
-                
-//                double gx = reconstructor->_g_directions[gradientIndex][0];
-//                double gy = reconstructor->_g_directions[gradientIndex][1];
-//                double gz = reconstructor->_g_directions[gradientIndex][2];
-//
-//                reconstructor->RotateDirections(gx,gy,gz,inputIndex);
-                
-                
-                double gx, gy, gz;
-                
-                gx = reconstructor->_slice_g_directions[inputIndex][0];
-                gy = reconstructor->_slice_g_directions[inputIndex][1];
-                gz = reconstructor->_slice_g_directions[inputIndex][2];
-                
-                
-                
-                
                 double gval = reconstructor->_g_values[gradientIndex];
+
                 
-                Array<double> g_direction;
-                g_direction.push_back(gx);
-                g_direction.push_back(gy);
-                g_direction.push_back(gz);
-                
-                
-//                char buffer[256];
-//                sprintf(buffer," - %i (%i) : %d %d %d ", inputIndex, gradientIndex, gx, gy, gz);
-//
-//                cout << buffer << endl;
-                
-//                cout << inputIndex << " - " << gradientIndex << " : " << gx << " " << gy << " " << gz << endl;
-                
-                
-                
+                // Update reconstructed velocity volumes using current slice
                 for ( int velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
                     
-                    
-                    double v_component;
-                    
-                    v_component = g_direction[velocityIndex] / (3*reconstructor->gamma*gval);
-                    
+                    // Compute current velocity component factor
+                    double v_component = reconstructor->_slice_g_directions[inputIndex][velocityIndex] / (3*reconstructor->gamma*gval);
 
-                    //Update reconstructed velocity volumes using current slice
-                    
-                    //Distribute error to the volume
+                    // Distribute error to the volume
                     POINT3D p;
                     for ( int i = 0; i < slice.GetX(); i++ ) {
                         for ( int j = 0; j < slice.GetY(); j++ ) {
                             
                             if (slice(i, j, 0) > -10) {
-                                //bias correct and scale the slice
-                                
-                                //                                slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                 
                                 if (sim(i,j,0)<-10) 
                                     slice(i,j,0) = 0;
-                                    
-//                                if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > -10 ) {
-//                                    slice(i,j,0) = slice(i,j,0) - sim(i,j,0); //reconstructor->_simulated_slices[inputIndex](i,j,0);
-//                                }
-//                                else
-//                                    slice(i,j,0) = 0;
-                                
-                                
                                 
                                 int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                                 
                                 
                                 for ( int k = 0; k < n; k++ ) {
-                                    
                                     p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                     
                                     if (p.value>0.0) {
                                         
                                         for ( int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
-                                            
                                             if (reconstructor->_robust_slices_only) {
-                                                
-                                                
-                                                
-//                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-//                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
+
                                                 
                                                 addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0);
-                                                
                                                 confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0);
-                                                
                                             }
                                             else {
                                                 
-//                                                double a_tmp = slice(i, j, 0);
-//
-//
-                                                
                                                 addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                                
                                                 confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-//
-//
-//                                                if(a_tmp>0)
-//                                                    addons_p[velocityIndex](p.x, p.y, p.z, outputIndex) += a_tmp;
-//                                                else
-//                                                    addons_n[velocityIndex](p.x, p.y, p.z, outputIndex) += a_tmp;
-                                                
                                             }
                                         }
                                     }
@@ -848,9 +456,6 @@ namespace mirtk {
                     }
                     
                 } // end of loop for velocity directions
-                
-                
-                //                }
                 
                 
             } //end of loop for a slice inputIndex
@@ -865,12 +470,8 @@ namespace mirtk {
             addon = 0;
             
             addons.clear();
-//            addons_n.clear();
-//            addons_p.clear();
             for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
                 addons.push_back(addon);
-//                addons_p.push_back(addon);
-//                addons_n.push_back(addon);
             }
             
 
@@ -889,9 +490,6 @@ namespace mirtk {
             
             for (int i=0; i<addons.size(); i++) {
                 addons[i] += y.addons[i];
-//                addons_n[i] += y.addons_n[i];
-//                addons_p[i] += y.addons_p[i];
-                
                 confidence_maps[i] += y.confidence_maps[i];
             }
 
@@ -905,12 +503,8 @@ namespace mirtk {
             addon = 0;
             
             addons.clear();
-//            addons_n.clear();
-//            addons_p.clear();
             for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
                 addons.push_back(addon);
-//                addons_p.push_back(addon);
-//                addons_n.push_back(addon);
             }
             
             // Clear confidence map
@@ -929,10 +523,7 @@ namespace mirtk {
             parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
         }
     };
-    
-    
-    //-------------------------------------------------------------------
-    
+
     
     void ReconstructionCardiacVelocity4D::SuperresolutionCardiacVelocity4D( int iter )
     {
@@ -942,12 +533,7 @@ namespace mirtk {
         char buffer[256];
         
         Array<RealImage> addons, originals;
-        
-        
-        for (int i=0; i<_dif_stacks.size(); i++) {
-            _dif_stacks[i] = 0;
-        }
-        
+    
         
         // Remember current reconstruction for edge-preserving smoothing
         originals = _reconstructed5DVelocity;
@@ -957,8 +543,6 @@ namespace mirtk {
         
         addons = parallelSuperresolution.addons;
         _confidence_maps_velocity = parallelSuperresolution.confidence_maps;
-        
-        
 
 
         if(_debug) {
@@ -1024,7 +608,7 @@ namespace mirtk {
         
         if(_limit_intensities) {
             
-            //bound the intensities (test whether we need it)
+            // Limit velocity values with respect to maximum / minimum values (in order to avoid discontinuities)
             for (int x = 0; x < _reconstructed4D.GetX(); x++) {
                 for (int y = 0; y < _reconstructed4D.GetY(); y++) {
                     for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
@@ -1067,6 +651,7 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     // Parallel Adaptive Regularization Class 1: calculate smoothing factor, b
     // -----------------------------------------------------------------------------
+    
     class ParallelAdaptiveRegularization1CardiacVelocity4D {
         ReconstructionCardiacVelocity4D *reconstructor;
         Array<RealImage> &b;
@@ -1089,8 +674,6 @@ namespace mirtk {
             int dz = reconstructor->_reconstructed4D.GetZ();
             int dt = reconstructor->_reconstructed4D.GetT();
             for ( size_t i = r.begin(); i != r.end(); ++i ) {
-                //b[i] = reconstructor->_reconstructed;
-                // b[i].Initialize( reconstructor->_reconstructed.GetImageAttributes() );
                 
                 int x, y, z, xx, yy, zz, t;
                 double diff;
@@ -1116,10 +699,9 @@ namespace mirtk {
         
         // execute
         void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, 13),
-                         *this );
-            //init.terminate();
+            
+            parallel_for( blocked_range<size_t>(0, 13), *this );
+            
         }
         
     };
@@ -1128,6 +710,7 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     // Parallel Adaptive Regularization Class 2: compute regularisation update
     // -----------------------------------------------------------------------------
+    
     class ParallelAdaptiveRegularization2CardiacVelocity4D {
         ReconstructionCardiacVelocity4D *reconstructor;
         Array<RealImage> &b;
@@ -1195,24 +778,23 @@ namespace mirtk {
         
         // execute
         void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
+            
             parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed4D.GetX()),
                          *this );
-            //init.terminate();
+            
         }
         
     };
     
     
-    
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
     // Adaptive Regularization
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals) //, RealImage& original_main)
     {
-//        if (_debug)
-//            cout << "AdaptiveRegularizationCardiacVelocity4D."<< endl;
+        if (_debug)
+            cout << "AdaptiveRegularizationCardiacVelocity4D."<< endl;
 
         Array<double> factor(13,0);
         for (int i = 0; i < 13; i++) {
@@ -1223,7 +805,7 @@ namespace mirtk {
         
         RealImage original1, original2;
         
-        Array<RealImage> b;//(13);
+        Array<RealImage> b;
         for (int i = 0; i < 13; i++)
             b.push_back( _reconstructed4D );
         
@@ -1233,7 +815,6 @@ namespace mirtk {
             << "Warning: regularization might not have smoothing effect! Ensure that alpha*lambda/delta^2 is below 0.068."
             << endl;
         }
-        
         
         
         for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
@@ -1259,17 +840,17 @@ namespace mirtk {
                                                                                              factor,
                                                                                              original2 );
             parallelAdaptiveRegularization2();
-            
-            
+
             _reconstructed5DVelocity[i] = _reconstructed4D;
-            
         }
         
         
     }
     
     
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Masking reconstructed volume
+    // -----------------------------------------------------------------------------
     
     
     void ReconstructionCardiacVelocity4D::StaticMaskReconstructedVolume5D()
@@ -1283,7 +864,7 @@ namespace mirtk {
                             
                             for ( int t = 0; t < _reconstructed4D.GetT(); t++ ) {
                                 
-                                _reconstructed5DVelocity[v](x,y,z,t) = -15;
+                                _reconstructed5DVelocity[v](x,y,z,t) = 0;
                                 
                             }
                         }
@@ -1294,596 +875,20 @@ namespace mirtk {
     }
     
     
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Read gradient moment values
+    // -----------------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::InitializeGradientMoments(Array<Array<double>> g_directions, Array<double> g_values)
     {
         _g_directions = g_directions;
         _g_values = g_values;
-        
-//        for (int i=0; i<_transformations.size(); i++) {
-//            
-//            _transformations[i].PutRotationX(UnitRandom());
-//            _transformations[i].PutRotationY(UnitRandom());
-//            _transformations[i].PutRotationZ(UnitRandom());
-//            
-//        }
-        
-        
     }
     
-    //-------------------------------------------------------------------
-    
-    void ReconstructionCardiacVelocity4D::RotateDirections(double &dx, double &dy, double &dz, int i)
-    {
-        
-       //vector end-point
-        double x,y,z;
-        //origin
-        double ox,oy,oz;
-        
-        RigidTransformation tmp = _transformations[i];
-//
-//
-//        if (_random_transformations.size() > 0 )
-//            tmp = _random_transformations[i];
-        
-        
-//        RigidTransformation tmp = _random_transformations[i];
-        
-        
-//        _transformations[i].Invert();
-        
-        //origin
-        ox=0;oy=0;oz=0;
-        tmp.Transform(ox,oy,oz);
-        
-        //end-point
-        x=dx;
-        y=dy;
-        z=dz;
-        tmp.Transform(x,y,z);
-        
-        dx=x-ox;
-        dy=y-oy;
-        dz=z-oz;
-
-        
-        
-    }
-    
-     //-------------------------------------------------------------------
-    
-    
-     //-------------------------------------------------------------------
-    
-    
-     //-------------------------------------------------------------------
-    
-    
-     //-------------------------------------------------------------------
-    
-    
-    void ReconstructionCardiacVelocity4D::GenerateRandomTranfromation( int slice_index, int t_range, int r_range )
-    {
-        
-        
-        double tx, ty, tz, rx, ry, rz;
-        tx = 0;
-        ty = 0;
-        tz = 0;
-        rx = 0;
-        ry = 0;
-        rz = 0;
-        
-        _transformations[slice_index].PutTranslationX(tx);
-        _transformations[slice_index].PutTranslationY(ty);
-        _transformations[slice_index].PutTranslationZ(tz);
-        _transformations[slice_index].PutRotationX(rx);
-        _transformations[slice_index].PutRotationY(ry);
-        _transformations[slice_index].PutRotationZ(rz);
-        
-        if (t_range > 0) {
-            
-            int v1, v2;
-            
-            v1 = rand() % t_range + 0;
-            v2 = rand() % t_range  + 0;
-            tx = (double)v1 - (double)v2;
-            
-            v1 = rand() % t_range + 0;
-            v2 = rand() % t_range  + 0;
-            ty = (double)v1 - (double)v2;
-            
-            v1 = rand() % t_range + 0;
-            v2 = rand() % t_range  + 0;
-            tz = (double)v1 - (double)v2;
-            
-            _transformations[slice_index].PutTranslationX(tx);
-            _transformations[slice_index].PutTranslationY(ty);
-            _transformations[slice_index].PutTranslationZ(tz);
-            
-        }
-        
-        
-        if (r_range > 0) {
-            
-            int v1, v2;
-            
-            v1 = rand() % r_range + 0;
-            v2 = rand() % r_range  + 0;
-            rx = (double)v1 - (double)v2;
-            
-            v1 = rand() % r_range + 0;
-            v2 = rand() % r_range  + 0;
-            ry = (double)v1 - (double)v2;
-            
-            v1 = rand() % r_range + 0;
-            v2 = rand() % r_range  + 0;
-            rz = (double)v1 - (double)v2;
-            
-            _transformations[slice_index].PutRotationX(rx);
-            _transformations[slice_index].PutRotationY(ry);
-            _transformations[slice_index].PutRotationZ(rz);
-            
-        }
-        
-        cout << " - transformation for slice " << slice_index << " ( " << _stack_index[slice_index] <<  " ) : " << tx << " " << ty << " " << tz << " | " << rx << " " << ry << " " << rz  << endl;
-        
-        
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    void ReconstructionCardiacVelocity4D::GenerateRandomPhaseVolumes(Array<RealImage> velocity_volumes, Array<RealImage> stacks, int t_range, int r_range, bool all_slices, Array<int> stack_numbers )
-    {
-        
-        char buffer[256];
-        
-        _simulated_velocities.clear();
-        _generated_velocities.clear();
-        
-        for (int i=0; i<_transformations.size(); i++) {
-            
-            RealImage slice = _slices[i];
-            slice = 0;
-            
-            Array<RealImage> array_slices;
-            array_slices.push_back(slice);
-            array_slices.push_back(slice);
-            array_slices.push_back(slice);
-            
-            _simulated_velocities.push_back(array_slices);
-            _generated_velocities.push_back(array_slices);
-        }
-        
-        srand(time(0));
-        
-        for (int i=0; i<_transformations.size(); i++) {
-            
-            for (int j=0; j<stack_numbers.size(); j++) {
-                
-                if (_stack_index[i] == stack_numbers[j]) {
-                    
-                    GenerateRandomTranfromation(i, t_range, r_range);
-                }
-            }
-        }
-        
-        InitializeSliceGradients4D();
-        
-        cout << "................................................................" << endl;
-        
-        
-        double source_padding = -10;
-        double target_padding = -inf;
-        bool dofin_invert = false;
-        bool twod = false;
-        
-        GenericLinearInterpolateImageFunction<RealImage> interpolator;
-        
-        InterpolationMode interpolation_nn = Interpolation_NN;
-        UniquePtr<InterpolateImageFunction> interpolator_nn;
-        interpolator_nn.reset(InterpolateImageFunction::New(interpolation_nn));
-        
-        
-        for (int i=0; i<_transformations.size(); i++) {
-            
-            cout << " - transforming slice : " << i << " ... " << endl;
-            
-            Array<RealImage> corrupted_velocity_volumes;
-            
-            
-            for (int v=0; v<velocity_volumes.size(); v++) {
-                
-                ImageTransformation *imagetransformation = new ImageTransformation;
-                
-                RealImage input_volume = velocity_volumes[v];
-                
-                RealImage output_volume = velocity_volumes[v];
-                output_volume = 0;
-                
-                RigidTransformation tmp2 = _transformations[i];
-                
-                
-                //                double xaxis[3], yaxis[3], zaxis[3];
-                //                output_volume.GetOrientation(xaxis, yaxis, zaxis);
-                //                tmp2.Rotate(xaxis[0],yaxis[0],zaxis[0]);
-                //                tmp2.Rotate(xaxis[1],yaxis[1],zaxis[1]);
-                //                tmp2.Rotate(xaxis[2],yaxis[2],zaxis[2]);
-                //                output_volume.PutOrientation(xaxis, yaxis, zaxis);
-                
-                
-                imagetransformation->Input(&velocity_volumes[v]);
-                imagetransformation->Transformation(&tmp2);
-                imagetransformation->Output(&output_volume);
-                imagetransformation->TargetPaddingValue(target_padding);
-                imagetransformation->SourcePaddingValue(source_padding);
-                imagetransformation->Interpolator(&interpolator); // (interpolator_nn.get());  //
-                imagetransformation->TwoD(twod);
-                imagetransformation->Invert(dofin_invert);
-                imagetransformation->Run();
-                
-                for (int x=0; x<output_volume.GetX(); x++)
-                for (int y=0; y<output_volume.GetY(); y++)
-                for (int z=0; z<output_volume.GetZ(); z++)
-                if(output_volume(x,y,z) < -9)
-                output_volume(x,y,z) = 0;
-                
-                
-                corrupted_velocity_volumes.push_back(output_volume);
-                
-            }
-            
-            
-            
-            Array<Array<double>> g_directions;
-            Array<double> g_values;
-            Array<RealImage> corrupted_stacks;
-            
-            g_directions.push_back(_slice_g_directions[i]);
-            g_values.push_back(_g_values[_stack_index[i]]);
-            
-            corrupted_stacks = GeneratePhaseVolumes(corrupted_velocity_volumes, g_directions, g_values);
-            
-            
-            RealImage output_slice = _slices[i];
-            
-            
-            double z = 0;
-            for (int x=0; x<_slices[i].GetX(); x++) {
-                for (int y=0; y<_slices[i].GetY(); y++) {
-                    
-                    int ix, iy, iz;
-                    double dx, dy, dz;
-                    dx = x;
-                    dy = y;
-                    dz = z;
-                    
-                    _slices[i].ImageToWorld(dx,dy,dz);
-                    corrupted_stacks[0].WorldToImage(dx,dy,dz);
-                    
-                    ix = round(dx);
-                    iy = round(dy);
-                    iz = round(dz);
-                    
-                    
-                    if ( ix>-1 && iy>-1 && iz>-1 && ix<corrupted_stacks[0].GetX() && iy<corrupted_stacks[0].GetY() && iz<corrupted_stacks[0].GetZ() ) {
-                        _slices[i](x,y,0) = corrupted_stacks[0](ix,iy,iz);
-                    }
-                    else {
-                        _slices[i](x,y,0) = 0;
-                    }
-                    
-                    
-                    for (int v=0; v<3; v++) {
-                        
-                        if ( ix>-1 && iy>-1 && iz>-1 && ix<corrupted_velocity_volumes[0].GetX() && iy<corrupted_velocity_volumes[0].GetY() && iz<corrupted_velocity_volumes[0].GetZ() ) {
-                            _generated_velocities[i][v](x,y,0) = corrupted_velocity_volumes[v](ix,iy,iz);
-                        }
-                        else {
-                            _generated_velocities[i][v](x,y,0) = 0;
-                        }
-                    }
-                    
-                }
-                
-            }
-            
-            
-        }
-        
-        cout << "................................................................" << endl;
-        
-        cout << " - slice information : generated-gradient-directions.csv " << endl;
-        
-        {
-            sprintf(buffer, "generated-gradient-directions.csv");
-            ofstream GD_csv_file;
-            GD_csv_file.open(buffer);
-            
-            for (int i=0; i<_slice_g_directions.size(); i++) {
-                
-                double rx, ry, rz;
-                
-                rx = _transformations[i].GetRotationX();
-                ry = _transformations[i].GetRotationY();
-                rz = _transformations[i].GetRotationZ();
-                
-                GD_csv_file << _stack_index[i] << "," << _g_directions[_stack_index[i]][0] << "," << _g_directions[_stack_index[i]][1] << "," << _g_directions[_stack_index[i]][2]  << "," << i << "," << _slice_g_directions[i][0] << "," << _slice_g_directions[i][1] << "," << _slice_g_directions[i][2] << "," << rx << "," << ry << "," << rz << endl;
-            }
-            
-            GD_csv_file.close();
-        }
-        
-        cout << endl;
-        
-        
-        
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    Array<RealImage> ReconstructionCardiacVelocity4D::GeneratePhaseVolumes(Array<RealImage> velocity_volumes, Array<Array<double> > g_directions, Array<double> g_values)
-    {
-        
-        RealImage stack = velocity_volumes[0];
-        stack = 0;
-        
-        Array<RealImage> stacks;
-        
-        for (int i=0; i<g_values.size(); i++) {
-            
-            stack = 0;
-            double velocity = 0;
-            
-            for (int z=0; z<stack.GetZ(); z++) {
-                for (int y=0; y<stack.GetY(); y++) {
-                    for (int x=0; x<stack.GetX(); x++) {
-                        
-                        velocity = 0;
-                        for (int v=0; v<velocity_volumes.size(); v++)
-                        velocity += velocity_volumes[v](x,y,z)*g_directions[i][v];
-                        
-                        stack(x,y,z) = gamma*g_values[0]*velocity;
-                        
-                    }
-                }
-            }
-            
-            
-            stacks.push_back(stack);
-        }
-        
-        
-        return stacks;
-    }
-    
-    
-     
-    
-    //-------------------------------------------------------------------
-    
-    
-    
-    void ReconstructionCardiacVelocity4D::RandomRotations(Array<RealImage> stacks)
-    {
-        
-        
-        /*
-        _random_transformations.clear();
-    
-        for (int i=0; i<_transformations.size(); i++) {
-            
-            RigidTransformation *tmp = new RigidTransformation;
-            
-            RigidTransformation random_transf = *tmp; //_transformations[i];
-            
-            int r1, r2;
-            double rx, ry, rz;
-            double range;
-            int f;
-            
-//            f = 10;
-//            range = 5;
-//
-//            r1 = rand() % f + 0;
-//            r2 = rand() % f + 0;
-//            rx = (double)r1/range - (double)r2/range;
-//
-//            r1 = rand() % f + 0;
-//            r2 = rand() % f + 0;
-//            ry = (double)r1/range - (double)r2/range;
-//
-//            r1 = rand() % f + 0;
-//            r2 = rand() % f + 0;
-//            rz = (double)r1/range - (double)r2/range;
-//
-//            cout << " - " << rx << " " << ry << " " << rz << endl;
-//
-//            random_transf.PutRotationX(rx);
-//            random_transf.PutRotationY(ry);
-//            random_transf.PutRotationZ(rz);
-//
-//
-//
-//            rx = 0;
-//            ry = 0;
-//            rz = 0;
-            
-            
-            f = 8;
-            range = 7;
-
-            r1 = rand() % f + 0;
-            r2 = rand() % f + 0;
-            rx = (double)r1/range - (double)r2/range;
-
-            r1 = rand() % f + 0;
-            r2 = rand() % f + 0;
-            ry = (double)r1/range - (double)r2/range;
-
-            r1 = rand() % f + 0;
-            r2 = rand() % f + 0;
-            rz = (double)r1/range - (double)r2/range;
-            
-            
-            random_transf.PutTranslationX(rx);
-            random_transf.PutTranslationY(ry);
-            random_transf.PutTranslationZ(rz);
-
-            _random_transformations.push_back(random_transf);
-            
-        }
-        
-         */
-        
-        
-        _random_transformations.clear();
-        _random_transformations = _transformations;
-
-        for (int i=0; i<_transformations.size(); i++) {
-
-            if (_stack_index[i] == 2) {
-
-//                _random_transformations[i].PutTranslationX(-20);
-//                _random_transformations[i].PutTranslationY(-20);
-//                _random_transformations[i].PutTranslationZ(-20);
-                
-                _random_transformations[i].PutRotationX(5);
-                _random_transformations[i].PutRotationY(0);
-                _random_transformations[i].PutRotationZ(0);
-
-                
-            }
-
-
-        }
-        
-        
-        double source_padding = 0;
-        double target_padding = -inf;
-        bool dofin_invert = false;
-        bool twod = false;
-        
-        GenericLinearInterpolateImageFunction<RealImage> interpolator;
-        
-        
-        InterpolationMode interpolation_nn = Interpolation_NN;
-        UniquePtr<InterpolateImageFunction> interpolator_nn;
-        interpolator_nn.reset(InterpolateImageFunction::New(interpolation_nn));
-        
-        
-        
-        _transformations.clear();
-        _transformations = _random_transformations;
-        
-        
-        
-        for (int i=0; i<_random_transformations.size(); i++) {
-        
-            ImageTransformation *imagetransformation = new ImageTransformation;
-            
-            double ox, oy, oz;
-            stacks[_stack_index[i]].GetOrigin(ox,oy,oz);
-            stacks[_stack_index[i]].PutOrigin(0,0,0);
-            
-            
-            RealImage output_volume = stacks[_stack_index[i]];
-            output_volume = 0;
-            
-            imagetransformation->Input(&stacks[_stack_index[i]]);
-            imagetransformation->Transformation(&_random_transformations[i]);
-            imagetransformation->Output(&output_volume);
-            imagetransformation->TargetPaddingValue(target_padding);
-            imagetransformation->SourcePaddingValue(source_padding);
-            imagetransformation->Interpolator(interpolator_nn.get());  // (&interpolator); //
-            imagetransformation->TwoD(twod);
-            imagetransformation->Invert(dofin_invert);
-            imagetransformation->Run();
-            
-            output_volume.PutOrigin(ox,oy,oz);
-            stacks[_stack_index[i]].PutOrigin(ox,oy,oz);
-            
-            RealImage output_slice = _slices[i];
-            
-            int z = 0;
-            for (int x=0; x<stacks[_stack_index[i]].GetX(); x++) {
-                for (int y=0; y<stacks[_stack_index[i]].GetY(); y++) {
-                    
-                    int ix, iy, iz;
-                    double dx, dy, dz;
-                    dx = x;
-                    dy = y;
-                    dz = z;
-                    
-                    _slices[i].ImageToWorld(dx,dy,dz);
-                    output_volume.WorldToImage(dx,dy,dz);
-                    
-                    ix = round(dx);
-                    iy = round(dy);
-                    iz = round(dz);
-                    
-                    _slices[i](x,y,0) = output_volume(ix,iy,iz);
-
-                }
-            }
-            
-//            _random_transformations[i].Invert();
-//            _transformations.push_back(_random_transformations[i]);
-        }
-        
-
-        
-    }
-    
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    
-    void ReconstructionCardiacVelocity4D::SaveOriginal( Array<RealImage> stacks )
-    {
-        
-        if (_debug)
-            cout << "Saving original slices as stacks ...";
-        
-        char buffer[256];
-        RealImage stack;
-        Array<RealImage> simstacks;
-        
-        for (int i = 0; i < stacks.size(); i++) {
-            stacks[i] = 0;
-        }
-        
-        for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-            for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
-                for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
-                    stacks[_stack_index[inputIndex]](i,j,_stack_loc_index[inputIndex],_stack_dyn_index[inputIndex]) = _slices[inputIndex](i,j,0);
-                }
-            }
-        }
-        
-        for (unsigned int i = 0; i < stacks.size(); i++) {
-            sprintf(buffer, "original%03i.nii.gz", i);
-            stacks[i].Write(buffer);
-        }
-        
-        
-        
-        if (_debug)
-            cout << " done." << endl;
-        
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
+ 
+    // -----------------------------------------------------------------------------
+    // Save output files (simulated velocity and phase)
+    // -----------------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::SaveOuput( Array<RealImage> stacks )
     {
@@ -1892,9 +897,7 @@ namespace mirtk {
             cout << "Saving simulated velocity slices as stacks ...";
         
         char buffer[256];
-        //        RealImage stack;
-        //        Array<RealImage> simstacks;
-        
+
         for (int i = 0; i < stacks.size(); i++) {
             stacks[i] = 0;
         }
@@ -2004,14 +1007,11 @@ namespace mirtk {
         
     }
     
-    
-    
- 
-    
-    //-------------------------------------------------------------------
-    
-    
-    
+
+    // -----------------------------------------------------------------------------
+    // Mask phase slices
+    // -----------------------------------------------------------------------------
+
     void ReconstructionCardiacVelocity4D::MaskSlicesPhase()
     {
         cout << "Masking slices ... ";
@@ -2062,10 +1062,9 @@ namespace mirtk {
     
     
 
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Initialisation of EM step
+    // -----------------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::InitializeEMVelocity4D()
     {
@@ -2098,9 +1097,6 @@ namespace mirtk {
         _max_intensity = voxel_limits<RealPixel>::min();
         _min_intensity = voxel_limits<RealPixel>::max();
         
-//        _max_intensity = -3.14;
-//        _min_intensity = 3.14;
-        
         
         for (unsigned int i = 0; i < _slices.size(); i++) {
             //to update minimum we need to exclude padding value
@@ -2116,24 +1112,19 @@ namespace mirtk {
                     if (tmp < _min_intensity)
                         _min_intensity = tmp;
                     
-//                    if (*ptr > _max_intensity)
-//                        _max_intensity = *ptr;
-//                    if (*ptr < _min_intensity)
-//                        _min_intensity = *ptr;
-                    
-                    
                 }
                 ptr++;
             }
         }
         
-//        _max_intensity = _max_intensity*2;
-        
-        cout << " - min : " << _min_intensity << " | max : " << _max_intensity << endl;
+        if (_debug)
+            cout << " - min : " << _min_intensity << " | max : " << _max_intensity << endl;
     }
     
     
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Initialisation of EM values
+    // -----------------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::InitializeEMValuesVelocity4D()
     {
@@ -2173,7 +1164,9 @@ namespace mirtk {
         
     }
     
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // Initialisation of robust statistics
+    // -----------------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::InitializeRobustStatisticsVelocity4D()
     {
@@ -2212,7 +1205,6 @@ namespace mirtk {
                     if (slice(i, j, 0) > -10) {
                         //calculate stev of the errors
                         if ( (_simulated_inside[inputIndex](i, j, 0)==1) &&(_simulated_weights[inputIndex](i,j,0)>0.99) ) {
-//                            slice(i,j,0) -= _simulated_slices[inputIndex](i,j,0);
                             sigma += slice(i, j, 0) * slice(i, j, 0);
                             num++;
                         }
@@ -2237,9 +1229,7 @@ namespace mirtk {
         _mix_s = 0.9;
         //Initialise value for uniform distribution according to the range of intensities
         _m = 1 / (2.1 * _max_intensity - 1.9 * _min_intensity);
-        
-        
-//        _mix = 0.8;
+
         
         if (_debug)
             cout << "Initializing robust statistics: " << "sigma=" << sqrt(_sigma) << " " << "m=" << _m
@@ -2248,7 +1238,9 @@ namespace mirtk {
     }
     
     
-    //-------------------------------------------------------------------
+    // -----------------------------------------------------------------------------
+    // E-step (should be optimised for velocity)
+    // -----------------------------------------------------------------------------
     
     class ParallelEStepardiacVelocity4D {
         ReconstructionCardiacVelocity4D* reconstructor;
@@ -2263,14 +1255,7 @@ namespace mirtk {
                 
                 //read current weight image
                 reconstructor->_weights[inputIndex] = 0;
-                
-                //alias the current bias image
-//                RealImage& b = reconstructor->_bias[inputIndex];
-                
-                //identify scale factor
-//                double scale = reconstructor->_scale[inputIndex];
-                
-                
+
                 // read the current simulated slice
                 RealImage sim = reconstructor->_simulated_slices[inputIndex];
                 RealImage sss = slice - sim;
@@ -2290,10 +1275,7 @@ namespace mirtk {
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) > -10) {
-                            
-                            //bias correct and scale the slice
-//                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                            
+
                             //number of volumetric voxels to which
                             // current slice voxel contributes
                             int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
@@ -2303,10 +1285,7 @@ namespace mirtk {
                             
                             if ( (n>0) && (reconstructor->_simulated_weights[inputIndex](i,j,0) > 0) ) {
                                 
-//                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
-                                
                                 //calculate norm and voxel-wise weights
-                                
                                 //Gaussian distribution for inliers (likelihood)
                                 double g = reconstructor->G(slice(i, j, 0), reconstructor->_sigma);
                                 //Uniform distribution for outliers (likelihood)
@@ -2314,8 +1293,6 @@ namespace mirtk {
                                 
                                 //voxel_wise posterior
                                 double weight = g * reconstructor->_mix / (g *reconstructor->_mix + m * (1 - reconstructor->_mix));
-                                
-//                                weight = slice(i, j, 0);
                                 
                                 reconstructor->_weights[inputIndex].PutAsDouble(i, j, 0, weight);
                                 
@@ -2347,9 +1324,7 @@ namespace mirtk {
         }
         
     };
-    
-    
-    //-------------------------------------------------------------------
+
     
     void ReconstructionCardiacVelocity4D::EStepVelocity4D()
     {
@@ -2546,8 +1521,9 @@ namespace mirtk {
         
     }
     
-    //-------------------------------------------------------------------
-    
+    // -----------------------------------------------------------------------------
+    // M-step (should be optimised for velocity)
+    // -----------------------------------------------------------------------------
     
     class ParallelMStepCardiacVelocity4D{
         ReconstructionCardiacVelocity4D* reconstructor;
@@ -2565,14 +1541,7 @@ namespace mirtk {
                 
                 //alias the current weight image
                 RealImage& w = reconstructor->_weights[inputIndex];
-                
-                //alias the current bias image
-//                RealImage& b = reconstructor->_bias[inputIndex];
-                
-                //identify scale factor
-//                double scale = reconstructor->_scale[inputIndex];
-                
-                
+
                 // read the current simulated slice
                 RealImage sim = reconstructor->_simulated_slices[inputIndex];
                 RealImage sss = slice - sim;
@@ -2588,19 +1557,14 @@ namespace mirtk {
                 }
                 slice = sss;
                 
-                
                 //calculate error
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) > -10) {
-                            //bias correct and scale the slice
-//                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                             
                             //otherwise the error has no meaning - it is equal to slice intensity
                             if ( reconstructor->_simulated_weights[inputIndex](i,j,0) > 0.99 ) {
-                                
-//                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
-                                
+
                                 //sigma and mix
                                 double e = slice(i, j, 0);
                                 sigma += e * e * w(i, j, 0);
@@ -2655,7 +1619,6 @@ namespace mirtk {
         }
     };
     
-    //-------------------------------------------------------------------
     
     void ReconstructionCardiacVelocity4D::MStepVelocity4D(int iter)
     {
@@ -2694,602 +1657,10 @@ namespace mirtk {
         }
         
     }
-    
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    
-    //-------------------------------------------------------------------
-    
 
-    //-------------------------------------------------------------------
     
-    
-    
-    
-    class ParallelGaussianReconstructionCardiacVelocity4DxT {
-    public:
-        ReconstructionCardiacVelocity4D *reconstructor;
-        
-        
-        ParallelGaussianReconstructionCardiacVelocity4DxT(ReconstructionCardiacVelocity4D *_reconstructor) :
-        reconstructor(_reconstructor) { }
-        
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            
-            
-            for ( size_t outputIndex = r.begin(); outputIndex != r.end(); ++outputIndex ) {
-                
-                char buffer[256];
-                
-                unsigned int inputIndex;
-                int k, n;
-                RealImage slice;
-                double scale;
-                POINT3D p;
-                
-                int gradientIndex, velocityIndex;
-                double gval, gx, gy, gz, dx, dy, dz, dotp, v_component;
-                
-                // volume for reconstruction
-                Array<RealImage> reconstructed3DVelocityArray;
-                reconstructed3DVelocityArray = reconstructor->_globalReconstructed4DVelocityArray[outputIndex];
-                
-                
-                RealImage weights = reconstructed3DVelocityArray[0];
-                
-                
-                
-                for ( inputIndex = 0; inputIndex < reconstructor->_slices.size(); ++inputIndex ) {
-                    
-                    
-//                    if (reconstructor->_reconstructed4D.GetT() == 1) {
-//                        reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
-//                    }
-                    
-                    
-                    if (reconstructor->_slice_excluded[inputIndex]==0) {
-                        
-                        if(reconstructor->_debug)
-                        {
-                            cout << inputIndex << " ";
-                            cout.flush();
-                        }
-                        
-                        // copy the current slice
-                        slice = reconstructor->_slices[inputIndex];
-                        // alias the current bias image
-                        RealImage& b = reconstructor->_bias[inputIndex];
-                        //read current scale factor
-                        scale = reconstructor->_scale[inputIndex];
-                        
-                        // gradient direction for current slice
-                        gradientIndex = reconstructor->_stack_index[inputIndex];
-                        gx = reconstructor->_g_directions[gradientIndex][0];
-                        gy = reconstructor->_g_directions[gradientIndex][1];
-                        gz = reconstructor->_g_directions[gradientIndex][2];
-                        
-                        reconstructor->RotateDirections(gx, gy, gz, inputIndex);
-                        
-                        gval = reconstructor->_g_values[gradientIndex];
-                        
-                        Array<double> g_direction;
-                        g_direction.push_back(gx);
-                        g_direction.push_back(gy);
-                        g_direction.push_back(gz);
-                        
-                        
-                        for ( velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
-                            
-                            Array<double> v_componets;
-                            
-                            if ( g_direction[velocityIndex]>0.01 || g_direction[velocityIndex]<-0.01 )
-                                v_component = 1/(g_direction[velocityIndex]*reconstructor->gamma*gval);
-                            else
-                                v_component = 0;
-                            
-                            
-                            // distribute slice intensities to the volume
-                            for ( int i = 0; i < slice.GetX(); i++ ) {
-                                for ( int j = 0; j < slice.GetY(); j++ ) {
-                                    
-                                    if (slice(i, j, 0) > -10) {
-                                        // biascorrect and scale the slice
-                                        //                                        slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                                        
-                                        // number of volume voxels with non-zero coefficients for current slice voxel
-                                        n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                                        
-                                        double max_p = 0;
-                                        
-                                        // add contribution of current slice voxel to all voxel volumes to which it contributes
-                                        for ( k = 0; k < n; k++ ) {
-                                            
-                                            p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                                            
-                                            if (p.value>max_p)
-                                                max_p = p.value;
-                                            
-                                            reconstructed3DVelocityArray[velocityIndex](p.x, p.y, p.z) += v_component * slice(i, j, 0) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                                            weights(p.x, p.y, p.z) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                                            
-                                        }
-                                        
-                                    }
-                                }
-                            }
-                        } // end of velocity vector loop
-                        
-                    } // end of if (_slice_excluded[inputIndex]==0)
-                    
-                } // end of loop for a slice inputIndex
-                
-                // normalize the volume by proportion of contributing slice voxels
-                // for each volume voxel
-                
-                for ( velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
-                    reconstructed3DVelocityArray[velocityIndex] /= weights;
-                    
-                    reconstructor->_globalReconstructed4DVelocityArray[outputIndex][velocityIndex] = reconstructed3DVelocityArray[velocityIndex];
-                }
-                
-                
-            } // parallel cardiac phase loop
-            
-        }
-        
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed_cardiac_phases.size()), *this );
-            //init.terminate();
-        }
-        
-        
-    };
-    
-    
-    
-    void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiacVelocity4DxT()
-    {
-        
-        RealImage reconstructed3DVelocity = _reconstructed4D.GetRegion(0,0,0,0,_reconstructed4D.GetX(),_reconstructed4D.GetY(),_reconstructed4D.GetZ(),1);
-        reconstructed3DVelocity = 0;
-        
-        Array<RealImage> reconstructed3DVelocityArray;
-        for (int i=0; i<_v_directions.size(); i++)
-            reconstructed3DVelocityArray.push_back(reconstructed3DVelocity);
-        
-        _globalReconstructed4DVelocityArray.clear();
-        for (int i=0; i<_reconstructed_cardiac_phases.size(); i++)
-            _globalReconstructed4DVelocityArray.push_back(reconstructed3DVelocityArray);
-        
-        
-        if(_debug) {
-            cout << "- Gaussian reconstruction : " << endl;
-        }
-        
-        ParallelGaussianReconstructionCardiacVelocity4DxT *gr = new ParallelGaussianReconstructionCardiacVelocity4DxT(this);
-        (*gr)();
-        
-        int X, Y, Z, T, V;
-        X = _reconstructed4D.GetX();
-        Y = _reconstructed4D.GetY();
-        Z = _reconstructed4D.GetZ();
-        T = _reconstructed4D.GetT();
-        V = _reconstructed5DVelocity.size();
-        
-        RealImage tmp3D, tmp4D;
-        
-        tmp4D = _reconstructed4D;
-        tmp4D = 0;
-        
-        for (int v=0; v<V ; v++) {
-            
-            tmp4D = 0;
-            for (int t=0; t<T ; t++) {
-                
-                tmp3D = _globalReconstructed4DVelocityArray[t][v];
-                for (int z=0; z<Z ; z++) {
-                    for (int y=0; y<Y ; y++) {
-                        for (int x=0; x<X ; x++) {
-                            tmp4D(x,y,z,t) = tmp3D(x,y,z);
-                        }
-                    }
-                }
-            }
-            
-            _reconstructed5DVelocity[v] = tmp4D;
-        }
-        
-        delete gr;
-        _globalReconstructed4DVelocityArray.clear();
-        
-        
-        if(_limit_intensities) {
-            
-            //bound the intensities (test whether we need it)
-            for (int x = 0; x < _reconstructed4D.GetX(); x++) {
-                for (int y = 0; y < _reconstructed4D.GetY(); y++) {
-                    for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
-                        for (int t = 0; t < _reconstructed4D.GetT(); t++) {
-                            for ( int v = 0; v < _v_directions.size(); v++ ) {
-                                
-                                
-                                if (_reconstructed5DVelocity[v](x, y, z, t) < _min_velocity*0.9)
-                                    _reconstructed5DVelocity[v](x, y, z, t) = _min_velocity*0.9;
-                                
-                                if (_reconstructed5DVelocity[v](x, y, z, t) > _max_velocity*1.1)
-                                    _reconstructed5DVelocity[v](x, y, z, t) = _max_velocity*1.1;
-                                
-                            }
-                        }
-                    }
-                }
-            }
-            
-        }
-        
-        
-        char buffer[256];
-        
-        if (_debug) {
-            
-            
-            if (_reconstructed5DVelocity[0].GetT() == 1) {
-                
-                ImageAttributes attr = _reconstructed5DVelocity[0].GetImageAttributes();
-                attr._t = 3;
-                
-                RealImage output_4D(attr);
-                
-                for (int t=0; t<output_4D.GetT(); t++)
-                    for (int z=0; z<output_4D.GetZ(); z++)
-                        for (int y=0; y<output_4D.GetY(); y++)
-                            for (int x=0; x<output_4D.GetX(); x++)
-                                output_4D(x,y,z,t) = _reconstructed5DVelocity[t](x,y,z,0);
-                
-                sprintf(buffer,"recon4D-gaussian-velocity-vector.nii.gz");
-                output_4D.Write(buffer);
-                
-            }
-            
-        }
-        
-        
-    }
-    
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    /*
-     
-     //-------------------------------------------------------------------
-     
-     
-     class ParallelGaussianReconstructionCardiac4DxT {
-     public:
-     ReconstructionCardiacVelocity4D *reconstructor;
-     
-     ParallelGaussianReconstructionCardiac4DxT(ReconstructionCardiacVelocity4D *_reconstructor) :
-     reconstructor(_reconstructor) { }
-     
-     
-     void operator() (const blocked_range<size_t> &r) const {
-     
-     
-     for ( size_t outputIndex = r.begin(); outputIndex != r.end(); ++outputIndex ) {
-     
-     char buffer[256];
-     
-     unsigned int inputIndex;
-     int k, n;
-     RealImage slice;
-     double scale;
-     POINT3D p;
-     
-     // volume for reconstruction
-     RealImage reconstructed3D;
-     reconstructed3D = reconstructor->_globalReconstructed4DArray[outputIndex];
-     
-     RealImage weights = reconstructed3D;
-     
-     
-     for ( inputIndex = 0; inputIndex < reconstructor->_slices.size(); ++inputIndex ) {
-     
-     if (reconstructor->_slice_excluded[inputIndex]==0) {
-     
-     if(reconstructor->_debug)
-     {
-     cout << inputIndex << " , ";
-     cout.flush();
-     }
-     
-     // copy the current slice
-     slice = reconstructor->_slices[inputIndex];
-     // alias the current bias image
-     RealImage& b = reconstructor->_bias[inputIndex];
-     //read current scale factor
-     scale = reconstructor->_scale[inputIndex];
-     
-     
-     // gradient direction for current slice
-     double gradientIndex = reconstructor->_stack_index[inputIndex];
-     double g = reconstructor->_g_directions[gradientIndex][0];
-     //                        gy = reconstructor->_g_directions[gradientIndex][1];
-     //                        gz = reconstructor->_g_directions[gradientIndex][2];
-     
-     
-     // distribute slice intensities to the volume
-     for ( int i = 0; i < slice.GetX(); i++ ) {
-     for ( int j = 0; j < slice.GetY(); j++ ) {
-     
-     if (slice(i, j, 0) > -10) {
-     // biascorrect and scale the slice
-     slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-     
-     // number of volume voxels with non-zero coefficients for current slice voxel
-     n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-     
-     // add contribution of current slice voxel to all voxel volumes to which it contributes
-     for ( k = 0; k < n; k++ ) {
-     
-     p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-     
-     // for ( outputIndex=0; outputIndex<reconstructor->_reconstructed_cardiac_phases.size(); outputIndex++ )  {
-     
-     reconstructed3D(p.x, p.y, p.z) += slice(i, j, 0) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-     
-     weights(p.x, p.y, p.z) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-     
-     // } // end of loop for cardiac phases
-     }
-     }
-     }
-     }
-     // } // end of velocity vector loop
-     
-     } // end of if (_slice_excluded[inputIndex]==0)
-     
-     } // end of loop for a slice inputIndex
-     
-     // normalize the volume by proportion of contributing slice voxels
-     // for each volume voxel
-     
-     reconstructed3D /= weights;
-     
-     reconstructor->_globalReconstructed4DArray[outputIndex] = reconstructed3D;
-     
-     } // parallel cardiac phase loop
-     
-     }
-     
-     
-     // execute
-     void operator() () const {
-     //task_scheduler_init init(tbb_no_threads);
-     parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed_cardiac_phases.size()), *this );
-     //init.terminate();
-     }
-     
-     
-     };
-     
-     
-     
-     void ReconstructionCardiacVelocity4D::GaussianReconstructionCardiac4DxT()
-     {
-     
-     RealImage reconstructed3D= _reconstructed4D.GetRegion(0,0,0,0,_reconstructed4D.GetX(),_reconstructed4D.GetY(),_reconstructed4D.GetZ(),1);
-     reconstructed3D = 0;
-     
-     _globalReconstructed4DArray.clear();
-     for (int i=0; i<_reconstructed_cardiac_phases.size(); i++)
-     _globalReconstructed4DArray.push_back(reconstructed3D);
-     
-     
-     if(_debug) {
-     cout << "- Gaussian reconstruction : " << endl;
-     }
-     
-     ParallelGaussianReconstructionCardiac4DxT *gr = new ParallelGaussianReconstructionCardiac4DxT(this);
-     (*gr)();
-     
-     int X, Y, Z, T;
-     X = _reconstructed4D.GetX();
-     Y = _reconstructed4D.GetY();
-     Z = _reconstructed4D.GetZ();
-     T = _reconstructed4D.GetT();
-     
-     RealImage tmp3D, tmp4D;
-     
-     tmp4D = _reconstructed4D;
-     tmp4D = 0;
-     
-     for (int t=0; t<T ; t++) {
-     
-     tmp3D = _globalReconstructed4DArray[t];
-     for (int z=0; z<Z ; z++) {
-     for (int y=0; y<Y ; y++) {
-     for (int x=0; x<X ; x++) {
-     tmp4D(x,y,z,t) = tmp3D(x,y,z);
-     }
-     }
-     }
-     }
-     
-     _reconstructed4D = tmp4D;
-     
-     delete gr;
-     _globalReconstructed4DArray.clear();
-     
-     
-     
-     //bound the intensities
-     for (int x = 0; x < _reconstructed4D.GetX(); x++) {
-     for (int y = 0; y < _reconstructed4D.GetY(); y++) {
-     for (int z = 0; z < _reconstructed4D.GetZ(); z++) {
-     for (int t = 0; t < _reconstructed4D.GetT(); t++) {
-     
-     if (_reconstructed4D(x, y, z, t) < _min_phase*0.9)
-     _reconstructed4D(x, y, z, t) = _min_phase*0.9;
-     
-     if (_reconstructed4D(x, y, z, t) > _max_phase*1.1)
-     _reconstructed4D(x, y, z, t) = _max_phase*1.1;
-     }
-     }
-     }
-     
-     }
-     
-     
-     
-     char buffer[256];
-     
-     if (_debug) {
-     
-     sprintf(buffer,"recon4D-gaussian-phase.nii.gz");
-     _reconstructed4D.Write(buffer);
-     
-     }
-     
-     }
-     
-     */
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    
-    
-    void ReconstructionCardiacVelocity4D::InitialiseInverse(Array<RealImage> stacks)
-    {
-        
-        char buffer[256];
-        
-        int N = stacks.size();
-        
-        Matrix p_vector(N, 1);
-        Matrix v_vector(N, 1);
-        Matrix g_matrix(N, N);
-        
-        for (int i=0; i<N; i++) {
-            for (int j=0; j<N; j++) {
-                if(i==j)
-                    g_matrix(i,j) = 1;
-                if (j<3)
-                    g_matrix(i,j) = _g_directions[i][j];
-            }
-        }
-        
-        
-        g_matrix.Print();
-        g_matrix.Invert();
-        g_matrix.Print();
-        
-        
-        RealImage tmp_volume = _reconstructed4D;
-        tmp_volume = 0;
-        
-        Array<RealImage> v_volumes;
-        for (int v=0; v<N; v++) {
-            v_volumes.push_back(tmp_volume);
-        }
-        
-        ImageAttributes attr = _reconstructed4D.GetImageAttributes();
-        attr._t = N;
-        
-        RealImage v_4D(attr);
-        v_4D = 0;
-        
-        
-        
-        for (int z=0; z<tmp_volume.GetZ(); z++) {
-            for (int y=0; y<tmp_volume.GetY(); y++) {
-                for (int x=0; x<tmp_volume.GetX(); x++) {
-                    for (int t=0; t<tmp_volume.GetT(); t++) {
-                        
-                        double main_wx, main_wy, main_wz, wx, wy, wz;
-                        int ix, iy, iz;
-                        
-                        main_wx = x;
-                        main_wy = y;
-                        main_wz = z;
-                        
-                        _reconstructed4D.ImageToWorld(main_wx, main_wy, main_wz);
-                        
-                        for (int n=0; n<N; n++) {
-                            
-                            wx = main_wx;
-                            wy = main_wy;
-                            wz = main_wz;
-                            
-                            stacks[n].WorldToImage(wx, wy, wz);
-                            
-                            ix = round(wx);
-                            iy = round(wy);
-                            iz = round(wz);
-                            
-                            if (ix>-1 && ix<stacks[n].GetX() && iy>-1 && iy<stacks[n].GetY() && iz>-1 && iz<stacks[n].GetZ() )
-                                p_vector(n,0) = stacks[n](ix, iy, iz)/(gamma*_g_values[n]);
-                            else
-                                p_vector(n,0) = 0;
-                            
-                            
-                        }
-                        
-                        v_vector = g_matrix * p_vector;
-                        
-                        for (int v=0; v<N; v++) {
-                            v_volumes[v](x,y,z) = v_vector(v,0);
-                            v_4D(x,y,z,v) = v_vector(v,0);
-                        }
-                        
-                        for (int v=0; v<3; v++) {
-                            _reconstructed5DVelocity[v](x,y,z) = v_vector(v,0);
-                        }
-                        
-                    }
-                }
-            }
-        }
-        
-        
-        
-        //        for (int v=0; v<v_volumes.size(); v++) {
-        //
-        //            sprintf(buffer,"inverted-velocity-%i.nii.gz", v);
-        //            v_volumes[v].Write(buffer);
-        //
-        //        }
-        
-        v_4D.Write("inverted-velocity-vector.nii.gz");
-        
-    }
-    
-    
-    
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    //-------------------------------------------------------------------
-    
+    // -----------------------------------------------------------------------------
+
     
     
 } // namespace mirtk

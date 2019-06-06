@@ -26,16 +26,6 @@
 namespace mirtk {
     
     
-    struct POINT3DS
-    {
-        short x;
-        short y;
-        short z;
-        short i;
-        double w;
-        double value;
-    };
-    
     
     
     class ReconstructionCardiac4D : public Reconstruction
@@ -136,23 +126,7 @@ namespace mirtk {
         double CalculateTemporalWeight( double cardphase0, double cardphase, double dt, double rr, double alpha );
         
         
-
-
-        typedef GenericImage<int> CoordImage;
-        
-        CoordImage _slice_contributions_volume;
-        
-        Array<Array<POINT3DS>> _slice_contributions_array;
-        
-    
-        
     public:
-        
-        
-        
-
-        
-        
         
 
         // Constructor

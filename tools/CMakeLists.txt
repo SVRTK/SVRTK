@@ -69,21 +69,6 @@ mirtk_add_executable(
     ${TBB}
 )
 
-mirtk_add_executable(
-  generate_phantoms
-  SOURCES
-    generate_phantoms.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
 
 mirtk_add_executable(
   convert

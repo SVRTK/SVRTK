@@ -21,9 +21,7 @@
 #define MIRTK_ReconstructionCardiacVelocity4D_H
 
 #include "mirtk/ReconstructionCardiac4D.h"
-
 #include "mirtk/Arith.h"
-
 #include "mirtk/Math.h"
 
 
@@ -36,24 +34,17 @@ namespace mirtk {
         
     protected:
         
-        // RealImage _reconstructed4DVelocity;
-        RealImage _confidence_map_velocity;
-        
+        // Arrays of gradient moment values
         Array<Array<double> > _g_directions;
         Array<double> _g_values;
+        
+        // Array of velocity directions
         Array<Array<double> > _v_directions;
-        
-        
-        RealImage _simulated_signal;
-        
         
         // Reconstructed 4D cardiac cine velocity images (for X, Y and Z components)
         Array<RealImage> _reconstructed5DVelocity;
         Array<RealImage> _confidence_maps_velocity;
-        
-        Array<Array<RealImage> > _globalReconstructed4DVelocityArray;
-        Array<RealImage> _globalReconstructed4DArray;
-        
+
         
         double _min_phase;
         double _max_phase;
@@ -64,98 +55,45 @@ namespace mirtk {
         bool _adaptive_regularisation;
         bool _limit_intensities;
         
+        const double PI = 3.14159265358979323846;
         
-        // do we need it ?
-        double _VENC;
-        
-        
-        double _velocity_scale;
-        
-        // what is the correct value / units?
-        const double gamma = 0.042577; //1
+        const double gamma = 2*PI*0.042577;
         
         Array<RigidTransformation> _random_transformations;
-        
-        
         Array<Array<double> > _slice_g_directions;
-        
         Array<Array<RealImage>> _simulated_velocities;
-        Array<Array<RealImage>> _generated_velocities;
         
         
     public:
         
-        int current_stack_for_processing;
-        int current_velocity_for_processing;
-        
-        Array<RealImage> _dif_stacks;
-        
         ReconstructionCardiacVelocity4D();
         ~ReconstructionCardiacVelocity4D();
         
-        
         void InitializeGradientMoments(Array<Array<double> > g_directions, Array<double> g_values);
         void InitializeVelocityVolumes();
-        void RotateDirections(double &dx, double &dy, double &dz, int i);
+        void InitializeSliceGradients4D();
         
         void SimulateSlicesCardiacVelocity4D();
         void SuperresolutionCardiacVelocity4D(int iter);
         void AdaptiveRegularizationCardiacVelocity4D(int iter, Array<RealImage>& originals);
-        
-        void GaussianReconstructionCardiacVelocity4DxT();
-        void GaussianReconstructionCardiac4DxT();
-        
-        
+
         void SaveSliceInfo();
-        
         void SaveOuput( Array<RealImage> stacks );
+        void StaticMaskReconstructedVolume5D();
         
-        void InitializeSliceGradients4D();
-        
-        void InitialiseInverse(Array<RealImage> stacks);
-        
-        
-        void InitialisationCardiacVelocity4D(Array<int> stack_numbers);
-        Array<double> InverseVelocitySolution(Array<double> p_values, Array<Array<double>> g_values);
-        
-        void RandomRotations(Array<RealImage> stacks);
-        
-        void SaveOriginal( Array<RealImage> stacks );
-        
-        
-        //11-04 (random transformations for 3D case)
-        
-        Array<RealImage> GeneratePhaseVolumes( Array<RealImage> velocity_volumes, Array<Array<double> > g_directions, Array<double> g_values );
-        void GenerateRandomPhaseVolumes( Array<RealImage> velocity_volumes, Array<RealImage> stacks, int t_range, int f_range, bool all_slices, Array<int> stack_numbers );
-        
-        void GenerateRandomTranfromation( int slice_index, int t_range, int r_range );
-        
-        
-        
+        inline void SaveReconstructedVelocity4D(int iter);
+        inline void SaveReconstructedVolume4D(int iter);
+
         void MaskSlicesPhase();
-        void ResetValues();
-        
-        void SimulateSignal(int iter);
         double Consistency();
         
         
         inline void SetAlpha(double alpha);
-        
-        
-        inline void SaveReconstructedVelocity4D(int iter);
-        inline void SaveReconstructedVolume4D(int iter);
-        
-        inline void SetVelocityScale(double scale);
         inline void SetAdaptiveRegularisation(bool flag);
         inline void SetLimitIntensities(bool flag);
-        
         inline void LimitTimeWindow();
         
-        
-        inline void ItinialiseVelocityBounds();
-        
-        void StaticMaskReconstructedVolume5D();
-        
+        inline void ItinialiseVelocityLimits();
         
         void InitializeEMVelocity4D();
         void InitializeEMValuesVelocity4D();
@@ -165,19 +103,13 @@ namespace mirtk {
 
         friend class ParallelEStepardiacVelocity4D;
         friend class ParallelMStepCardiacVelocity4D;
-        
-        
-        
+    
         friend class ParallelSimulateSlicesCardiacVelocity4D;
         friend class ParallelSuperresolutionCardiacVelocity4D;
         friend class ParallelAdaptiveRegularization1CardiacVelocity4D;
         friend class ParallelAdaptiveRegularization2CardiacVelocity4D;
-        
-        friend class ParallelGaussianReconstructionCardiacVelocity4D;
-        friend class ParallelGaussianReconstructionCardiacVelocity4DxT;
-        friend class ParallelGaussianReconstructionCardiac4DxT;
-        
-        
+
+
     };  // end of ReconstructionCardiacVelocity4D class definition
     
     
@@ -187,48 +119,29 @@ namespace mirtk {
     ////////////////////////////////////////////////////////////////////////////////
     
     // -----------------------------------------------------------------------------
-    // ...
+    // Set flag for cropping temporal PSF
     // -----------------------------------------------------------------------------
 
     
     inline void ReconstructionCardiacVelocity4D::LimitTimeWindow()
     {
         _no_ts = true;
-        
     }
     
-    // -----------------------------------------------------------------------------
-    // ...
-    // -----------------------------------------------------------------------------
-    
-    inline void ReconstructionCardiacVelocity4D::ResetValues()
-    {
-        
-        for (int i=0; i<_slices.size(); i++) {
-            _bias[i] = 0;
-            _scale[i] = 1;
-        }
-        
-    }
-
     
     // -----------------------------------------------------------------------------
-    // ...
+    // Set alpha for gradient descent
     // -----------------------------------------------------------------------------
     
     
     inline void ReconstructionCardiacVelocity4D::SetAlpha(double alpha)
     {
-//        if (alpha > 1)
-//            alpha = 1;
-        
         _alpha = alpha;
-        
     }
-    
+
     
     // -----------------------------------------------------------------------------
-    // ...
+    // Set adaptive regularisation flag
     // -----------------------------------------------------------------------------
     
     
@@ -237,8 +150,9 @@ namespace mirtk {
         _adaptive_regularisation = flag;
     }
     
+    
     // -----------------------------------------------------------------------------
-    // ...
+    // Set flag for limiting intensities
     // -----------------------------------------------------------------------------
 
     
@@ -248,11 +162,10 @@ namespace mirtk {
     }
     
     // -----------------------------------------------------------------------------
-    // ...
+    // Compute and set velocity limits
     // -----------------------------------------------------------------------------
     
-    
-    inline void ReconstructionCardiacVelocity4D::ItinialiseVelocityBounds()
+    inline void ReconstructionCardiacVelocity4D::ItinialiseVelocityLimits()
     {
         
         _min_phase = -3.14;
@@ -263,53 +176,22 @@ namespace mirtk {
         _min_velocity = _min_phase / (_g_values[templateNumber]*gamma);
         _max_velocity = _max_phase / (_g_values[templateNumber]*gamma);
         
-        cout << " - velocity limits : [ " << _min_velocity << " ; " << _max_velocity << " ] " << endl;
-        
-        
-    }
-    
-    // -----------------------------------------------------------------------------
-    // ...
-    // -----------------------------------------------------------------------------
-    
-    
-    inline void ReconstructionCardiacVelocity4D::SetVelocityScale(double scale)
-    {
-        _velocity_scale = scale;
-    }
-    
-    // -----------------------------------------------------------------------------
-    // ...
-    // -----------------------------------------------------------------------------
-    
-    
-    inline void ReconstructionCardiacVelocity4D::SaveReconstructedVolume4D(int iter)
-    {
-        
-        char buffer[256];
-        
-        sprintf(buffer,"phase-%i.nii.gz", iter);
-        _reconstructed4D.Write(buffer);
+        if (_debug)
+            cout << " - velocity limits : [ " << _min_velocity << " ; " << _max_velocity << " ] " << endl;
         
     }
-    
+
     
     // -----------------------------------------------------------------------------
-    // ...
+    // Save reconstructed velocity volumes
     // -----------------------------------------------------------------------------
-    
-    
-    
+
     inline void ReconstructionCardiacVelocity4D::SaveReconstructedVelocity4D(int iter)
     {
-        
         char buffer[256];
         
         
-//        cout << ".............................................." << endl;
-//        cout << ".............................................." << endl;
         cout << " - Reconstructed velocity : " << endl;
-        
         
         if (_reconstructed5DVelocity[0].GetT() == 1) {
         
@@ -331,7 +213,7 @@ namespace mirtk {
             if (iter < 50)
                     sprintf(buffer,"velocity-vector-%i.nii.gz", iter);
                 else
-                    sprintf(buffer,"velocity-vector-final.nii.gz");
+                    sprintf(buffer,"../velocity-vector-final.nii.gz");
             }
             
             output_4D.Write(buffer);
@@ -347,7 +229,6 @@ namespace mirtk {
             
             output_sum.Write("sum-velocity.nii.gz");
             
-            
             cout << "        " << buffer << endl;
             
         }
@@ -357,16 +238,14 @@ namespace mirtk {
             RealImage output_sum(attr);
             output_sum = 0;
             
-            
             for (int i=0; i<_reconstructed5DVelocity.size(); i++) {
-                
                 
                 output_sum += _reconstructed5DVelocity[i];
                 
                 if (iter < 50)
-                sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
-                    else
-                sprintf(buffer,"velocity-final-%i.nii.gz", i);
+                    sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
+                else
+                    sprintf(buffer,"../velocity-final-%i.nii.gz", i);
                 
                 _reconstructed5DVelocity[i].Write(buffer);
                 cout << "     " << buffer << endl;
@@ -376,23 +255,17 @@ namespace mirtk {
             if (iter < 50)
                 sprintf(buffer,"sum-velocity-%i.nii.gz", iter);
             else
-                sprintf(buffer,"sum-velocity-final.nii.gz");
+                sprintf(buffer,"../sum-velocity-final.nii.gz");
             
             output_sum.Write(buffer);
             
         }
         
-
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
         
 
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // ...
-    // -----------------------------------------------------------------------------
     
     
 } // namespace mirtk

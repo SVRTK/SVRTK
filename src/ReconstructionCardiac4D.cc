@@ -571,16 +571,6 @@ namespace mirtk {
             cout << "CalculateSliceTemporalWeights" << endl;
         InitSliceTemporalWeights();
         
-        Array<double> max_t_weights;
-        Array<int> loc_t_weights;
-        
-        // 11/04 II
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            max_t_weights.push_back(-10);
-            loc_t_weights.push_back(0);
-        }
-        
-        
         
         for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++)
         {
@@ -588,15 +578,8 @@ namespace mirtk {
             {
                 _slice_temporal_weight[outputIndex][inputIndex] = CalculateTemporalWeight( _reconstructed_cardiac_phases[outputIndex], _slice_cardphase[inputIndex], _slice_dt[inputIndex], _slice_rr[inputIndex], _wintukeypct );
                 
-                // 11/04 II
-                if (_slice_temporal_weight[outputIndex][inputIndex] > max_t_weights[inputIndex]) {
-                    
-                    loc_t_weights[inputIndex] = outputIndex;
-                    max_t_weights[inputIndex] = _slice_temporal_weight[outputIndex][inputIndex];
-                    
-                }
                 
-               // 11/04 - for velocity only
+               // option for time window thresholding for velocity reconstruction
                if (_no_ts) {
                    if (_slice_temporal_weight[outputIndex][inputIndex] < 0.9)
                        _slice_temporal_weight[outputIndex][inputIndex] = 0;
@@ -604,27 +587,7 @@ namespace mirtk {
 
             }
         }
-        
-        /*
-        
-        // 11/04 II
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++) {
-                
-                if (outputIndex == loc_t_weights[inputIndex]) {
-                    _slice_temporal_weight[outputIndex][inputIndex] = max_t_weights[inputIndex];
-                }
-                else {
-                    _slice_temporal_weight[outputIndex][inputIndex] = 0;
-                }
-                
 
-            }
-        }
-        
-        */
-        
-        
         
     }
     
@@ -1051,37 +1014,6 @@ namespace mirtk {
             cout << "CoeffInit" << endl;
         
         
-        //----------------------------------------------------
-        
-//        ImageAttributes attr = _reconstructed4D.GetImageAttributes();
-//        _slice_contributions_volume.Initialize(attr);
-//
-//
-//        POINT3DS pi;
-//        pi.x = -1, pi.y = -1, pi.z = -1, pi.i = -1, pi.value = -1000, pi.w = 0;
-//        Array<POINT3DS> p_array;
-//        p_array.push_back(pi);
-//
-//        int c_index = 0;
-//
-//        for (int x=0; x<_reconstructed4D.GetX(); x++) {
-//            for (int y=0; y<_reconstructed4D.GetY(); y++) {
-//                for (int z=0; z<_reconstructed4D.GetZ(); z++) {
-//                    for (int t=0; t<_reconstructed4D.GetT(); t++) {
-//
-//                        _slice_contributions_volume(x,y,z,t) = c_index;
-//                        _slice_contributions_array.push_back(p_array);
-//                        c_index++;
-//
-//                    }
-//                }
-//            }
-//        }
-        
-        
-        //----------------------------------------------------
-        
-        
         //clear slice-volume matrix from previous iteration
         _volcoeffs.clear();
         _volcoeffs.resize(_slices.size());
@@ -1104,31 +1036,12 @@ namespace mirtk {
         
         
         
-        
-        
         // TODO: investigate if this loop is taking a long time to compute, and consider parallelisation
         int i, j, n, k, outputIndex;
         unsigned int inputIndex;
         POINT3D p;
         cout << "    ... for input slice: ";
         
-//        double max_P = -1;
-//
-//        for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-//            for ( i = 0; i < _slices[inputIndex].GetX(); i++)
-//                for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
-//                    n = _volcoeffs[inputIndex][i][j].size();
-//                    for (k = 0; k < n; k++) {
-//
-//                        p = _volcoeffs[inputIndex][i][j][k];
-//
-//                        if (p.value > max_P)
-//                            max_P = p.value;
-//                    }
-//                }
-//        }
-        
-//        double p_value_limit = max_P*0.2;
 
         for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
             cout << inputIndex << ", ";
@@ -1139,27 +1052,9 @@ namespace mirtk {
                     for (k = 0; k < n; k++) {
                         p = _volcoeffs[inputIndex][i][j][k];
                         
-//                        _volcoeffs[inputIndex][i][j][k].value = max_P;
-                        
                         for (outputIndex=0; outputIndex<_reconstructed4D.GetT(); outputIndex++)
                         {
                             _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                            
-//                            if (_reconstructed4D.GetT() == 1)
-//                                _slice_temporal_weight[outputIndex][inputIndex] = 1;
-//
-//                            //----------------------------------------------------
-//                            if (p.value>p_value_limit && _slice_temporal_weight[outputIndex][inputIndex]>p_value_limit) {
-//
-//                                int array_index = _slice_contributions_volume(p.x, p.y, p.z, outputIndex);
-//
-//                                POINT3DS ps;
-//                                ps.x = i, ps.y = j, ps.z = k, ps.i = inputIndex, ps.value = _slices[inputIndex](i,j,0,outputIndex), ps.w = p.value;
-//
-//                                _slice_contributions_array[array_index].push_back(ps);
-//
-//                            }
-//                            //----------------------------------------------------
                             
                         }
                     }
@@ -1169,9 +1064,7 @@ namespace mirtk {
         // if (_debug)
         //     _volume_weights.Write("volume_weights.nii.gz");
         
-        
-        cout << " .... " << endl;
-        
+
         //find average volume weight to modify alpha parameters accordingly
         double sum = 0;
         int num=0;
@@ -1279,8 +1172,8 @@ namespace mirtk {
         }
         
         
-        // if (_debug)
-        //     _reconstructed4D.Write("init.nii.gz");
+         if (_debug)
+             _reconstructed4D.Write("init.nii.gz");
         
         //now find slices with small overlap with ROI and exclude them.
         
@@ -2239,7 +2132,6 @@ namespace mirtk {
         Insert(params, "Image (dis-)similarity measure", "NMI");
         if (_nmi_bins>0)
             Insert(params, "No. of bins", _nmi_bins);
-        // Insert(params, "Image interpolation mode", "Linear");
         Insert(params, "Background value for image 1", -1);
         Insert(params, "Background value for image 2", -1);
         
@@ -2260,18 +2152,7 @@ namespace mirtk {
         RigidTransformation *rigidTransf_dofout = dynamic_cast<RigidTransformation*> (dofout);
         rigidTransf = *rigidTransf_dofout;
         
-        
-        /*
-         // Initialise registration
-         ImageRigidRegistrationWithPadding registration;
-         
-         // Register source volume to target volume
-         registration.SetInput(&target,&source);
-         registration.SetOutput(&rigidTransf);
-         registration.GuessParameter();
-         registration.SetTargetPadding(-1);
-         registration.Run();
-         */
+
         
     }
     

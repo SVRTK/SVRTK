@@ -245,7 +245,7 @@ namespace mirtk {
                 if (iter < 50)
                     sprintf(buffer,"velocity-%i-%i.nii.gz", i, iter);
                 else
-                    sprintf(buffer,"../velocity-final-%i.nii.gz", i);
+                    sprintf(buffer,"velocity-final-%i.nii.gz", i);
                 
                 _reconstructed5DVelocity[i].Write(buffer);
                 cout << "     " << buffer << endl;
@@ -255,7 +255,7 @@ namespace mirtk {
             if (iter < 50)
                 sprintf(buffer,"sum-velocity-%i.nii.gz", iter);
             else
-                sprintf(buffer,"../sum-velocity-final.nii.gz");
+                sprintf(buffer,"sum-velocity-final.nii.gz");
             
             output_sum.Write(buffer);
             

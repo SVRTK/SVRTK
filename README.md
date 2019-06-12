@@ -2,20 +2,17 @@ MIRTK SVR Package
 ====================
 
 
-SVR reconstruction package for MIRTK, originally known as `reconstruction` as part of IRTK.
+SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) for fetal MRI motion correction. 
+
+The general pipeline for fetal brain reconstruction is based on `reconstruction` IRTK application (https://biomedia.doc.ic.ac.uk/software/irtk/).
 
 
 
 Installation 
 ------------
 
-SVRTK requires installation of MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) with TBB option.  
+Please follow installation instructions in InstallationInstructions.txt file. 
 
-git clone https://github.com/SVRTK/MIRTK.git
-
-git clone https://github.com/SVRTK/SVRTK.git
-
- (Note: the executable files will be in: /SVRTK/build/lib/tools/ folder)
 
 Run
 ---

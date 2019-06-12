@@ -11,7 +11,7 @@ The general pipeline for fetal brain reconstruction is based on `reconstruction`
 Installation 
 ------------
 
-Please follow the installation instructions in InstallationInstructions.txt file. 
+Please follow installation instructions in InstallationInstructions.txt file. 
 
 
 Run

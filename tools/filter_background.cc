@@ -95,6 +95,14 @@ int main(int argc, char **argv)
     argv++;
     
     
+    double smin, smax;
+    input_volume.GetMinMax(&smin, &smax);
+    
+    if (smin < 0 || smax < 0) {
+        input_volume.PutMinMaxAsDouble(0, 1000);
+    }
+    
+    
     output_name = argv[1];
     cout<<"Ouput volume: "<<output_name<<endl;
     argc--;

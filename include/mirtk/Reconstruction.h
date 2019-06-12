@@ -20,7 +20,7 @@
 #ifndef MIRTK_Reconstruction_H
 #define MIRTK_Reconstruction_H
 
-#include "mirtk/Common.h"
+#include "mirtk/Common.h" 
 #include "mirtk/Options.h"
 
 #include "mirtk/Array.h"
@@ -31,6 +31,7 @@
 #include "mirtk/Resampling.h"
 #include "mirtk/ResamplingWithPadding.h"
 #include "mirtk/LinearInterpolateImageFunction.hxx"
+#include "mirtk/GaussianBlurringWithPadding.h"
 
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
@@ -45,6 +46,10 @@
 
 #include "mirtk/MeanShift.h"
 #include "mirtk/NLDenoising.h"
+
+
+//#include <omp.h>
+#include <set>
 
 
 namespace mirtk {
@@ -83,6 +88,17 @@ namespace mirtk {
         
         bool _ffd;
         bool _blurring;
+        bool _structural;
+        bool _ncc_reg;
+        bool _template_flag;
+        bool _no_sr;
+        bool _reg_log;
+        
+        int _n_treads;
+        double _global_NCC_threshold;
+        Array<int> _n_packages;
+        
+        ImageAttributes _attr_reconstructed;
         
         Array<MultiLevelFreeFormTransformation> _mffd_transformations;
         
@@ -93,6 +109,16 @@ namespace mirtk {
         Array<RealImage> _simulated_slices;
         Array<RealImage> _simulated_weights;
         Array<RealImage> _simulated_inside;
+        
+        Array<ImageAttributes> _slice_attributes;
+        Array<RealImage> _slice_dif;
+        
+        Array<GreyImage> _grey_slices;
+        GreyImage _grey_reconstructed;
+        
+        Array<int> _reg_slice_weight;
+        Array<int> _package_index;
+        Array<int> _slice_pos;
         
         /// Transformations
         Array<RigidTransformation> _transformations;
@@ -263,6 +289,9 @@ namespace mirtk {
         /// Set gestational age (to compute expected brain volume)
         void SetGA( double ga );
         
+        void SliceDifference();
+
+        void SaveSliceInfo();
         
         ///Center stacks
         void CenterStacks( Array<RealImage>& stacks,
@@ -392,6 +421,17 @@ namespace mirtk {
         ///Slice to volume registrations
         void SliceToVolumeRegistration();
         
+        
+        ///Slice to volume registrations with OMP
+        void SliceToVolumeRegistrationOMP();
+        
+        void CoeffInitOMP();
+        
+        void CoeffInitRound(int inputIndex);
+        
+        
+        void SliceToVolumeRegistrationRound(GreyImage volume, GreyImage slice, RigidTransformation& transformation);
+        
         ///Correct bias in the reconstructed volume
         void BiasCorrectVolume( RealImage& original );
         
@@ -470,9 +510,12 @@ namespace mirtk {
         inline RigidTransformation GetTransformation(int n);
         
         
-        inline void SetNMIBins( int nmi_bins );
-        
+        inline void SetNMIBins(int nmi_bins);
         inline void SetBlurring(bool flag_blurring);
+        inline void SetStrucrural(bool flag_structural);
+        inline void SetNThreads(int N);
+        inline void SetNPackages(Array<int> N);
+        inline void SetRegLog(bool flag_reg_log);
         
         
         //utility
@@ -486,6 +529,12 @@ namespace mirtk {
         inline void ExcludeWholeSlicesOnly();
         
         inline void SetFFD(bool flag_ffd);
+        
+        inline void SetNCC(bool flag_ncc);
+        
+        inline void SetTemplateFlag(bool template_flag);
+        
+        inline void SetSR(bool flag_sr);
         
         
         ///Write included/excluded/outside slices
@@ -515,10 +564,7 @@ namespace mirtk {
         ///Packages to volume registrations
         void PackageToVolume( Array<RealImage>& stacks,
                              Array<int> &pack_num,
-                             int iter,
-                             bool evenodd=false,
-                             bool half=false,
-                             int half_iter=1);
+                             Array<RigidTransformation> stack_transformations);
         
         // Calculate Slice acquisition order
         void GetSliceAcquisitionOrder(Array<RealImage>& stacks,
@@ -594,10 +640,26 @@ namespace mirtk {
         void CropImageIgnoreZ( RealImage& image, RealImage& mask );
         
         
+        
+        void StructuralExclusion();
+        double SliceCC( RealImage slice_1, RealImage slice_2 );
+        
+        void SimulateSlicesOMP();
+        void SimulateSlice( int inputIndex );
+        
+        double EvaluateReconQuality( int index );
+        
+        void InitialiseWithStackTransformations( Array<RigidTransformation> stack_transformations );
+        
+        void Transform2Reconstructed( int inputIndex, int& i, int& j, int& k, int mode );
+        
+        
+        
         friend class ParallelStackRegistrations;
         friend class ParallelSliceToVolumeRegistration;
         
         friend class ParallelSliceToVolumeRegistrationFFD;
+        friend class ParallelSimulateSlices2;
         
         friend class ParallelCoeffInit;
         friend class ParallelCoeffInitSF;
@@ -660,7 +722,29 @@ namespace mirtk {
     
     inline void Reconstruction::SetFFD(bool flag_ffd)
     {
-        _ffd=true;
+        _ffd=flag_ffd;
+    }
+    
+    inline void Reconstruction::SetNCC(bool flag_ncc)
+    {
+        _ncc_reg=flag_ncc;
+    }
+    
+    inline void Reconstruction::SetRegLog(bool flag_reg_log)
+    {
+        _reg_log=flag_reg_log;
+    }
+    
+    
+    inline void Reconstruction::SetSR(bool flag_sr)
+    {
+        _no_sr=flag_sr;
+    }
+    
+    
+    inline void Reconstruction::SetTemplateFlag(bool template_flag)
+    {
+        _template_flag=true;
     }
     
     inline void Reconstruction::DebugOn()
@@ -675,6 +759,12 @@ namespace mirtk {
         
     }
     
+    inline void Reconstruction::SetStrucrural(bool flag_structural)
+    {
+        _structural = flag_structural;
+        
+    }
+
     inline void Reconstruction::UseAdaptiveRegularisation()
     {
         _adaptive = true;
@@ -696,6 +786,17 @@ namespace mirtk {
         _GA = ga;
     }
     
+    inline void Reconstruction::SetNThreads(int N)
+    {
+        _n_treads = N;
+    }
+    
+    inline void Reconstruction::SetNPackages(Array<int> N)
+    {
+        _n_packages = N;
+        
+    }
+
     
     inline void Reconstruction::SpeedupOn()
     {
@@ -735,7 +836,7 @@ namespace mirtk {
     {
         _delta=delta;
         _lambda=lambda*delta*delta;
-        _alpha = 0.05/lambda;
+        _alpha = 0.05/lambda; //0.05/lambda;
         if (_alpha>1)
             _alpha= 1;
         cout<<"delta = "<<_delta<<" lambda = "<<lambda<<" alpha = "<<_alpha<<endl;
@@ -800,4 +901,6 @@ namespace mirtk {
 
 
 #endif // MIRTK_Reconstruction_H
+
+
 

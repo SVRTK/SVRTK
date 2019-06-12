@@ -40,9 +40,9 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  reconstruct_ffd
+  reconstructPlacenta
   SOURCES
-    reconstruct_ffd.cc
+    reconstructPlacenta.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -54,6 +54,50 @@ mirtk_add_executable(
     ${TBB}
 )
 
+mirtk_add_executable(
+  reconstructAngio
+  SOURCES
+    reconstructAngio.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  combine_patches
+  SOURCES
+    combine_patches.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  filter_background
+  SOURCES
+    filter_background.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
 
 
 #mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})

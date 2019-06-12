@@ -40,6 +40,21 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
+  reconstructPlacenta
+  SOURCES
+    reconstructPlacenta.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
   reconstructAngio
   SOURCES
     reconstructAngio.cc
@@ -58,6 +73,21 @@ mirtk_add_executable(
   combine_patches
   SOURCES
     combine_patches.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  filter_background
+  SOURCES
+    filter_background.cc
   DEPENDS
     LibCommon
     LibNumerics

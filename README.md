@@ -2,20 +2,17 @@ MIRTK SVR Package
 ====================
 
 
-SVR reconstruction package for MIRTK, originally known as `reconstruction` as part of IRTK.
+SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) for fetal MRI motion correction. 
+
+The general pipeline for fetal brain reconstruction is based on `reconstruction` IRTK application (https://biomedia.doc.ic.ac.uk/software/irtk/).
 
 
 
 Installation 
 ------------
 
-SVRTK requires installation of MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) with TBB option.  
+Please follow installation instructions in InstallationInstructions.txt file. 
 
-git clone https://github.com/SVRTK/MIRTK.git
-
-git clone https://github.com/SVRTK/SVRTK.git
-
- (Note: the executable files will be in: /SVRTK/build/lib/tools/ folder)
 
 Run
 ---
@@ -25,13 +22,13 @@ Examples:
 
 brain reconstruction:
 
-reconstruct ../outputSVR.nii.gz  4 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz  -mask ../mask.nii.gz  -template_number 2  -thickness 2 2 2 2 -packages 4 4 4 4  -resolution 0.75 -iterations 3 
+reconstruct ../outputSVR.nii.gz  4 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz  -mask ../mask.nii.gz  -template_number 2  -thickness 2 2 2 2 -resolution 0.75 -iterations 3 
  
  ---
  
 placenta reconstruction:
  
-reconstruct_ffd ../outputDSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz   -mask ../mask.nii.gz  -thickness 2 2 -resolution 1.0 -iterations 2 -template ../template.nii.gz -ffd
+reconstructPlacenta ../outputDSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz  -mask ../mask.nii.gz  -thickness 2 2 -resolution 1.0 -iterations 2 -template ../template.nii.gz -ffd -filter 3 
  
   ---
  

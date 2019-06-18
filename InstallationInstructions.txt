@@ -43,6 +43,6 @@ cd build/
 ccmake ..
 make
 
-# the executable files will in /build/lib/tools folder
+# the executable files will in /build/lib/tools folder 
 
 

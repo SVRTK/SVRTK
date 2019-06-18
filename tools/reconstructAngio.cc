@@ -49,7 +49,7 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: reconstruct_ffd [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
+    cout << "Usage: reconstructAngio [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
     cout << endl;
     
     cout << "\t[reconstructed]         Name for the reconstructed volume. Nifti or Analyze format." << endl;

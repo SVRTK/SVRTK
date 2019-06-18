@@ -6,7 +6,7 @@ SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mir
 
 The general pipeline for fetal brain reconstruction is based on `reconstruction` IRTK application (https://biomedia.doc.ic.ac.uk/software/irtk/).
 
-4D Cardiac reconstruction code was transferred to MIRTK from the original IRTK-based implementation by Joshua van Amerom : https://github.com/jfpva/irtk_cardiac4d.
+4D Cardiac reconstruction code was transferred to MIRTK from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 
 
 Installation 

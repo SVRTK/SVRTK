@@ -52,7 +52,7 @@ using namespace std;
 
 void usage()
 {
-    cerr << "Usage: reconstructionCardiacVelocity [N] [stack_1] .. [stack_N] [g_values] [g_directions] <options>\n" << endl;
+    cerr << "Usage: reconstructCardiacVelocity [N] [stack_1] .. [stack_N] [g_values] [g_directions] <options>\n" << endl;
     cerr << "- the output files will be in velocity-*.nii.gz files" << endl;
     cerr << endl;
 

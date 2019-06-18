@@ -55,7 +55,7 @@ In case you found SVRTK useful please give appropriate credit to the software.
 
 Publications:
 
- ---
+
 original reconstruction pipeline:
 
 Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M. A., Hajnal, J. V., & Schnabel, J. A. (2012). Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Medical Image Analysis, 16(8), 1550–1564.

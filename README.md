@@ -58,7 +58,7 @@ Publications:
 
 original reconstruction pipeline:
 
-Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M. A., Hajnal, J. V., & Schnabel, J. A. (2012). Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Medical Image Analysis, 16(8), 1550–1564.
+Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M.A., Hajnal, J. V., Schnabel, J.A., 2012. Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Med. Im. A. 16, 1550–1564.
 
  ---
 4D cardiac velocity reconstruction:

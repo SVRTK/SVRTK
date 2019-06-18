@@ -52,7 +52,7 @@ using namespace std;
 
 void usage()
 {
-    cerr << "Usage: reconstructionCardiac [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
+    cerr << "Usage: reconstructCardiac [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
     cerr << endl;
     
     cerr << "\t[reconstructed]            Name for the reconstructed volume. Nifti or Analyze format." << endl;

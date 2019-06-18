@@ -58,13 +58,14 @@ void usage()
 
     cerr << "\t[N]                        Number of stacks." << endl;
     cerr << "\t[stack_1]..[stack_N]       The input stacks. Nifti or Analyze format." << endl;
+    cerr << "\t[g_values]                 .txt file containing magnitudes of gradient first moments associated with each stack [gv_1]…[gv_N]." << endl;
+    cerr << "\t[g_directions]             .txt file containing components of unit vector associated with " << endl;
+    cerr << "\t                           gradient first moment direction of each stack [gd_1_x, gd_1_y, gd_1_z]...[ gd_N_x, gd_N_y, gd_N_z]." << endl;
     cerr << "\t" << endl;
     cerr << "Options:" << endl;
     cerr << "\t-target_stack [stack_no]   Stack number of target for stack-stack registration." << endl;
     cerr << "\t-dofin [dof_1]..[dof_N]    The transformations of the input stack to template" << endl;
     cerr << "\t                           in \'dof\' format used in IRTK/MIRTK." <<endl;
-    // cerr << "\t                          Only rough alignment with correct orienation and " << endl;
-    // cerr << "\t                          some overlap is needed." << endl;
     cerr << "\t                           Use \'id\' for an identity transformation." << endl;
     cerr << "\t-thickness [th_1]..[th_N]  Give slice thickness.[Default: twice voxel size in z direction]"<<endl;
     cerr << "\t-mask [mask]               Binary mask to define the region of interest. [Default: whole image]"<<endl;
@@ -86,10 +87,10 @@ void usage()
     cerr << "\t-force_exclude [n] [ind1]..[indN]  Force exclusion of image-frames with these indices."<<endl;
     cerr << "\t-force_exclude_sliceloc [n] [ind1]..[indN]  Force exclusion of slice-locations with these indices."<<endl;
     cerr << "\t-force_exclude_stack [n] [ind1]..[indN]  Force exclusion of stacks with these indices."<<endl;
-    cerr << "\t-robust_statistics         Switch on robust statistics. [Defaul: off]"<<endl;
+    cerr << "\t-robust_statistics         Switch on robust statistics. [Default: off]"<<endl;
     cerr << "\t-no_regularisation         Switch off adaptive regularisation."<<endl;
     cerr << "\t-limit_intensities         Limit velocity magnitude according to the maximum/minimum values."<<endl;
-    cerr << "\t-limit_time_window         Threshol time window to 90%."<<endl;
+    cerr << "\t-limit_time_window         Threshold time window to 90%."<<endl;
     cerr << "\t-exclude_slices_only       Do not exclude individual voxels."<<endl;
     cerr << "\t-ref_vol                   Reference volume for adjustment of spatial position of reconstructed volume."<<endl;
     cerr << "\t-rreg_recon_to_ref         Register reconstructed volume to reference volume [Default: recon to ref]"<<endl;

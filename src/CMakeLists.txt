@@ -9,7 +9,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0 
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,15 +26,19 @@
 set(HEADERS
   ${BINARY_INCLUDE_DIR}/mirtk/SVRTKExport.h
   Reconstruction.h
+  ReconstructionCardiac4D.h
+  ReconstructionCardiacVelocity4D.h
   MeanShift.h
   NLDenoising.h
 )
 
 set(SOURCES
   Reconstruction.cc
+  ReconstructionCardiac4D.cc
+  ReconstructionCardiacVelocity4D.cc
   MeanShift.cc
   NLDenoising.cc
-)
+) 
 
 set(DEPENDS
   LibCommon
@@ -49,6 +53,4 @@ set(DEPENDS
 list(APPEND DEPENDS tbb)
 
 mirtk_add_library()
-
-
 

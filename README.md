@@ -42,7 +42,9 @@ reconstructPlacenta ../outputDSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz  -
  
  reconstructBody ../outputDSVR.nii.gz  6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -resolution 0.85 -default 
  
-
+  ---
+  
+  
  
    
 

@@ -14,6 +14,7 @@ Installation
 
 Please follow installation instructions in InstallationInstructions.txt file. 
 
+For DSVR Body branch: git clone -b Body https://github.com/SVRTK/SVRTK.git
 
 Run
 ---

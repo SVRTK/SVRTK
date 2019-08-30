@@ -64,12 +64,12 @@ In case you found SVRTK useful please give appropriate credit to the software.
 Publications:
 
 
-original SVR reconstruction pipeline:
+original SVR reconstruction pipeline for fetal brain:
 
 Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M.A., Hajnal, J. V., Schnabel, J.A., 2012. Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Med. Im. A. 16, 1550–1564
 
  ---
-4D cardiac velocity reconstruction:
+4D cardiac velocity reconstruction (fetal heart):
 
 Roberts, T.A., van Amerom, J.F.P., Uus, A., Lloyd, D.F.A., Price, A.N., Tournier, J.D., Jackson, L.H., Malik, S.J., van Poppel, M.P.M., Pushparajah, K., Rutherford, M.A., Rezavi, R., Deprez, M., Hajnal, J. V, 2019. Fetal whole-heart 4D flow cine MRI using multiple non-coplanar balanced SSFP stacks. bioRxiv 635797.
 
@@ -79,7 +79,7 @@ for the full 4D cardiac reconstruction pipeline - please use the original softwa
 van Amerom, J.F., Lloyd, D.F., Deprez, M., Price, A.N., Malik, S.J., Pushparajah, K., van Poppel, M.P., Rutherford, M.A., Razavi, R., Hajnal, J. V, 2019. Fetal whole-heart 4D imaging using motion-corrected multi-planar real-time MRI. Magn. Reson. Med. 82(3), 1055–1072.
 
  ---
- DSVR body fetal body reconstrution:
+ DSVR fetal body reconstrution:
  
  Uus, A., Zhang, T., Jackson, L., Rutherford, M., Hajnal, J.V., Deprez, M., 2019. Deformable Slice-to-Volume Registration for Motion Correction in Fetal Body MRI. arXiv:1906.08827.
 

@@ -117,6 +117,21 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
+  reconstructBody
+  SOURCES
+    reconstructBody.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
   combine_patches
   SOURCES
     combine_patches.cc

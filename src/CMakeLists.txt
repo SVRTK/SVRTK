@@ -28,6 +28,7 @@ set(HEADERS
   Reconstruction.h
   ReconstructionCardiac4D.h
   ReconstructionCardiacVelocity4D.h
+  ReconstructionFFD.h
   MeanShift.h
   NLDenoising.h
 )
@@ -36,6 +37,7 @@ set(SOURCES
   Reconstruction.cc
   ReconstructionCardiac4D.cc
   ReconstructionCardiacVelocity4D.cc
+  ReconstructionFFD.cc
   MeanShift.cc
   NLDenoising.cc
 ) 

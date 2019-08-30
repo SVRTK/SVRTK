@@ -24,7 +24,7 @@ Examples:
 
 fetal brain SVR reconstruction:
 
-reconstruct ../outputSVR.nii.gz  6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz  -template_number 0 -thickness 2.5 2.5 2.5 2.5 2.5 2.5 -resolution 0.75 -iterations 3 
+reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template_number 0 -thickness 2.5 2.5 2.5 2.5 2.5 -resolution 0.75 -iterations 3 
  
  ---
 4D cardiac velocity SVR reconstruction (it will require the input from 4D cardiac reconstruction using the full pipeline from: https://github.com/jfpva/fetal_cmr_4d): 

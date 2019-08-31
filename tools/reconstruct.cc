@@ -944,7 +944,7 @@ int main(int argc, char **argv)
         // }
         cout << "------------------------------------------------------" << endl;
         cout << "------------------------------------------------------" << endl;
-        cout<<"Main iteration : " << iter << endl;
+        cout<<"Main SVR iteration : " << iter << endl;
         
         reconstruction->MaskVolume();
         
@@ -1139,8 +1139,10 @@ int main(int argc, char **argv)
         i=0;
         for (i=0;i<rec_iterations;i++) {
             
-            cout << "------------------------------------------------------" << endl;
-            cout<<"Reconstruction iteration : "<<i<<endl;
+            if (debug) {
+                cout << "------------------------------------------------------" << endl;
+                cout<<"Reconstruction iteration : "<<i<<endl;
+            }
             
             if (intensity_matching) {
                 

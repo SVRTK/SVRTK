@@ -1258,12 +1258,12 @@ int main(int argc, char **argv)
         reconstruction->MaskVolume();
         
         //Save reconstructed image
-        if (debug)
-        {
+//         if (debug)
+//         {
             reconstructed = reconstruction->GetReconstructed();
             sprintf(buffer, "image%i.nii.gz", iter);
             reconstructed.Write(buffer);
-        }
+//         }
         
         
         

@@ -5874,6 +5874,20 @@ namespace mirtk {
         }
 
         
+        GaussianBlurring<RealPixel> gb_a(addon.GetXSize()*0.55);
+        
+        gb_a.Input(&addon);
+        gb_a.Output(&addon);
+        gb_a.Run();
+        
+        
+        GaussianBlurring<RealPixel> gb_cf(_confidence_map.GetXSize()*0.55);
+        
+        gb_cf.Input(&_confidence_map);
+        gb_cf.Output(&_confidence_map);
+        gb_cf.Run();
+        
+        
         if (!_adaptive)
         for (int i = 0; i < addon.GetX(); i++) {
             for (int j = 0; j < addon.GetY(); j++) {
@@ -5887,7 +5901,7 @@ namespace mirtk {
                     }
                     else  {
                         // addon(i, j, k) /= 0.1;
-//                        _confidence_map(i,j,k) = 1;
+                       _confidence_map(i,j,k) = 1;
                         
                     }
                 }

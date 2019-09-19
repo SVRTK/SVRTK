@@ -891,11 +891,12 @@ int main(int argc, char **argv)
         
         nStacks = new_stacks.size();
         
-        for (i=0; i<stacks.size(); i++) {
+//         for (i=0; i<stacks.size(); i++) {
             
-            delete stacks[i];
-        }
-        //        stacks.clear();
+//             delete stacks[i];
+//         }
+        
+        stacks.clear();
         
         for (i=0; i<new_stacks.size(); i++) {
             

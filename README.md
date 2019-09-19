@@ -4,7 +4,7 @@ MIRTK SVR Package
 
 SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) for fetal MRI motion correction including:
 - 3D brain
-- 4D heart and 5D heart flow velocity
+- 4D heart and 5D heart flow
 - 3D placenta
 
 

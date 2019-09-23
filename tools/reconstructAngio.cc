@@ -49,7 +49,7 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: reconstruct_ffd [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
+    cout << "Usage: reconstructAngio [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
     cout << endl;
     
     cout << "\t[reconstructed]         Name for the reconstructed volume. Nifti or Analyze format." << endl;
@@ -96,11 +96,14 @@ void usage()
     cout << "\t-excluded_file [file]     .txt file with the excluded slice numbers."<<endl;
     cout << "\t-exclude_entirely [number of slices] [ind1] ... [indN]  Entirely exlude slices from processing."<<endl;
     cout << "\t-gaussian_only            Only Gaussian PSF interpolation."<<endl;
+    cout << "\t-structural               Use structrural exclusion of slices."<<endl;
     cout << "\t-denoise                  Apply NLM denoising."<<endl;
     cout << "\t-blur                     Apply Gaussian filtering for slices with sigma = 0.75 x voxel size."<<endl;
     cout << "\t-filter [sigma]           Apply background filtering (based on non-uniform lighting correction) with sigma defining "<< endl;
     cout << "\t                          background features (use values from [5; 10] range)."<<endl;
     cout << "\t-ffd                      Use FFD registration for SVR."<<endl;
+    cout << "\t-cp_spacing [spacing]     Specify CP spacing (in mm) for FFD registration [Default: 5 * min voxel size]."<<endl;
+    cout << "\t-extract_bg_only          Use reconstruction for extraction of the background only (tmp feature for further processing)."<<endl;
     cout << "\t-sr_iterations            Number of SR iterations in the last round."<<endl;
     cout << "\t-reg_log                  Print registration log."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
@@ -185,6 +188,9 @@ int main(int argc, char **argv)
     double fg_sigma = 0.3;
     double bg_sigma = 5; //10;
     
+    
+    int cp_spacing = -1;
+    
     bool flag_filter = false;
     bool flag_ffd = false;
     bool flag_blurring = false;
@@ -195,6 +201,12 @@ int main(int argc, char **argv)
     
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
+    
+    
+    //flag for struture-based exclusion of slices
+    bool structural = false;
+    
+    bool extract_bg_only = false;
     
     RealImage average;
     
@@ -260,6 +272,7 @@ int main(int argc, char **argv)
         
         if (smin < 0 || smax < 0) {
             stack.PutMinMaxAsDouble(0, 1000);
+            cout << "- warning : stack # " << i << " was scaled to [0; 1000]" << endl;
         }
         
         argc--;
@@ -353,6 +366,7 @@ int main(int argc, char **argv)
             
             if (smin < 0 || smax < 0) {
                 template_stack.PutMinMaxAsDouble(0, 1000);
+                cout << "- warning : template was scaled to [0; 1000]" << endl;
             }
             
             ok = true;
@@ -366,6 +380,20 @@ int main(int argc, char **argv)
             argc--;
             argv++;
             iterations=atoi(argv[1]);
+            ok = true;
+            argc--;
+            argv++;
+        }
+        
+
+        if ((ok == false) && (strcmp(argv[1], "-cp_spacing") == 0)) {
+            argc--;
+            argv++;
+            
+            cp_spacing=atoi(argv[1]);
+            reconstruction->SetCP(cp_spacing);
+            cout << "CP spacing for FFD : " << cp_spacing << endl;
+            
             ok = true;
             argc--;
             argv++;
@@ -463,6 +491,22 @@ int main(int argc, char **argv)
             reconstruction->SetNCC(ncc_reg_flag);
             ok = true;
         }
+        
+        
+        
+        
+        //Use NCC similarity metric for SVR
+        if ((ok == false) && (strcmp(argv[1], "-extract_bg_only") == 0)) {
+            argc--;
+            argv++;
+            extract_bg_only=true;
+            reconstruction->SetBG(extract_bg_only);
+            
+            cout << "- warning : background only option was selected" << endl;
+            
+            ok = true;
+        }
+        
 
 
         //Print registration log
@@ -511,11 +555,11 @@ int main(int argc, char **argv)
             ok = true;
         }
         
-        //Registration log
-        if ((ok == false) && (strcmp(argv[1], "-reg_log") == 0)){
+        //Use structural exclusion of slices
+        if ((ok == false) && (strcmp(argv[1], "-structural") == 0)) {
             argc--;
             argv++;
-            gaussian_only=true;
+            structural=true;
             ok = true;
         }
         
@@ -548,6 +592,7 @@ int main(int argc, char **argv)
             flag_ffd=true;
             
             reconstruction->SetFFD(flag_ffd);
+            cout << "Registration type : FFD" << endl;
 
             ok = true;
         }
@@ -707,6 +752,7 @@ int main(int argc, char **argv)
             argc--;
             argv++;
             last_rec_iterations=atoi(argv[1]);
+            rec_iterations=atoi(argv[1]);
             
             ok = true;
             argc--;
@@ -799,7 +845,7 @@ int main(int argc, char **argv)
         
         mask = new RealImage(tmp_mask);
         *mask = reconstruction->CreateMask(*mask);
-        cout << "Warning : no mask was provided" << endl;
+        cout << "- warning : no mask was provided" << endl;
     }
     
     
@@ -1040,6 +1086,8 @@ int main(int argc, char **argv)
     
     //Initialise data structures for EM
     cout << "InitializeEM" << endl;
+    cout << "" << endl;
+    
     reconstruction->InitializeEM();
     
     //If registration was switched off - only 1 iteration is required
@@ -1090,7 +1138,18 @@ int main(int argc, char **argv)
             }
         }
         
+  
+        if (structural) {
+            
+            cout << "---------------------------------------------------------------------" << endl;
+            
+            cout << "StructuralExclusion " << endl;
+            reconstruction->StructuralExclusion();
+
+        }
+        
         cout << "---------------------------------------------------------------------" << endl;
+        
         
         // cout<<endl;
         // if ( ! no_log ) {
@@ -1149,7 +1208,8 @@ int main(int argc, char **argv)
         reconstruction->InitializeRobustStatistics();
         
             
-            
+        if (extract_bg_only)
+            rec_iterations = 1;
         
         
         if (!gaussian_only) {
@@ -1160,10 +1220,10 @@ int main(int argc, char **argv)
                 reconstruction->EStep();
             }
             
-            //number of reconstruction iterations
-            if ( iter==(iterations-1) )
-                rec_iterations = 10;
-            else
+//            //number of reconstruction iterations
+//            if ( iter==(iterations-1) )
+//                rec_iterations = 10; //10;
+//            else
                 rec_iterations = last_rec_iterations;
             
             
@@ -1188,6 +1248,7 @@ int main(int argc, char **argv)
                 //Update reconstructed volume
                 cout << "Superresolution" << endl;
                 reconstruction->Superresolution(i+1);
+                
                 
                 if (intensity_matching) {
                     cout << "NormaliseBias" << endl;
@@ -1224,25 +1285,26 @@ int main(int argc, char **argv)
             //Mask reconstructed image to ROI given by the mask
             reconstruction->MaskVolume();
             
-            
-            
-            // //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            // if ( ! no_log ) {
-            //     cout.rdbuf (fileEv.rdbuf());
-            // }
-            
-            cout << "---------------------------------------------------------------------" << endl;
-            reconstruction->Evaluate(iter);
-            cout << "---------------------------------------------------------------------" << endl;
-            
-            //            cout<<endl;
-            
-            // if ( ! no_log ) {
-            //     cout.rdbuf (strm_buffer);
-            // }
-            
         }
         
+        
+        
+        cout << "---------------------------------------------------------------------" << endl;
+        reconstruction->Evaluate(iter);
+        cout << "---------------------------------------------------------------------" << endl;
+        
+        
+        // Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
+        if ( ! no_log ) {
+            cout.rdbuf (fileEv.rdbuf());
+        }
+        reconstruction->Evaluate(iter);
+        
+        if ( ! no_log ) {
+            cout.rdbuf (strm_buffer);
+        }
+        
+    
         //Save reconstructed image
         //            if (debug)
         //            {
@@ -1272,13 +1334,12 @@ int main(int argc, char **argv)
     cout << "---------------------------------------------------------------------" << endl;
     
     if ( info_filename.length() > 0 )
-        reconstruction->SlicesInfo( info_filename.c_str(),
-                                  stack_files );
+        reconstruction->SlicesInfo( info_filename.c_str(), stack_files );
     
     if(debug)
     {
-        reconstruction->SaveWeights();
-        reconstruction->SaveBiasFields();
+//        reconstruction->SaveWeights();
+//        reconstruction->SaveBiasFields();
         reconstruction->SimulateStacks(stacks);
         for (i=0; i<stacks.size(); i++)
         {

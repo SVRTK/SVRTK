@@ -69,6 +69,15 @@ namespace mirtk {
     typedef Array<Array<VOXELCOEFFS> > SLICECOEFFS;
     
     
+    struct Vesselness
+    {
+        double rsp;             // vesselness response
+        Array<double> dir;      // vessel dirction
+        double sigma;           // relative size of the vessel
+    };
+    
+    
+    
     class Reconstruction
     {
         
@@ -94,13 +103,23 @@ namespace mirtk {
         bool _no_sr;
         bool _reg_log;
         
+        bool _filtered_cmp_flag;
+        bool _bg_flag;
+        
         int _n_treads;
         double _global_NCC_threshold;
         Array<int> _n_packages;
         
+
+        int _cp_spacing;
+
+
         ImageAttributes _attr_reconstructed;
         
         Array<MultiLevelFreeFormTransformation> _mffd_transformations;
+        
+        Array<ImageAttributes> _slice_attr;
+        ImageAttributes _reconstructed_attr;
         
         
         /// Slices
@@ -110,8 +129,16 @@ namespace mirtk {
         Array<RealImage> _simulated_weights;
         Array<RealImage> _simulated_inside;
         
+        
+        
         Array<ImageAttributes> _slice_attributes;
         Array<RealImage> _slice_dif;
+        Array<RealImage> _filtered_slices;
+        
+        Array<double> _average_slice_values;
+        
+        double _global_average_value;
+        
         
         Array<GreyImage> _grey_slices;
         GreyImage _grey_reconstructed;
@@ -247,6 +274,8 @@ namespace mirtk {
         inline double M(double m);
         
         int _directions[13][3];
+        
+        int _directions_angio[26][3];
         
         /// Gestational age (to compute expected brain volume)
         double _GA;
@@ -386,6 +415,8 @@ namespace mirtk {
         
         void NLMFiltering(Array<RealImage>& stacks);
         
+        void SliceToReconstuced( int inputIndex, double& x, double& y, double& z, int& i, int& j, int& k, int mode );
+        
         
         ///Initialise variables and parameters for EM
         void InitializeEM();
@@ -467,6 +498,10 @@ namespace mirtk {
         
         ///Remember stdev for bias field
         inline void SetSigma( double sigma );
+        
+        inline void SetBG( bool flag );
+        
+        inline void SetCP( int cp_spacing );
         
         ///Return reconstructed volume
         inline RealImage GetReconstructed();
@@ -717,6 +752,17 @@ namespace mirtk {
     inline void Reconstruction::PutMask(RealImage mask)
     {
         _mask=mask;
+    }
+    
+    
+    inline void Reconstruction::SetBG(bool flag_bg)
+    {
+        _bg_flag = flag_bg;
+    }
+    
+    inline void Reconstruction::SetCP( int cp_spacing )
+    {
+        _cp_spacing = cp_spacing;
     }
     
     

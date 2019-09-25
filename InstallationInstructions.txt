@@ -28,19 +28,16 @@ git clone https://github.com/SVRTK/MIRTK.git
 cd MIRTK/
 mkdir build
 cd build/
-# select WITH_TBB ON
-ccmake ..
+ccmake .. # select WITH_TBB ON
 make
-pwd 
-# copy path to MIRTK
-# e.g., /Users/***/software/reconstruction-software/MIRTK/build
+pwd # copy this path for use when building SVRTK in next steps. e.g., /Users/***/software/reconstruction-software/MIRTK/build
 
 cd ../../
 git clone https://github.com/SVRTK/SVRTK.git
 cd SVRTK/
 mkdir build
 cd build/
-# paste path to DEPENDS_MIRTK_DIR to /Users/***/software/reconstruction-software/MIRTK/build
+# paste path from earlier to DEPENDS_MIRTK_DIR
 ccmake ..
 make
 

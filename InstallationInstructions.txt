@@ -21,6 +21,7 @@
 # General installation instructions
 
 mkdir reconstruction-software
+cd reconstruction-software
 
 # please use this version of MIRTK (with additional modifications)
 git clone https://github.com/SVRTK/MIRTK.git

@@ -28,8 +28,6 @@
 #include <math.h>
 
 
-
-
 using namespace std;
 
 namespace mirtk {
@@ -41,9 +39,7 @@ namespace mirtk {
     ReconstructionCardiac4D::ReconstructionCardiac4D():Reconstruction()
     {
         _recon_type = _3D;
-        
         _no_sr = false;
-        
         _no_ts = false;
     }
     
@@ -217,13 +213,6 @@ namespace mirtk {
         volume4D = 0;
         
         // Resample to specified resolution
-        
-        //NearestNeighborInterpolateImageFunction interpolator;
-        
-        // InterpolationMode interpolation = Interpolation_NN;
-        // UniquePtr<InterpolateImageFunction> interpolator;
-        // interpolator.reset(InterpolateImageFunction::New(interpolation));
-        
         InterpolationMode interpolation = Interpolation_NN;
         UniquePtr<InterpolateImageFunction> interpolator;
         interpolator.reset(InterpolateImageFunction::New(interpolation));
@@ -238,38 +227,6 @@ namespace mirtk {
         // Set recontructed 4D volume
         _reconstructed4D = volume4D;
         _template_created = true;
-        
-//        //.........................................................................................
-//
-//        // 10-02
-//
-//        Resampling<RealPixel> resampling2(resolution,resolution,resolution);
-//        GenericLinearInterpolateImageFunction<RealImage> interpolator2;
-//
-//        cout << "4" << endl;
-//
-//        RealImage template_stack = mask.GetRegion(0,0,0,0,mask.GetX(),mask.GetY(),mask.GetZ(),1);
-//        resampling2.Input(&template_stack);
-//        resampling2.Output(&template_stack);
-//        resampling2.Interpolator(&interpolator2);
-//        resampling2.Run();
-//
-//        cout << "5" << endl;
-//
-//        for (int t=0; t<volume4D.GetT(); t++)
-//            for (int z=0; z<volume4D.GetZ(); z++)
-//                for (int y=0; y<volume4D.GetY(); y++)
-//                    for (int x=0; x<volume4D.GetX(); x++)
-//                        volume4D(x,y,z,t) = template_stack(x,y,z);
-//
-//
-//        cout << "6" << endl;
-//
-//        _reconstructed4D = volume4D;
-//        _template_created = true;
-//
-//        //.........................................................................................
-        
         
         // Set reconstructed 3D volume for reference by existing functions of irtkReconstruction class
         ImageAttributes attr4d = volume4D.GetImageAttributes();
@@ -578,7 +535,6 @@ namespace mirtk {
             {
                 _slice_temporal_weight[outputIndex][inputIndex] = CalculateTemporalWeight( _reconstructed_cardiac_phases[outputIndex], _slice_cardphase[inputIndex], _slice_dt[inputIndex], _slice_rr[inputIndex], _wintukeypct );
                 
-                
                // option for time window thresholding for velocity reconstruction
                if (_no_ts) {
                    if (_slice_temporal_weight[outputIndex][inputIndex] < 0.9)
@@ -733,27 +689,6 @@ namespace mirtk {
                         sigmay = 0.5 * dx / 2.3548; // dx
                         sigmaz = 0.5 * dx / 2.3548; // dx
                     }
-                    /*
-                     cout<<"Original sigma"<<sigmax<<" "<<sigmay<<" "<<sigmaz<<endl;
-                     
-                     //readjust for resolution of the volume
-                     //double sigmax,sigmay,sigmaz;
-                     double sigmamin = res/(3*2.3548);
-                     
-                     if((dx-res)>sigmamin)
-                     sigmax = 1.2 * sqrt(dx*dx-res*res) / 2.3548;
-                     else sigmax = sigmamin;
-                     
-                     if ((dy-res)>sigmamin)
-                     sigmay = 1.2 * sqrt(dy*dy-res*res) / 2.3548;
-                     else
-                     sigmay=sigmamin;
-                     if ((dz-1.2*res)>sigmamin)
-                     sigmaz = sqrt(dz*dz-1.2*1.2*res*res) / 2.3548;
-                     else sigmaz=sigmamin;
-                     
-                     cout<<"Adjusted sigma:"<<sigmax<<" "<<sigmay<<" "<<sigmaz<<endl;
-                     */
                     
                     //calculate discretized PSF
                     
@@ -1996,15 +1931,10 @@ namespace mirtk {
         void operator() (const blocked_range<size_t> &r) const {
             
             ImageAttributes attr = reconstructor->_reconstructed4D.GetImageAttributes();
-            
-            
-            
-            
+
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
                 if (reconstructor->_slice_excluded[inputIndex] == 0) {
-                    
-                    //irtkImageRigidRegistrationWithPadding registration;
                     
                     GreyPixel smin, smax;
                     GreyImage target;
@@ -2025,6 +1955,9 @@ namespace mirtk {
                     resampling.Interpolator(&interpolator);
                     resampling.Run();
                     target=t;
+                    
+                    target = reconstructor->_slices[inputIndex];
+
                     // get pixel value min and max
                     target.GetMinMax(&smin, &smax);
                     
@@ -2036,23 +1969,22 @@ namespace mirtk {
                         Insert(params, "Image (dis-)similarity measure", "NMI");
                         if (reconstructor->_nmi_bins>0)
                             Insert(params, "No. of bins", reconstructor->_nmi_bins);
-                        Insert(params, "Image interpolation mode", "Linear");
-                        // Insert(params, "Background value", -1);
-                        Insert(params, "Background value for image 1", 0);
-                        Insert(params, "Background value for image 2", -1);
                         
-                        //                        Insert(params, "Image (dis-)similarity measure", "NCC");
-                        //                        Insert(params, "Image interpolation mode", "Linear");
-                        //                        string type = "sigma";
-                        //                        string units = "mm";
-                        //                        double width = 5;
-                        //                        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+                        // Insert(params, "Image interpolation mode", "Linear");
+
+                        Insert(params, "Background value for image 1", -1); // 0
+                        Insert(params, "Background value for image 2", -1);
+
+//                        Insert(params, "Image (dis-)similarity measure", "NCC");
+//                        Insert(params, "Image interpolation mode", "Linear");
+//                        string type = "sigma";
+//                        string units = "mm";
+//                        double width = 0;
+//                        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
                         
                         GenericRegistrationFilter *registration = new GenericRegistrationFilter();
                         registration->Parameter(params);
-                        
-                        
-                        
+
                         // put origin to zero
                         RigidTransformation offset;
                         dummy_reconstruction.ResetOrigin(target,offset);
@@ -2064,25 +1996,18 @@ namespace mirtk {
                         // TODO: extract nearest cardiac phase from reconstructed 4D to use as source
                         GreyImage source = reconstructor->_reconstructed4D.GetRegion( 0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex]+1 );
                         
-                        
-                        target.Write("tt.nii.gz");
-                        
-                        
                         registration->Input(&target, &source);
                         Transformation *dofout = nullptr;
                         registration->Output(&dofout);
                         
                         RigidTransformation tmp_dofin = reconstructor->_transformations[inputIndex];
-                        
-                        
                         registration->InitialGuess(&tmp_dofin);
+                        
                         registration->GuessParameter();
                         registration->Run();
                         
-                        
                         RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
                         reconstructor->_transformations[inputIndex] = *rigidTransf;
-                        
                         
                         //undo the offset
                         mo.Invert();
@@ -2110,8 +2035,6 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     void ReconstructionCardiac4D::SliceToVolumeRegistrationCardiac4D()
     {
-        
-        _reconstructed4D.Write("zzz.nii.gz");
         
         if (_debug)
             cout << "SliceToVolumeRegistrationCardiac4D" << endl;
@@ -2151,9 +2074,7 @@ namespace mirtk {
         
         RigidTransformation *rigidTransf_dofout = dynamic_cast<RigidTransformation*> (dofout);
         rigidTransf = *rigidTransf_dofout;
-        
 
-        
     }
     
     
@@ -2951,12 +2872,12 @@ namespace mirtk {
         _confidence_map = parallelSuperresolution.confidence_map;
         
         if(_debug) {
-            // char buffer[256];
-            //sprintf(buffer,"confidence-map%i.nii.gz",iter);
-            //_confidence_map.Write(buffer);
-            _confidence_map.Write("confidence-map.nii.gz");
-            //sprintf(buffer,"addon%i.nii.gz",iter);
-            //addon.Write(buffer);
+            char buffer[256];
+            sprintf(buffer,"confidence-map%i.nii.gz",iter);
+            _confidence_map.Write(buffer);
+            
+            sprintf(buffer,"addon%i.nii.gz",iter);
+            addon.Write(buffer);
         }
         
         if (!_adaptive)
@@ -3511,19 +3432,15 @@ namespace mirtk {
             sprintf(buffer, "simstack%03i.nii.gz", i);
             simstacks[i].Write(buffer);
         }
-        
-        
-        
-//        if (_debug)
-//            cout << " done." << endl;
+
         
     }
     
     void ReconstructionCardiac4D::SaveSimulatedSlices( Array<RealImage> &stacks, int iter, int rec_iter )
     {
         
-//        if (_debug)
-//            cout << "Saving simulated images as stacks ...";
+        if (_debug)
+            cout << "Saving simulated images as stacks ...";
         
         char buffer[256];
         RealImage stack;
@@ -3548,15 +3465,8 @@ namespace mirtk {
             simstacks[i].Write(buffer);
         }
         
-        for (int ii=0; ii<stacks.size(); ii++) {
-            sprintf(buffer,"dif-%i-%i.nii.gz",ii,iter);
-            simstacks[ii] = stacks[ii] - simstacks[ii];
-            simstacks[ii].Write(buffer);
-        }
-        
-        
-//        if (_debug)
-//            cout << " done." << endl;
+        if (_debug)
+            cout << " done." << endl;
         
     }
     

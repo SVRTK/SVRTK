@@ -20,7 +20,6 @@
 
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"

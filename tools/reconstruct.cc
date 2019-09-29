@@ -20,7 +20,6 @@
 
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
@@ -28,7 +27,6 @@
 
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
@@ -37,29 +35,18 @@
 
 #include "mirtk/Reconstruction.h"
 
-
 #include <iostream>
 #include <chrono>
 #include <ctime>
-
 #include <fstream>
-
 #include <cmath>
-
-//#include <omp.h>
 #include <set>
-
 #include <algorithm>
 #include <thread>
 #include <functional>
 #include <vector>
-
-
 #include <cstdlib>
 #include <pthread.h>
-
-
-
 
 
 
@@ -954,7 +941,6 @@ int main(int argc, char **argv)
             
             cout.rdbuf (file.rdbuf());
             reconstruction->SliceToVolumeRegistration();
-            //            reconstruction->SliceToVolumeRegistrationOMP();
             cout.rdbuf (strm_buffer);
             
             if (debug) {
@@ -966,7 +952,6 @@ int main(int argc, char **argv)
         }
         else {
             if (iter>0) {
-                //if((packages.size()>0)&&(iter<(iterations-1)))
                 if((packages.size()>0)&&(iter<iterations-1)) {
                     
                     if (debug)
@@ -989,12 +974,9 @@ int main(int argc, char **argv)
                 else {
                     if (debug)
                         start = std::chrono::system_clock::now();
-                    
-//                    reconstruction->InitialiseWithStackTransformations(stack_transformations);
-                    
+
                     cout.rdbuf (file.rdbuf());
                     reconstruction->SliceToVolumeRegistration();
-                    //                                    reconstruction->SliceToVolumeRegistrationOMP();
                     cout.rdbuf (strm_buffer);
                     
                     if (debug) {
@@ -1005,8 +987,7 @@ int main(int argc, char **argv)
                     }
                     
                 }
-                
-                
+
             }
             
         }
@@ -1077,7 +1058,6 @@ int main(int argc, char **argv)
         //Calculate matrix of transformation between voxels of slices and volume
         
         // cout.rdbuf (file.rdbuf());
-        //        reconstruction->CoeffInitOMP(); //CoeffInit();
         reconstruction->CoeffInit();
         // cout.rdbuf (strm_buffer);
         if (debug) {
@@ -1106,7 +1086,7 @@ int main(int argc, char **argv)
         //Simulate slices (needs to be done after Gaussian reconstruction)
         
         cout.rdbuf (file.rdbuf());
-        reconstruction->SimulateSlices(); //SimulateSlices();
+        reconstruction->SimulateSlices();
         cout.rdbuf (strm_buffer);
         if (debug) {
             end = std::chrono::system_clock::now();
@@ -1209,7 +1189,7 @@ int main(int argc, char **argv)
                 start = std::chrono::system_clock::now();
             
             cout.rdbuf (file.rdbuf());
-            reconstruction->SimulateSlices(); //SimulateSlices();
+            reconstruction->SimulateSlices();
             cout.rdbuf (strm_buffer);
             if (debug) {
                 end = std::chrono::system_clock::now();
@@ -1258,12 +1238,12 @@ int main(int argc, char **argv)
         reconstruction->MaskVolume();
         
         //Save reconstructed image
-        if (debug)
-        {
+//        if (debug)
+//        {
             reconstructed = reconstruction->GetReconstructed();
             sprintf(buffer, "image%i.nii.gz", iter);
             reconstructed.Write(buffer);
-        }
+//        }
         
         
         

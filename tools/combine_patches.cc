@@ -20,7 +20,6 @@
 
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
@@ -117,10 +116,6 @@ int main(int argc, char **argv)
     argc--;
     argv++;
     
-    
-    
-    
-    
     //-------------------------------------------------------------------
     
     // Read stacks
@@ -194,39 +189,6 @@ int main(int argc, char **argv)
     
     RealImage weights = output_volume;
     weights = 0;
-    
-    //    for (int i=0; i<stacks.size(); i++) {
-    //
-    //        for (int z=1; z<stacks[i].GetZ()-1; z++) {
-    //            for (int y=1; y<stacks[i].GetY()-1; y++) {
-    //                for (int x=1; x<stacks[i].GetX()-1; x++) {
-    //
-    //                    wx = x;
-    //                    wy = y;
-    //                    wz = z;
-    //
-    //                    stacks[i].ImageToWorld(wx, wy, wz);
-    //                    output_volume.WorldToImage(wx, wy, wz);
-    //
-    //                    rx = round(wx);
-    //                    ry = round(wy);
-    //                    rz = round(wz);
-    //
-    //                    if (rx > -1 && ry > -1 && rz > -1 && rx < output_volume.GetX() && ry < output_volume.GetY() && rz < output_volume.GetZ() ) {
-    //
-    //                        output_volume(rx, ry, rz) = stacks[i](x, y, z);
-    //                        weights(rx, ry, rz) += 1;
-    //                    }
-    //
-    //
-    //                }
-    //            }
-    //        }
-    //
-    //
-    //    }
-    
-    
     output_volume = 0;
     
     double val, num;

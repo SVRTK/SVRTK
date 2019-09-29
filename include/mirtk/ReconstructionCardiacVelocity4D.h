@@ -21,14 +21,13 @@
 #define MIRTK_ReconstructionCardiacVelocity4D_H
 
 #include "mirtk/ReconstructionCardiac4D.h"
-#include "mirtk/Arith.h"
+#include "mirtk/Arith.h" 
 #include "mirtk/Math.h"
 
 
 namespace mirtk {
     
-    
-    
+
     class ReconstructionCardiacVelocity4D : public ReconstructionCardiac4D
     {
         

@@ -24,10 +24,8 @@
 #include <stdio.h>
 #include <vector>
 #include <pthread.h>
-
 #include <stdlib.h>
 #include <stdarg.h>
-
 #include <math.h>
 #include <float.h>
 

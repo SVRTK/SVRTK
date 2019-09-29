@@ -20,7 +20,6 @@
 
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
@@ -28,7 +27,6 @@
 
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
@@ -452,24 +450,20 @@ int main(int argc, char **argv)
 
             argc--;
             argv++;
-            cout<< "Reading heart masks.";
+            cout<< "Reading stack masks.";
             for (i=0;i<nStacks;i++)
             {
                 RealImage *tmp_mask_p;
                 tmp_mask_p = new RealImage(argv[1]);
                 
                 RealImage tmp_mask = *tmp_mask_p;
-                
-                // dilate the stack heart masks (tmp)
-                // ConnectivityType connectivity = CONNECTIVITY_26;
-                // Dilate<RealPixel>(&tmp_mask, 9, connectivity);
-
                 masks.push_back(tmp_mask);
                 
                 argc--;
                 argv++;
             }
 
+            reconstruction.SetMaskedStacks();
             ok = true;
 
         }
@@ -898,23 +892,43 @@ int main(int argc, char **argv)
         cout<<"."<<endl;
     }
 
+    
+    
+    
+    
+    Array<RealImage> masked_stacks;
+    
+    for (i=0;i<nStacks;i++)
+    {
+        masked_stacks.push_back(stacks[i]);
+    }
+    
+    
     if (masks.size()>0) {
         
         for (i=0;i<masks.size();i++) {
-            reconstruction.CropImage(masks[i],masks[i]);
-        
+            
+            cout << i << endl;
+            
+            RigidTransformation* tmp_rreg = new RigidTransformation;
+            RealImage stack_mask = masks[i];
+            reconstruction.TransformMask(stacks[i], stack_mask, *tmp_rreg);
+            
+//            ConnectivityType i_connectivity = CONNECTIVITY_26;
+//            Dilate<RealPixel>(&stack_mask, 7, i_connectivity);
+            
+            RealImage stack = masked_stacks[i]*stack_mask;
+            
+            masked_stacks[i] = stack;
+
+            
+            sprintf(buffer, "masked-%i.nii.gz", i);
+            masked_stacks[i].Write(buffer);
+            
         }
         
-        reconstruction.CenterStacks(masks, stack_transformations, templateNumber);
-
-        for (i=0;i<masks.size();i++) {
-
-            // stack_transformations[i].Invert();
-            sprintf(buffer, "tt-%i.dof", i);
-            stack_transformations[i].Write(buffer);
-
-        }
-
+//        reconstruction.CenterStacks(masks, stack_transformations, templateNumber);
+        
     }
 
 
@@ -994,40 +1008,7 @@ int main(int argc, char **argv)
     
     // Create template 4D volume
     reconstruction.CreateTemplateCardiac4DFromStaticMask( maskCropped, resolution );
-    
-    
-//    //.........................................................................................
-//
-//    // 10-02
-//
-//    cout << "0" << endl;
-//
-//    RealImage template_stack = stacks[0].GetRegion(0,0,0,0,stacks[0].GetX(),stacks[0].GetY(),stacks[0].GetZ(),1);
-//
-//    template_stack.Write("hh.nii.gz");
-//
-//    GaussianBlurring<RealPixel> gb(1);
-//    gb.Input(&template_stack);
-//    gb.Output(&template_stack);
-//    gb.Run();
-//
-//    cout << "1" << endl;
-//
-//    RealImage template_mask = *mask;
-//    RigidTransformation *template_transform = new RigidTransformation;
-//    reconstruction.TransformMask(template_stack, template_mask, *template_transform);
-//    reconstruction.CropImage(template_stack, template_mask);
-//
-//    cout << "2" << endl;
-//
-//    template_stack.Write("zzz.nii.gz");
-//
-//    reconstruction.CreateTemplateCardiac4DFromStaticMask(template_stack, resolution);
-//
-//    cout << "3" << endl;
-//
-//    //.........................................................................................
-    
+
     
     // Set mask to reconstruction object
     reconstruction.SetMask(mask,smooth_mask);
@@ -1068,7 +1049,9 @@ int main(int argc, char **argv)
         {
             if (debug)
             cout << "StackRegistrations" << endl;
-            reconstruction.StackRegistrations(stacks,stack_transformations,templateNumber);
+//            reconstruction.StackRegistrations(stacks, stack_transformations, templateNumber);
+            reconstruction.StackRegistrations(masked_stacks, stack_transformations, templateNumber);
+            
             if (debug)
             {
                 reconstruction.InvertStackTransformations(stack_transformations);
@@ -1080,8 +1063,12 @@ int main(int argc, char **argv)
                 reconstruction.InvertStackTransformations(stack_transformations);
             }
         }
+        
     }
 
+    
+    
+    
         
     //if remove_black_background flag is set, create mask from black background of the stacks
     if (remove_black_background)
@@ -1227,23 +1214,29 @@ int main(int argc, char **argv)
         //perform slice-to-volume registrations
         if ( iter > 0 ) // 10-02 // > -1
         {
-            if ( ! no_log ) {
-                cerr.rdbuf(file_e.rdbuf());
-                cout.rdbuf (file.rdbuf());
-            }
+            
+            // 26-09
+//            if ( ! no_log ) {
+//                cerr.rdbuf(file_e.rdbuf());
+//                cout.rdbuf (file.rdbuf());
+//            }
             cout<<endl<<endl<<"Iteration "<<iter<<": "<<endl<<endl;
             reconstruction.SliceToVolumeRegistrationCardiac4D();
             cout<<endl;
-            if ( ! no_log ) {
-                cerr.rdbuf (strm_buffer_e);
-            }
+            
+            // 26-09
+//            if ( ! no_log ) {
+//                cerr.rdbuf (strm_buffer_e);
+//            }
             
             // if ((iter>0) && (debug))
             //       reconstruction.SaveRegistrationStep(stacks,iter);
             
-            if ( ! no_log ) {
-                cerr.rdbuf (strm_buffer_e);
-            }
+            
+            // 26-09
+//            if ( ! no_log ) {
+//                cerr.rdbuf (strm_buffer_e);
+//            }
             
             // process transformations
             if(motion_sigma>0)
@@ -1251,10 +1244,11 @@ int main(int argc, char **argv)
             
         }  // if ( iter > 0 )
         
-        //Write to file
-        if ( ! no_log ) {
-            cout.rdbuf (file2.rdbuf());
-        }
+        // 26-09
+//        //Write to file
+//        if ( ! no_log ) {
+//            cout.rdbuf (file2.rdbuf());
+//        }
         cout<<endl<<endl<<"Iteration "<<iter<<": "<<endl<<endl;
         
         //Set smoothing parameters

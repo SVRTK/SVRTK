@@ -30,6 +30,7 @@
 
 using namespace std;
 
+
 namespace mirtk {
     
     // -----------------------------------------------------------------------------
@@ -1239,7 +1240,7 @@ namespace mirtk {
     
     
     // -----------------------------------------------------------------------------
-    // E-step (should be optimised for velocity)
+    // E-step (todo: optimise for velocity)
     // -----------------------------------------------------------------------------
     
     class ParallelEStepardiacVelocity4D {
@@ -1522,7 +1523,7 @@ namespace mirtk {
     }
     
     // -----------------------------------------------------------------------------
-    // M-step (should be optimised for velocity)
+    // M-step (todo: optimise for velocity)
     // -----------------------------------------------------------------------------
     
     class ParallelMStepCardiacVelocity4D{

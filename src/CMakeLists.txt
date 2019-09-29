@@ -40,7 +40,7 @@ set(SOURCES
   NLDenoising.cc
 ) 
 
-set(DEPENDS
+set(DEPENDS 
   LibCommon
   LibNumerics
   LibImage

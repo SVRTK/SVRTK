@@ -20,7 +20,6 @@
  
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
@@ -28,7 +27,6 @@
 
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
@@ -830,16 +828,13 @@ int main(int argc, char **argv)
         
         cout << "NLMFiltering" << endl;
         reconstruction->NLMFiltering(stacks);
-        
     }
     
     if (flag_filter) {
         
         cout << "BackgroundFiltering" << endl;
         reconstruction->BackgroundFiltering(stacks, fg_sigma, bg_sigma);
-        
     }
-    
     
     GaussianBlurring<RealPixel> gbt(1.2*template_stack.GetXSize());
     gbt.Input(&template_stack);
@@ -853,14 +848,6 @@ int main(int argc, char **argv)
     
     //Set mask to reconstruction object.
     reconstruction->SetMask(mask,smooth_mask);
-    
-    /*
-     //if remove_black_background flag is set, create mask from black background of the stacks
-     if (remove_black_background) {
-     reconstruction->CreateMaskFromBlackBackground(stacks, stack_transformations, smooth_mask);
-     
-     }
-     */
     
     //to redirect output from screen to text files
     
@@ -897,101 +884,17 @@ int main(int argc, char **argv)
         //volumetric registration
         reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
         cout<<endl;
-        
     }
     
-    
     //redirect output back to screen
-    
     if ( ! no_log ) {
         cout.rdbuf (strm_buffer);
         cerr.rdbuf (strm_buffer_e);
     }
     
-    
-    
     average = reconstruction->CreateAverage(stacks,stack_transformations);
     if (debug)
         average.Write("average1.nii.gz");
-    
-    /*
-     
-     //Mask is transformed to the all other stacks and they are cropped
-     for (i=0; i<nStacks; i++)
-     {
-     //template stack has been cropped already
-     if ((i==templateNumber))
-     continue;
-     //transform the mask
-     RealImage m=reconstruction->GetMask();
-     reconstruction->TransformMask(stacks[i],m,stack_transformations[i]);
-     //Crop template stack
-     reconstruction->CropImage(stacks[i],m);
-     
-     if (debug) {
-     sprintf(buffer,"mask%i.nii.gz",i);
-     m.Write(buffer);
-     sprintf(buffer,"cropped%i.nii.gz",i);
-     stacks[i].Write(buffer);
-     }
-     }
-     
-     // we remove stacks of size 1 voxel (no intersection with ROI)
-     Array<RealImage> selected_stacks;
-     Array<RigidTransformation> selected_stack_transformations;
-     int new_nStacks = 0;
-     int new_templateNumber = 0;
-     
-     for (i=0; i<nStacks; i++) {
-     if (stacks[i].GetX() == 1) {
-     cerr << "stack " << i << " has no intersection with ROI" << endl;
-     continue;
-     }
-     
-     // we keep it
-     selected_stacks.push_back(stacks[i]);
-     selected_stack_transformations.push_back(stack_transformations[i]);
-     
-     if (i == templateNumber)
-     new_templateNumber = templateNumber - (i-new_nStacks);
-     
-     new_nStacks++;
-     }
-     
-     stacks.clear();
-     stack_transformations.clear();
-     nStacks = new_nStacks;
-     templateNumber = new_templateNumber;
-     
-     
-     
-     for (i=0; i<nStacks; i++) {
-     stacks.push_back(selected_stacks[i]);
-     stack_transformations.push_back(selected_stack_transformations[i]);
-     }
-     
-     
-     //Repeat volumetric registrations with cropped stacks
-     //redirect output to files
-     if ( ! no_log ) {
-     cerr.rdbuf(file_e.rdbuf());
-     cout.rdbuf (file.rdbuf());
-     }
-     //volumetric registration
-     reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
-     cout<<endl;
-     
-     //redirect output back to screen
-     if ( ! no_log ) {
-     cout.rdbuf (strm_buffer);
-     cerr.rdbuf (strm_buffer_e);
-     }
-     
-     
-     */
-    
-    
-    
     
     //Rescale intensities of the stacks to have the same average
     cout << "MatchStackIntensities" << endl;
@@ -1058,12 +961,6 @@ int main(int argc, char **argv)
         cout << "---------------------------------------------------------------------" << endl;
         cout<<"Iteration : "<<iter<<endl;
         
-        
-        // if ( ! no_log ) {
-        //         cerr.rdbuf(file_e.rdbuf());
-        //         cout.rdbuf (file.rdbuf());
-        // }
-        
         if (svr_only) {
             cout<< "SliceToVolumeRegistration" << endl;
             reconstruction->SliceToVolumeRegistration();
@@ -1091,18 +988,7 @@ int main(int argc, char **argv)
         }
         
         cout << "---------------------------------------------------------------------" << endl;
-        
-        // cout<<endl;
-        // if ( ! no_log ) {
-        //     cerr.rdbuf (strm_buffer_e);
-        // }
-        
-        // //Write to file
-        // if ( ! no_log ) {
-        //     cout.rdbuf (file2.rdbuf());
-        // }
-        // cout<<endl<<endl<<"Iteration : "<<iter<<endl<<endl;
-        
+
         //Set smoothing parameters
         //amount of smoothing (given by lambda) is decreased with improving alignment
         //delta (to determine edges) stays constant throughout
@@ -1223,23 +1109,11 @@ int main(int argc, char **argv)
             
             //Mask reconstructed image to ROI given by the mask
             reconstruction->MaskVolume();
-            
-            
-            
+
             // //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            // if ( ! no_log ) {
-            //     cout.rdbuf (fileEv.rdbuf());
-            // }
-            
             cout << "---------------------------------------------------------------------" << endl;
             reconstruction->Evaluate(iter);
             cout << "---------------------------------------------------------------------" << endl;
-            
-            //            cout<<endl;
-            
-            // if ( ! no_log ) {
-            //     cout.rdbuf (strm_buffer);
-            // }
             
         }
         

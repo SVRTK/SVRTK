@@ -19,6 +19,7 @@
 
 using namespace std;
 
+
 namespace mirtk {
 
 NLDenoising::NLDenoising()

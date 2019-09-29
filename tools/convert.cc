@@ -20,7 +20,6 @@
 
 #include "mirtk/Common.h"
 #include "mirtk/Options.h" 
-
 #include "mirtk/IOConfig.h"
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
@@ -53,6 +52,7 @@ void usage()
 int main(int argc, char **argv)
 {
     
+    cout << "---------------------------------------------------------------------" << endl;
     
     if (argc < 5 || argc > 5)
         usage();
@@ -135,6 +135,7 @@ int main(int argc, char **argv)
     
     stack_ref.Write(file_name);
 
+    cout << "---------------------------------------------------------------------" << endl;
     
     return 0;
 }

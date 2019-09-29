@@ -22,7 +22,7 @@
 # @brief Build configuration of MIRTK SVRTK tools.
 ##############################################################################
 
-#set(USE_Python TRUE)
+#set(USE_Python TRUE) 
 
 mirtk_add_executable(
   reconstruct
@@ -132,6 +132,21 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
+  combine_masks
+  SOURCES
+    combine_masks.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
   filter_background
   SOURCES
     filter_background.cc
@@ -146,8 +161,51 @@ mirtk_add_executable(
     ${TBB}
 )
 
+mirtk_add_executable(
+  threshold_image
+  SOURCES
+    threshold_image.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
 
 
+mirtk_add_executable(
+  pad_image
+  SOURCES
+    pad_image.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  enlarge_image
+  SOURCES
+    enlarge_image.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
 
 #mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})
 

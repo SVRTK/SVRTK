@@ -20,7 +20,6 @@
  
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
@@ -28,7 +27,6 @@
 
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
@@ -619,9 +617,7 @@ int main(int argc, char **argv)
             
             ok = true;
         }
-        
-        
-        
+
         //Force removal of certain slices
         if ((ok == false) && (strcmp(argv[1], "-force_exclude") == 0)){
             argc--;
@@ -682,9 +678,7 @@ int main(int argc, char **argv)
             svr_only=true;
             ok = true;
         }
-        
-        
-        
+
         //Use additional filtereing
         if ((ok == false) && (strcmp(argv[1], "-filter") == 0)) {
             
@@ -695,12 +689,8 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
-            
-            
         }
-        
-        
-        
+
         //Use additional filtereing
         if ((ok == false) && (strcmp(argv[1], "-sr_iterations") == 0)) {
             
@@ -711,10 +701,7 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
-            
-            
         }
-        
         
         //Perform bias correction of the reconstructed image agains the GW image in the same motion correction iteration
         if ((ok == false) && (strcmp(argv[1], "-global_bias_correction") == 0)) {
@@ -775,9 +762,7 @@ int main(int argc, char **argv)
     
     //Set NMI bins for registration
     reconstruction->SetNMIBins(nmi_bins);
-    
-    
-    
+
     //Set force excluded slices
     reconstruction->SetForceExcludedSlices(force_excluded);
     
@@ -830,16 +815,13 @@ int main(int argc, char **argv)
         
         cout << "NLMFiltering" << endl;
         reconstruction->NLMFiltering(stacks);
-        
     }
     
     if (flag_filter) {
         
         cout << "BackgroundFiltering" << endl;
         reconstruction->BackgroundFiltering(stacks, fg_sigma, bg_sigma);
-        
     }
-    
     
     GaussianBlurring<RealPixel> gbt(1.2*template_stack.GetXSize());
     gbt.Input(&template_stack);
@@ -853,14 +835,6 @@ int main(int argc, char **argv)
     
     //Set mask to reconstruction object.
     reconstruction->SetMask(mask,smooth_mask);
-    
-    /*
-     //if remove_black_background flag is set, create mask from black background of the stacks
-     if (remove_black_background) {
-     reconstruction->CreateMaskFromBlackBackground(stacks, stack_transformations, smooth_mask);
-     
-     }
-     */
     
     //to redirect output from screen to text files
     
@@ -897,102 +871,19 @@ int main(int argc, char **argv)
         //volumetric registration
         reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
         cout<<endl;
-        
     }
-    
-    
+
     //redirect output back to screen
-    
     if ( ! no_log ) {
         cout.rdbuf (strm_buffer);
         cerr.rdbuf (strm_buffer_e);
     }
-    
-    
-    
+
     average = reconstruction->CreateAverage(stacks,stack_transformations);
     if (debug)
         average.Write("average1.nii.gz");
     
-    /*
-     
-     //Mask is transformed to the all other stacks and they are cropped
-     for (i=0; i<nStacks; i++)
-     {
-     //template stack has been cropped already
-     if ((i==templateNumber))
-     continue;
-     //transform the mask
-     RealImage m=reconstruction->GetMask();
-     reconstruction->TransformMask(stacks[i],m,stack_transformations[i]);
-     //Crop template stack
-     reconstruction->CropImage(stacks[i],m);
-     
-     if (debug) {
-     sprintf(buffer,"mask%i.nii.gz",i);
-     m.Write(buffer);
-     sprintf(buffer,"cropped%i.nii.gz",i);
-     stacks[i].Write(buffer);
-     }
-     }
-     
-     // we remove stacks of size 1 voxel (no intersection with ROI)
-     Array<RealImage> selected_stacks;
-     Array<RigidTransformation> selected_stack_transformations;
-     int new_nStacks = 0;
-     int new_templateNumber = 0;
-     
-     for (i=0; i<nStacks; i++) {
-     if (stacks[i].GetX() == 1) {
-     cerr << "stack " << i << " has no intersection with ROI" << endl;
-     continue;
-     }
-     
-     // we keep it
-     selected_stacks.push_back(stacks[i]);
-     selected_stack_transformations.push_back(stack_transformations[i]);
-     
-     if (i == templateNumber)
-     new_templateNumber = templateNumber - (i-new_nStacks);
-     
-     new_nStacks++;
-     }
-     
-     stacks.clear();
-     stack_transformations.clear();
-     nStacks = new_nStacks;
-     templateNumber = new_templateNumber;
-     
-     
-     
-     for (i=0; i<nStacks; i++) {
-     stacks.push_back(selected_stacks[i]);
-     stack_transformations.push_back(selected_stack_transformations[i]);
-     }
-     
-     
-     //Repeat volumetric registrations with cropped stacks
-     //redirect output to files
-     if ( ! no_log ) {
-     cerr.rdbuf(file_e.rdbuf());
-     cout.rdbuf (file.rdbuf());
-     }
-     //volumetric registration
-     reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
-     cout<<endl;
-     
-     //redirect output back to screen
-     if ( ! no_log ) {
-     cout.rdbuf (strm_buffer);
-     cerr.rdbuf (strm_buffer_e);
-     }
-     
-     
-     */
-    
-    
-    
-    
+
     //Rescale intensities of the stacks to have the same average
     cout << "MatchStackIntensities" << endl;
     if (intensity_matching)
@@ -1059,11 +950,6 @@ int main(int argc, char **argv)
         cout<<"Iteration : "<<iter<<endl;
         
         
-        // if ( ! no_log ) {
-        //         cerr.rdbuf(file_e.rdbuf());
-        //         cout.rdbuf (file.rdbuf());
-        // }
-        
         if (svr_only) {
             cout<< "SliceToVolumeRegistration" << endl;
             reconstruction->SliceToVolumeRegistration();
@@ -1075,9 +961,6 @@ int main(int argc, char **argv)
                 
                 if (registration_flag) {
                     // cout<<"SVR iteration : "<<iter<<endl;
-                    // reconstruction->SliceToVolumeRegistration();
-                    
-                    //if((packages.size()>0)&&(iter<(iterations-1)))
                     if((packages.size()>0)&&(iter<=iterations*(levels-1)/levels)&&(iter<(iterations-1)))
                     {
                         reconstruction->PackageToVolume(stacks,packages,stack_transformations);
@@ -1092,16 +975,6 @@ int main(int argc, char **argv)
         
         cout << "---------------------------------------------------------------------" << endl;
         
-        // cout<<endl;
-        // if ( ! no_log ) {
-        //     cerr.rdbuf (strm_buffer_e);
-        // }
-        
-        // //Write to file
-        // if ( ! no_log ) {
-        //     cout.rdbuf (file2.rdbuf());
-        // }
-        // cout<<endl<<endl<<"Iteration : "<<iter<<endl<<endl;
         
         //Set smoothing parameters
         //amount of smoothing (given by lambda) is decreased with improving alignment
@@ -1147,11 +1020,7 @@ int main(int argc, char **argv)
         //Initialize robust statistics parameters
         cout << "InitializeRobustStatistics" << endl;
         reconstruction->InitializeRobustStatistics();
-        
-            
-            
-        
-        
+
         if (!gaussian_only) {
             
             //EStep
@@ -1223,23 +1092,13 @@ int main(int argc, char **argv)
             
             //Mask reconstructed image to ROI given by the mask
             reconstruction->MaskVolume();
-            
-            
-            
+
             // //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            // if ( ! no_log ) {
-            //     cout.rdbuf (fileEv.rdbuf());
-            // }
             
             cout << "---------------------------------------------------------------------" << endl;
             reconstruction->Evaluate(iter);
             cout << "---------------------------------------------------------------------" << endl;
             
-            //            cout<<endl;
-            
-            // if ( ! no_log ) {
-            //     cout.rdbuf (strm_buffer);
-            // }
             
         }
         
@@ -1262,12 +1121,6 @@ int main(int argc, char **argv)
     reconstructed.Write(output_name);
     
     cout << "Reconstructed volume : " << output_name << endl;
-    
-    // if (debug) {
-    //     reconstruction->SaveTransformations();
-    //     reconstruction->SaveSlices();
-    //     reconstruction->SaveSliceInfo();
-    // }
     
     cout << "---------------------------------------------------------------------" << endl;
     

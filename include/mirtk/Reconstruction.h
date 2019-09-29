@@ -47,10 +47,7 @@
 #include "mirtk/MeanShift.h"
 #include "mirtk/NLDenoising.h"
 
-
-//#include <omp.h>
 #include <set>
-
 
 namespace mirtk {
     
@@ -72,10 +69,7 @@ namespace mirtk {
     class Reconstruction
     {
         
-        //protected: // will be changed back to proctected with -fno-new-inheriting-ctors compilation option
     protected:
-        
-        // ---------------------------------------------------------------------------
         
         //Reconstruction type
         RECON_TYPE _recon_type;
@@ -93,6 +87,7 @@ namespace mirtk {
         bool _template_flag;
         bool _no_sr;
         bool _reg_log;
+        bool _masked_stacks;
         
         int _n_treads;
         double _global_NCC_threshold;
@@ -100,9 +95,7 @@ namespace mirtk {
         
         ImageAttributes _attr_reconstructed;
         
-        Array<MultiLevelFreeFormTransformation> _mffd_transformations;
-        
-        
+
         /// Slices
         Array<RealImage> _slices;
         Array<RealImage> _slicesRwithMB;
@@ -124,7 +117,7 @@ namespace mirtk {
         Array<RigidTransformation> _transformations;
         Array<RigidTransformation> _previous_transformations;
         Array<RigidTransformation> _transformationsRwithMB;
-        
+        Array<MultiLevelFreeFormTransformation> _mffd_transformations;
         
         /// Indicator whether slice has an overlap with volumetric mask
         Array<bool> _slice_inside;
@@ -250,15 +243,10 @@ namespace mirtk {
         
         /// Gestational age (to compute expected brain volume)
         double _GA;
-        
-        
-        
-        // ---------------------------------------------------------------------------
+
         
     public:
-        
-        
-        
+
         ///Constructor
         Reconstruction();
         ///Destructor
@@ -536,6 +524,8 @@ namespace mirtk {
         
         inline void SetSR(bool flag_sr);
         
+        inline void SetMaskedStacks();
+        
         
         ///Write included/excluded/outside slices
         void Evaluate( int iter );
@@ -654,7 +644,6 @@ namespace mirtk {
         void Transform2Reconstructed( int inputIndex, int& i, int& j, int& k, int mode );
         
         
-        
         friend class ParallelStackRegistrations;
         friend class ParallelSliceToVolumeRegistration;
         
@@ -676,18 +665,7 @@ namespace mirtk {
         friend class ParallelAdaptiveRegularization2;
         
         
-        
-        /*
-         // Input images
-         
-         /// Set input images of the registration filter
-         void Input(int, const RealImage **);
-         
-         /// Set input images of the registration filter
-         template <class TVoxel> void Input(int, const RealImage<TVoxel> **);
-         */
-        
-    };
+    };  // end of Reconstruction class definition
     
     ////////////////////////////////////////////////////////////////////////////////
     // Inline/template definitions
@@ -769,6 +747,13 @@ namespace mirtk {
     {
         _adaptive = true;
     }
+    
+    
+    inline void Reconstruction::SetMaskedStacks()
+    {
+        _masked_stacks = true;
+    }
+    
     
     inline void Reconstruction::DebugOff()
     {

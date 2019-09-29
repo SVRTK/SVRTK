@@ -19,15 +19,13 @@
 
 #ifndef MIRTK_ReconstructionCardiac4D_H
 #define MIRTK_ReconstructionCardiac4D_H
-
+ 
 #include "mirtk/Reconstruction.h"
 
 
 namespace mirtk {
     
-    
-    
-    
+
     class ReconstructionCardiac4D : public Reconstruction
     {
        
@@ -38,9 +36,7 @@ namespace mirtk {
         Array<int> _stack_loc_index;  // index of 2D slice location in M2D stack
         Array<int> _stack_dyn_index;  // index of dynamic in M2D stack
         
-        
         bool _no_ts;
-        
         bool _no_sr;
         
         // Images
@@ -332,10 +328,7 @@ namespace mirtk {
     };  // end of ReconstructionCardiac4D class definition
     
     
-    
-    
-    
-    
+
     ////////////////////////////////////////////////////////////////////////////////
     // Inline/template definitions
     ////////////////////////////////////////////////////////////////////////////////
@@ -410,9 +403,7 @@ namespace mirtk {
         _force_excluded_locs = force_excluded_locs;
     }
     
-    
-    
-    
+
     
 } // namespace mirtk
 

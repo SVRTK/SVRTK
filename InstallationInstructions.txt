@@ -48,17 +48,31 @@ make -j
 
 
 # ----------------------------------------------------------------------------
+# add MIRTK to the path
+PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
+
+# or (for OSX)
+nano ~/.bash_profile
+PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
+
+
+# or (for Ubuntu) # TODO: update/check instructions for Ubuntu
+test -f ~/.profile && echo 'export PATH="$HOME/Software/reconstruction-software/MIRTK/build/bin:$PATH"' >>~/.profile
+test -f ~/.bash_profile && echo 'export PATH="$HOME/Software/reconstruction-software/MIRTK/build/bin:$PATH"' >>~/.bash_profile
+
+
+# ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 # note: if there are issues with missing libraries use ccmake for more details 
 
-ccmake .. 	# make sure that WITH_TBB=ON
-		# make sure that MODULE_SVRTK=ON
+ccmake .. 	 # make sure that WITH_TBB=ON
+		 # make sure that MODULE_SVRTK=ON
 
-# Ubuntu 16/18 installation 
+# default required installations for Ubuntu 16/18 
 sudo apt-get ... # TODO: check required libraries for clean Ubuntu OS  
 
 
-# OSX installation 
+# default required installations for OSX 
 brew apt-get ... # TODO: check required libraries for clean Mac OS 
 
 
@@ -69,7 +83,7 @@ git clone https://github.com/SVRTK/MIRTK.git
 cd MIRTK/
 mkdir build
 cd build/
-ccmake .. # select WITH_TBB ON
+ccmake .. 	# select WITH_TBB ON
 make -j
 pwd # copy this path for use when building SVRTK in next steps. e.g., /Users/***/software/reconstruction-software/MIRTK/build
 
@@ -78,8 +92,7 @@ git clone https://github.com/SVRTK/SVRTK.git
 cd SVRTK/
 mkdir build
 cd build/
-# paste path from earlier to DEPENDS_MIRTK_DIR
-ccmake ..
+ccmake ..	# paste path from earlier to DEPENDS_MIRTK_DIR
 make -j
 
 # the executable files for SVRTK functions are located in /build/lib/tools/ folder
@@ -87,4 +100,5 @@ make -j
 
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
+
 

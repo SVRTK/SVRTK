@@ -70,7 +70,7 @@ cd MIRTK/
 mkdir build
 cd build/
 ccmake .. # select WITH_TBB ON
-make
+make -j
 pwd # copy this path for use when building SVRTK in next steps. e.g., /Users/***/software/reconstruction-software/MIRTK/build
 
 cd ../../

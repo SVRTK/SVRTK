@@ -44,14 +44,14 @@ basis_project (
   # ----------------------------------------------------------------------------
   # meta-data
   NAME        "SVRTK"
-  VERSION     "0.0.0" # version of this module
+  VERSION     "1.0.0" # version of this module
   SOVERSION   "0"     # API yet unstable
   PACKAGE     "MIRTK"
   AUTHORS     "Maria Deprez, Alena Uus"
   DESCRIPTION "SVR Reconstruction for Medical Imaging."
   COPYRIGHT   "2013-2017 Imperial College London, 2013-2017 Andreas Schuh, 2018-2019 King's College London"
   LICENSE     "Apache License Version 2.0"
-  CONTACT     "Maria Deprez <maria.murgasova@kcl.ac.uk>, Alena Uus <alena.uus@gmail.com>"
+  CONTACT     "Maria Deprez <maria.murgasova@kcl.ac.uk>, Alena Uus <alena.uus@gmail.com>, Thomas Roberts <t.roberts@kcl.ac.uk>"
   TEMPLATE    "mirtk-module/1.0"
 
   # ----------------------------------------------------------------------------

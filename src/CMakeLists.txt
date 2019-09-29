@@ -50,7 +50,7 @@ set(DEPENDS
   ${TBB}
 )
 
-list(APPEND DEPENDS tbb)
+#list(APPEND DEPENDS tbb)
 
 mirtk_add_library()
 

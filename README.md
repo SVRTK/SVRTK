@@ -64,7 +64,7 @@ In case you found SVRTK useful please give appropriate credit to the software.
 
 Publications:
 
-original reconstruction pipeline for 3D fetal brain:
+original reconstruction pipeline for 3D fetal brain (the original software https://gitlab.com/mariadeprez/irtk-simple):
 > Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M. A., Hajnal, J. V., & Schnabel, J. A. (2012). Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Medical Image Analysis, 16(8), 1550–1564.: https://doi.org/10.1016/j.media.2012.07.004
 
 

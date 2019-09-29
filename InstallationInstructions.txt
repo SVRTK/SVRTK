@@ -48,7 +48,7 @@ make -j
 
 
 # ----------------------------------------------------------------------------
-# add MIRTK to the path
+# add executable files to the path
 PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
 
 # or (for OSX)

@@ -8,7 +8,7 @@ SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mir
 - 3D placenta
 
 
-The general pipeline for fetal brain reconstruction is based on `reconstruction` IRTK application (https://biomedia.doc.ic.ac.uk/software/irtk/).
+The general pipeline for fetal brain reconstruction is based on  `reconstruction`  IRTK application (https://biomedia.doc.ic.ac.uk/software/irtk/).
 
 4D Cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 
@@ -62,7 +62,6 @@ Publications:
 
 In case you found SVRTK useful please give appropriate credit to the software.
 
-Publications:
 
 original reconstruction pipeline for 3D fetal brain (the original software https://gitlab.com/mariadeprez/irtk-simple):
 > Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M. A., Hajnal, J. V., & Schnabel, J. A. (2012). Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Medical Image Analysis, 16(8), 1550–1564.: https://doi.org/10.1016/j.media.2012.07.004

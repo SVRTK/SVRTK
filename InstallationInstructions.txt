@@ -18,12 +18,53 @@
 # ============================================================================
 
 
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # General installation instructions
 
 mkdir reconstruction-software
 cd reconstruction-software
 
-# please use this version of MIRTK (with additional modifications)
+# download MIRTK (please use this version with additional SVRTK compilation options)
+git clone https://github.com/SVRTK/MIRTK.git
+
+# download SVRTK into /Packages folder of MIRTK
+git clone https://github.com/SVRTK/SVRTK.git MIRTK/Packages/SVRTK
+
+
+# ----------------------------------------------------------------------------
+# compile MIRTK with SVRTK
+
+cd MIRTK/
+mkdir build  
+cd build/
+
+cmake -D WITH_TBB="ON" -D MODULE_SVRTK="ON" ..
+make -j
+
+
+# the main 'mirtk' executable file is located in /build/bin/ folder 
+# the executable files for all MIRTK and SVRTK functions are located in /build/lib/tools/ folder 
+
+
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# note: if there are issues with missing libraries use ccmake for more details 
+
+ccmake .. 	# make sure that WITH_TBB=ON
+		# make sure that MODULE_SVRTK=ON
+
+# Ubuntu 16/18 installation 
+sudo apt-get ... # TODO: check required libraries for clean Ubuntu OS  
+
+
+# OSX installation 
+brew apt-get ... # TODO: check required libraries for clean Mac OS 
+
+
+# ----------------------------------------------------------------------------
+# note: if required, you can install SVRTK as a standalone package
+
 git clone https://github.com/SVRTK/MIRTK.git
 cd MIRTK/
 mkdir build
@@ -39,8 +80,11 @@ mkdir build
 cd build/
 # paste path from earlier to DEPENDS_MIRTK_DIR
 ccmake ..
-make
+make -j
 
-# the executable files will in /build/lib/tools folder 
+# the executable files for SVRTK functions are located in /build/lib/tools/ folder
 
+
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 

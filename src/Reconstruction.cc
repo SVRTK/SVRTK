@@ -2504,7 +2504,7 @@ namespace mirtk {
                 
                 GreyPixel smin, smax;
                 
-                GreyImage target
+                GreyImage target;
                 target = reconstructor->_grey_slices[inputIndex];
                 target.GetMinMax(&smin, &smax);
 

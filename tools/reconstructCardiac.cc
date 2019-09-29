@@ -817,21 +817,6 @@ int main(int argc, char **argv)
         }
     }
 
-
-    // if (masks.size()>0) {
-
-    //     for (i=0;i<nStacks;i++)    {
-    //         RealImage m=masks[i];
-    //         RigidTransformation *rigidTransf3 = new RigidTransformation;
-    //         reconstruction.TransformMask(stacks[i],m,*rigidTransf3);
-    //         reconstruction.CropImageIgnoreZ(stacks[i],m);
-    //     }
-
-    // }
-
-
-    
-
     
     // check that conflicting transformation folders haven't been given
     if ((folder!=NULL)&(slice_transformations_folder!=NULL))
@@ -1066,9 +1051,7 @@ int main(int argc, char **argv)
         
     }
 
-    
-    
-    
+
         
     //if remove_black_background flag is set, create mask from black background of the stacks
     if (remove_black_background)
@@ -1095,7 +1078,6 @@ int main(int argc, char **argv)
 
         // ConnectivityType connectivity2 = CONNECTIVITY_26;
         // Dilate<RealPixel>(&m, 5, connectivity2);
-
 
         reconstruction.CropImageIgnoreZ(stacks[i],m);
         if (debug)
@@ -1212,31 +1194,27 @@ int main(int argc, char **argv)
         cout<<"Iteration"<<iter<<". "<<endl;
         
         //perform slice-to-volume registrations
-        if ( iter > 0 ) // 10-02 // > -1
+        if ( iter > 0 ) 
         {
             
-            // 26-09
-//            if ( ! no_log ) {
-//                cerr.rdbuf(file_e.rdbuf());
-//                cout.rdbuf (file.rdbuf());
-//            }
+           if ( ! no_log ) {
+               cerr.rdbuf(file_e.rdbuf());
+               cout.rdbuf (file.rdbuf());
+           }
             cout<<endl<<endl<<"Iteration "<<iter<<": "<<endl<<endl;
             reconstruction.SliceToVolumeRegistrationCardiac4D();
             cout<<endl;
             
-            // 26-09
-//            if ( ! no_log ) {
-//                cerr.rdbuf (strm_buffer_e);
-//            }
+           if ( ! no_log ) {
+               cerr.rdbuf (strm_buffer_e);
+           }
             
             // if ((iter>0) && (debug))
             //       reconstruction.SaveRegistrationStep(stacks,iter);
             
-            
-            // 26-09
-//            if ( ! no_log ) {
-//                cerr.rdbuf (strm_buffer_e);
-//            }
+           if ( ! no_log ) {
+               cerr.rdbuf (strm_buffer_e);
+           }
             
             // process transformations
             if(motion_sigma>0)
@@ -1244,11 +1222,11 @@ int main(int argc, char **argv)
             
         }  // if ( iter > 0 )
         
-        // 26-09
-//        //Write to file
-//        if ( ! no_log ) {
-//            cout.rdbuf (file2.rdbuf());
-//        }
+        
+       //Write to file
+       if ( ! no_log ) {
+           cout.rdbuf (file2.rdbuf());
+       }
         cout<<endl<<endl<<"Iteration "<<iter<<": "<<endl<<endl;
         
         //Set smoothing parameters

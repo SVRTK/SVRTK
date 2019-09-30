@@ -303,7 +303,7 @@ int main(int argc, char **argv)
         if ((ok == false) && (strcmp(argv[1], "-target_stack") == 0)){
             argc--;
             argv++;
-            templateNumber=atof(argv[1])-1;
+            templateNumber=atoi(argv[1])-1;
             cout<<"Target stack no. is "<<atof(argv[1])<<" (zero-indexed stack no. "<<templateNumber<<")."<<endl;
             argc--;
             argv++;

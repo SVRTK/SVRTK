@@ -1127,8 +1127,8 @@ int main(int argc, char **argv)
     if (!have_ref_transformations)
     reconstruction.InitTRE();
     
-    //Mask all the slices
-    reconstruction.MaskSlices();
+//     //Mask all the slices
+//     reconstruction.MaskSlices();
     
     // Set R-R for each image
     if (rr_loc.empty())

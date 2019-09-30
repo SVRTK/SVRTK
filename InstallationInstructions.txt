@@ -72,12 +72,19 @@ make -j
 # the main 'mirtk' executable file is located in /build/bin/ folder 
 # the executable files for all MIRTK and SVRTK functions are located in /build/lib/tools/ folder 
 
-# Add executable files to the path
-PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
 
-# alternatively (for OSX / Ubuntu)
+# ----------------------------------------------------------------------------
+# Add Executable files to the Path
+
+# edit path file using nano text editor:
 nano ~/.bash_profile
+
+# Enter the bottom of the text editor:
 PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
+PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/lib/tools
+
+# You may need to reboot your computer
+# To test, try typing "reconstruct" in a terminal window. If it is working, the command help will show.
 
 
 # ----------------------------------------------------------------------------
@@ -91,7 +98,11 @@ ccmake .. 	 # make sure WITH_TBB=ON
 
 
 # For installation on OSX, the following libraries are required: 
-brew apt-get ... # TODO: check required libraries for clean Mac OS 
+brew apt-get ... # TODO: check required libraries for clean Mac OS
+
+
+# If you cannot call the binaries (i.e.: typing "reconstruct" gives nothing), try editing .profile:
+nano ~/.profile instead of nano ~/.bash_profile
 
 
 # ----------------------------------------------------------------------------

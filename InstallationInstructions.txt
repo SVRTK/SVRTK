@@ -51,15 +51,9 @@ make -j
 # add executable files to the path
 PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
 
-# or (for OSX)
+# or (for OSX / Ubuntu)
 nano ~/.bash_profile
 PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
-
-
-# or (for Ubuntu) # TODO: update/check instructions for Ubuntu
-test -f ~/.profile && echo 'export PATH="$HOME/Software/reconstruction-software/MIRTK/build/bin:$PATH"' >>~/.profile
-test -f ~/.bash_profile && echo 'export PATH="$HOME/Software/reconstruction-software/MIRTK/build/bin:$PATH"' >>~/.bash_profile
-
 
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------

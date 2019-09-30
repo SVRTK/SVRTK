@@ -1972,7 +1972,7 @@ namespace mirtk {
                         
                         // Insert(params, "Image interpolation mode", "Linear");
 
-                        Insert(params, "Background value for image 1", -1); // 0
+                        Insert(params, "Background value for image 1", 0); // -1
                         Insert(params, "Background value for image 2", -1);
 
 //                        Insert(params, "Image (dis-)similarity measure", "NCC");

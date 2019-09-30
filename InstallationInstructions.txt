@@ -19,21 +19,46 @@
 
 
 # ----------------------------------------------------------------------------
+# General Installation Instructions
+
+Follow these instructions to install a modified version of MIRTK with the SVRTK toolbox 
+compiled as a package. The installation instructions assume you are using a clean Ubuntu 
+installation, hence various required software are also downloaded, e.g.: Python, CMake, etc.
+The software can also be installed on OSX.
+
+
 # ----------------------------------------------------------------------------
-# General installation instructions
+# Directory Setup
+
+cd /path/to/software/installation/directory/of/your/choice
+(i.e.: /Users/user-id/Software)
 
 mkdir reconstruction-software
 cd reconstruction-software
 
-# download MIRTK (please use this version with additional SVRTK compilation options)
+
+# ----------------------------------------------------------------------------
+# Install Required Software/Libraries
+
+sudo apt install git
+sudo apt-get install cmake cmake-curses-gui
+sudo apt-get install python
+
+# Install libraries needed for MIRTK
+sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget
+
+# Download MIRTK (please use this version with additional SVRTK compilation options)
 git clone https://github.com/SVRTK/MIRTK.git
 
-# download SVRTK into /Packages folder of MIRTK
+# Download SVRTK into /Packages folder of MIRTK
 git clone https://github.com/SVRTK/SVRTK.git MIRTK/Packages/SVRTK
+
+# Check all software up-to-date
+sudo apt-get update
 
 
 # ----------------------------------------------------------------------------
-# compile MIRTK with SVRTK
+# Compile MIRTK with SVRTK
 
 cd MIRTK/
 mkdir build  
@@ -43,35 +68,34 @@ cmake -D WITH_TBB="ON" -D MODULE_SVRTK="ON" ..
 make -j
 
 
+# If this is all installed correctly, then:
 # the main 'mirtk' executable file is located in /build/bin/ folder 
 # the executable files for all MIRTK and SVRTK functions are located in /build/lib/tools/ folder 
 
-
-# ----------------------------------------------------------------------------
-# add executable files to the path
+# Add executable files to the path
 PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
 
-# or (for OSX / Ubuntu)
+# alternatively (for OSX / Ubuntu)
 nano ~/.bash_profile
 PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
 
+
 # ----------------------------------------------------------------------------
-# ----------------------------------------------------------------------------
-# note: if there are issues with missing libraries use ccmake for more details 
+# Troubleshooting
 
-ccmake .. 	 # make sure that WITH_TBB=ON
-		 # make sure that MODULE_SVRTK=ON
+# If there are issues with missing libraries when compiling, use ccmake for more details: 
 
-# default required installations for Ubuntu 16/18 
-sudo apt-get ... # TODO: check required libraries for clean Ubuntu OS  
+cd MIRTK/build
+ccmake .. 	 # make sure WITH_TBB=ON
+		 # make sure MODULE_SVRTK=ON
 
 
-# default required installations for OSX 
+# For installation on OSX, the following libraries are required: 
 brew apt-get ... # TODO: check required libraries for clean Mac OS 
 
 
 # ----------------------------------------------------------------------------
-# note: if required, you can install SVRTK as a standalone package
+# Installation of SVRTK as a standalone package, if required
 
 git clone https://github.com/SVRTK/MIRTK.git
 cd MIRTK/
@@ -90,9 +114,5 @@ ccmake ..	# paste path from earlier to DEPENDS_MIRTK_DIR
 make -j
 
 # the executable files for SVRTK functions are located in /build/lib/tools/ folder
-
-
-# ----------------------------------------------------------------------------
-# ----------------------------------------------------------------------------
 
 

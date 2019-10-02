@@ -95,12 +95,8 @@ PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/lib/tools
 cd MIRTK/build
 ccmake .. 	 # make sure WITH_TBB=ON
 		 # make sure MODULE_SVRTK=ON
-
-
-# For installation on OSX, the following libraries are required: 
-brew apt-get ... # TODO: check required libraries for clean Mac OS
-
-
+		 
+		 
 # If you cannot call the binaries (i.e.: typing "reconstruct" gives nothing), try editing .profile:
 nano ~/.profile instead of nano ~/.bash_profile
 

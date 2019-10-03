@@ -122,7 +122,7 @@ nano ~/.profile instead of nano ~/.bash_profile
 
 # In general SVR reconstruction requires >= 64G RAM on Ubuntu and ~ 32G RAM on Mac OS X (due to differement memory compression)
 
-# For Linux machines with < 64G RAM - it is recommented to increase swap memory based on the following instructions:
+# For Linux machines with < 64G RAM - it is recommended to increase swap memory based on the following instructions:
 
 # 1) allocate swap file with 32G (if RAM is less < 64G)
 sudo fallocate -l 32G /swapfile		# or 20-40G 

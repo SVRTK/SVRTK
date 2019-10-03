@@ -125,7 +125,7 @@ nano ~/.profile instead of nano ~/.bash_profile
 # For Linux machines with < 64G RAM - it is recommented to increase swap memory based on the following instructions:
 
 # 1) allocate swap file with 32G (if RAM is less < 64G)
-sudo fallocate -l 32G /swapfile		# or be 16G 
+sudo fallocate -l 32G /swapfile		# or 20-40G 
 
 # 2) update swap file permissions
 sudo chmod 600 /swapfile 

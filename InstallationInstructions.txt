@@ -38,14 +38,30 @@ cd reconstruction-software
 
 
 # ----------------------------------------------------------------------------
-# Install Required Software/Libraries
+# Install Required Software/Libraries: Ubuntu 16
 
+
+# Ubuntu: 
 sudo apt install git
 sudo apt-get install cmake cmake-curses-gui
 sudo apt-get install python
 
 # Install libraries needed for MIRTK
-sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget
+sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config
+
+
+# ----------------------------------------------------------------------------
+# Install Required Software/Libraries: Mac OS X
+
+# Install 'brew' package manager from https://brew.sh/: 
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+# Install libraries needed for MIRTK
+brew install git cmake boost tbb eigen
+
+
+# ----------------------------------------------------------------------------
+# Install SVRK and MIRTK 
 
 # Download MIRTK (please use this version with additional SVRTK compilation options)
 git clone https://github.com/SVRTK/MIRTK.git
@@ -99,6 +115,29 @@ ccmake .. 	 # make sure WITH_TBB=ON
 		 
 # If you cannot call the binaries (i.e.: typing "reconstruct" gives nothing), try editing .profile:
 nano ~/.profile instead of nano ~/.bash_profile
+
+
+# ----------------------------------------------------------------------------
+# Troubleshooting: out of memory errors during runtime
+
+# In general SVR reconstruction requires >= 64G RAM on Ubuntu and ~ 32G RAM on Mac OS X (due to differement memory compression)
+
+# For Linux machines with < 64G RAM - it is recommented to increase swap memory based on the following instructions:
+
+# 1) allocate swap file with 32G (if RAM is less < 64G)
+sudo fallocate -l 32G /swapfile		# or be 16G 
+
+# 2) update swap file permissions
+sudo chmod 600 /swapfile 
+
+# 3) set up a Linux swap area on the file 
+sudo mkswap /swapfile
+
+# 4) activate the swap file 
+sudo swapon /swapfile
+
+# 5) verify that the swap is active
+sudo swapon --show
 
 
 # ----------------------------------------------------------------------------

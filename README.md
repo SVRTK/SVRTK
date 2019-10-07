@@ -4,19 +4,21 @@ MIRTK SVR Package
 
 SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) for fetal MRI motion correction including:
 - 3D brain
-- 4D heart and 5D heart flow
+- 4D whole fetal heart, including magnitude and blood flow reconstructions
 - 3D placenta
 
 
-The general pipeline for fetal brain reconstruction is based on  `reconstruction`  IRTK application (https://biomedia.doc.ic.ac.uk/software/irtk/).
+The general pipeline for fetal brain reconstruction is based on the  `reconstruction`  function in IRTK: https://biomedia.doc.ic.ac.uk/software/irtk/.
 
-4D Cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
+4D cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 
 
 Installation 
 ------------
 
-Please follow installation instructions in InstallationInstructions.txt file. 
+Please follow installation instructions in InstallationInstructions.txt file.
+
+Note, the software requires Ubuntu 16 or OS X. It is known to work on machines with >= 64G RAM (and/or >= 64G Swap) and >= 6 CPU cores.
 
 
 Run
@@ -31,7 +33,7 @@ reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.n
  
  ---
 4D cardiac velocity reconstruction:
-- pre-requisite: 4D magnitude cine generated using https://github.com/jfpva/fetal_cmr_4d)
+- see fetal_cmr_4d git repository for full framework: https://github.com/tomaroberts/fetal_cmr_4d
  
 reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz ../phase_stack3.nii.gz ../phase_stack4.nii.gz ../phase_stack5.nii.gz ../g_values.txt ../g_directions.txt -thickness 6 6 6 6 6 -mask ../mask.nii.gz -rec_iterations 40 -transformations [folder with slice transformations from 4D cardiac reconstruction] -limit_intensities -rec_iterations 40 -resolution 1.25 -force_exclude [list of slices that should be excluded] -numcardphase 25 -rrinterval 0.407046 -rrintervals [number of rr_intervals] [list of rr_intervals] -cardphase [number of slices] [cardiac phases for each of the slices] -debug > log-main.txt
 
@@ -56,18 +58,14 @@ The MIRTK SVRTK package is distributed under the terms of the
 Citation and acknowledgements
 -----------------------------
 
-In case you found SVRTK useful please give appropriate credit to the software.
-
 Publications:
 
 In case you found SVRTK useful please give appropriate credit to the software.
 
-
-original reconstruction pipeline for 3D fetal brain (the original software https://gitlab.com/mariadeprez/irtk-simple):
+Original reconstruction pipeline for 3D fetal brain (original software using IRTK: https://gitlab.com/mariadeprez/irtk-simple):
 > Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M. A., Hajnal, J. V., & Schnabel, J. A. (2012). Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Medical Image Analysis, 16(8), 1550–1564.: https://doi.org/10.1016/j.media.2012.07.004
 
-
-4D cardiac reconstruction (the original software https://github.com/jfpva/fetal_cmr_4d):
+4D cardiac magnitude reconstruction (original software using IRTK: https://github.com/jfpva/fetal_cmr_4d):
 > van Amerom, J. F. P., Lloyd, D. F. A., Deprez, M., Price, A. N., Malik, S. J., Pushparajah, K., van Poppel, M. P. M, Rutherford, M. A., Razavi, R., Hajnal, J. V. (2019). Fetal whole-heart 4D imaging using motion-corrected multi-planar real-time MRI. Magnetic Resonance in Medicine.: https://doi.org/10.1002/mrm.27858
 
 4D cardiac velocity reconstruction:

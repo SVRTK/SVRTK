@@ -99,6 +99,7 @@ void usage()
     cerr << "\t-log_prefix [prefix]       Prefix for the log file."<<endl;
     cerr << "\t-info [filename]           Filename for slice information in tab-sparated columns."<<endl;
     cerr << "\t-debug                     Debug mode - save intermediate results."<<endl;
+    cout << "\t-remote                    Run SVR registration as remote functions in case of memory issues [Default: false]."<<endl;
     cerr << "\t-no_log                    Do not redirect cout and cerr to log files."<<endl;
     // cerr << "\t-global_bias_correction   Correct the bias in reconstructed image against previous estimation."<<endl;
     // cerr << "\t-low_intensity_cutoff     Lower intensity threshold for inclusion of voxels in global bias correction."<<endl;
@@ -134,6 +135,9 @@ void usage()
 
 int main(int argc, char **argv)
 {
+    
+    const char *current_mirtk_path = argv[0];
+    
     //utility variables
     int i, j, ok;
     char buffer[256];
@@ -234,6 +238,8 @@ int main(int argc, char **argv)
     string info_filename = "info.tsv";
     string log_id;
     bool no_log = false;
+    
+    bool remote_flag = false;
     
     //forced exclusion of slices
     int number_of_force_excluded_slices = 0;
@@ -507,6 +513,14 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
+        }
+        
+        //SVR reconstruction as remote functions
+        if ((ok == false) && (strcmp(argv[1], "-remote") == 0)) {
+            argc--;
+            argv++;
+            remote_flag=true;
+            ok = true;
         }
         
         //Variance of Gaussian kernel to smooth the bias field.
@@ -816,6 +830,44 @@ int main(int argc, char **argv)
             usage();
         }
     }
+    
+    
+    // -----------------------------------------------------------------------------
+    
+    string str_mirtk_path;
+    string str_current_main_file_path;
+    string str_current_exchange_file_path;
+    
+    string str_recon_path(current_mirtk_path);
+    size_t pos = str_recon_path.find_last_of("\/");
+    str_mirtk_path = str_recon_path.substr (0, pos);
+    
+    system("pwd > pwd.txt ");
+    ifstream pwd_file("pwd.txt");
+    
+    if (pwd_file.is_open()) {
+        getline(pwd_file, str_current_main_file_path);
+        pwd_file.close();
+    } else {
+        cout << "System error: no rights to write in the current folder" << endl;
+        exit(1);
+    }
+    
+    str_current_exchange_file_path = str_current_main_file_path + "/tmp-file-exchange";
+    
+    if (str_current_exchange_file_path.length() > 0) {
+        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_rm = system(remove_folder_cmd.c_str());
+        
+        string create_folder_cmd = "mkdir " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_mk = system(create_folder_cmd.c_str());
+        
+    } else {
+        cout << "System error: could not create a folder for file exchange" << endl;
+        exit(1);
+    }
+    
+    //---------------------------------------------------------------------------------------------
 
     
     // check that conflicting transformation folders haven't been given
@@ -1024,6 +1076,8 @@ int main(int argc, char **argv)
         cout.rdbuf (file.rdbuf());
     }
     
+    cout << " *** " << endl;
+    
     //volumetric registration if input stacks are single time frame
     if (stack_registration)
     {
@@ -1052,6 +1106,7 @@ int main(int argc, char **argv)
     }
 
 
+    cout << " *** " << endl;
         
     //if remove_black_background flag is set, create mask from black background of the stacks
     if (remove_black_background)
@@ -1202,7 +1257,11 @@ int main(int argc, char **argv)
                cout.rdbuf (file.rdbuf());
            }
             cout<<endl<<endl<<"Iteration "<<iter<<": "<<endl<<endl;
-            reconstruction.SliceToVolumeRegistrationCardiac4D();
+            if (remote_flag) {
+                reconstruction.RemoteSliceToVolumeRegistrationCardiac4D(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+            } else {
+                reconstruction.SliceToVolumeRegistrationCardiac4D();
+            }
             cout<<endl;
             
            if ( ! no_log ) {
@@ -1530,6 +1589,14 @@ int main(int argc, char **argv)
             cout<<" mm."<<endl;
         }
     }
+    
+    
+    
+    if (str_current_exchange_file_path.length() > 0) {
+        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_rm = system(remove_folder_cmd.c_str());
+    }
+    
     
     //save final result
     if(debug)

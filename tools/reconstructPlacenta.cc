@@ -35,6 +35,19 @@
 
 #include "mirtk/Reconstruction.h"
 
+#include <iostream>
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <cmath>
+#include <set>
+#include <algorithm>
+#include <thread>
+#include <functional>
+#include <vector>
+#include <cstdlib>
+#include <pthread.h>
+#include <string>
 
 using namespace mirtk;
 using namespace std;
@@ -100,6 +113,7 @@ void usage()
     cout << "\t                          background features (use values from [5; 10] range)."<<endl;
     cout << "\t-ffd                      Use FFD registration for SVR."<<endl;
     cout << "\t-sr_iterations            Number of SR iterations in the last round."<<endl;
+    cout << "\t-remote                   Run SVR registration as remote functions in case of memory issues [Default: false]."<<endl;
     cout << "\t-reg_log                  Print registration log."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
@@ -118,6 +132,8 @@ void usage()
 
 int main(int argc, char **argv)
 {
+    
+    const char *current_mirtk_path = argv[0];
     
     cout << "---------------------------------------------------------------------" << endl;
     
@@ -193,6 +209,8 @@ int main(int argc, char **argv)
     
     //flag to replace super-resolution reconstruction by multilevel B-spline interpolation
     bool bspline = false;
+    
+    bool remote_flag = false;
     
     RealImage average;
     
@@ -440,6 +458,15 @@ int main(int argc, char **argv)
             argv++;
             ok = true;
         }
+        
+        //SVR reconstruction as remote functions
+        if ((ok == false) && (strcmp(argv[1], "-remote") == 0)) {
+            argc--;
+            argv++;
+            remote_flag=true;
+            ok = true;
+        }
+        
         
         
         //Bins for NMI registration
@@ -736,6 +763,44 @@ int main(int argc, char **argv)
         }
     }
     
+    
+    // -----------------------------------------------------------------------------
+    
+    string str_mirtk_path;
+    string str_current_main_file_path;
+    string str_current_exchange_file_path;
+    
+    string str_recon_path(current_mirtk_path);
+    size_t pos = str_recon_path.find_last_of("\/");
+    str_mirtk_path = str_recon_path.substr (0, pos);
+    
+    system("pwd > pwd.txt ");
+    ifstream pwd_file("pwd.txt");
+    
+    if (pwd_file.is_open()) {
+        getline(pwd_file, str_current_main_file_path);
+        pwd_file.close();
+    } else {
+        cout << "System error: no rights to write in the current folder" << endl;
+        exit(1);
+    }
+    
+    str_current_exchange_file_path = str_current_main_file_path + "/tmp-file-exchange";
+    
+    if (str_current_exchange_file_path.length() > 0) {
+        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_rm = system(remove_folder_cmd.c_str());
+        
+        string create_folder_cmd = "mkdir " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_mk = system(create_folder_cmd.c_str());
+        
+    } else {
+        cout << "System error: could not create a folder for file exchange" << endl;
+        exit(1);
+    }
+    
+    //---------------------------------------------------------------------------------------------
+    
     if (rescale_stacks) {
         for (i=0;i<nStacks;i++)
             reconstruction->Rescale(stacks[i],1000);
@@ -963,7 +1028,11 @@ int main(int argc, char **argv)
         
         if (svr_only) {
             cout<< "SliceToVolumeRegistration" << endl;
-            reconstruction->SliceToVolumeRegistration();
+            if (remote_flag) {
+                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+            } else {
+                reconstruction->SliceToVolumeRegistration();
+            }
             
         }
         else {
@@ -979,8 +1048,13 @@ int main(int argc, char **argv)
                     {
                         reconstruction->PackageToVolume(stacks,packages,stack_transformations);
                     }
-                    else
-                        reconstruction->SliceToVolumeRegistration();
+                    else {
+                        if (remote_flag) {
+                            reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                        } else {
+                            reconstruction->SliceToVolumeRegistration();
+                        }
+                    }
                     
                 }
                 
@@ -1128,6 +1202,11 @@ int main(int argc, char **argv)
         
         
     } // end of interleaved registration-reconstruction iterations
+    
+    if (str_current_exchange_file_path.length() > 0) {
+        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_rm = system(remove_folder_cmd.c_str());
+    }
     
     //save final result
     reconstruction->RestoreSliceIntensities();

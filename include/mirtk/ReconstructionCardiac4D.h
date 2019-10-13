@@ -43,6 +43,7 @@ namespace mirtk {
         Array<RealImage> _error;
         Array<RealImage> _corrected_slices;
         
+
         // PI
         const double PI = 3.14159265358979323846;
         
@@ -226,6 +227,7 @@ namespace mirtk {
         // Slice-to-Volume Registration
         void CalculateSliceToVolumeTargetCardiacPhase();
         void SliceToVolumeRegistrationCardiac4D();
+        void RemoteSliceToVolumeRegistrationCardiac4D(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path);
         
         // Volume-to-Volume Registration
         void VolumeToVolumeRegistration(GreyImage target, GreyImage source, RigidTransformation& rigidTransf);
@@ -261,7 +263,6 @@ namespace mirtk {
         
         /// Edge-Preserving Regularization with Confidence Map
         void AdaptiveRegularizationCardiac4D(int iter, RealImage& original);
-        
         
         /// Read Transformations
         void ReadTransformation( char* folder );
@@ -315,6 +316,7 @@ namespace mirtk {
         
         // Access to Parallel Processing Classes
         friend class ParallelCoeffInitCardiac4D;
+        friend class ParallelRemoteSliceToVolumeRegistrationCardiac4D;
         friend class ParallelSliceToVolumeRegistrationCardiac4D;
         friend class ParallelSimulateSlicesCardiac4D;
         friend class ParallelSimulateStacksCardiac4D;

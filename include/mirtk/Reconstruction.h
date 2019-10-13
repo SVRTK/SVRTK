@@ -49,6 +49,11 @@
 
 #include <set>
 
+#include <pthread.h>
+#include <thread>
+#include <boost/filesystem.hpp>
+
+
 namespace mirtk {
     
     
@@ -94,6 +99,14 @@ namespace mirtk {
         Array<int> _n_packages;
         
         ImageAttributes _attr_reconstructed;
+        
+        Array<Matrix> _offset_matrices;
+        bool _saved_slices;
+        Array<int> _zero_slices;
+        
+        int _cp_spacing;
+        bool _filtered_cmp_flag;
+        bool _bg_flag;
         
 
         /// Slices
@@ -408,6 +421,7 @@ namespace mirtk {
         
         ///Slice to volume registrations
         void SliceToVolumeRegistration();
+        void RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path);
         
         
         ///Slice to volume registrations with OMP
@@ -519,6 +533,10 @@ namespace mirtk {
         inline void SetFFD(bool flag_ffd);
         
         inline void SetNCC(bool flag_ncc);
+        
+        inline void SetBG( bool flag );
+        
+        inline void SetCP( int cp_spacing ); 
         
         inline void SetTemplateFlag(bool template_flag);
         
@@ -646,10 +664,10 @@ namespace mirtk {
         
         friend class ParallelStackRegistrations;
         friend class ParallelSliceToVolumeRegistration;
-        
         friend class ParallelSliceToVolumeRegistrationFFD;
+        friend class ParallelRemoteSliceToVolumeRegistration;
+        friend class ParallelRemoteSliceToVolumeRegistrationFFD;
         friend class ParallelSimulateSlices2;
-        
         friend class ParallelCoeffInit;
         friend class ParallelCoeffInitSF;
         friend class ParallelSuperresolution;
@@ -879,6 +897,15 @@ namespace mirtk {
         return _transformations[n];
     }
     
+    inline void Reconstruction::SetBG(bool flag_bg)
+    {
+        _bg_flag = flag_bg;
+    }
+    
+    inline void Reconstruction::SetCP( int cp_spacing )
+    {
+        _cp_spacing = cp_spacing;
+    }
     
     
     

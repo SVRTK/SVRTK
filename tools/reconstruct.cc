@@ -47,6 +47,7 @@
 #include <vector>
 #include <cstdlib>
 #include <pthread.h>
+#include <string>
 
 
 
@@ -107,6 +108,7 @@ void usage()
     cerr << "\t-remove_black_background  Create mask from black background."<<endl;
     cerr << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction->"<<endl;
     cerr << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
+    cout << "\t-remote                   Run SVR registration as remote functions in case of memory issues [Default: false]."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
@@ -127,6 +129,7 @@ void usage()
 
 int main(int argc, char **argv)
 {
+    const char *current_mirtk_path = argv[0];
     
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
@@ -218,6 +221,8 @@ int main(int argc, char **argv)
     
     //flag for switching off NMI and using NCC for SVR step
     bool ncc_reg_flag = false;
+    
+    bool remote_flag = false;
     
     //Create reconstruction object
     Reconstruction *reconstruction = new Reconstruction();
@@ -471,6 +476,14 @@ int main(int argc, char **argv)
             ok = true;
         }
         
+        //SVR reconstruction as remote functions
+        if ((ok == false) && (strcmp(argv[1], "-remote") == 0)) {
+            argc--;
+            argv++;
+            remote_flag=true;
+            ok = true;
+        }
+        
         
         //Use only SVR to a template
         if ((ok == false) && (strcmp(argv[1], "-svr_only") == 0)) {
@@ -591,6 +604,47 @@ int main(int argc, char **argv)
             usage();
         }
     }
+    
+    
+    
+    // -----------------------------------------------------------------------------
+    
+    string str_mirtk_path;
+    string str_current_main_file_path;
+    string str_current_exchange_file_path;
+    
+    string str_recon_path(current_mirtk_path);
+    size_t pos = str_recon_path.find_last_of("\/");
+    str_mirtk_path = str_recon_path.substr (0, pos);
+    
+    system("pwd > pwd.txt ");
+    ifstream pwd_file("pwd.txt");
+    
+    if (pwd_file.is_open()) {
+        getline(pwd_file, str_current_main_file_path);
+        pwd_file.close();
+    } else {
+        cout << "System error: no rights to write in the current folder" << endl;
+        exit(1);
+    }
+    
+    str_current_exchange_file_path = str_current_main_file_path + "/tmp-file-exchange";
+    
+    if (str_current_exchange_file_path.length() > 0) {
+        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_rm = system(remove_folder_cmd.c_str());
+        
+        string create_folder_cmd = "mkdir " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_mk = system(create_folder_cmd.c_str());
+        
+    } else {
+        cout << "System error: could not create a folder for file exchange" << endl;
+        exit(1);
+    }
+    
+    //---------------------------------------------------------------------------------------------
+    
+    
     
     if (rescale_stacks) {
         for (i=0;i<nStacks;i++)
@@ -929,9 +983,9 @@ int main(int argc, char **argv)
         // if ( ! no_log ) {
         //     cout.rdbuf (strm_buffer);
         // }
+//        cout << "------------------------------------------------------" << endl;
         cout << "------------------------------------------------------" << endl;
-        cout << "------------------------------------------------------" << endl;
-        cout<<"Main iteration : " << iter << endl;
+        cout<<"Iteration : " << iter << endl;
         
         reconstruction->MaskVolume();
         
@@ -940,7 +994,11 @@ int main(int argc, char **argv)
                 start = std::chrono::system_clock::now();
             
             cout.rdbuf (file.rdbuf());
-            reconstruction->SliceToVolumeRegistration();
+            if (remote_flag) {
+                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+            } else {
+                reconstruction->SliceToVolumeRegistration();
+            }
             cout.rdbuf (strm_buffer);
             
             if (debug) {
@@ -976,7 +1034,11 @@ int main(int argc, char **argv)
                         start = std::chrono::system_clock::now();
 
                     cout.rdbuf (file.rdbuf());
-                    reconstruction->SliceToVolumeRegistration();
+                    if (remote_flag) {
+                        reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                    } else {
+                        reconstruction->SliceToVolumeRegistration();
+                    }
                     cout.rdbuf (strm_buffer);
                     
                     if (debug) {
@@ -1119,8 +1181,10 @@ int main(int argc, char **argv)
         i=0;
         for (i=0;i<rec_iterations;i++) {
             
-            cout << "------------------------------------------------------" << endl;
-            cout<<"Reconstruction iteration : "<<i<<endl;
+            if (debug) {
+                cout << "------------------------------------------------------" << endl;
+                cout<<"Reconstruction iteration : "<<i<<endl;
+            }
             
             if (intensity_matching) {
                 
@@ -1262,6 +1326,11 @@ int main(int argc, char **argv)
     cout << "------------------------------------------------------" << endl;
     
     //save final result
+    
+    if (str_current_exchange_file_path.length() > 0) {
+        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        int tmp_log_rm = system(remove_folder_cmd.c_str());
+    }
 
     reconstruction->RestoreSliceIntensities();
     

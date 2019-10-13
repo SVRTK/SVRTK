@@ -217,7 +217,6 @@ namespace mirtk {
         UniquePtr<InterpolateImageFunction> interpolator;
         interpolator.reset(InterpolateImageFunction::New(interpolation));
         
-        
         Resampling<RealPixel> resampling(resolution,resolution,resolution);
         resampling.Input(&volume4D);
         resampling.Output(&volume4D);
@@ -227,6 +226,7 @@ namespace mirtk {
         // Set recontructed 4D volume
         _reconstructed4D = volume4D;
         _template_created = true;
+
         
         // Set reconstructed 3D volume for reference by existing functions of irtkReconstruction class
         ImageAttributes attr4d = volume4D.GetImageAttributes();
@@ -234,6 +234,7 @@ namespace mirtk {
         attr3d._t = 1;
         RealImage volume3D(attr3d);
         _reconstructed = volume3D;
+        
         
         // Debug
         if (_debug)
@@ -427,6 +428,7 @@ namespace mirtk {
                     _simulated_slices.push_back(slice);
                     _simulated_weights.push_back(slice);
                     _simulated_inside.push_back(slice);
+                    _zero_slices.push_back(1);
                     //remeber stack indices for this slice
                     _stack_index.push_back(i);
                     _loc_index.push_back(loc_index);
@@ -2040,6 +2042,191 @@ namespace mirtk {
             cout << "SliceToVolumeRegistrationCardiac4D" << endl;
         ParallelSliceToVolumeRegistrationCardiac4D registration(this);
         registration();
+    }
+    
+    
+    
+    // -----------------------------------------------------------------------------
+    // Parallel Remote Slice-to-Volume Registration Class
+    // -----------------------------------------------------------------------------
+    
+    class ParallelRemoteSliceToVolumeRegistrationCardiac4D {
+        
+    public:
+        
+        ReconstructionCardiac4D *reconstructor;
+        int svr_range_start;
+        int svr_range_stop;
+        string str_mirtk_path;
+        string str_current_main_file_path;
+        string str_current_exchange_file_path;
+        
+        ParallelRemoteSliceToVolumeRegistrationCardiac4D ( ReconstructionCardiac4D *in_reconstructor, int in_svr_range_start, int in_svr_range_stop, string in_str_mirtk_path, string in_str_current_main_file_path, string in_str_current_exchange_file_path ) :
+        reconstructor(in_reconstructor),
+        svr_range_start(in_svr_range_start),
+        svr_range_stop(in_svr_range_stop),
+        str_mirtk_path(in_str_mirtk_path),
+        str_current_main_file_path(in_str_current_main_file_path),
+        str_current_exchange_file_path(in_str_current_exchange_file_path) { }
+        
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            
+            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
+                
+                if (reconstructor->_zero_slices[inputIndex] > 0) {
+                
+                    std::thread::id this_id = std::this_thread::get_id();
+    //                cout << inputIndex  << " - " << this_id << " - " << endl;     //
+                    
+                    
+                    string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log;
+                    
+                    
+                    str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
+                    str_source = str_current_exchange_file_path + "/current-source-" + to_string(reconstructor->_slice_svr_card_index[inputIndex]) + ".nii.gz";
+                    str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
+                    
+                    
+                    str_reg_model = "-model Rigid";
+                    
+                    str_dofout = "-dofout " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                    
+                    str_bg1 = "-bg1 " + to_string(0);
+                    
+                    str_bg2 = "-bg2 " + to_string(-1);
+                    
+                    str_dofin = "-dofin " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                    
+                    string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_log;
+
+                    int tmp_log = system(register_cmd.c_str());
+
+                }
+                
+            } // end of inputIndex
+            
+        }
+        
+        // execute
+        void operator() () const {
+            parallel_for( blocked_range<size_t>(svr_range_start, svr_range_stop), *this );
+        }
+        
+    };
+    
+    
+    
+    
+    // -----------------------------------------------------------------------------
+    // Remote Slice-to-Volume Registration
+    // -----------------------------------------------------------------------------
+    void ReconstructionCardiac4D::RemoteSliceToVolumeRegistrationCardiac4D(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path)
+    {
+        
+        ImageAttributes attr_recon = _reconstructed4D.GetImageAttributes();
+        
+        if (_debug)
+            cout << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
+        
+        for (int t=0; t<_reconstructed4D.GetT(); t++) {
+        
+            string str_source = str_current_exchange_file_path + "/current-source-" + to_string(t) + ".nii.gz";
+            RealImage source = _reconstructed4D.GetRegion( 0, 0, 0, t, attr_recon._x, attr_recon._y, attr_recon._z, (t+1));
+            source.Write(str_source.c_str());
+            
+        }
+        
+        if (iter == 1) {
+            
+            _offset_matrices.clear();
+            
+            for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+                
+                ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
+                GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                
+                RealImage target = _slices[inputIndex];
+                resampling.Input(&_slices[inputIndex]);
+                resampling.Output(&target);
+                resampling.Interpolator(&interpolator);
+                resampling.Run();
+                
+                // put origin to zero
+                RigidTransformation offset;
+                ResetOrigin(target, offset);
+                
+                
+                RealPixel tmin, tmax;
+                target.GetMinMax(&tmin, &tmax);
+                if (tmax > 1 && ((tmax-tmin) > 1) ) {
+                    _zero_slices[inputIndex] = 1;
+                } else {
+                    _zero_slices[inputIndex] = -1;
+                }
+                
+                
+                string str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
+                target.Write(str_target.c_str());
+                
+                Matrix mo = offset.GetMatrix();
+                _offset_matrices.push_back(mo);
+
+            }
+        }
+        
+        
+        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+            
+            RigidTransformation r_transform = _transformations[inputIndex];
+            Matrix m = r_transform.GetMatrix();
+            m=m*_offset_matrices[inputIndex];
+            r_transform.PutMatrix(m);
+            
+            string str_dofin = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+            r_transform.Write(str_dofin.c_str());
+
+        }
+        
+        
+        int stride = 32;
+        int svr_range_start = 0;
+        int svr_range_stop = svr_range_start + stride;
+        
+        while ( svr_range_start < _slices.size() )
+        {
+        
+            ParallelRemoteSliceToVolumeRegistrationCardiac4D registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+            registration();
+            
+            svr_range_start = svr_range_stop;
+            svr_range_stop = svr_range_start + stride;
+            
+            if (svr_range_stop > _slices.size()) {
+                svr_range_stop = _slices.size();
+            }
+        
+        }
+        
+        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+
+            string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+
+            Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
+            RigidTransformation *tmp_r_transf = dynamic_cast<RigidTransformation*> (tmp_transf);
+            _transformations[inputIndex] = *tmp_r_transf;
+
+            //undo the offset
+            Matrix mo = _offset_matrices[inputIndex];
+            mo.Invert();
+            Matrix m = _transformations[inputIndex].GetMatrix();
+            m=m*mo;
+            _transformations[inputIndex].PutMatrix(m);
+
+        }
+        
+        
+        
     }
     
     

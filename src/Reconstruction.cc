@@ -19,6 +19,7 @@
  
 #include "mirtk/Reconstruction.h"
 
+
 using namespace std;
 
 
@@ -162,6 +163,12 @@ namespace mirtk {
         
         _nmi_bins = -1;
         _global_NCC_threshold = 0.75;
+        
+        _filtered_cmp_flag = false;
+        
+        _bg_flag = false;
+        _cp_spacing = -1;
+        
         
         int directions[13][3] = {
             { 1, 0, -1},
@@ -1768,6 +1775,14 @@ namespace mirtk {
                     slice.PutPixelSize(attr._dx, attr._dy, thickness[i]);
                     //remember the slice
                     
+                    RealPixel tmin, tmax;
+                    slice.GetMinMax(&tmin, &tmax);
+                    if (tmax > 1 && ((tmax-tmin) > 1) ) {
+                        _zero_slices.push_back(1);
+                    } else {
+                        _zero_slices.push_back(-1);
+                    }
+                    
                     
                     if (_blurring) {
                         
@@ -2864,11 +2879,14 @@ namespace mirtk {
                             Insert(params, "Background value for image 2", 0);
                         }
                     }
-
-//                    int cp_spacing = 10;
-//                    Insert(params, "Control point spacing in X", cp_spacing);
-//                    Insert(params, "Control point spacing in Y", cp_spacing);
-//                    Insert(params, "Control point spacing in Z", cp_spacing);
+                    
+                    if (reconstructor->_cp_spacing > 0) {
+                        
+                        int cp_spacing = reconstructor->_cp_spacing;
+                        Insert(params, "Control point spacing in X", cp_spacing);        // 10
+                        Insert(params, "Control point spacing in Y", cp_spacing);        // 10
+                        Insert(params, "Control point spacing in Z", cp_spacing);        // 10
+                    }
 
                     
                     GenericRegistrationFilter *registration = new GenericRegistrationFilter();
@@ -2929,6 +2947,333 @@ namespace mirtk {
         }
         
     }
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    class ParallelRemoteSliceToVolumeRegistrationFFD {
+    public:
+        
+        Reconstruction *reconstructor;
+        int svr_range_start;
+        int svr_range_stop;
+        string str_mirtk_path;
+        string str_current_main_file_path;
+        string str_current_exchange_file_path;
+        
+        ParallelRemoteSliceToVolumeRegistrationFFD ( Reconstruction *in_reconstructor, int in_svr_range_start, int in_svr_range_stop, string in_str_mirtk_path, string in_str_current_main_file_path, string in_str_current_exchange_file_path ) :
+        reconstructor(in_reconstructor),
+        svr_range_start(in_svr_range_start),
+        svr_range_stop(in_svr_range_stop),
+        str_mirtk_path(in_str_mirtk_path),
+        str_current_main_file_path(in_str_current_main_file_path),
+        str_current_exchange_file_path(in_str_current_exchange_file_path) { }
+        
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            
+            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
+                
+                if (reconstructor->_zero_slices[inputIndex] > 0) {
+                
+                    std::thread::id this_id = std::this_thread::get_id();
+                    //                cout << inputIndex  << " - " << this_id << " - " << endl;     //
+                    
+                    string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim, str_ds;
+                    
+                    str_target = str_current_exchange_file_path + "/slice-" + to_string(inputIndex) + ".nii.gz";
+                    str_source = str_current_exchange_file_path + "/current-source.nii.gz";
+                    str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
+                    
+                    str_reg_model = "-model FFD";
+                    
+                    str_dofout = "-dofout " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
+                    
+                    str_sim = "";
+                    if (reconstructor->_ncc_reg) {
+                        
+                        str_sim = "-sim NCC -window 0 mm sigma";
+                    }
+                    
+                    str_ds = "";
+                    if (reconstructor->_cp_spacing > 0) {
+                        str_ds = "-ds "+ to_string(reconstructor->_cp_spacing);
+                    }
+                    
+                    str_bg1 = "-bg1 " + to_string(0);
+                    str_bg2 = "-bg2 " + to_string(-1);
+                    
+                    str_dofin = "-dofin " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
+                    
+                    string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_ds + " " + str_log;
+                    
+//                    cout << register_cmd.c_str() << endl;
+                    
+                    int tmp_log = system(register_cmd.c_str());
+                    
+                }
+                
+                
+            } // end of inputIndex
+            
+        }
+        
+        // execute
+        void operator() () const {
+            parallel_for( blocked_range<size_t>(svr_range_start, svr_range_stop), *this );
+        }
+
+    };
+    
+    
+    //-------------------------------------------------------------------
+
+    class ParallelRemoteSliceToVolumeRegistration {
+        
+    public:
+        
+        Reconstruction *reconstructor;
+        int svr_range_start;
+        int svr_range_stop;
+        string str_mirtk_path;
+        string str_current_main_file_path;
+        string str_current_exchange_file_path;
+        
+        ParallelRemoteSliceToVolumeRegistration ( Reconstruction *in_reconstructor, int in_svr_range_start, int in_svr_range_stop, string in_str_mirtk_path, string in_str_current_main_file_path, string in_str_current_exchange_file_path ) :
+        reconstructor(in_reconstructor),
+        svr_range_start(in_svr_range_start),
+        svr_range_stop(in_svr_range_stop),
+        str_mirtk_path(in_str_mirtk_path),
+        str_current_main_file_path(in_str_current_main_file_path),
+        str_current_exchange_file_path(in_str_current_exchange_file_path) { }
+        
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            
+            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
+                
+                if (reconstructor->_zero_slices[inputIndex] > 0) {
+                
+                    std::thread::id this_id = std::this_thread::get_id();
+                    //                cout << inputIndex  << " - " << this_id << " - " << endl;     //
+                    
+                    string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim;
+                    
+                    str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
+                    str_source = str_current_exchange_file_path + "/current-source.nii.gz";
+                    str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
+                    
+                    str_reg_model = "-model Rigid";
+
+                    str_dofout = "-dofout " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                    
+                    str_sim = "";
+                    if (reconstructor->_ncc_reg) {
+                     
+                        str_sim = "-sim NCC -window 0 mm sigma";
+                    }
+                    
+                    str_bg1 = "-bg1 " + to_string(0);
+                    str_bg2 = "-bg2 " + to_string(-1);
+                    
+                    str_dofin = "-dofin " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                    
+                    string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_log;
+                    
+                    int tmp_log = system(register_cmd.c_str());
+                    
+                }
+                
+                
+            } // end of inputIndex
+            
+        }
+        
+        // execute
+        void operator() () const {
+            parallel_for( blocked_range<size_t>(svr_range_start, svr_range_stop), *this );
+        }
+        
+    };
+    
+    //-------------------------------------------------------------------
+
+    
+    void Reconstruction::RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path)
+    {
+        
+        ImageAttributes attr_recon = _reconstructed.GetImageAttributes();
+        
+        if (_debug)
+            cout << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
+        
+        string str_source = str_current_exchange_file_path + "/current-source.nii.gz";
+        _reconstructed.Write(str_source.c_str());
+        
+        
+        if (!_ffd) {
+        
+            if (iter < 3) {
+                
+                _offset_matrices.clear();
+                
+                for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+                    
+                    ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
+                    GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                    
+                    RealImage target = _slices[inputIndex];
+                    resampling.Input(&_slices[inputIndex]);
+                    resampling.Output(&target);
+                    resampling.Interpolator(&interpolator);
+                    resampling.Run();
+                    
+                    // put origin to zero
+                    RigidTransformation offset;
+                    ResetOrigin(target, offset);
+                    
+                    RealPixel tmin, tmax;
+                    target.GetMinMax(&tmin, &tmax);
+                    if (tmax > 1 && ((tmax-tmin) > 1) ) {
+                        _zero_slices[inputIndex] = 1;
+                    } else {
+                        _zero_slices[inputIndex] = -1;
+                    }
+                    
+                    string str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
+                    target.Write(str_target.c_str());
+                    
+                    Matrix mo = offset.GetMatrix();
+                    _offset_matrices.push_back(mo);
+                    
+                }
+            }
+            
+            
+            for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+                
+                RigidTransformation r_transform = _transformations[inputIndex];
+                Matrix m = r_transform.GetMatrix();
+                m=m*_offset_matrices[inputIndex];
+                r_transform.PutMatrix(m);
+                
+                string str_dofin = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                r_transform.Write(str_dofin.c_str());
+                
+            }
+            
+            
+            int stride = 32;
+            int svr_range_start = 0;
+            int svr_range_stop = svr_range_start + stride;
+            
+            while ( svr_range_start < _slices.size() )
+            {
+                
+                ParallelRemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                registration();
+                
+                svr_range_start = svr_range_stop;
+                svr_range_stop = svr_range_start + stride;
+                
+                if (svr_range_stop > _slices.size()) {
+                    svr_range_stop = _slices.size();
+                }
+                
+            }
+            
+            for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+                
+                string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                
+                Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
+                RigidTransformation *tmp_r_transf = dynamic_cast<RigidTransformation*> (tmp_transf);
+                _transformations[inputIndex] = *tmp_r_transf;
+                
+                //undo the offset
+                Matrix mo = _offset_matrices[inputIndex];
+                mo.Invert();
+                Matrix m = _transformations[inputIndex].GetMatrix();
+                m=m*mo;
+                _transformations[inputIndex].PutMatrix(m);
+                
+            }
+        
+        } else {
+            
+            if (iter < 3) {
+                
+//                _offset_matrices.clear();
+                
+                for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+                    
+                    ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
+                    GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                    
+                    RealImage target = _slices[inputIndex];
+                    resampling.Input(&_slices[inputIndex]);
+                    resampling.Output(&target);
+                    resampling.Interpolator(&interpolator);
+                    resampling.Run();
+                    
+                    RealPixel tmin, tmax;
+                    target.GetMinMax(&tmin, &tmax);
+                    if (tmax > 1 && ((tmax-tmin) > 1) ) {
+                        _zero_slices[inputIndex] = 1;
+                    } else {
+                        _zero_slices[inputIndex] = -1;
+                    }
+                    
+                    string str_target = str_current_exchange_file_path + "/slice-" + to_string(inputIndex) + ".nii.gz";
+                    target.Write(str_target.c_str());
+                    
+                    
+                    string str_dofin = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
+                    _mffd_transformations[inputIndex].Write(str_dofin.c_str());
+                
+                }
+
+                
+            }
+            
+            
+            int stride = 32;
+            int svr_range_start = 0;
+            int svr_range_stop = svr_range_start + stride;
+            
+            while ( svr_range_start < _slices.size() )
+            {
+                
+                ParallelRemoteSliceToVolumeRegistrationFFD registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                registration();
+                
+                svr_range_start = svr_range_stop;
+                svr_range_stop = svr_range_start + stride;
+                
+                if (svr_range_stop > _slices.size()) {
+                    svr_range_stop = _slices.size();
+                }
+                
+            }
+            
+            for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+                
+                string str_dofout = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
+                
+                Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
+                MultiLevelFreeFormTransformation *tmp_mffd_transf = dynamic_cast<MultiLevelFreeFormTransformation*> (tmp_transf);
+                _mffd_transformations[inputIndex] = *tmp_mffd_transf;
+                
+            }
+            
+            
+        }
+        
+        
+    }
+    
+
 
     //-------------------------------------------------------------------
 
@@ -3465,7 +3810,7 @@ namespace mirtk {
         _reconstructed /= _volume_weights;
 
         
-        if (_debug)
+//        if (_debug)
             _reconstructed.Write("init.nii.gz");
         
         //now find slices with small overlap with ROI and exclude them.
@@ -6547,7 +6892,7 @@ namespace mirtk {
             firstSlice += stacks[i].GetZ();
         }
         
-        cout<<"Package to volume: "<<endl;
+//        cout<<"Package to volume: "<<endl;
         
 #pragma omp parallel
         {

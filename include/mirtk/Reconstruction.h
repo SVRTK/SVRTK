@@ -51,7 +51,7 @@
 
 #include <pthread.h>
 #include <thread>
-#include <boost/filesystem.hpp>
+//#include <boost/filesystem.hpp>
 
 
 namespace mirtk {

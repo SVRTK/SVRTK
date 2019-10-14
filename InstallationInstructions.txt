@@ -125,10 +125,10 @@ nano ~/.profile instead of nano ~/.bash_profile
 # In case if you get "-9 error" (memory issue) - please run reconstructions with "-remote" option
 # It is slower - but it amount of RAM should not exceed 20 GB (for cardiac 4D or body/placenta large ROI)
 
-# For Linux machines with < 64G RAM - it is recommended to increase swap memory based on the following instructions:
+# For Linux machines with < 32G RAM - it is recommended to increase swap memory based on the following instructions:
 
-# 1) allocate swap file with 32G (if RAM is less < 64G)
-sudo fallocate -l 64G /swapfile		# or 16-64G 
+# 1) allocate swap file with 32G (if RAM is less < 32G)
+sudo fallocate -l 32G /swapfile		# or 16-64G 
 
 # 2) update swap file permissions
 sudo chmod 600 /swapfile 

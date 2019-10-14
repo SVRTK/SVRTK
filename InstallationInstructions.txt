@@ -120,7 +120,10 @@ nano ~/.profile instead of nano ~/.bash_profile
 # ----------------------------------------------------------------------------
 # Troubleshooting: out of memory errors during runtime
 
-# In general SVR reconstruction requires >= 64G RAM on Ubuntu and ~ 32G RAM on Mac OS X (due to differement memory compression)
+# In general SVR reconstruction works on machines with >= 32 RAM on Ubuntu and ~ 32G RAM on Mac OS X (due to differement memory compression)
+
+# In case if you get "-9 error" (memory issue) - please run reconstructions with "-remote" option
+# It is slower - but it amount of RAM should not exceed 20 GB (for cardiac 4D or body/placenta large ROI)
 
 # For Linux machines with < 64G RAM - it is recommended to increase swap memory based on the following instructions:
 

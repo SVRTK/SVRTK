@@ -18,7 +18,7 @@ Installation
 
 Please follow installation instructions in InstallationInstructions.txt file.
 
-Note, the software requires Ubuntu 16 or OS X. It is known to work on machines with >= 64G RAM (and/or >= 64G Swap) and >= 6 CPU cores.
+Note, the software requires Ubuntu 16 or OS X. It is known to work on machines with >= 32G RAM (and/or >= 32G Swap) and >= 6 CPU cores. In case of "-9" memory errors - please run reconstruction with "-remote" option.
 
 
 Run

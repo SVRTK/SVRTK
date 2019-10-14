@@ -607,6 +607,85 @@ int main(int argc, char **argv)
     
     
     
+    bool has_4D_stacks = false;
+    
+    for (i=0; i<stacks.size(); i++) {
+        
+        if (stacks[i].GetT()>1) {
+            has_4D_stacks = true;
+            break;
+        }
+        
+    }
+    
+    if (has_4D_stacks) {
+        
+        cout << "Splitting stacks into dynamincs ... " << endl;
+        
+        Array<double> new_thickness;
+        Array<int> new_packages;
+        Array<RigidTransformation> new_stack_transformations;
+        Array<RealImage> new_stacks;
+        
+        for (i=0; i<stacks.size(); i++) {
+            
+            if (stacks[i].GetT() == 1) {
+                new_stacks.push_back(stacks[i]);
+                
+                if (stack_transformations.size()>0)
+                    new_stack_transformations.push_back(stack_transformations[i]);
+                if (packages.size()>0)
+                    new_packages.push_back(packages[i]);
+                if (thickness.size()>0)
+                    new_thickness.push_back(thickness[i]);
+            }
+            else {
+                for (int t=0; t<stacks[i].GetT(); t++) {
+                    
+                    stack = stacks[i].GetRegion(0,0,0,t,stacks[i].GetX(),stacks[i].GetY(),stacks[i].GetZ(),(t+1));
+                    new_stacks.push_back(stack);
+                    
+                    if (stack_transformations.size()>0)
+                        new_stack_transformations.push_back(stack_transformations[i]);
+                    if (packages.size()>0)
+                        new_packages.push_back(packages[i]);
+                    if (thickness.size()>0)
+                        new_thickness.push_back(thickness[i]);
+                }
+                
+            }
+            
+        }
+        
+        
+        nStacks = new_stacks.size();
+        stacks.clear();
+        thickness.clear();
+        packages.clear();
+        stack_transformations.clear();
+        
+        cout << "New number of stacks : " << nStacks << endl;
+        
+        for (i=0; i<new_stacks.size(); i++) {
+            
+            stacks.push_back(new_stacks[i]);
+            
+            if (new_thickness.size()>0)
+                thickness.push_back(new_thickness[i]);
+            if (new_packages.size()>0)
+                packages.push_back(new_packages[i]);
+            if (new_stack_transformations.size()>0)
+                stack_transformations.push_back(new_stack_transformations[i]);
+        }
+        
+        new_stacks.clear();
+        new_thickness.clear();
+        new_packages.clear();
+        new_stack_transformations.clear();
+    }
+    
+    
+    
     // -----------------------------------------------------------------------------
     
     string str_mirtk_path;

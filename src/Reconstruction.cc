@@ -4625,7 +4625,7 @@ namespace mirtk {
     {
         //EStep performs calculation of voxel-wise and slice-wise posteriors (weights)
         // if (_debug)
-        // cout << "EStep: " << endl;
+         cout << "EStep: " << endl;
         
         unsigned int inputIndex;
         RealImage slice, w, b, sim;
@@ -4656,6 +4656,14 @@ namespace mirtk {
         //This is theoretically M-step,
         //but we want to use latest estimate of slice potentials
         //to update the parameters
+        
+        if(_debug) {
+            cout<<endl<<"Slice potentials: ";
+            for (inputIndex = 0; inputIndex < slice_potential.size(); inputIndex++)
+                cout<<slice_potential[inputIndex]<<" ";
+            cout<<endl;
+        }
+
         
         //Calculate means of the inlier and outlier potentials
         double sum = 0, den = 0, sum2 = 0, den2 = 0, maxs = 0, mins = 1;

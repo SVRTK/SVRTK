@@ -974,12 +974,12 @@ int main(int argc, char **argv)
         average.Write("average1.nii.gz");
     
 
-    //Rescale intensities of the stacks to have the same average
-    cout << "MatchStackIntensities" << endl;
-    if (intensity_matching)
-        reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
-    else
-        reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue,true);
+//     //Rescale intensities of the stacks to have the same average
+//     cout << "MatchStackIntensities" << endl;
+//     if (intensity_matching)
+//         reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
+//     else
+//         reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue,true);
     
     
     
@@ -1225,8 +1225,8 @@ int main(int argc, char **argv)
     }
     
     //save final result
-    reconstruction->RestoreSliceIntensities();
-    reconstruction->ScaleVolume();
+//     reconstruction->RestoreSliceIntensities();
+//     reconstruction->ScaleVolume();
     reconstructed=reconstruction->GetReconstructed();
     reconstructed.Write(output_name);
     

@@ -21,7 +21,6 @@
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
-#include "mirtk/PointRegistration.h"
 
 
 using namespace mirtk;

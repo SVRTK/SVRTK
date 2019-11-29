@@ -51,7 +51,6 @@
 
 
 #include <thread>
-#include <boost/filesystem.hpp>
 
 
 namespace mirtk {

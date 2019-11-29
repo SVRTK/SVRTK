@@ -40,9 +40,25 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  reconstructCardiac
+  reconstruct
   SOURCES
-    reconstructCardiac.cc
+    reconstruct.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  reconstruct_ffd
+  SOURCES
+    reconstruct_ffd.cc
   DEPENDS
     LibCommon
     LibNumerics

@@ -100,6 +100,7 @@ void usage()
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-svr_only                 Only SVR registration to a template stack."<<endl;
+    cout << "\t-no_global                No global stack registration."<<endl;
     cout << "\t-ncc                      Use global NCC similarity for SVR steps. [Default: NMI]"<<endl;
     cout << "\t-nmi_bins [nmi_bins]      Number of NMI bins for registration. [Default: 16]"<<endl;
     cout << "\t-structural               Use structrural exclusion of slices at the last iteration."<<endl;
@@ -171,6 +172,7 @@ int main(int argc, char **argv)
     RealImage template_stack;
     
     
+    
     // Default values.
     int templateNumber=0;
     RealImage *mask=NULL;
@@ -223,6 +225,11 @@ int main(int argc, char **argv)
     bool ncc_reg_flag = false;
     
     bool remote_flag = false;
+    
+    bool no_global_flag = false;
+    
+    bool thin_flag = false;
+    
     
     //Create reconstruction object
     Reconstruction *reconstruction = new Reconstruction();
@@ -493,6 +500,25 @@ int main(int argc, char **argv)
             ok = true;
         }
         
+        
+        
+        if ((ok == false) && (strcmp(argv[1], "-no_global") == 0)) {
+            argc--;
+            argv++;
+            no_global_flag=true;
+            ok = true;
+        }
+        
+        
+        
+        if ((ok == false) && (strcmp(argv[1], "-thin") == 0)) {
+            argc--;
+            argv++;
+            thin_flag=true;
+            ok = true;
+        }
+        
+        
 
         //Use NCC similarity metric for SVR
         if ((ok == false) && (strcmp(argv[1], "-ncc") == 0)) {
@@ -746,7 +772,14 @@ int main(int argc, char **argv)
         for (i=0;i<nStacks;i++) {
             double dx,dy,dz;
             stacks[i].GetPixelSize(&dx,&dy,&dz);
-            thickness.push_back(dz*2);
+            
+            if (!thin_flag) {
+                thickness.push_back(dz*2);
+            } else {
+                thickness.push_back(dz*1.5);
+            }
+            
+            
             cout<<thickness[i]<<" ";
         }
         cout<<endl;
@@ -865,10 +898,16 @@ int main(int argc, char **argv)
     
     if (debug)
         start = std::chrono::system_clock::now();
-    //volumetric registration
-    cout.rdbuf (file.rdbuf());
-    reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
-    cout.rdbuf (strm_buffer);
+    
+    
+    if (!no_global_flag) {
+    
+        //volumetric registration
+        cout.rdbuf (file.rdbuf());
+        reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
+        cout.rdbuf (strm_buffer);
+        
+    }
     
     if (debug) {
         end = std::chrono::system_clock::now();
@@ -966,10 +1005,14 @@ int main(int argc, char **argv)
         start = std::chrono::system_clock::now();
     //volumetric registration
     
-    cout.rdbuf (file.rdbuf());
-    reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
-    cout.rdbuf (strm_buffer);
+    if (!no_global_flag) {
     
+        cout.rdbuf (file.rdbuf());
+        reconstruction->StackRegistrations(stacks,stack_transformations,templateNumber);
+        cout.rdbuf (strm_buffer);
+    
+    }
+        
     if (debug) {
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;

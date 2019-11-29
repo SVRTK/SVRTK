@@ -40,22 +40,6 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  reconstruct
-  SOURCES
-    reconstruct.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-
-mirtk_add_executable(
   reconstruct_ffd
   SOURCES
     reconstruct_ffd.cc

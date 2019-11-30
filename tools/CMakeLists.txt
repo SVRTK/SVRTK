@@ -347,6 +347,21 @@ mirtk_add_executable(
 )
 
 
+mirtk_add_executable(
+  extract-packages
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
 
 #mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})
 

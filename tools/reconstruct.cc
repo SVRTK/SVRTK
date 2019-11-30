@@ -99,6 +99,7 @@ void usage()
     cout << "\t-no_intensity_matching    Switch off intensity matching."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
+    cout << "\t-rescale_stacks           Rescale stacks to avoid nan pixel errors. [Default: False]"<<endl;
     cout << "\t-svr_only                 Only SVR registration to a template stack."<<endl;
     cout << "\t-no_global                No global stack registration."<<endl;
     cout << "\t-ncc                      Use global NCC similarity for SVR steps. [Default: NMI]"<<endl;
@@ -488,6 +489,14 @@ int main(int argc, char **argv)
             argc--;
             argv++;
             remote_flag=true;
+            ok = true;
+        }
+        
+        
+        if ((ok == false) && (strcmp(argv[1], "-rescale_stacks") == 0)) {
+            argc--;
+            argv++;
+            rescale_stacks=true;
             ok = true;
         }
         

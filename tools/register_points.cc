@@ -17,10 +17,11 @@
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
 
-#include "mirtk/Reconstruction.h"
+//#include "mirtk/ReconstructionFFD.h"
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
+#include "mirtk/PointRegistration.h"
 
 
 using namespace mirtk;
@@ -37,7 +38,7 @@ void usage()
     exit(1);
 }
 
-void RegisterLandmarks(Array<Point> source, Array<Point> target, RigidTransformation& output_transformation)
+int RegisterLandmarks(Array<Point> source, Array<Point> target, RigidTransformation& output_transformation)
 {
     
     RigidTransformation *tmp = new mirtk::RigidTransformation();
@@ -86,6 +87,8 @@ void RegisterLandmarks(Array<Point> source, Array<Point> target, RigidTransforma
     u.Transpose ();
     r = v * u;
     
+    int out_reflection = 0;
+    
     // Check whether matrix is a rotation
     if (r.Det () > 0.999) {
         
@@ -119,6 +122,8 @@ void RegisterLandmarks(Array<Point> source, Array<Point> target, RigidTransforma
         // Update transformation
         output_transformation.PutMatrix (m);
         output_transformation.UpdateParameter();
+        
+        out_reflection = 0;
         
         
     } else {
@@ -173,9 +178,11 @@ void RegisterLandmarks(Array<Point> source, Array<Point> target, RigidTransforma
         output_transformation.PutMatrix(m);
         output_transformation.UpdateParameter();
         
+        out_reflection = 1;
+        
     }
     
-    
+    return out_reflection;
 }
 
 
@@ -399,7 +406,7 @@ int main(int argc, char **argv)
     cout << "------------------------------------------------------" << endl;
     
     RigidTransformation output_transformation;
-    RegisterLandmarks(source_points, target_points, output_transformation);
+    int out_reflection = RegisterLandmarks(source_points, target_points, output_transformation);
     
     cout << " - Output transformation " << output_name << " : ";
     cout << output_transformation.GetTranslationX() << " ";
@@ -477,6 +484,20 @@ int main(int argc, char **argv)
         
         delete imagetransformation;
         
+        
+    }
+    
+    
+    if (out_reflection>0) {
+
+        string org_name(output_image_name);
+        std::size_t pos = org_name.find(".nii");
+        std::string main_name = org_name.substr (0, pos);
+        string new_name = main_name + "-reflection.dof";
+        char *c_new_name = &new_name[0];
+        output_transformation.Write(c_new_name);
+    
+//        exit(1);
         
     }
     

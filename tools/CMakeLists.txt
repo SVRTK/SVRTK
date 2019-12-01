@@ -39,20 +39,6 @@ mirtk_add_executable(
     ${TBB}
 )
 
-mirtk_add_executable(
-  reconstruct_ffd
-  SOURCES
-    reconstruct_ffd.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
 
 mirtk_add_executable(
   reconstructCardiacVelocity

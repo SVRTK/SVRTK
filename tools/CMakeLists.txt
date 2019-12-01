@@ -209,22 +209,6 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  check-server
-  SOURCES
-    check-server.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-
-mirtk_add_executable(
   crop_volume
   SOURCES
     crop_volume.cc
@@ -254,97 +238,8 @@ mirtk_add_executable(
     ${TBB}
 )
 
-mirtk_add_executable(
-  register_points
-  SOURCES
-    register_points.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-mirtk_add_executable(
-  reset-dof-back
-  SOURCES
-    reset-dof-back.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
 
 
-mirtk_add_executable(
-  reset-image-dof
-  SOURCES
-    reset-image-dof.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-
-
-mirtk_add_executable(
-  split-single-stack
-  SOURCES
-    split-single-stack.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-mirtk_add_executable(
-  split-stacks
-  SOURCES
-    split-stacks.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-
-mirtk_add_executable(
-  reorient-reference
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
 
 
 mirtk_add_executable(

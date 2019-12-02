@@ -6357,14 +6357,14 @@ namespace mirtk {
         
         
         
-        GaussianBlurring<RealPixel> gb_a(addon.GetXSize()*0.55);
+        GaussianBlurring<RealPixel> gb_a(addon.GetXSize()*0.3); //55);
         
         gb_a.Input(&addon);
         gb_a.Output(&addon);
         gb_a.Run();
         
         
-        GaussianBlurring<RealPixel> gb_cf(_confidence_map.GetXSize()*0.55);
+        GaussianBlurring<RealPixel> gb_cf(_confidence_map.GetXSize()*0.3); //55);
         
         gb_cf.Input(&_confidence_map);
         gb_cf.Output(&_confidence_map);

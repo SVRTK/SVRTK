@@ -3045,6 +3045,11 @@ namespace mirtk {
                     
                     str_ds_setting = "-ds " + to_string(current_cp_spacing);
                     
+                    if (reconstructor->_current_iteration <= 1) {
+                        string r_name = str_current_exchange_file_path + "/r-init-" + to_string(inputIndex) + ".dof";
+                        reconstructor->_package_transformations[inputIndex].Write(r_name.c_str());
+                    }
+                    
                     
                     if (reconstructor->_current_iteration == 0 && reconstructor->_current_round == 1) {
                         
@@ -3058,8 +3063,8 @@ namespace mirtk {
                         else {
                             
                             str_dofin = "-dofin " + str_current_exchange_file_path + "/r-init-" + to_string(inputIndex) + ".dof ";
-                            MultiLevelFreeFormTransformation *r_init = new MultiLevelFreeFormTransformation(reconstructor->_package_transformations[inputIndex]);
-                            r_init->Write(str_dofin.c_str());
+                            //MultiLevelFreeFormTransformation *r_init = new MultiLevelFreeFormTransformation(reconstructor->_package_transformations[inputIndex]);
+                            //r_init->Write(str_dofin.c_str());
                         }
                     }
                     

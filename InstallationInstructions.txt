@@ -57,7 +57,7 @@ sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev z
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 
 # Install libraries needed for MIRTK
-brew install git cmake boost tbb eigen
+brew install git cmake boost tbb eigen fltk 
 
 
 # ----------------------------------------------------------------------------

@@ -101,8 +101,6 @@ namespace mirtk {
         
         GreyImage* _p_grey_reconstructed;
         
-//        Array<GreyImage*> _p_grey_slices;
-        
         
         double _global_NCC_threshold;
         double _local_NCC_threshold;
@@ -487,51 +485,17 @@ namespace mirtk {
         void CreateSlicesAndTransformationsFFD( Array<RealImage*> stacks, Array<RigidTransformation> &stack_transformations, Array<double> thickness, int d_packages, Array<int> selected_slices, int template_number );
         
         
-        void SimulateMotion( RealImage input_volume, Array<RealImage*> stacks, int iter );
-        
-        
         void SetCP( int value, int step );
         
         
         double SliceCCMap2(int inputIndex, int box_size, double threshold);
         
-        
-        void SlowSliceToVolumeRegistrationFFD( int iter, int round, int number_of_stacks );
-        
-        
-        void SVRStepStack( int stackIndex );
-        
-        
-        void Save3DNCC( Array<RealImage*> stacks, int iteration);
-        
-        
         void CStep2D();
         
-        
-        void SaveWeights3D(Array<RealImage> stacks, int iter);
-        
-        
-        void SliceDisplacement( Array<RealImage> stacks, int iter );
-        
-        
+
         void RigidPackageRegistration( Array<GreyImage*> stacks, GreyImage* template_stack, int nPackages, Array<RigidTransformation>& stack_transformations, bool init_reset );
         
-        
-        void GenerateGlobalDisplacement(Array<RealImage> stacks);
-        
-        
-        void GenerateStackDisplacement(RealImage stack, int stack_number);
-        
-        
-        RealImage GenerateSliceDisplacement(int i);
-        
-        
-        RealImage GenerateSliceMotionModel(int i, double& j_min, double& j_max, double& j_avg);
-        
-        
-        void GenerateMotionModel(RealImage stack, int stack_number);
-        
-        
+
         void JStep(int iteration);
         
         

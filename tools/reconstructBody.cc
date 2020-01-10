@@ -166,7 +166,6 @@ int main(int argc, char **argv)
     
     bool ffd_flag = true;
     bool structural_exclusion = false;
-    bool fast_flag = true;
     bool flag_full = false;
     int mask_dilation = 5;
     
@@ -641,21 +640,11 @@ int main(int argc, char **argv)
         }
         
         
-        
-        if ((ok == false) && (strcmp(argv[1], "-fast") == 0)) {
-            argc--;
-            argv++;
-            fast_flag = true;
-            ok = true;
-        }
-        
-        
         if ((ok == false) && (strcmp(argv[1], "-default") == 0)) {
             argc--;
             argv++;
             
             intersection_flag = true;
-            fast_flag = true;
             structural_exclusion = true;
             rigid_init_flag = true;
             
@@ -1480,10 +1469,8 @@ int main(int argc, char **argv)
                         
                     } else {
                         
-                        if (fast_flag)
-                            reconstruction->FastSliceToVolumeRegistration(iter, 1, stacks.size());
-                        else
-                            reconstruction->SlowSliceToVolumeRegistrationFFD(iter, 1, stacks.size());
+                        reconstruction->FastSliceToVolumeRegistration(iter, 1, stacks.size());
+                        
                     }
                     
                     
@@ -1587,17 +1574,14 @@ int main(int argc, char **argv)
                 reconstruction->RemoteSliceToVolumeRegistration(iter, 1, stacks.size(), str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
             } else {
                 
-                if (fast_flag)
-                    reconstruction->FastSliceToVolumeRegistration(iter, 2, stacks.size());
-                else
-                    reconstruction->SlowSliceToVolumeRegistrationFFD(iter, 2, stacks.size());
+                reconstruction->FastSliceToVolumeRegistration(iter, 2, stacks.size());
+                
             }
             
             
             cout << "CreateSliceMasks" << endl;
             reconstruction->CreateSliceMasks(main_mask, iter);
-            //            reconstruction->FastCreateSliceMasks(grey_mask, iter);
-            
+
             cout << "CoeffInit" << endl;
             reconstruction->CoeffInit();
             
@@ -1806,9 +1790,8 @@ int main(int argc, char **argv)
         
         
 //        if (structural_exclusion)
-//            reconstruction->Save3DNCC(stacks, iter);
 //        reconstruction->SaveSSIM(stacks, iter);
-//        reconstruction->SaveWeights3D(stacks, iter);
+        
 
         // Mask reconstructed image to ROI given by the mask
         reconstruction->MaskVolume();

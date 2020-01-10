@@ -49,6 +49,9 @@ sudo apt-get install python
 # Install libraries needed for MIRTK
 sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config
 
+# Check all software up-to-date
+sudo apt-get update
+
 
 # ----------------------------------------------------------------------------
 # Install Required Software/Libraries: Mac OS X
@@ -68,9 +71,6 @@ git clone https://github.com/SVRTK/MIRTK.git
 
 # Download SVRTK into /Packages folder of MIRTK
 git clone https://github.com/SVRTK/SVRTK.git MIRTK/Packages/SVRTK
-
-# Check all software up-to-date
-sudo apt-get update
 
 
 # ----------------------------------------------------------------------------

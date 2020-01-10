@@ -6,6 +6,7 @@ SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mir
 - 3D brain
 - 4D whole fetal heart, including magnitude and blood flow reconstructions
 - 3D placenta
+- 3D body 
 
 
 The general pipeline for fetal brain reconstruction is based on the  `reconstruction`  function in IRTK: https://biomedia.doc.ic.ac.uk/software/irtk/.
@@ -46,7 +47,7 @@ reconstructPlacenta ../outputDSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz  -
   ---
  fetal body DSVR reconstruction:
 
-reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -resolution 0.85 -default -remote 
+reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -resolution 0.85 -default  
  
   ---
   

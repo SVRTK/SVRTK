@@ -1272,7 +1272,7 @@ namespace mirtk {
         
         Insert(params, "Control point spacing in X", 10);
         Insert(params, "Control point spacing in Y", 10);
-        Insert(params, "Control point spacing in Z", 10)
+        Insert(params, "Control point spacing in Z", 10);
         
         
         

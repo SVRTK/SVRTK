@@ -251,6 +251,7 @@ namespace mirtk {
         }
         else {
             _mask = 1;
+        }
         
         _have_mask = true;
         

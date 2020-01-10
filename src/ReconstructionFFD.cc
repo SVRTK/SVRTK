@@ -3010,10 +3010,10 @@ namespace mirtk {
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
                 if (reconstructor->_zero_slices[inputIndex] > 0) {
-                
+                    
                     std::thread::id this_id = std::this_thread::get_id();
-    //                cout << inputIndex << " - " << this_id << " - " << endl;
-
+                    //                cout << inputIndex << " - " << this_id << " - " << endl;
+                    
                     
                     string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log;
                     
@@ -3027,14 +3027,14 @@ namespace mirtk {
                     
                     str_dofout = "-dofout " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof ";
                     
-
+                    
                     if (reconstructor->_masked) {
                         
                         str_bg1 = "-bg1 " + to_string(-1);
                         str_bg2 = "-bg2 " + to_string(0);
                     }
                     
-
+                    
                     int current_cp_spacing;
                     if (reconstructor->_current_iteration <= 3)
                         current_cp_spacing = reconstructor->_cp_spacing[reconstructor->_current_iteration];
@@ -3044,6 +3044,11 @@ namespace mirtk {
                         current_cp_spacing -= 2;
                     
                     str_ds_setting = "-ds " + to_string(current_cp_spacing);
+                    
+                    if (reconstructor->_current_iteration <= 1) {
+                        string r_name = str_current_exchange_file_path + "/r-init-" + to_string(inputIndex) + ".dof";
+                        reconstructor->_package_transformations[inputIndex].Write(r_name.c_str());
+                    }
                     
                     
                     if (reconstructor->_current_iteration == 0 && reconstructor->_current_round == 1) {
@@ -3058,8 +3063,8 @@ namespace mirtk {
                         else {
                             
                             str_dofin = "-dofin " + str_current_exchange_file_path + "/r-init-" + to_string(inputIndex) + ".dof ";
-                            MultiLevelFreeFormTransformation *r_init = new MultiLevelFreeFormTransformation(reconstructor->_package_transformations[inputIndex]);
-                            r_init->Write(str_dofin.c_str());
+                            //MultiLevelFreeFormTransformation *r_init = new MultiLevelFreeFormTransformation(reconstructor->_package_transformations[inputIndex]);
+                            //r_init->Write(str_dofin.c_str());
                         }
                     }
                     
@@ -3068,12 +3073,12 @@ namespace mirtk {
                     string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_ds_setting + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_log;
                     
                     
-    //                cout << register_cmd << endl;
+                    //                cout << register_cmd << endl;
                     
                     
                     int tmp_log = system(register_cmd.c_str());
                     
-    //                cout << inputIndex << " - " << this_id << " + " << endl;
+                    //                cout << inputIndex << " - " << this_id << " + " << endl;
                     
                 }
                 
@@ -3087,7 +3092,7 @@ namespace mirtk {
         }
         
     };
-
+    
     
     
     
@@ -3102,10 +3107,10 @@ namespace mirtk {
         _current_round = round;
         _grey_reconstructed = _reconstructed;
         
-
+        
         
         string str_source = str_current_exchange_file_path + "/current-source.nii.gz";
-
+        
         if (round == 2) {
             
             RealImage tmp_source = _reconstructed;
@@ -3145,11 +3150,11 @@ namespace mirtk {
         int stride = 16;
         int svr_range_start = 0;
         int svr_range_stop = svr_range_start + stride;
-
+        
         while ( svr_range_start < _slices.size() )
         {
-//            cout << "Registering slices from " << svr_range_start << " to " << svr_range_stop << " : " << endl;
-
+            //            cout << "Registering slices from " << svr_range_start << " to " << svr_range_stop << " : " << endl;
+            
             ParallelRemoteDSVR p_svr(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
             p_svr();
             
@@ -3161,17 +3166,17 @@ namespace mirtk {
             }
             
         }
-
+        
         
         
         for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
             
             string str_dofout = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
-
+            
             Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
             MultiLevelFreeFormTransformation *tmp_mffd_transf = dynamic_cast<MultiLevelFreeFormTransformation*> (tmp_transf);
-             _mffd_transformations[inputIndex] = tmp_mffd_transf;
-
+            _mffd_transformations[inputIndex] = tmp_mffd_transf;
+            
         }
         
         
@@ -5294,9 +5299,6 @@ namespace mirtk {
         _volume_weights.Initialize( _reconstructed.GetImageAttributes() );
         _volume_weights = 0;
         
-        cout << _reconstructed.GetXSize() << endl;
-
-        cout << _slices.size() << endl;
         
         int inputIndex, i, j, n, k;
         POINT3D p;
@@ -5358,8 +5360,7 @@ namespace mirtk {
         //clear _reconstructed image
         _reconstructed = 0;
 
-        cout << _reconstructed.GetXSize() << endl;
-
+        
         for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
             //copy the current slice
             slice = *(_slices[inputIndex]);
@@ -5381,8 +5382,7 @@ namespace mirtk {
                         //for current slice voxel
                         n = _volcoeffs[inputIndex][i][j].size();
                         
-                        //if given voxel is not present in reconstructed volume at all,
-                        //pad it
+                        //if given voxel is not present in reconstructed volume at all, pad it
                         
                         //if (n == 0)
                         //_slices[inputIndex].PutAsDouble(i, j, 0, -1);
@@ -5404,27 +5404,14 @@ namespace mirtk {
         }
         
         
-//        GaussianBlurring<RealPixel> gb_cf(_reconstructed.GetXSize()*0.55);
-//        
-//        gb_cf.Input(&_reconstructed);
-//        gb_cf.Output(&_reconstructed);
-//        gb_cf.Run();
-//        
-//        
-//        gb_cf.Input(&_volume_weights);
-//        gb_cf.Output(&_volume_weights);
-//        gb_cf.Run();
-        
-        
-        
         //normalize the volume by proportion of contributing slice voxels
         //for each volume voxe
         _reconstructed /= _volume_weights;
         
-//         if (_debug)
+         if (_debug)
             _reconstructed.Write("init.nii.gz");
         
-        _volume_weights.Write("weights.nii.gz");
+//        _volume_weights.Write("weights.nii.gz");
         
         //now find slices with small overlap with ROI and exclude them.
         

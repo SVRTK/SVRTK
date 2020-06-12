@@ -13,7 +13,7 @@ The general pipeline for fetal brain reconstruction is based on the  `reconstruc
 
 4D cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 
-SVRTK is a part of https://github.com/mriphysics/fetal_cmr_4d pipeline.
+SVRTK contributes to https://github.com/mriphysics/fetal_cmr_4d pipeline.
 
 
 

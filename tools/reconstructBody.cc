@@ -56,6 +56,7 @@ void usage()
     cout << "\t" << endl;
     cout << "Options:" << endl;
     cout << "\t-thickness [d_thickness]  Slice thickness.[Default: 2x voxel size in z direction]"<<endl;
+    cout << "\t-thickness_array [th_1] .. [th_N] Give slice thickness.[Default: twice voxel size in z direction]"<<endl;
     cout << "\t-mask [mask]              Binary mask to define the region od interest. [Default: whole image]"<<endl;
     cout << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 3]"<<endl;
     cout << "\t-sigma [sigma]            Stdev for bias field. [Default: 12mm]"<<endl;
@@ -83,6 +84,7 @@ void usage()
     cout << "\t-full                     Additional SVR and SR iterations (for severe motion cases). [Default: false]"<<endl;
     cout << "\t-masked                   Use masking for registration and reconstruction (faster version). [Default: false]"<<endl;
     cout << "\t-intersection             Use preliminary stack intersection. [Default: false]"<<endl;
+    cout << "\t-rigid_init               Use preliminary rigid registration of all stacks to the masked template. [Default: false]"<<endl;
     cout << "\t-default                  Optimal delault options (-intersection, -structural, -rigid_init)."<<endl;
     cout << "\t-remote                   Run SVR registration as remote functions in case of memory issues [Default: false]."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
@@ -138,6 +140,9 @@ int main(int argc, char **argv)
     /// number of packages for each stack
     Array<int> packages;
     
+    Array<double> thickness_array;
+    
+    
     
     // Default values.
     int templateNumber=0;
@@ -146,10 +151,10 @@ int main(int argc, char **argv)
     bool debug = false;
     double sigma=20;
     double resolution = 0.85;
-    double lambda = 0.0225;
+    double lambda = 0.0220; //0225;
     double delta = 150;
     int levels = 3;
-    double lastIterLambda = 0.015;
+    double lastIterLambda = 0.0135; //0.0150
     int rec_iterations;
     double averageValue = 700;
     double smooth_mask = 4;
@@ -274,7 +279,19 @@ int main(int argc, char **argv)
             tmp_p_stack->PutMinMaxAsDouble(0, 800);
         }
         
-        cout << " [" << min << "; " << max << "]" << endl;
+        double tmp_dx = tmp_p_stack->GetXSize();
+        double tmp_dy = tmp_p_stack->GetYSize();
+        double tmp_dz = tmp_p_stack->GetZSize();
+        double tmp_dt = tmp_p_stack->GetTSize();
+        
+        double tmp_sx = tmp_p_stack->GetX();
+        double tmp_sy = tmp_p_stack->GetY();
+        double tmp_sz = tmp_p_stack->GetZ();
+        double tmp_st = tmp_p_stack->GetT();
+       
+        cout << "  ;  " << tmp_sx << " - " << tmp_sy << " - " << tmp_sz << " - " << tmp_st  << "  ;";
+        cout << "  " << tmp_dx << " - " << tmp_dy << " - " << tmp_dz << " - " << tmp_dt  << "  ;";
+        cout << "  [" << min << "; " << max << "]" << endl;
         
         argc--;
         argv++;
@@ -336,6 +353,11 @@ int main(int argc, char **argv)
         }
         
         
+        
+        
+        
+        
+        
         //Read the list of selected slices from a file
         if ((ok == false) && (strcmp(argv[1], "-select") == 0)) {
             argc--;
@@ -369,6 +391,24 @@ int main(int argc, char **argv)
         
         
         
+        //Read slice thickness array
+        if ((ok == false) && (strcmp(argv[1], "-thickness_array") == 0)) {
+            argc--;
+            argv++;
+            cout<< "Slice thickness (individual per stack): ";
+            for (i=0;i<nStacks;i++) {
+                thickness_array.push_back(atof(argv[1]));
+                cout<<thickness_array[i]<<" ";
+                argc--;
+                argv++;
+            }
+            cout<<endl;
+            ok = true;
+        }
+        
+        
+        
+        
         //Read slice thickness
         if ((ok == false) && (strcmp(argv[1], "-thickness") == 0)) {
             argc--;
@@ -376,7 +416,7 @@ int main(int argc, char **argv)
             
             d_thickness = atof(argv[1]);
             
-            cout<< "Slice thickness : " << d_thickness << endl;
+            cout<< "Slice thickness (default for all): " << d_thickness << endl;
             
             ok = true;
             argc--;
@@ -870,18 +910,32 @@ int main(int argc, char **argv)
     
     if (has_4D_stacks) {
         
+        cout << "Splitting stacks into dynamics : ";
+        
+        Array<double> new_thickness_array;
         Array<RealImage> new_stacks;
         
         for (i=0; i<stacks.size(); i++) {
             
             if (stacks[i]->GetT() == 1) {
                 new_stacks.push_back(*stacks[i]);
+                
+                if (thickness_array.size() > 0) {
+                    new_thickness_array.push_back(thickness_array[i]);
+                }
+                
             }
             else {
                 for (int t=0; t<stacks[i]->GetT(); t++) {
                     
                     stack = stacks[i]->GetRegion(0,0,0,t,stacks[i]->GetX(),stacks[i]->GetY(),stacks[i]->GetZ(),(t+1));
                     new_stacks.push_back(stack);
+                    
+                    double tmp_thickness = thickness_array[i];
+                    if (thickness_array.size() > 0) {
+                        new_thickness_array.push_back(tmp_thickness);
+                    }
+                    
                 }
                 
             }
@@ -889,15 +943,23 @@ int main(int argc, char **argv)
         
         nStacks = new_stacks.size();
         
+        thickness_array.clear();
+        
         stacks.clear();
         
         for (i=0; i<new_stacks.size(); i++) {
             
             stacks.push_back(new RealImage(new_stacks[i]));
             
+            if (new_thickness_array.size() > 0) {
+                thickness_array.push_back(new_thickness_array[i]);
+            }
+            
         }
         
         new_stacks.clear();
+        
+        cout << stacks.size() << endl;
         
     }
     
@@ -967,24 +1029,44 @@ int main(int argc, char **argv)
     //---------------------------------------------------------------------------------------------
     
     
-    if (d_thickness>0) {
-        for (i=0; i<nStacks; i++) {
-            thickness.push_back(d_thickness);
-        }
-    }
-    else {
-        
+    if (thickness_array.size() > 0) {
+    
+
         //Initialise 2*slice thickness if not given by user
         cout<< "Slice thickness : ";
         
         for (i=0; i<nStacks; i++) {
-            double dx,dy,dz;
-            stacks[i]->GetPixelSize(&dx, &dy, &dz);
-            thickness.push_back(dz*2);
+            thickness.push_back(thickness_array[i]);
             cout << thickness[i] <<" ";
         }
         cout << endl;
+        
+    
+    } else {
+        
+        if (d_thickness>0) {
+            for (i=0; i<nStacks; i++) {
+                thickness.push_back(d_thickness);
+            }
+        }
+        else {
+            
+            //Initialise 2*slice thickness if not given by user
+            cout<< "Slice thickness : ";
+            
+            for (i=0; i<nStacks; i++) {
+                double dx,dy,dz;
+                stacks[i]->GetPixelSize(&dx, &dy, &dz);
+                thickness.push_back(dz*2);
+                cout << thickness[i] <<" ";
+            }
+            cout << endl;
+        }
+        
     }
+    
+    
+    
     
     
     if (d_packages>0) {
@@ -1296,21 +1378,25 @@ int main(int argc, char **argv)
     cerr<<setprecision(3);
     
     
-    start = std::chrono::system_clock::now();
+     if (intensity_matching) {
     
-    //Rescale intensities of the stacks to have the same average
-    cout << "MatchStackIntensitiesWithMasking" << endl;
-    if (intensity_matching)
-        reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue);
-    else
-        reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue, true);
+        start = std::chrono::system_clock::now();
+        
+        //Rescale intensities of the stacks to have the same average
+        cout << "MatchStackIntensitiesWithMasking" << endl;
+        if (intensity_matching)
+            reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue);
+        else
+            reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue, true);
+        
+        end = std::chrono::system_clock::now();
+        elapsed_seconds = end-start;
+        if (debug)
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
-    end = std::chrono::system_clock::now();
-    elapsed_seconds = end-start;
-    if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
-    
+     }
+         
     //---------------------------------------------------------------
     
     
@@ -1831,17 +1917,21 @@ int main(int argc, char **argv)
     }
     
     
-    cout << "RestoreSliceIntensities" << endl;
+    if (intensity_matching) {
     
-    start = std::chrono::system_clock::now();
-    
-    reconstruction->RestoreSliceIntensities();
-    reconstruction->ScaleVolume();
-    
-    end = std::chrono::system_clock::now();
-    elapsed_seconds = end-start;
-    if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+        cout << "RestoreSliceIntensities" << endl;
+        
+        start = std::chrono::system_clock::now();
+        
+        reconstruction->RestoreSliceIntensities();
+        reconstruction->ScaleVolume();
+        
+        end = std::chrono::system_clock::now();
+        elapsed_seconds = end-start;
+        if (debug)
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            
+    }
     
     
     reconstructed=reconstruction->GetReconstructed();

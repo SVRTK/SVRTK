@@ -26,7 +26,7 @@ if [ "$#" -ne 3 ]; then
     echo "# # # "
     echo "# # # Illegal number of parameters !!! "
     echo "# # # "
-    echo "# # # Usage : bash ./propagate-4d.sh [input_4d_stack] [template_stack] [template_mask]"
+    echo "# # # Usage : bash ./propagate-mask-4d.sh [input_4d_stack] [template_stack] [template_mask]"
     echo "# # # "
     echo "# # # "
     echo ""

@@ -274,7 +274,11 @@ int main(int argc, char **argv)
     argv++;
     
     //read initial orientation
-    orient.Read(argv[1]);
+    
+    Transformation *t_org = Transformation::New(argv[1]);
+    RigidTransformation *rigidTransf_org = dynamic_cast<RigidTransformation*> (t_org);
+    orient = *rigidTransf_org;
+//    orient.Read(argv[1]);
     cout<<"Initial transformation is "<<argv[1]<<endl;
     argc--;
     argv++;
@@ -885,7 +889,7 @@ int main(int argc, char **argv)
     
     
     if(!have_stack_transformations) {
-        
+     
         reconstruction.StackRegistrations(stacks,stack_transformations);//,templateNumber);
     }
     

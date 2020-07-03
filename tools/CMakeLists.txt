@@ -41,6 +41,22 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
+  reconstructDWI
+  SOURCES
+    reconstructDWI.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
   reconstructCardiacVelocity
   SOURCES
     reconstructCardiacVelocity.cc

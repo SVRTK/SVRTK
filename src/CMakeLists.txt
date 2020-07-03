@@ -26,20 +26,24 @@
 set(HEADERS
   ${BINARY_INCLUDE_DIR}/mirtk/SVRTKExport.h
   Reconstruction.h
+  ReconstructionDWI.h
   ReconstructionCardiac4D.h
   ReconstructionCardiacVelocity4D.h
   ReconstructionFFD.h
   MeanShift.h
   NLDenoising.h
+  SphericalHarmonics.h
 )
 
 set(SOURCES
   Reconstruction.cc
+  ReconstructionDWI.cc
   ReconstructionCardiac4D.cc
   ReconstructionCardiacVelocity4D.cc
   ReconstructionFFD.cc
   MeanShift.cc
   NLDenoising.cc
+  SphericalHarmonics.cc
 ) 
 
 set(DEPENDS 

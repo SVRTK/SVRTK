@@ -7,7 +7,7 @@ SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mir
 - 4D whole fetal heart, including magnitude and blood flow reconstructions
 - 3D placenta
 - 3D body
-- brain diffusion (HARDI) 
+- SH brain diffusion (HARDI) 
 
 
 The general pipeline for fetal brain reconstruction is based on the  `reconstruction`  function in IRTK: https://biomedia.doc.ic.ac.uk/software/irtk/.

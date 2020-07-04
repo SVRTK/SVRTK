@@ -34,7 +34,7 @@ Examples:
 
 3D brain reconstruction:
 
-*reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template_number 0 -thickness 2.5 2.5 2.5 2.5 2.5 -resolution 0.75 -iterations 3 -remote *
+*reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template_number 0 -thickness 2.5 2.5 2.5 2.5 2.5 -resolution 0.75 -iterations 3 -remote 
  
  ---
 4D cardiac velocity reconstruction:

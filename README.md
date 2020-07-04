@@ -60,8 +60,8 @@ Examples:
 
 This should followed by constrained spherical deconvolution for representation of the signal in SH basis based on the functions from MRtrix (https://github.com/MRtrix3/mrtrix3):
 
-*dwi2response tournier _simulated_signal.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask.nii.gz*   
-*dwi2fod csd signal.nii.gz response.txt $out -lmax 6 -grad ../gradient-directions.b -force -mask ../mask.nii.gz*  
+*dwi2response tournier _simulated_signal.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz*   
+*dwi2fod csd signal.nii.gz response.txt csd-out.mif -lmax 6 -grad ../gradient-directions.b -force -mask ../mask-wm.nii.gz*  
  
   ---
 

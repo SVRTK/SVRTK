@@ -298,7 +298,7 @@ int main(int argc, char **argv)
             
             for (i=0;i<nStacks;i++)
             {
-//                irtkTransformation *transformation;
+
                 cout<<"Reading transformation ... "<<argv[1]<<" ... ";
                 cout.flush();
                 
@@ -649,14 +649,7 @@ int main(int argc, char **argv)
             argv++;
         }
         
-//        //Remove black background
-//        if ((ok == false) && (strcmp(argv[1], "-remove_black_background") == 0)){
-//            argc--;
-//            argv++;
-//            remove_black_background=true;
-//            ok = true;
-//        }
-        
+
         //Force removal of certain slices
         if ((ok == false) && (strcmp(argv[1], "-force_exclude") == 0)){
             argc--;
@@ -738,9 +731,7 @@ int main(int argc, char **argv)
         stack_transformations.clear();
         for (i=0;i<nStacks;i++)
         {
-            //RigidTransformation *rigidTransf = new RigidTransformation;
             stack_transformations.push_back(orient);
-            //delete rigidTransf;
         }
         templateNumber = 0;
         reconstruction.InvertStackTransformations(stack_transformations);
@@ -939,8 +930,6 @@ int main(int argc, char **argv)
         reconstruction.StructuralExclusion(stack_transformations, *mask, stacks, intensity_threshold);
     }
     
-    //    exit(1);
-    
     
     //Mask all the slices
     reconstruction.MaskSlices();
@@ -996,7 +985,7 @@ int main(int argc, char **argv)
             }
             cout<<"Iteration "<<iter<<": "<<endl;
             
-            if(iter<=1) //&&(iter<iterations))
+            if(iter<=1)
             {
                 reconstruction.PackageToVolume(corrected_stacks,packages,stack_transformations);
 
@@ -1212,7 +1201,7 @@ int main(int argc, char **argv)
         sprintf(buffer,"correctedstack%i.nii.gz",i);
         corrected_stacks[i].Write(buffer);
     }
-    //exit(1);
+
     
     reconstruction.UpdateSlices(corrected_stacks, thickness);
     Array<RealImage> old_bias;
@@ -1221,9 +1210,7 @@ int main(int argc, char **argv)
     
     
     
-    
-    
-    
+
     
     /////////////////////////////////////////////////
     //Beginning of SH part

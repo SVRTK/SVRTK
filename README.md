@@ -46,12 +46,12 @@ Examples:
  ---
 3D placenta reconstruction:
  
-*reconstructPlacenta ../outputDSVR.nii.gz  2 ../stack1.nii.gz ../stack2.nii.gz  -mask ../mask.nii.gz  -thickness 2 2 -resolution 1.0 -iterations 2 -template ../template.nii.gz -ffd -remote*
+*reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 1.25*
  
   ---
  3D fetal body DSVR reconstruction:
 
-*reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -resolution 0.85 -default -remote*
+*reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
  
   ---
  Higher order spherical harmonics (SH) reconstruction of fetal diffusion brain MRI:

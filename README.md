@@ -54,7 +54,7 @@ Examples:
 *reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
  
   ---
- Higher order spherical harmonics (SH) reconstruction of fetal diffusion brain MRI:
+ Higher order spherical harmonics (SH) reconstruction of fetal brain diffusion MRI:
 
 *reconstructDWI ../recon-3D-vol.nii.gz ../4D-DWI-stack.nii.gz ../gradient-directions.b ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number] -motion_model_hs -sr_sh_iterations 10*
 

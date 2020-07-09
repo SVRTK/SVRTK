@@ -886,8 +886,9 @@ int main(int argc, char **argv)
     str_current_exchange_file_path = str_current_main_file_path + "/tmp-file-exchange";
     
     if (str_current_exchange_file_path.length() > 0) {
-        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
-        int tmp_log_rm = system(remove_folder_cmd.c_str());
+        
+        //string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        //int tmp_log_rm = system(remove_folder_cmd.c_str());
         
         string create_folder_cmd = "mkdir " + str_current_exchange_file_path + " > tmp-log.txt ";
         int tmp_log_mk = system(create_folder_cmd.c_str());

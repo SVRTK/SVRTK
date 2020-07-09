@@ -12,7 +12,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * See the License for the specific language governing permissions and 
  * limitations under the License.
  */
 
@@ -80,8 +80,15 @@ namespace mirtk {
         
         _mffd_mode = true;
         
+        _no_global_ffd_flag = false;
+        
         _masked = false;
 
+        
+        _number_of_channels = 0;
+        _multiple_channels_flag = false;
+        
+        
         _cp_spacing.push_back(15);
         _cp_spacing.push_back(10);
         _cp_spacing.push_back(5);
@@ -174,6 +181,18 @@ namespace mirtk {
             _reconstructed.Write("template.nii.gz");
         
         _reconstructed_attr = _reconstructed.GetImageAttributes();
+        
+        
+        if (_multiple_channels_flag && _number_of_channels > 0) {
+            
+            enlarged = 0;
+            for (int n=0; n<_number_of_channels; n++) {
+                
+                _mc_reconstructed.push_back(enlarged);
+            }
+            
+        }
+        
         
         return d;
     }
@@ -439,12 +458,28 @@ namespace mirtk {
                         reconstructor->_simulated_slices[inputIndex]->PutAsDouble(i, j, 0, 0);
                         reconstructor->_simulated_weights[inputIndex]->PutAsDouble(i, j, 0, 0);
                         reconstructor->_simulated_inside[inputIndex]->PutAsDouble(i, j, 0, 0);
+                        
+                        
+                        if (reconstructor->_multiple_channels_flag) {
+                            for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                reconstructor->_mc_simulated_slices[inputIndex][nc]->PutAsDouble(i, j, 0, 0);
+                            }
+                        }
+                        
 
                         if ( reconstructor->_slices[inputIndex]->GetAsDouble(i, j, 0) > -0.01 ) {
                             double weight = 0;
                             int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             
                             double ss_sum = reconstructor->_simulated_slices[inputIndex]->GetAsDouble(i, j, 0);
+                            
+                            Array<double> mc_ss_sum;
+                            if (reconstructor->_multiple_channels_flag) {
+                                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                    mc_ss_sum.push_back(reconstructor->_mc_simulated_slices[inputIndex][nc]->GetAsDouble(i, j, 0));
+                                }
+                            }
+                            
                             
                             for ( int k = 0; k < n; k++ ) {
                                 p = reconstructor->_volcoeffs[inputIndex][i][j][k];
@@ -454,6 +489,13 @@ namespace mirtk {
                                     reconstructor->_simulated_inside[inputIndex]->PutAsDouble(i, j, 0, 1);
                                     reconstructor->_slice_inside[inputIndex] = true;
                                 }
+                                
+                                if (reconstructor->_multiple_channels_flag) {
+                                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                        mc_ss_sum[nc] = mc_ss_sum[nc] + p.value * reconstructor->_mc_reconstructed[nc](p.x, p.y, p.z);
+                                    }
+                                }
+                                
                             }
 
                             if( weight > 0 ) {
@@ -461,6 +503,14 @@ namespace mirtk {
                                 
                                 reconstructor->_simulated_slices[inputIndex]->PutAsDouble(i,j,0, ss);
                                 reconstructor->_simulated_weights[inputIndex]->PutAsDouble(i,j,0, weight);
+                                
+                                if (reconstructor->_multiple_channels_flag) {
+                                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                        double mc_ss = mc_ss_sum[nc] / weight;
+                                        reconstructor->_mc_simulated_slices[inputIndex][nc]->PutAsDouble(i,j,0, mc_ss);
+                                    }
+                                }
+                                
                             }
                         }
                 
@@ -947,6 +997,186 @@ namespace mirtk {
         
     }
     
+
+
+
+
+    void ReconstructionFFD::CreateSlicesAndTransformationsFFDMC( Array<RealImage*> stacks, Array<Array<RealImage*>> mc_stacks, Array<RigidTransformation> &stack_transformations, Array<double> thickness, int d_packages, Array<int> selected_slices, int template_number )
+    {
+        
+        int start_stack_number = template_number;
+        int stop_stack_number = start_stack_number+1;
+        
+        _template_slice_number = 0;
+        
+        bool use_selected = true;
+        
+        
+        
+        int Z_dim = stacks[template_number]->GetZ();
+        int package_index = 0;
+
+        for (unsigned int i = start_stack_number; i < stop_stack_number; i++) {
+
+            ImageAttributes attr = stacks[i]->GetImageAttributes();
+
+            int selected_slice_number;
+            
+            
+            if (!use_selected)
+            selected_slice_number = attr._z;
+            else
+            selected_slice_number = selected_slices.size();
+            
+            
+            for (int j = 0; j < selected_slice_number; j++) {
+                
+                if (selected_slices[j]>Z_dim)
+                break;
+                
+                RealImage slice;
+
+                if (!use_selected) {
+                    slice = stacks[i]->GetRegion(0, 0, j, attr._x, attr._y, j + 1);
+                }
+                else {
+                    slice = stacks[i]->GetRegion(0, 0, selected_slices[j], stacks[i]->GetX(), stacks[i]->GetY(), selected_slices[j] + 1);
+                }
+                
+                if (package_index<(d_packages-1) && j!=0)
+                package_index++;
+                else
+                package_index = 0;
+                
+                
+                RealPixel smin, smax;
+                slice.GetMinMax(&smin, &smax);
+
+                _zero_slices.push_back(1);
+                
+                _min_val.push_back(smin);
+                _max_val.push_back(smax);
+                
+                slice.PutPixelSize(attr._dx, attr._dy, thickness[i]);
+                
+                Array<RealImage*> tmp_mc_slices;
+                Array<RealImage*> tmp_mc_simulated_slices;
+                Array<RealImage*> tmp_mc_diff_slices;
+                
+                for (int n=0; n<_number_of_channels; n++) {
+                    
+                    RealImage slice_mc;
+                    
+                    slice_mc = mc_stacks[n][i]->GetRegion(0, 0, selected_slices[j], stacks[i]->GetX(), stacks[i]->GetY(), selected_slices[j] + 1);
+                    
+                    slice_mc.PutPixelSize(attr._dx, attr._dy, thickness[i]);
+                    
+                    RealImage *p_mc_slice = new RealImage(slice_mc);
+                    
+                    slice_mc = 1;
+                    RealImage *p_mc_sim_slice = new RealImage(slice_mc);
+                    
+                    slice_mc = 1;
+                    RealImage *p_mc_diff_slice = new RealImage(slice_mc);
+                    
+                    tmp_mc_slices.push_back(p_mc_slice);
+                    tmp_mc_simulated_slices.push_back(p_mc_sim_slice);
+                    tmp_mc_diff_slices.push_back(p_mc_diff_slice);
+
+                }
+
+                _mc_slices.push_back(tmp_mc_slices);
+                _mc_simulated_slices.push_back(tmp_mc_simulated_slices);
+                _mc_slice_dif.push_back(tmp_mc_diff_slices);
+
+                
+                GreyImage grey_slice = slice;
+                
+                GreyImage *p_grey_slice = new GreyImage(grey_slice);
+                RealImage *p_slice = new RealImage(slice);
+                
+                
+                _grey_slices.push_back(p_grey_slice);
+                _slices.push_back(p_slice);
+                
+                
+                slice = 1;
+                RealImage *p_simulated_slice = new RealImage(slice);
+                _simulated_slices.push_back(p_simulated_slice);
+                
+                RealImage *p_simulated_weight = new RealImage(slice);
+                _simulated_weights.push_back(p_simulated_weight);
+                
+                RealImage *p_simulated_inside = new RealImage(slice);
+                _simulated_inside.push_back(p_simulated_inside);
+                
+                _stack_index.push_back(i);
+                
+                _transformations.push_back(stack_transformations[i]);
+                
+                RigidTransformation *rigidTransf = new RigidTransformation;
+                _package_transformations.push_back(*rigidTransf);
+                delete rigidTransf;
+                
+                
+                RealImage *p_weight = new RealImage(slice);
+                _weights.push_back(p_weight);
+                
+                RealImage *p_bias = new RealImage(slice);
+                _bias.push_back(p_bias);
+                
+                
+                
+                _scale.push_back(1);
+                _slice_weight.push_back(1);
+                
+                
+                ImageAttributes slice_attr = slice.GetImageAttributes();
+                _slice_attr.push_back(slice_attr);
+                
+                _negative_J_values.push_back(0);
+                _slice_cc.push_back(1);
+                _reg_slice_weight.push_back(1);
+                _stack_locs.push_back(j);
+                
+                slice = 1;
+                RealImage *p_dif = new RealImage(slice);
+                _slice_dif.push_back(p_dif);
+                
+                RealImage *p_2dncc = new RealImage(slice);
+                _slice_2dncc.push_back(p_2dncc);
+                
+                GreyImage *p_mask = new GreyImage(grey_slice);
+                _slice_masks.push_back(p_mask);
+                
+                _excluded_points.push_back(0);
+                
+                _structural_slice_weight.push_back(1);
+                _slice_ssim.push_back(1);
+                
+                if (d_packages==1)
+                _package_index.push_back(i);
+                else {
+                    
+                    _package_index.push_back(i*d_packages + package_index);
+                }
+                
+                
+                MultiLevelFreeFormTransformation *mffd = new MultiLevelFreeFormTransformation();
+                _mffd_transformations.push_back(mffd);
+                
+
+            }
+            
+            if (i == template_number)
+            _template_slice_number = _slices.size();
+        }
+        
+    }
+    
+    
+
+
     
  
     void ReconstructionFFD::ResetSlicesAndTransformationsFFD()
@@ -1233,115 +1463,132 @@ namespace mirtk {
         char buffer[256];
         
         _global_mffd_transformations.clear();
-
-
-        GaussianBlurring<GreyPixel> gb(1.2);
         
-        ResamplingWithPadding<GreyPixel> resampling(1.8, 1.8, 1.8, -1);
-        GenericLinearInterpolateImageFunction<GreyImage> interpolator;
-        resampling.Interpolator(&interpolator);
-
         
-        Array<GreyImage*> resampled_stacks;
-   
-        for (int i=0; i<stacks.size(); i++) {
-            
-            GreyImage stack = *stacks[i];
+        if (!_no_global_ffd_flag) {
 
-            gb.Input(&stack);
-            gb.Output(&stack);
-            gb.Run();
+
+            GaussianBlurring<GreyPixel> gb(1.2);
             
-            GreyImage tmp = stack;
-            resampling.Input(&tmp);
-            resampling.Output(&stack);
+            ResamplingWithPadding<GreyPixel> resampling(1.8, 1.8, 1.8, -1);
+            GenericLinearInterpolateImageFunction<GreyImage> interpolator;
+            resampling.Interpolator(&interpolator);
+
+            
+            Array<GreyImage*> resampled_stacks;
+       
+            for (int i=0; i<stacks.size(); i++) {
+                
+                GreyImage stack = *stacks[i];
+
+                gb.Input(&stack);
+                gb.Output(&stack);
+                gb.Run();
+                
+                GreyImage tmp = stack;
+                resampling.Input(&tmp);
+                resampling.Output(&stack);
+                resampling.Run();
+                
+                resampled_stacks.push_back(new GreyImage(stack));
+
+            }
+
+            GreyImage source = *template_stack;
+            resampling.Input(&source);
+            resampling.Output(&source);
             resampling.Run();
-            
-            resampled_stacks.push_back(new GreyImage(stack));
 
+            
+            ParameterList params;
+            Insert(params, "Transformation model", "FFD"); // SVFFD
+            //        Insert(params, "Optimisation method", "GradientDescent");
+            
+            //        Insert(params, "Image (dis-)similarity measure", "NMI");
+            //        Insert(params, "No. of bins", 128);
+            
+            //        Insert(params, "Image (dis-)similarity measure", "NCC"); //NCC
+            //        string type = "sigma";
+            //        string units = "mm";
+            //        double width = 30;
+            //        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+            
+            //        Insert(params, "Image interpolation mode", "Linear");
+            
+            //        Insert(params, "Background value for image 1", -1);
+            //        Insert(params, "Background value for image 2", -1);
+            
+            Insert(params, "Control point spacing in X", 10);
+            Insert(params, "Control point spacing in Y", 10);
+            Insert(params, "Control point spacing in Z", 10);
+            
+            
+            
+            for (int i=0; i<resampled_stacks.size(); i++) {
+
+                GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+                registration->Parameter(params);
+
+
+                registration->Input( resampled_stacks[i], &source);
+                Transformation *dofout = nullptr;
+                registration->Output(&dofout);
+
+                registration->InitialGuess(&(stack_transformations[i]));
+
+
+                registration->GuessParameter();
+                registration->Run();
+
+                
+                MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*> (dofout);
+                
+
+                sprintf(buffer, "ms-%i.dof", i);
+                mffd_dofout->Write(buffer);
+
+                // .............................................................
+
+    //            RealImage d_stack = target; //source;
+    //            d_stack = 0;
+    //
+    //            ImageAttributes attr = d_stack.GetImageAttributes();
+    //            attr._t = 3;
+    //
+    //            RealImage d_xyz(attr);
+    //
+    //            mffd_dofout->InverseDisplacement(d_xyz);
+    //
+    //
+    //            for (int j=0; j<3; j++) {
+    //
+    //                RealImage tmp = d_xyz.GetRegion(0,0,0,j,d_xyz.GetX(),d_xyz.GetY(),d_xyz.GetZ(),(j+1));
+    //                d_stack += tmp*tmp;
+    //            }
+    //
+    //            sprintf(buffer,"ssr-displacement-%i.nii.gz", i);
+    //            d_stack.Write(buffer);
+                
+
+                delete registration;
+
+            }
+
+        } else {
+            
+            for (int i=0; i<stacks.size(); i++) {
+            
+                MultiLevelFreeFormTransformation *mffd_dofout = new MultiLevelFreeFormTransformation();
+                
+                sprintf(buffer, "ms-%i.dof", i);
+                mffd_dofout->Write(buffer);
+            }
+            
+            
         }
-
-        GreyImage source = *template_stack;
-        resampling.Input(&source);
-        resampling.Output(&source);
-        resampling.Run();
-
-        
-        ParameterList params;
-        Insert(params, "Transformation model", "FFD"); // SVFFD
-        //        Insert(params, "Optimisation method", "GradientDescent");
-        
-        //        Insert(params, "Image (dis-)similarity measure", "NMI");
-        //        Insert(params, "No. of bins", 128);
-        
-        //        Insert(params, "Image (dis-)similarity measure", "NCC"); //NCC
-        //        string type = "sigma";
-        //        string units = "mm";
-        //        double width = 30;
-        //        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
-        
-        //        Insert(params, "Image interpolation mode", "Linear");
-        
-        //        Insert(params, "Background value for image 1", -1);
-        //        Insert(params, "Background value for image 2", -1);
-        
-        Insert(params, "Control point spacing in X", 10);
-        Insert(params, "Control point spacing in Y", 10);
-        Insert(params, "Control point spacing in Z", 10);
-        
-        
-        
-        for (int i=0; i<resampled_stacks.size(); i++) {
-
-            GenericRegistrationFilter *registration = new GenericRegistrationFilter();
-            registration->Parameter(params);
-
-
-            registration->Input( resampled_stacks[i], &source);
-            Transformation *dofout = nullptr;
-            registration->Output(&dofout);
-
-            registration->InitialGuess(&(stack_transformations[i]));
-
-
-            registration->GuessParameter();
-            registration->Run();
-
             
-            MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*> (dofout);
             
-
-            sprintf(buffer, "ms-%i.dof", i);
-            mffd_dofout->Write(buffer);
-
-            // .............................................................
-
-//            RealImage d_stack = target; //source;
-//            d_stack = 0;
-//
-//            ImageAttributes attr = d_stack.GetImageAttributes();
-//            attr._t = 3;
-//
-//            RealImage d_xyz(attr);
-//
-//            mffd_dofout->InverseDisplacement(d_xyz);
-//
-//
-//            for (int j=0; j<3; j++) {
-//
-//                RealImage tmp = d_xyz.GetRegion(0,0,0,j,d_xyz.GetX(),d_xyz.GetY(),d_xyz.GetZ(),(j+1));
-//                d_stack += tmp*tmp;
-//            }
-//
-//            sprintf(buffer,"ssr-displacement-%i.nii.gz", i);
-//            d_stack.Write(buffer);
             
-
-            delete registration;
-
-
-        }
-
     }
     
     
@@ -3028,6 +3275,13 @@ namespace mirtk {
         int slice_vox_num;
         
         _reconstructed = 0;
+        
+        
+        if (_multiple_channels_flag && (_number_of_channels > 0)) {
+            for (int n=0; n<_number_of_channels; n++) {
+                _mc_reconstructed[n] = 0;
+            }
+        }
 
         
         for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
@@ -3039,6 +3293,15 @@ namespace mirtk {
             scale = _scale[inputIndex];
             
             slice_vox_num=0;
+            
+            
+            Array<RealImage> mc_slices;
+            if (_multiple_channels_flag && (_number_of_channels > 0)) {
+                for (int n=0; n<_number_of_channels; n++) {
+                    mc_slices.push_back(*_mc_slices[inputIndex][n]);
+                }
+            }
+            
 
             
             for (i = 0; i < slice.GetX(); i++)
@@ -3046,6 +3309,13 @@ namespace mirtk {
                     if (slice(i, j, 0) != -1) {
 
                         slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                        
+                        if (_multiple_channels_flag && (_number_of_channels > 0)) {
+                            for (int n=0; n<_number_of_channels; n++) {
+                                mc_slices[n](i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            }
+                        }
+                        
 
                         n = _volcoeffs[inputIndex][i][j].size();
 
@@ -3055,6 +3325,14 @@ namespace mirtk {
                         for (k = 0; k < n; k++) {
                             p = _volcoeffs[inputIndex][i][j][k];
                             _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
+                            
+                            
+                            if (_multiple_channels_flag && (_number_of_channels > 0)) {
+                                for (int n=0; n<_number_of_channels; n++) {
+                                    _mc_reconstructed[n](p.x, p.y, p.z) += p.value * mc_slices[n](i, j, 0);
+                                }
+                            }
+                            
 
                         }
                     }
@@ -3064,9 +3342,21 @@ namespace mirtk {
         
         _reconstructed /= _volume_weights;
         
-         if (_debug)
-            _reconstructed.Write("init.nii.gz");
+//         if (_debug)
+            _reconstructed.Write("init-gaussian.nii.gz");
 
+        
+        if (_multiple_channels_flag && (_number_of_channels > 0)) {
+            for (int n=0; n<_number_of_channels; n++) {
+                
+                _mc_reconstructed[n] /= _volume_weights;
+                
+//                sprintf(buffer,"mc-init-%i.nii.gz", n);
+//                _mc_reconstructed[n].Write(buffer);
+            }
+        }
+        
+        
         Array<int> voxel_num_tmp;
         for (i=0;i<voxel_num.size();i++)
             voxel_num_tmp.push_back(voxel_num[i]);
@@ -3131,6 +3421,43 @@ namespace mirtk {
                 }
             }
         }
+        
+        
+        
+        if (_multiple_channels_flag) {
+                  
+            for (int n=0; n<_number_of_channels; n++) {
+                _max_intensity_mc.push_back(voxel_limits<RealPixel>::min());
+                _min_intensity_mc.push_back(voxel_limits<RealPixel>::max());
+            }
+            
+            for (int n=0; n<_number_of_channels; n++) {
+                
+                for (int i = 0; i < _slices.size(); i++) {
+                    
+                    for (int y=0; y<_slices[i]->GetY(); y++) {
+                        for (int x=0; x<_slices[i]->GetX(); x++) {
+                            
+                            if (_slices[i]->GetAsDouble(x,y,0) > 0) {
+                                
+                                if (_mc_slices[i][n]->GetAsDouble(x,y,0) > _max_intensity_mc[n])
+                                    _max_intensity_mc[n] = _mc_slices[i][n]->GetAsDouble(x,y,0);
+                                
+                                if (_mc_slices[i][n]->GetAsDouble(x,y,0) < _min_intensity_mc[n])
+                                    _min_intensity_mc[n] = _mc_slices[i][n]->GetAsDouble(x,y,0);
+                                
+                            }
+                            
+                        }
+                    }
+                }
+
+            }
+        
+        }
+        
+        
+        
         
         for (int i = 0; i < _slices.size(); i++) {
 
@@ -3642,19 +3969,49 @@ namespace mirtk {
                     
                     double ds = _slices[inputIndex]->GetAsDouble(i, j, 0);
                     
+                    
+                    Array<double> mc_ds;
+                    if (_multiple_channels_flag) {
+                        for (int n=0; n<_number_of_channels; n++) {
+                            mc_ds.push_back(_mc_slices[inputIndex][n]->GetAsDouble(i, j, 0));
+                        }
+                    }
+                
+                    
                     if (_slices[inputIndex]->GetAsDouble(i, j, 0) != -1) {
 
                         ds = ds * exp(-(_bias[inputIndex])->GetAsDouble(i, j, 0)) * _scale[inputIndex];
                         ds = ds - _simulated_slices[inputIndex]->GetAsDouble(i, j, 0);
+                        
+                        if (_multiple_channels_flag) {
+                            for (int n=0; n<_number_of_channels; n++) {
+                                mc_ds[n] = mc_ds[n] * exp(-(_bias[inputIndex])->GetAsDouble(i, j, 0)) * _scale[inputIndex];
+                                mc_ds[n] = mc_ds[n] - _mc_simulated_slices[inputIndex][n]->GetAsDouble(i, j, 0);
+                            }
+                        }
 
                     }
-                    else 
+                    else {
                         ds = 0;
+                        
+                        if (_multiple_channels_flag) {
+                            for (int n=0; n<_number_of_channels; n++) {
+                                mc_ds[n] = 0;
+                            }
+                        }
+                    }
                     
                     _slice_dif[inputIndex]->PutAsDouble(i, j, 0, ds);
+                    
+                    if (_multiple_channels_flag) {
+                        for (int n=0; n<_number_of_channels; n++) {
+                            _mc_slice_dif[inputIndex][n]->PutAsDouble(i, j, 0, mc_ds[n]);
+                        }
+                    }
 
                 }
             }
+            
         }
 
     }
@@ -3666,6 +4023,7 @@ namespace mirtk {
     public:
         RealImage confidence_map;
         RealImage addon;
+        Array<RealImage> mc_addons;
 
         void operator()( const blocked_range<size_t>& r ) {
             
@@ -3679,8 +4037,17 @@ namespace mirtk {
                     for (int j = 0; j < reconstructor->_slice_attr[inputIndex]._y; j++)
                         if (reconstructor->_slices[inputIndex]->GetAsDouble(i, j, 0) != -1) {
 
-                            if (reconstructor->_simulated_slices[inputIndex]->GetAsDouble(i, j, 0) < 0.01)
+                            if (reconstructor->_simulated_slices[inputIndex]->GetAsDouble(i, j, 0) < 0.01) {
                                 reconstructor->_slice_dif[inputIndex]->PutAsDouble(i, j, 0, 0);
+                             
+                                if (reconstructor->_multiple_channels_flag) {
+                                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                        reconstructor->_mc_slice_dif[inputIndex][nc]->PutAsDouble(i, j, 0, 0);
+                                    }
+                                }
+                                
+                            }
+                                
 
                             int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             for (int k = 0; k < n; k++) {
@@ -3704,6 +4071,13 @@ namespace mirtk {
                                         confidence_map(p.x, p.y, p.z) += sw * p.value * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
                                         
                                         
+                                        if (reconstructor->_multiple_channels_flag) {
+                                            for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                                mc_addons[nc](p.x, p.y, p.z) += sw * p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
+                                            }
+                                        }
+                                        
+                                        
                                     }
                                     
 
@@ -3713,10 +4087,28 @@ namespace mirtk {
 
                                         addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
                                         confidence_map(p.x, p.y, p.z) += p.value * reconstructor->_slice_weight[inputIndex];
+                                        
+                                        
+                                        if (reconstructor->_multiple_channels_flag) {
+                                            for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                                mc_addons[nc](p.x, p.y, p.z) += p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                            }
+                                        }
+                                        
+                                        
 
                                     } else {
                                         addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
                                         confidence_map(p.x, p.y, p.z) += p.value * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                        
+                                        
+                                        if (reconstructor->_multiple_channels_flag) {
+                                            for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                                mc_addons[nc](p.x, p.y, p.z) += p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                            }
+                                        }
+                                        
+                                        
                                     }
                                 }
 
@@ -3737,13 +4129,26 @@ namespace mirtk {
             
             confidence_map.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
             confidence_map = 0;
-
+            
+            if (reconstructor->_multiple_channels_flag) {
+                mc_addons.clear();
+                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                    mc_addons.push_back(addon);
+                }
+            }
+            
         }
         
         void join( const ParallelSuperresolutionFFD& y ) {
             addon += y.addon;
             confidence_map += y.confidence_map;
-
+            
+            if (reconstructor->_multiple_channels_flag) {
+                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                    mc_addons[nc] += y.mc_addons[nc];
+                }
+            }
+            
         }
         
         ParallelSuperresolutionFFD( ReconstructionFFD *reconstructor ) :
@@ -3755,6 +4160,14 @@ namespace mirtk {
 
             confidence_map.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
             confidence_map = 0;
+            
+            if (reconstructor->_multiple_channels_flag) {
+                mc_addons.clear();
+                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                    mc_addons.push_back(addon);
+                }
+            }
+            
             
         }
         
@@ -3779,6 +4192,16 @@ namespace mirtk {
         (*p_super)();
         addon = p_super->addon;
         _confidence_map = p_super->confidence_map;
+        
+        
+        Array<RealImage> mc_addons;
+        Array<RealImage> mc_originals;
+        
+        if (_multiple_channels_flag) {
+            mc_addons = p_super->mc_addons;
+            mc_originals = _mc_reconstructed;
+        }
+        
 
         delete p_super;
         
@@ -3789,6 +4212,14 @@ namespace mirtk {
             
             sprintf(buffer,"addon-%i.nii.gz",_current_iteration);
             addon.Write(buffer);
+            
+            if (_multiple_channels_flag) {
+                   
+                sprintf(buffer,"mc-addon-%i.nii.gz",_current_iteration);
+                mc_addons[0].Write(buffer);
+                   
+            }
+            
         }
         
         
@@ -3807,6 +4238,16 @@ namespace mirtk {
         gb_cf.Run();
         
         
+        
+        if (_multiple_channels_flag) {
+            for (int nc=0; nc<_number_of_channels; nc++) {
+                gb_a.Input(&mc_addons[nc]);
+                gb_a.Output(&mc_addons[nc]);
+                gb_a.Run();
+            }
+        }
+        
+        
 
         if(_debug) {
             char buffer[256];
@@ -3823,7 +4264,16 @@ namespace mirtk {
                     if (_confidence_map(i, j, k) > 0) {
 
                         addon(i, j, k) /= _confidence_map(i, j, k);
+                        
+                        if (_multiple_channels_flag) {
+                            for (int nc=0; nc<_number_of_channels; nc++) {
+                                mc_addons[nc](i, j, k) /= _confidence_map(i, j, k);
+                            }
+                        }
+                        
                         _confidence_map(i,j,k) = 1;
+                        
+                        
                     }
                     else  {
                         _confidence_map(i,j,k) = 1;
@@ -3842,6 +4292,17 @@ namespace mirtk {
         }
         
         _reconstructed += addon * _alpha;
+        
+        
+        
+        if (_multiple_channels_flag) {
+            for (int nc=0; nc<_number_of_channels; nc++) {
+            
+                _mc_reconstructed[nc] += mc_addons[nc] * _alpha;
+            }
+        }
+        
+        
 
         for (int i = 0; i < _reconstructed.GetX(); i++)
             for (int j = 0; j < _reconstructed.GetY(); j++)
@@ -3852,10 +4313,33 @@ namespace mirtk {
                         _reconstructed(i, j, k) = _max_intensity * 1.1;
                 }
         
+        
+        if (_multiple_channels_flag) {
+            for (int nc=0; nc<_number_of_channels; nc++) {
+                for (int i = 0; i < _reconstructed.GetX(); i++)
+                for (int j = 0; j < _reconstructed.GetY(); j++)
+                for (int k = 0; k < _reconstructed.GetZ(); k++) {
+                    if (_mc_reconstructed[nc](i, j, k) < _min_intensity_mc[nc] * 0.9)
+                        _mc_reconstructed[nc](i, j, k) = _min_intensity_mc[nc] * 0.9;
+                    if (_mc_reconstructed[nc](i, j, k) > _max_intensity_mc[nc] * 1.1)
+                        _mc_reconstructed[nc](i, j, k) = _max_intensity_mc[nc] * 1.1;
+                }
+                
+            }
+        }
+        
+        
+        
         AdaptiveRegularization(iter, original);
         if (_global_bias_correction)
             BiasCorrectVolume(original);
         
+        
+        if (_multiple_channels_flag) {
+            AdaptiveRegularizationMC(iter, mc_originals);
+        }
+        
+
     }
     
     
@@ -5010,6 +5494,202 @@ namespace mirtk {
         delete p_ad2;
         
     }
+
+
+
+
+    //-------------------------------------------------------------------
+
+    class ParallelAdaptiveRegularization1FFDMC {
+        ReconstructionFFD *reconstructor;
+        Array<Array<RealImage>> &b;
+        Array<double> &factor;
+        Array<RealImage> &original;
+        
+        public:
+        ParallelAdaptiveRegularization1FFDMC( ReconstructionFFD *_reconstructor,
+                                           Array<Array<RealImage>> &_b,
+                                           Array<double> &_factor,
+                                           Array<RealImage> &_original) :
+        reconstructor(_reconstructor),
+        b(_b),
+        factor(_factor),
+        original(_original) { }
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            int dx = reconstructor->_reconstructed.GetX();
+            int dy = reconstructor->_reconstructed.GetY();
+            int dz = reconstructor->_reconstructed.GetZ();
+            for ( size_t i = r.begin(); i != r.end(); ++i ) {
+                
+                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                
+                    int x, y, z, xx, yy, zz;
+                    double diff;
+                    for (x = 0; x < dx; x++)
+                    for (y = 0; y < dy; y++)
+                    for (z = 0; z < dz; z++) {
+                        xx = x + reconstructor->_directions[i][0];
+                        yy = y + reconstructor->_directions[i][1];
+                        zz = z + reconstructor->_directions[i][2];
+                        if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
+                            && (reconstructor->_confidence_map(x, y, z) > 0) && (reconstructor->_confidence_map(xx, yy, zz) > 0)) {
+                            diff = (original[nc](xx, yy, zz) - original[nc](x, y, z)) * sqrt(factor[i]) / reconstructor->_delta;
+                            b[i][nc](x, y, z) = factor[i] / sqrt(1 + diff * diff);
+                            
+                        }
+                        else {
+                            b[i][nc](x, y, z) = 0;
+                        }
+                    }
+                    
+                }
+            }
+        }
+        
+        // execute
+        void operator() () const {
+            //task_scheduler_init init(8);
+            parallel_for( blocked_range<size_t>(0, 13), *this );
+            //init.terminate();
+        }
+        
+    };
+
+
+    //-------------------------------------------------------------------
+
+    class ParallelAdaptiveRegularization2FFDMC {
+        ReconstructionFFD *reconstructor;
+        Array<Array<RealImage>> &b;
+        Array<double> &factor;
+        Array<RealImage> &original;
+        
+        public:
+        ParallelAdaptiveRegularization2FFDMC( ReconstructionFFD *_reconstructor,
+                                           Array<Array<RealImage>> &_b,
+                                           Array<double> &_factor,
+                                           Array<RealImage> &_original) :
+        reconstructor(_reconstructor),
+        b(_b),
+        factor(_factor),
+        original(_original) { }
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            int dx = reconstructor->_reconstructed.GetX();
+            int dy = reconstructor->_reconstructed.GetY();
+            int dz = reconstructor->_reconstructed.GetZ();
+            for ( size_t x = r.begin(); x != r.end(); ++x ) {
+                int xx, yy, zz;
+                for (int y = 0; y < dy; y++)
+                for (int z = 0; z < dz; z++)
+                if(reconstructor->_confidence_map(x,y,z)>0)
+                {
+                    
+                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                    
+                        double val = 0;
+                        double sum = 0;
+                        
+                        for (int i = 0; i < 13; i++) {
+                            xx = x + reconstructor->_directions[i][0];
+                            yy = y + reconstructor->_directions[i][1];
+                            zz = z + reconstructor->_directions[i][2];
+                            if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
+                            if(reconstructor->_confidence_map(xx,yy,zz)>0)
+                            {
+                                val += b[i][nc](x, y, z) * original[nc](xx, yy, zz);
+                                sum += b[i][nc](x, y, z);
+                            }
+                        }
+                        
+                        for (int i = 0; i < 13; i++) {
+                            xx = x - reconstructor->_directions[i][0];
+                            yy = y - reconstructor->_directions[i][1];
+                            zz = z - reconstructor->_directions[i][2];
+                            if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
+                            if(reconstructor->_confidence_map(xx,yy,zz)>0)
+                            {
+                                val += b[i][nc](x, y, z) * original[nc](xx, yy, zz);
+                                sum += b[i][nc](x, y, z);
+                            }
+                            
+                        }
+                        
+                        val -= sum * original[nc](x, y, z);
+                        val = original[nc](x, y, z) + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
+                        
+                        reconstructor->_mc_reconstructed[nc](x, y, z) = val;
+                    }
+                }
+                
+            }
+        }
+        
+        // execute
+        void operator() () const {
+            //task_scheduler_init init(8);
+            parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed.GetX()), *this );
+            //init.terminate();
+        }
+        
+    };
+
+
+    //-------------------------------------------------------------------
+
+
+    void ReconstructionFFD::AdaptiveRegularizationMC( int iter, Array<RealImage>& mc_originals)
+    {
+        
+        Array<double> factor(13,0);
+        for (int i = 0; i < 13; i++) {
+            for (int j = 0; j < 3; j++)
+            factor[i] += fabs(double(_directions[i][j]));
+            factor[i] = 1 / factor[i];
+        }
+        
+        Array<Array<RealImage>> b;//(13);
+        for (int i = 0; i < 13; i++) {
+            b.push_back( _mc_reconstructed );
+        }
+        
+        ParallelAdaptiveRegularization1FFDMC *p_ad1 = new ParallelAdaptiveRegularization1FFDMC( this,
+                                                                                           b,
+                                                                                           factor,
+                                                                                           mc_originals );
+        (*p_ad1)();
+        
+        delete p_ad1;
+        
+        Array<RealImage> mc_originals2 = _mc_reconstructed;
+        ParallelAdaptiveRegularization2FFDMC *p_ad2 = new  ParallelAdaptiveRegularization2FFDMC( this,
+                                                                                            b,
+                                                                                            factor,
+                                                                                            mc_originals2 );
+        (*p_ad2)();
+        
+        delete p_ad2;
+        
+        if (_alpha * _lambda / (_delta * _delta) > 0.068) {
+            cerr << "Warning: regularization might not have smoothing effect! Ensure that alpha*lambda/delta^2 is below 0.068." << endl;
+        }
+        
+        
+        
+    }
+
+
+
+
+
+
+
+
+
+
+
+
     
     
     //-------------------------------------------------------------------

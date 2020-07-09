@@ -25,7 +25,7 @@
 #set(USE_Python TRUE) 
 
 mirtk_add_executable(
-  reconstruct
+  reconstruct 
   SOURCES
     reconstruct.cc
   DEPENDS
@@ -44,6 +44,22 @@ mirtk_add_executable(
   reconstructDWI
   SOURCES
     reconstructDWI.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  reconstructMC
+  SOURCES
+    reconstructMC.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -274,11 +290,10 @@ mirtk_add_executable(
 )
 
 
-
-
-
 mirtk_add_executable(
   extract-packages
+  SOURCES
+    extract-packages.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -289,6 +304,41 @@ mirtk_add_executable(
     LibSVRTK
     ${TBB}
 )
+
+
+
+mirtk_add_executable(
+  get-t
+  SOURCES
+    get-t.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  get-dt
+  SOURCES
+    get-dt.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
 
 
 

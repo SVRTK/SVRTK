@@ -20,7 +20,7 @@
 #define MIRTK_Reconstruction_H
 
 #include "mirtk/Common.h"
-#include "mirtk/Options.h"
+#include "mirtk/Options.h" 
 
 #include "mirtk/Array.h"
 #include "mirtk/Point.h"
@@ -169,11 +169,25 @@ namespace mirtk {
         
         // ---------------------------------------------------------------------------
         
+        
         int _directions2D[5][2];
         double _alpha2D;
         double _lambda2D;
         double _delta2D;
         RealImage _slice;
+        
+        
+        int _number_of_channels;
+        bool _multiple_channels_flag;
+        
+        Array<Array<RealImage*>> _mc_slices;
+        Array<Array<RealImage*>> _mc_simulated_slices;
+        Array<Array<RealImage*>> _mc_slice_dif;
+
+        Array<RealImage> _mc_reconstructed;
+        
+        Array<double> _max_intensity_mc;
+        Array<double> _min_intensity_mc;
         
         
         // ---------------------------------------------------------------------------
@@ -294,6 +308,8 @@ namespace mirtk {
         ///Destructor
         ~ReconstructionFFD();
         
+        bool _no_global_ffd_flag;
+        
         ///Create zero image as a template for reconstructed volume
         double CreateTemplate( RealImage* stack,
                               double resolution=0 );
@@ -372,6 +388,9 @@ namespace mirtk {
         
         ///Edge-preserving regularization with confidence map
         void AdaptiveRegularization( int iter, RealImage& original );
+        
+        void AdaptiveRegularizationMC( int iter, Array<RealImage>& mc_originals);
+        
         
         ///Slice to volume registrations
         void FastSliceToVolumeRegistration( int iter, int round, int number_of_stacks);
@@ -455,6 +474,14 @@ namespace mirtk {
         
         inline void ExcludeWholeSlicesOnly();
         
+        
+        inline void SetMCSettings(int num);
+        
+        inline void SaveMCReconstructed();
+        
+        
+        
+        
         ///Write included/excluded/outside slices
         void Evaluate( int iter );
         
@@ -497,6 +524,8 @@ namespace mirtk {
         
         
         void CreateSlicesAndTransformationsFFD( Array<RealImage*> stacks, Array<RigidTransformation> &stack_transformations, Array<double> thickness, int d_packages, Array<int> selected_slices, int template_number );
+        
+        void CreateSlicesAndTransformationsFFDMC( Array<RealImage*> stacks, Array<Array<RealImage*>> mc_stacks, Array<RigidTransformation> &stack_transformations, Array<double> thickness, int d_packages, Array<int> selected_slices, int template_number );
         
         
         void SetCP( int value, int step );
@@ -599,6 +628,9 @@ namespace mirtk {
         friend class ParallelAdaptiveRegularization1FFD;
         friend class ParallelAdaptiveRegularization2FFD;
         
+        
+        friend class ParallelAdaptiveRegularization1FFDMC;
+        friend class ParallelAdaptiveRegularization2FFDMC;
         
         
     };
@@ -736,7 +768,32 @@ namespace mirtk {
         cout<<"Exclude only whole slices."<<endl;
     }
     
-    
+
+    inline void ReconstructionFFD::SetMCSettings(int num)
+    {
+        _number_of_channels = num;
+        _multiple_channels_flag = true;
+        
+    }
+
+
+    inline void ReconstructionFFD::SaveMCReconstructed()
+    {
+        char buffer[256];
+        
+        if (_multiple_channels_flag && (_number_of_channels > 0)) {
+            for (int n=0; n<_number_of_channels; n++) {
+                
+                sprintf(buffer,"mc-image-%i.nii.gz", n);
+                _mc_reconstructed[n].Write(buffer);
+                
+                cout << "- " << buffer << endl;
+                
+            }
+        }
+        
+        
+    }
     
     
     

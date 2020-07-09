@@ -1,24 +1,9 @@
 /*
- * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2018-2020 King's College London
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
-
 #include "mirtk/Common.h"
-#include "mirtk/Options.h"
+#include "mirtk/Options.h" 
 
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
@@ -77,15 +62,62 @@ int main(int argc, char **argv)
     InitializeIOLibrary();
 
 
+    //read input name
     tmp_fname = argv[1];
     input_stack.Read(tmp_fname); 
     argc--;
     argv++;
 
-  
-    cout << input_stack.GetT() << endl;
+    //read mask name
+    tmp_fname = argv[1];
+    input_mask.Read(tmp_fname); 
+    argc--;
+    argv++;
 
+    //read output name
+    output_name = argv[1];
+    argc--;
+    argv++;
+
+    output_stack = input_stack;
+    output_stack = 0;
+    
+    RealImage output_mask = output_stack;
+    output_mask = 0;
+    
+    
+    if (input_stack.GetX() != input_mask.GetX() || input_stack.GetY() != input_mask.GetY() || input_stack.GetZ() != input_mask.GetZ() || input_stack.GetT() != input_mask.GetT()) {
+        
+        cout << endl;
+        cout << "Error : Dimensions of the input volumes are different !" << endl;
+        cout << endl;
+        return 0;
+        
+    }
+    
+    
+    RigidTransformation *rigidTransf_mask = new RigidTransformation;
+    reconstruction.TransformMask(input_stack, input_mask, *rigidTransf_mask);
+    
+    int sh = 0;
+    
+    for (int t = 0; t < input_stack.GetT(); t++) {
+        for (int x = sh; x < input_stack.GetX()-sh; x++) {
+           for (int y = sh; y < input_stack.GetY()-sh; y++) {
+               for (int z = sh; z < input_stack.GetZ()-sh; z++) {
+
+                   output_stack(x,y,z,t) = input_stack(x,y,z,t) * input_mask(x,y,z,t);
+                   
+               }
+           }
+        }
+    }
+
+    output_stack.Write(output_name);
+    
     
     return 0;
 }
+
+
 

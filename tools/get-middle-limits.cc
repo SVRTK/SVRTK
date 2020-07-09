@@ -82,8 +82,47 @@ int main(int argc, char **argv)
     argc--;
     argv++;
 
-  
-    cout << input_stack.GetT() << endl;
+    
+    int limit = atoi(argv[1]);
+    argc--;
+    argv++;
+    
+    
+    int selected_range = atoi(argv[1]);
+    
+    int output_point = 0;
+    
+    int middle = round(input_stack.GetT()/2);
+
+    
+    if (limit == 0) {
+        output_point = round(input_stack.GetT()/2);
+    }
+    
+    if (limit < 0) {
+        
+        output_point = round(input_stack.GetT()/2) - selected_range;
+        
+        if (output_point < 0 ) {
+            output_point = 0;
+        }
+        
+    }
+    
+    
+    
+    if (limit > 0) {
+        
+        output_point = round(input_stack.GetT()/2) + selected_range;
+        
+        if (output_point > input_stack.GetT() ) {
+            output_point = input_stack.GetT();
+        }
+        
+    }
+    
+    
+    cout << output_point << endl;
 
     
     return 0;

@@ -25,7 +25,7 @@
 #set(USE_Python TRUE) 
 
 mirtk_add_executable(
-  reconstruct 
+  reconstruct
   SOURCES
     reconstruct.cc
   DEPENDS
@@ -339,8 +339,68 @@ mirtk_add_executable(
 )
 
 
+mirtk_add_executable(
+  mask_stats_4d
+  SOURCES
+    mask_stats_4d.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
 
 
+mirtk_add_executable(
+  multiply_volumes
+  SOURCES
+    multiply_volumes.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  initialise_volume
+  SOURCES
+    initialise_volume.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  get-middle-limits
+  SOURCES
+    get-middle-limits.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
 
 
 #mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})

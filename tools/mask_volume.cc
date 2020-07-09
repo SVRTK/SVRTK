@@ -3,7 +3,7 @@
  */
 
 #include "mirtk/Common.h"
-#include "mirtk/Options.h"
+#include "mirtk/Options.h" 
 
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
@@ -92,25 +92,25 @@ int main(int argc, char **argv)
     
     int sh = 0;
     
-    for (int x = sh; x < input_stack.GetX()-sh; x++) {
-       for (int y = sh; y < input_stack.GetY()-sh; y++) {
-           for (int z = sh; z < input_stack.GetZ()-sh; z++) {
+    for (int t = 0; t < input_stack.GetT(); t++) {
+        for (int x = sh; x < input_stack.GetX()-sh; x++) {
+           for (int y = sh; y < input_stack.GetY()-sh; y++) {
+               for (int z = sh; z < input_stack.GetZ()-sh; z++) {
 
-               if (input_mask(x,y,z)>0.1) {
-                   output_stack(x,y,z) = input_stack(x,y,z);
-                   output_mask(x,y,z) = 1;
-               }
-               else {
-                   output_stack(x,y,z) = 0;
+                   if (input_mask(x,y,z)>0.1) {
+                       output_stack(x,y,z,t) = input_stack(x,y,z,t);
+                       output_mask(x,y,z) = 1;
+                   }
+                   else {
+                       output_stack(x,y,z,t) = 0;
+                   }
                }
            }
-       }
-   }
+        }
+    }
 
     output_stack.Write(output_name);
     
-    output_mask.Write("new-mask.nii.gz");
-
     
     return 0;
 }

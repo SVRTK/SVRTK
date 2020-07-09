@@ -24,7 +24,7 @@
 #include "mirtk/IOConfig.h" 
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h" 
- 
+
 #include "mirtk/GenericImage.h" 
 #include "mirtk/GenericRegistrationFilter.h" 
 

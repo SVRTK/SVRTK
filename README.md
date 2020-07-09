@@ -63,7 +63,7 @@ This should be followed by constrained spherical deconvolution for representatio
 *dwi2response tournier _simulated_signal.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz*   
 *dwi2fod csd signal.nii.gz response.txt csd-out.mif -lmax 6 -grad ../gradient-directions.b -force -mask ../mask-wm.nii.gz*  
  
- (please note that distorion and bias field correction prior should be applied prior to reconstruction)
+ (please note that distortion and bias field correction should be applied prior to reconstruction)
  
   ---
 

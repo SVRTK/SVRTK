@@ -43,7 +43,6 @@
 #include <algorithm>
 #include <thread>
 #include <functional>
-#include <Array>
 #include <cstdlib>
 #include <pthread.h>
 #include <string>

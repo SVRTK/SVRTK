@@ -47,7 +47,7 @@ sudo apt-get install cmake cmake-curses-gui
 sudo apt-get install python
 
 # Install libraries needed for MIRTK
-sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config
+sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config  fltk1.3-dev libgl1-mesa-glx mesa-utils libglm-dev
 
 # Check all software up-to-date
 sudo apt-get update

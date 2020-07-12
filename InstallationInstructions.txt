@@ -31,7 +31,7 @@ The software can also be installed on OSX.
 # Directory Setup
 
 cd /path/to/software/installation/directory/of/your/choice
-(i.e.: /Users/user-id/Software)
+(i.e.: /Users/your-user-id/Software)
 
 mkdir reconstruction-software
 cd reconstruction-software
@@ -41,16 +41,15 @@ cd reconstruction-software
 # Install Required Software/Libraries: Ubuntu 16
 
 
-# Ubuntu: 
+# Check all software up-to-date
+sudo apt-get update
+
 sudo apt install git
 sudo apt-get install cmake cmake-curses-gui
 sudo apt-get install python
 
 # Install libraries needed for MIRTK
-sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config
-
-# Check all software up-to-date
-sudo apt-get update
+sudo apt-get install build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config fltk1.3-dev libgl1-mesa-glx mesa-utils libglm-dev
 
 
 # ----------------------------------------------------------------------------
@@ -95,13 +94,19 @@ make -j
 # edit path file using nano text editor:
 nano ~/.bash_profile
 
+# or:
+nano ~/.bashrc
+
 # Enter the bottom of the text editor:
-PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/bin
-PATH=$PATH:/Users/user-id/Software/reconstruction-software/MIRTK/build/lib/tools
+export PATH="$PATH:/Users/your-user-id/Software/reconstruction-software/MIRTK/build/bin"
+export PATH="$PATH:/Users/your-user-id/Software/reconstruction-software/MIRTK/build/lib/tools"
 
-# You may need to reboot your computer
+# activate:
+source ~/.bashrc 
+
+
 # To test, try typing "reconstruct" in a terminal window. If it is working, the command help will show.
-
+# You may need to reboot your computer
 
 # ----------------------------------------------------------------------------
 # Troubleshooting

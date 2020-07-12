@@ -26,6 +26,12 @@ Please follow installation instructions in InstallationInstructions.txt file.
 Note, the software requires Ubuntu or OS X. In case of "-9" memory errors - please run reconstruction with "-remote" option.
 
 
+Docker 
+---
+
+Compiled SVR toolbox is available at: [https://hub.docker.com/repository/docker/fetalsvrtk/svrtk](https://hub.docker.com/repository/docker/fetalsvrtk/svrtk)
+
+
 Run
 ---
 

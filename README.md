@@ -31,6 +31,14 @@ Docker
 
 Compiled SVR toolbox is available at: [https://hub.docker.com/repository/docker/fetalsvrtk/svrtk](https://hub.docker.com/repository/docker/fetalsvrtk/svrtk)
 
+*docker pull fetalsvrtk/svrtk*
+
+*docker run -it -e DISPLAY=$DISPLAY --mount type=bind,source=location_on_your_machine,target=/home/data -v /tmp/.X11-unix:/tmp/.X11-unix fetalsvrtk/svrtk*
+
+*cd /home/data*
+
+*mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
+
 
 Run
 ---

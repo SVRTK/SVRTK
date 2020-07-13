@@ -58,7 +58,7 @@ Examples:
 
 
  ---
-3D placenta reconstruction:
+3D placenta DSVR reconstruction:
  
 *mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 1.25*
  

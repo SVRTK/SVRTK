@@ -62,7 +62,6 @@ int main(int argc, char **argv)
     InitializeIOLibrary();
 
 
-    
     //read input name
     tmp_fname = argv[1];
     input_stack.Read(tmp_fname); 
@@ -87,6 +86,16 @@ int main(int argc, char **argv)
     output_mask = 0;
     
     
+    if (input_stack.GetX() != input_mask.GetX() || input_stack.GetY() != input_mask.GetY() || input_stack.GetZ() != input_mask.GetZ() || input_stack.GetT() != input_mask.GetT()) {
+        
+        cout << endl;
+        cout << "Error : Dimensions of the input volumes are different !" << endl;
+        cout << endl;
+        return 0;
+        
+    }
+    
+    
     RigidTransformation *rigidTransf_mask = new RigidTransformation;
     reconstruction.TransformMask(input_stack, input_mask, *rigidTransf_mask);
     
@@ -97,13 +106,8 @@ int main(int argc, char **argv)
            for (int y = sh; y < input_stack.GetY()-sh; y++) {
                for (int z = sh; z < input_stack.GetZ()-sh; z++) {
 
-                   if (input_mask(x,y,z)>0.1) {
-                       output_stack(x,y,z,t) = input_stack(x,y,z,t);
-                       output_mask(x,y,z) = 1;
-                   }
-                   else {
-                       output_stack(x,y,z,t) = 0;
-                   }
+                   output_stack(x,y,z,t) = input_stack(x,y,z,t) * input_mask(x,y,z,t);
+                   
                }
            }
         }
@@ -114,3 +118,6 @@ int main(int argc, char **argv)
     
     return 0;
 }
+
+
+

@@ -946,7 +946,6 @@ int main(int argc, char **argv)
                     stack = stacks[i]->GetRegion(0,0,0,t,stacks[i]->GetX(),stacks[i]->GetY(),stacks[i]->GetZ(),(t+1));
                     new_stacks.push_back(stack);
                     
-                    
                     if (thickness_array.size() > 0) {
                         double tmp_thickness = thickness_array[i];
                         new_thickness_array.push_back(tmp_thickness);

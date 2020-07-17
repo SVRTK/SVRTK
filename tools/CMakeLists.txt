@@ -57,6 +57,22 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
+  reconstructMC
+  SOURCES
+    reconstructMC.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
   reconstructCardiacVelocity
   SOURCES
     reconstructCardiacVelocity.cc
@@ -274,11 +290,10 @@ mirtk_add_executable(
 )
 
 
-
-
-
 mirtk_add_executable(
   extract-packages
+  SOURCES
+    extract-packages.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -291,6 +306,101 @@ mirtk_add_executable(
 )
 
 
+
+mirtk_add_executable(
+  get-t
+  SOURCES
+    get-t.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  get-dt
+  SOURCES
+    get-dt.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  mask_stats_4d
+  SOURCES
+    mask_stats_4d.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  multiply_volumes
+  SOURCES
+    multiply_volumes.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  initialise_volume
+  SOURCES
+    initialise_volume.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  get-middle-limits
+  SOURCES
+    get-middle-limits.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
 
 
 #mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})

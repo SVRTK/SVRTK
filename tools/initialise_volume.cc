@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 
     ReconstructionFFD reconstruction;
     
-    RealImage input_stack, input_mask, output_stack;
+    RealImage input_stack, output_stack;
     
 
     char *tmp_fname = NULL;
@@ -69,11 +69,6 @@ int main(int argc, char **argv)
     argc--;
     argv++;
 
-    //read mask name
-    tmp_fname = argv[1];
-    input_mask.Read(tmp_fname); 
-    argc--;
-    argv++;
 
     //read output name
     output_name = argv[1];
@@ -83,32 +78,6 @@ int main(int argc, char **argv)
     output_stack = input_stack;
     output_stack = 0;
     
-    RealImage output_mask = output_stack;
-    output_mask = 0;
-    
-    
-    RigidTransformation *rigidTransf_mask = new RigidTransformation;
-    reconstruction.TransformMask(input_stack, input_mask, *rigidTransf_mask);
-    
-    int sh = 0;
-    
-    for (int t = 0; t < input_stack.GetT(); t++) {
-        for (int x = sh; x < input_stack.GetX()-sh; x++) {
-           for (int y = sh; y < input_stack.GetY()-sh; y++) {
-               for (int z = sh; z < input_stack.GetZ()-sh; z++) {
-
-                   if (input_mask(x,y,z)>0.1) {
-                       output_stack(x,y,z,t) = input_stack(x,y,z,t);
-                       output_mask(x,y,z) = 1;
-                   }
-                   else {
-                       output_stack(x,y,z,t) = 0;
-                   }
-               }
-           }
-        }
-    }
-
     output_stack.Write(output_name);
     
     

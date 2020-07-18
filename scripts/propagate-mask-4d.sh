@@ -34,11 +34,10 @@ if [ "$#" -ne 3 ]; then
 fi
 
 
-# NOTE: in order to to use this script - update the path to compiled mirtk
-mirtk_path=~/Software/mirtk-bin/lib/tools
+mirtk_path=$(which mirtk)
 
 
-if [[ ! -f "${mirtk_path}/register" ]];then
+if [[ ! -f "${mirtk_path}" ]];then
     echo "# # # "
     echo "# # # Error : Could not find MIRTK library in : " ${mirtk_path}
     echo ""
@@ -114,7 +113,7 @@ if [[ -f "tmp_stack_00.nii.gz" ]];then
 fi
 
 
-${mirtk_path}/extract-image-region ${input_stack} tmp_stack.nii.gz -split t
+${mirtk_path} extract-image-region ${input_stack} tmp_stack.nii.gz -split t
 
 num_dyn=$(find . -maxdepth 1 -name "tmp_stack*" | wc -l)
 
@@ -149,15 +148,15 @@ do
 
         echo "  " ${st_i}
 
-        ${mirtk_path}/edit-image tmp_stack_${st_i}.nii.gz tmp_stack_${st_i}.nii.gz -torigin 0
+        ${mirtk_path} edit-image tmp_stack_${st_i}.nii.gz tmp_stack_${st_i}.nii.gz -torigin 0
 
-        ${mirtk_path}/register tmp_stack_${st_i}.nii.gz ${template_stack} -model FFD -bg -1 -dofout tmp_dout_${st_i}.dof -dofin i.dof -v 0
+        ${mirtk_path} register tmp_stack_${st_i}.nii.gz ${template_stack} -model FFD -bg -1 -dofout tmp_dout_${st_i}.dof -dofin i.dof -v 0
 
-        ${mirtk_path}/transform-image ${template_mask} tmp_mask_${st_i}.nii.gz -dofin tmp_dout_${st_i}.dof -target tmp_stack_${st_i}.nii.gz -interp NN
-        ${mirtk_path}/invert-dof tmp_dout_${st_i}.dof tmp_i_dout_${st_i}.dof
-        ${mirtk_path}/transform-image tmp_stack_${st_i}.nii.gz tmp_reg_${st_i}.nii.gz -dofin tmp_i_dout_${st_i}.dof -target tmp_stack_${st_i}.nii.gz -interp Linear
+        ${mirtk_path} transform-image ${template_mask} tmp_mask_${st_i}.nii.gz -dofin tmp_dout_${st_i}.dof -target tmp_stack_${st_i}.nii.gz -interp NN
+        ${mirtk_path} invert-dof tmp_dout_${st_i}.dof tmp_i_dout_${st_i}.dof
+        ${mirtk_path} transform-image tmp_stack_${st_i}.nii.gz tmp_reg_${st_i}.nii.gz -dofin tmp_i_dout_${st_i}.dof -target tmp_stack_${st_i}.nii.gz -interp Linear
 
-        ${mirtk_path}/evaluate-jacobian tmp_stack_${st_i}.nii.gz tmp_jac_${st_i}.nii.gz tmp_dout_${st_i}.dof
+        ${mirtk_path} evaluate-jacobian tmp_stack_${st_i}.nii.gz tmp_jac_${st_i}.nii.gz tmp_dout_${st_i}.dof
     
     fi
     
@@ -187,7 +186,7 @@ do
     all_dynamics_files+=" ${dynamics_file}"
 done
 
-${mirtk_path}/combine-images ${all_dynamics_files} ${output_mask}
+${mirtk_path} combine-images ${all_dynamics_files} ${output_mask}
 
 
 
@@ -205,7 +204,7 @@ do
     all_dynamics_files+=" ${dynamics_file}"
 done
 
-${mirtk_path}/combine-images ${all_dynamics_files} ${output_volume}
+${mirtk_path} combine-images ${all_dynamics_files} ${output_volume}
 
 
 
@@ -223,31 +222,31 @@ do
     all_dynamics_files+=" ${dynamics_file}"
 done
 
-${mirtk_path}/combine-images ${all_dynamics_files} ${output_jac}
+${mirtk_path} combine-images ${all_dynamics_files} ${output_jac}
 
 
-${mirtk_path}/edit-image ${output_mask} ${output_mask} -dt 0.01
-${mirtk_path}/edit-image ${output_volume} ${output_volume} -dt 0.01
-${mirtk_path}/edit-image ${output_jac} ${output_jac} -dt 0.01
+${mirtk_path} edit-image ${output_mask} ${output_mask} -dt 0.01
+${mirtk_path} edit-image ${output_volume} ${output_volume} -dt 0.01
+${mirtk_path} edit-image ${output_jac} ${output_jac} -dt 0.01
 
 cp ${input_stack} ${output_original}
-${mirtk_path}/edit-image ${output_original} ${output_original} -dt 0.01
+${mirtk_path} edit-image ${output_original} ${output_original} -dt 0.01
 
 
 
-${mirtk_path}/flip-image ${output_original} ${output_original_time} -zt
-${mirtk_path}/flip-image ${output_jac} ${output_jac_time} -zt
+${mirtk_path} flip-image ${output_original} ${output_original_time} -zt
+${mirtk_path} flip-image ${output_jac} ${output_jac_time} -zt
 
-${mirtk_path}/edit-image ${output_original_time} ${output_original_time} -dz 1.5
-${mirtk_path}/edit-image ${output_jac_time} ${output_jac_time} -dz 1.5
-
-
+${mirtk_path} edit-image ${output_original_time} ${output_original_time} -dz 1.5
+${mirtk_path} edit-image ${output_jac_time} ${output_jac_time} -dz 1.5
 
 
 
-${mirtk_path}/average-images ${output_mask_average} -image ${output_mask}
-${mirtk_path}/average-images ${output_original_average} -image ${output_original}
-${mirtk_path}/average-images ${output_jac_average} -image ${output_jac}
+
+
+${mirtk_path} average-images ${output_mask_average} -image ${output_mask}
+${mirtk_path} average-images ${output_original_average} -image ${output_original}
+${mirtk_path} average-images ${output_jac_average} -image ${output_jac}
 
 
 echo " - output 4d mask : " ${output_mask}

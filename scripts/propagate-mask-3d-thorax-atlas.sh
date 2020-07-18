@@ -36,10 +36,10 @@ fi
 
 
 # NOTE: in order to to use this script - update the path to compiled mirtk
-mirtk_path=~/Software/mirtk-bin/lib/tools
+mirtk_path=$(which mirtk)
 
 
-if [[ ! -f "${mirtk_path}/register" ]];then
+if [[ ! -f "${mirtk_path}" ]];then
     echo "# # # "
     echo "# # # Error : Could not find MIRTK library in : " ${mirtk_path}
     echo ""
@@ -115,11 +115,11 @@ template_thorax_mask=template_thorax_mask.nii.gz
 
 cp input_volume.nii.gz org_volume.nii.gz
 
-${mirtk_path}/init-dof i.dof
-${mirtk_path}/edit-image ${input_volume} ${input_volume} -origin 0 0 0
-${mirtk_path}/edit-image ${template_volume} ${template_volume} -origin 0 0 0
-${mirtk_path}/edit-image ${template_thorax_mask} ${template_thorax_mask} -origin 0 0 0
-${mirtk_path}/edit-image ${template_organ_mask} ${template_organ_mask} -origin 0 0 0
+${mirtk_path} init-dof i.dof
+${mirtk_path} edit-image ${input_volume} ${input_volume} -origin 0 0 0
+${mirtk_path} edit-image ${template_volume} ${template_volume} -origin 0 0 0
+${mirtk_path} edit-image ${template_thorax_mask} ${template_thorax_mask} -origin 0 0 0
+${mirtk_path} edit-image ${template_organ_mask} ${template_organ_mask} -origin 0 0 0
 
 
 echo
@@ -130,16 +130,16 @@ echo " - running registration ... "
 echo
 
 
-${mirtk_path}/register ${template_volume} ${input_volume} -model Affine+FFD -dofin i.dof -ds 15 -dofout d_global.dof -output test1.nii.gz -mask ${template_thorax_mask} -v 0
+${mirtk_path} register ${template_volume} ${input_volume} -model Affine+FFD -dofin i.dof -ds 15 -dofout d_global.dof -output test1.nii.gz -mask ${template_thorax_mask} -v 0
 
-${mirtk_path}/mirtk invert-dof d_global.dof d_global.dof
-${mirtk_path}/mirtk dilate-image ${template_thorax_mask}  dl-template_thorax_mask.nii.gz -iterations 4
-${mirtk_path}/mirtk transform-image dl-template_thorax_mask.nii.gz global_thorax_mask.nii.gz -dofin d_global.dof -interp NN -target ${input_volume}
+${mirtk_path} invert-dof d_global.dof d_global.dof
+${mirtk_path} dilate-image ${template_thorax_mask}  dl-template_thorax_mask.nii.gz -iterations 4
+${mirtk_path} transform-image dl-template_thorax_mask.nii.gz global_thorax_mask.nii.gz -dofin d_global.dof -interp NN -target ${input_volume}
 
-${mirtk_path}/register ${input_volume} ${template_volume} -model Affine+FFD -dofin i.dof -dofout d_main.dof -output test2.nii.gz -mask global_thorax_mask.nii.gz -v 0
+${mirtk_path} ${input_volume} ${template_volume} -model Affine+FFD -dofin i.dof -dofout d_main.dof -output test2.nii.gz -mask global_thorax_mask.nii.gz -v 0
 
-${mirtk_path}/mirtk transform-image ${template_organ_mask}  ${output_organ_mask}  -dofin d_main.dof -interp NN -target ${input_volume}
-${mirtk_path}/mirtk edit-image ${output_organ_mask} ${output_organ_mask} -copy-origin org_volume.nii.gz
+${mirtk_path} transform-image ${template_organ_mask}  ${output_organ_mask}  -dofin d_main.dof -interp NN -target ${input_volume}
+${mirtk_path} edit-image ${output_organ_mask} ${output_organ_mask} -copy-origin org_volume.nii.gz
 
 
 echo

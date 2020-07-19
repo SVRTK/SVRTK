@@ -135,7 +135,7 @@ ${mirtk_path} invert-dof d_global.dof d_global.dof
 ${mirtk_path} dilate-image ${template_thorax_mask}  dl-template_thorax_mask.nii.gz -iterations 4
 ${mirtk_path} transform-image dl-template_thorax_mask.nii.gz global_thorax_mask.nii.gz -dofin d_global.dof -interp NN -target ${input_volume}
 
-${mirtk_path} ${input_volume} ${template_volume} -model Affine+FFD -dofin i.dof -dofout d_main.dof -output test2.nii.gz -mask global_thorax_mask.nii.gz -v 0
+${mirtk_path} register ${input_volume} ${template_volume} -model Affine+FFD -dofin i.dof -dofout d_main.dof -output test2.nii.gz -mask global_thorax_mask.nii.gz -v 0
 
 ${mirtk_path} transform-image ${template_organ_mask}  ${output_organ_mask}  -dofin d_main.dof -interp NN -target ${input_volume}
 ${mirtk_path} edit-image ${output_organ_mask} ${output_organ_mask} -copy-origin org_volume.nii.gz

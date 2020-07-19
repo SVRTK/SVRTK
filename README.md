@@ -85,8 +85,7 @@ License
 -------
 
 The MIRTK SVRTK package is distributed under the terms of the
-[Apache License Version 2](http://www.apache.org/licenses/LICENSE-2.0).
-
+[Apache License Version 2](http://www.apache.org/licenses/LICENSE-2.0). The license enables usage of SVRTK in both commercial and non-commercial applications, without restrictions on the licensing applied to the combined work.
 
 
 Citation and acknowledgements

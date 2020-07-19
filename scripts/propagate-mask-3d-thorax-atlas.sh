@@ -4,7 +4,6 @@
 #/*
 #* SVRTK : SVR reconstruction based on MIRTK
 #*
-#* Copyright 2008-2017 Imperial College London
 #* Copyright 2018-2020 King's College London
 #*
 #* Licensed under the Apache License, Version 2.0 (the "License");

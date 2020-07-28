@@ -167,6 +167,8 @@ int main(int argc, char **argv)
 
 
     bool no_longsr_flag = false;
+    
+    bool structural_after_1_flag = false;
 
 
     bool intensity_matching = true;
@@ -744,6 +746,15 @@ int main(int argc, char **argv)
 //        }
         
 
+        
+        if ((ok == false) && (strcmp(argv[1], "-structural_after_1") == 0)) {
+            argc--;
+            argv++;
+            structural_exclusion = true;
+            structural_after_1_flag = true;
+            
+            ok = true;
+        }
 
         
         if ((ok == false) && (strcmp(argv[1], "-no_packages") == 0)) {
@@ -1741,16 +1752,24 @@ int main(int argc, char **argv)
             
             if (structural_exclusion) {
                 
-//                if (reconstruction->_ncc_flag && iter == 0) {
-//                    structural_exclusion = false;
-//                } else {
-//                    structural_exclusion = true;
-//                }
-                
                 reconstruction->SetStructural(structural_exclusion);
                 
             }
 
+            
+            if (structural_after_1_flag) {
+                
+                if (iter == 0) {
+                    structural_exclusion = false;
+                    reconstruction->SetStructural(false);
+                } else {
+                    structural_exclusion = true;
+                    reconstruction->SetStructural(true);
+                }
+                
+            }
+            
+            
 
             if (iter > -1) {
 
@@ -1797,6 +1816,13 @@ int main(int argc, char **argv)
             }
         }
 
+        
+        if (structural_after_1_flag) {
+            
+            structural_exclusion = true;
+            reconstruction->SetStructural(true);
+            
+        }
         
 
         if(iter==(iterations-1))

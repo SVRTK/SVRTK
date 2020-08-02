@@ -51,7 +51,7 @@ basis_project (
   DESCRIPTION "SVR Reconstruction for Medical Imaging."
   COPYRIGHT   "2013-2017 Imperial College London, 2013-2017 Andreas Schuh, 2018-2020 King's College London"
   LICENSE     "Apache License Version 2.0"
-  CONTACT     "Maria Deprez <maria.murgasova@kcl.ac.uk>, Alena Uus <alena.uus@gmail.com>, Thomas Roberts <t.roberts@kcl.ac.uk>"
+  CONTACT     "Maria Deprez <maria.murgasova@kcl.ac.uk>, Alena Uus <alena.uus@kcl.ac.uk>, Thomas Roberts <t.roberts@kcl.ac.uk>, Jo Hajnal <jo.hajnal@kcl.ac.uk>"
   TEMPLATE    "mirtk-module/1.0"
 
   # ----------------------------------------------------------------------------

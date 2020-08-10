@@ -7,6 +7,7 @@ SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mir
 - 4D whole fetal heart, including magnitude and blood flow reconstructions
 - 3D placenta
 - 3D body
+- Multi-channel T2* 
 - SH brain diffusion (HARDI) 
 
 
@@ -61,7 +62,7 @@ Examples:
 *mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 1.25*
 
   ---
-Multi-channel DSVR reconstruction for T2* (reconstruction of the T2* map driven by one of the echoes, e.g., e2):
+Multi-channel DSVR reconstruction for T2* (reconstruction of 3D T2* maps driven by one of the echoes, e.g., e2):
  
 *mirtk reconstructMC ../outputDSVR-E2.nii.gz 3 ../stack1-E2.nii.gz ../stack2-E2.nii.gz ../stack3-E2.nii.gz -channels 1 ../stack1-T2sMAP.nii.gz ../stack2-T2sMAP.nii.gz ../stack3-T2sMAP.nii.gz -mask ../mask.nii.gz -template ../template-stack-E2.nii.gz -thickness 2.5 -default -remote -no_intensity_matching -resolution 1.25*
   

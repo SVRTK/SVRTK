@@ -53,12 +53,12 @@ Examples:
    ---
  3D fetal body DSVR reconstruction:
 
-*mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
+*mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
 
   ---
 3D placenta DSVR reconstruction:
  
-*mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 1.25*
+*mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 1.25*
   
  ---
 4D cardiac velocity reconstruction:

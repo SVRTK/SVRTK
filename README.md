@@ -4,9 +4,9 @@ SVRTK - slice to volume reconstruction toolkit
 
 SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) for fetal MRI motion correction including:
 - 3D brain
+- 3D body
 - 4D whole fetal heart, including magnitude and blood flow reconstructions
 - 3D placenta
-- 3D body
 - 3D and 4D multi-channel T2* 
 - SH brain diffusion (HARDI) 
 

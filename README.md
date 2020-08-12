@@ -34,7 +34,7 @@ Compiled SVR toolbox is available at: [https://hub.docker.com/repository/docker/
 
 *docker pull fetalsvrtk/svrtk*
 
-*docker run -it -e DISPLAY=$DISPLAY --mount type=bind,source=location_on_your_machine,target=/home/data -v /tmp/.X11-unix:/tmp/.X11-unix fetalsvrtk/svrtk*
+*docker run -it --mount type=bind,source=location_on_your_machine,target=/home/data fetalsvrtk/svrtk /bin/bash*
 
 *cd /home/data*
 

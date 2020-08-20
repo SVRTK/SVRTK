@@ -363,6 +363,12 @@ int main(int argc, char **argv)
                 template_stack.PutMinMaxAsDouble(0, 1000);
             }
             
+            if (template_stack.GetT() > 1) {
+                
+                template_stack = template_stack.GetRegion(0,0,0,0,template_stack.GetX(),template_stack.GetY(),template_stack.GetZ(),1);  
+            }
+            
+            
             use_template = true;
             reconstruction->SetTemplateFlag(use_template);
             

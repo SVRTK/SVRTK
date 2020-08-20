@@ -73,9 +73,9 @@ void usage()
     cout << "\t-thickness [d_thickness]  Slice thickness.[Default: 2x voxel size in z direction]"<<endl;
     cout << "\t-thickness_array [th_1] .. [th_N] Give slice thickness.[Default: twice voxel size in z direction]"<<endl;
     cout << "\t-mask [mask]              Binary mask to define the region od interest. [Default: whole image]"<<endl;
-    cout << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 3]"<<endl;
+    cout << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 2]"<<endl;
     cout << "\t-sigma [sigma]            Stdev for bias field. [Default: 12mm]"<<endl;
-    cout << "\t-resolution [res]         Isotropic resolution of the volume. [Default: 0.85mm]"<<endl;
+    cout << "\t-resolution [res]         Isotropic resolution of the volume. [Default: 1.0 mm]"<<endl;
     cout << "\t-multires [levels]        Multiresolution smooting with given number of levels. [Default: 3]"<<endl;
     cout << "\t-average [average]        Average intensity value for stacks. [Default: 700]"<<endl;
     cout << "\t-rescale_stacks           Rescale stacks in order to avoid intensity scaling errors. [Default: false]"<<endl;
@@ -162,10 +162,10 @@ int main(int argc, char **argv)
     // Default values.
     int templateNumber=0;
     RealImage *mask=NULL;
-    int iterations = 3;
+    int iterations = 2;
     bool debug = false;
     double sigma=20;
-    double resolution = 0.85;
+    double resolution = 1.0;
     double lambda = 0.0220; //0225;
     double delta = 150;
     int levels = 3;
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
     
     //if not enough arguments print help
     if (argc < 5)
-    usage();
+        usage();
     
     //read output name
     output_name = argv[1];
@@ -303,7 +303,7 @@ int main(int argc, char **argv)
         double tmp_sy = tmp_p_stack->GetY();
         double tmp_sz = tmp_p_stack->GetZ();
         double tmp_st = tmp_p_stack->GetT();
-        
+       
         cout << "  ;  " << tmp_sx << " - " << tmp_sy << " - " << tmp_sz << " - " << tmp_st  << "  ;";
         cout << "  " << tmp_dx << " - " << tmp_dy << " - " << tmp_dz << " - " << tmp_dt  << "  ;";
         cout << "  [" << min << "; " << max << "]" << endl;
@@ -327,7 +327,7 @@ int main(int argc, char **argv)
     Array<int> stack_package_index;
     
     for (int i=0; i<stacks.size(); i++)
-    stack_package_index.push_back(i);
+        stack_package_index.push_back(i);
     
     
     
@@ -480,7 +480,10 @@ int main(int argc, char **argv)
             RealImage *tmp_p_stack = new RealImage(argv[1]);
             template_stack = *tmp_p_stack;
             
-            
+            if (template_stack.GetT() > 1) {
+                
+                template_stack = template_stack.GetRegion(0,0,0,0,template_stack.GetX(),template_stack.GetY(),template_stack.GetZ(),1);
+            }
             
             ok = true;
             argc--;
@@ -886,8 +889,9 @@ int main(int argc, char **argv)
     str_current_exchange_file_path = str_current_main_file_path + "/tmp-file-exchange";
     
     if (str_current_exchange_file_path.length() > 0) {
-        string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
-        int tmp_log_rm = system(remove_folder_cmd.c_str());
+        
+        //string remove_folder_cmd = "rm -r " + str_current_exchange_file_path + " > tmp-log.txt ";
+        //int tmp_log_rm = system(remove_folder_cmd.c_str());
         
         string create_folder_cmd = "mkdir " + str_current_exchange_file_path + " > tmp-log.txt ";
         int tmp_log_mk = system(create_folder_cmd.c_str());
@@ -998,7 +1002,7 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
         
         for (int i=0; i<stacks.size(); i++) {
@@ -1036,7 +1040,7 @@ int main(int argc, char **argv)
     
     if (rescale_stacks) {
         for (i=0; i<nStacks; i++)
-        reconstruction->Rescale(stacks[i], 1000);
+            reconstruction->Rescale(stacks[i], 1000);
     }
     
     cout << ".........................................................." << endl;
@@ -1045,8 +1049,8 @@ int main(int argc, char **argv)
     
     
     if (thickness_array.size() > 0) {
-        
-        
+    
+
         //Initialise 2*slice thickness if not given by user
         cout<< "Slice thickness : ";
         
@@ -1056,7 +1060,7 @@ int main(int argc, char **argv)
         }
         cout << endl;
         
-        
+    
     } else {
         
         if (d_thickness>0) {
@@ -1104,11 +1108,11 @@ int main(int argc, char **argv)
         }
     }
     
-    
+
     if(ffd_flag)
-    reconstruction->FFDRegistrationOn();
+        reconstruction->FFDRegistrationOn();
     else
-    reconstruction->FFDRegistrationOff();
+        reconstruction->FFDRegistrationOff();
     
     
     reconstruction->SetStructural(structural_exclusion);
@@ -1119,7 +1123,7 @@ int main(int argc, char **argv)
     if (!selected_flag) {
         selected_slices.clear();
         for (i=0; i<stacks[0]->GetZ(); i++)
-        selected_slices.push_back(i);
+            selected_slices.push_back(i);
         selected_flag = true;
         
     }
@@ -1201,7 +1205,7 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
         
     }
@@ -1225,7 +1229,7 @@ int main(int argc, char **argv)
     
     
     if (debug)
-    blurred_template_stack.Write("blurred-template.nii.gz");
+        blurred_template_stack.Write("blurred-template.nii.gz");
     
     
     // Reorientation of stacks
@@ -1264,7 +1268,7 @@ int main(int argc, char **argv)
             end = std::chrono::system_clock::now();
             elapsed_seconds = end-start;
             if (debug)
-            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
             
         }
     }
@@ -1332,7 +1336,7 @@ int main(int argc, char **argv)
     end = std::chrono::system_clock::now();
     elapsed_seconds = end-start;
     if (debug)
-    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
     
     blurred_template_stack = template_stack;
@@ -1393,25 +1397,25 @@ int main(int argc, char **argv)
     cerr<<setprecision(3);
     
     
-    if (intensity_matching) {
-        
+     if (intensity_matching) {
+    
         start = std::chrono::system_clock::now();
         
         //Rescale intensities of the stacks to have the same average
         cout << "MatchStackIntensitiesWithMasking" << endl;
         if (intensity_matching)
-        reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue);
+            reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue);
         else
-        reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue, true);
+            reconstruction->MatchStackIntensitiesWithMasking(stacks, stack_transformations, averageValue, true);
         
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
-        
-        
-    }
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
+    
+     }
+         
     //---------------------------------------------------------------
     
     
@@ -1427,7 +1431,7 @@ int main(int argc, char **argv)
         
         selected_slices.clear();
         for (i = 0; i < stacks[ii]->GetZ(); i++)
-        selected_slices.push_back(i);
+            selected_slices.push_back(i);
         
         reconstruction->CreateSlicesAndTransformationsFFD(stacks, stack_transformations, thickness, d_packages, selected_slices, ii);
     }
@@ -1435,7 +1439,7 @@ int main(int argc, char **argv)
     end = std::chrono::system_clock::now();
     elapsed_seconds = end-start;
     if (debug)
-    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
     
     cout << ".........................................................." << endl;
@@ -1453,7 +1457,7 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
     }
     
@@ -1462,9 +1466,9 @@ int main(int argc, char **argv)
     
     
     if (!have_stack_transformations && !rigid_init_flag)
-    init_reset = true;
+        init_reset = true;
     else
-    init_reset = false;
+        init_reset = false;
     
     
     if (no_packages_flag) {
@@ -1492,7 +1496,7 @@ int main(int argc, char **argv)
     end = std::chrono::system_clock::now();
     elapsed_seconds = end-start;
     if (debug)
-    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
     start = std::chrono::system_clock::now();
     
@@ -1506,19 +1510,19 @@ int main(int argc, char **argv)
     end = std::chrono::system_clock::now();
     elapsed_seconds = end-start;
     if (debug)
-    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
     //Set sigma for the bias field smoothing
     if (sigma>0)
-    reconstruction->SetSigma(sigma);
+        reconstruction->SetSigma(sigma);
     else
-    reconstruction->SetSigma(20);
+        reconstruction->SetSigma(20);
     
     //Set global bias correction flag
     if (global_bias_correction)
-    reconstruction->GlobalBiasCorrectionOn();
+        reconstruction->GlobalBiasCorrectionOn();
     else
-    reconstruction->GlobalBiasCorrectionOff();
+        reconstruction->GlobalBiasCorrectionOff();
     
     start = std::chrono::system_clock::now();
     
@@ -1529,7 +1533,7 @@ int main(int argc, char **argv)
     end = std::chrono::system_clock::now();
     elapsed_seconds = end-start;
     if (debug)
-    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
     
     
     cout << ".........................................................." << endl;
@@ -1578,7 +1582,7 @@ int main(int argc, char **argv)
                     end = std::chrono::system_clock::now();
                     elapsed_seconds = end-start;
                     if (debug)
-                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
                     
                     start = std::chrono::system_clock::now();
                     
@@ -1588,7 +1592,7 @@ int main(int argc, char **argv)
                     end = std::chrono::system_clock::now();
                     elapsed_seconds = end-start;
                     if (debug)
-                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
                     
                 }
                 
@@ -1605,14 +1609,14 @@ int main(int argc, char **argv)
         //amount of smoothing (given by lambda) is decreased with improving alignment
         //delta (to determine edges) stays constant throughout
         if(iter==(iterations-1))
-        reconstruction->SetSmoothingParameters(delta,lastIterLambda);
+            reconstruction->SetSmoothingParameters(delta,lastIterLambda);
         else
         {
             double l=lambda;
             for (i=0;i<levels;i++) {
                 
                 if (iter==iterations*(levels-i-1)/levels)
-                reconstruction->SetSmoothingParameters(delta, l);
+                    reconstruction->SetSmoothingParameters(delta, l);
                 l*=2;
             }
             
@@ -1620,13 +1624,13 @@ int main(int argc, char **argv)
         
         //Use faster reconstruction during iterations and slower for final reconstruction
         if ( iter<(iterations-1) )
-        reconstruction->SpeedupOn();
+            reconstruction->SpeedupOn();
         else
-        reconstruction->SpeedupOff();
+            reconstruction->SpeedupOff();
         
         
         if(robust_slices_only)
-        reconstruction->ExcludeWholeSlicesOnly();
+            reconstruction->ExcludeWholeSlicesOnly();
         
         
         start = std::chrono::system_clock::now();
@@ -1638,9 +1642,9 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
-        
+
         start = std::chrono::system_clock::now();
         
         //Calculate matrix of transformation between voxels of slices and volume
@@ -1650,7 +1654,7 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
         
         
@@ -1663,9 +1667,9 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
-        
+
         if (iter == 0 && structural_exclusion && flag_full) {
             
             cout << "SliceToVolumeRegistration" << endl;
@@ -1682,7 +1686,7 @@ int main(int argc, char **argv)
             
             cout << "CreateSliceMasks" << endl;
             reconstruction->CreateSliceMasks(main_mask, iter);
-            
+
             cout << "CoeffInit" << endl;
             reconstruction->CoeffInit();
             
@@ -1702,9 +1706,9 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
-        
+
         
         start = std::chrono::system_clock::now();
         
@@ -1715,7 +1719,7 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
         
         
@@ -1725,12 +1729,12 @@ int main(int argc, char **argv)
         
         cout << "EStep" << endl;
         if(robust_statistics)
-        reconstruction->EStep();
+            reconstruction->EStep();
         
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
         
         
         
@@ -1739,13 +1743,13 @@ int main(int argc, char **argv)
             rec_iterations = 20;
             
             if (flag_full)
-            rec_iterations = 30;
+                rec_iterations = 30;
         }
         else {
             rec_iterations = 7;
             
             if (flag_full)
-            rec_iterations = 10;
+                rec_iterations = 10;
             
         }
         
@@ -1760,7 +1764,7 @@ int main(int argc, char **argv)
             end = std::chrono::system_clock::now();
             elapsed_seconds = end-start;
             if (debug)
-            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
             
         }
         
@@ -1780,7 +1784,7 @@ int main(int argc, char **argv)
                 cout.rdbuf (fileEv.rdbuf());
                 cout << "Bias correction & scaling" << endl;
                 if (sigma>0)
-                reconstruction->Bias();
+                    reconstruction->Bias();
                 //calculate scales
                 
                 reconstruction->Scale();
@@ -1788,7 +1792,7 @@ int main(int argc, char **argv)
                 end = std::chrono::system_clock::now();
                 elapsed_seconds = end-start;
                 if (debug)
-                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
                 
             }
             
@@ -1802,7 +1806,7 @@ int main(int argc, char **argv)
                 end = std::chrono::system_clock::now();
                 elapsed_seconds = end-start;
                 if (debug)
-                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
                 
             }
             
@@ -1813,12 +1817,12 @@ int main(int argc, char **argv)
                 cout << "NormaliseBias" << endl;
                 cout.rdbuf (fileEv.rdbuf());
                 if((sigma>0)&&(!global_bias_correction))
-                reconstruction->NormaliseBias(i);
+                    reconstruction->NormaliseBias(i);
                 cout.rdbuf (strm_buffer);
                 end = std::chrono::system_clock::now();
                 elapsed_seconds = end-start;
                 if (debug)
-                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
             }
             
             // Simulate slices (needs to be done
@@ -1832,7 +1836,7 @@ int main(int argc, char **argv)
             end = std::chrono::system_clock::now();
             elapsed_seconds = end-start;
             if (debug)
-            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
             
             
             
@@ -1846,7 +1850,7 @@ int main(int argc, char **argv)
                 end = std::chrono::system_clock::now();
                 elapsed_seconds = end-start;
                 if (debug)
-                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
                 
             }
             
@@ -1861,7 +1865,7 @@ int main(int argc, char **argv)
                 end = std::chrono::system_clock::now();
                 elapsed_seconds = end-start;
                 if (debug)
-                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
                 
             }
             
@@ -1875,7 +1879,7 @@ int main(int argc, char **argv)
                 end = std::chrono::system_clock::now();
                 elapsed_seconds = end-start;
                 if (debug)
-                cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+                    cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
                 
             }
             
@@ -1890,10 +1894,10 @@ int main(int argc, char **argv)
         }//end of reconstruction iterations
         
         
-        //        if (structural_exclusion)
-        //        reconstruction->SaveSSIM(stacks, iter);
+//        if (structural_exclusion)
+//        reconstruction->SaveSSIM(stacks, iter);
         
-        
+
         // Mask reconstructed image to ROI given by the mask
         reconstruction->MaskVolume();
         
@@ -1902,7 +1906,7 @@ int main(int argc, char **argv)
         reconstructed=reconstruction->GetReconstructed();
         sprintf(buffer,"image%i.nii.gz",iter);
         reconstructed.Write(buffer);
-        
+
         
         // Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
         if ( ! no_log ) {
@@ -1933,7 +1937,7 @@ int main(int argc, char **argv)
     
     
     if (intensity_matching) {
-        
+    
         cout << "RestoreSliceIntensities" << endl;
         
         start = std::chrono::system_clock::now();
@@ -1944,8 +1948,8 @@ int main(int argc, char **argv)
         end = std::chrono::system_clock::now();
         elapsed_seconds = end-start;
         if (debug)
-        cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
-        
+            cout << "- duration : " << elapsed_seconds.count() << " s " << endl;
+            
     }
     
     
@@ -1958,7 +1962,7 @@ int main(int argc, char **argv)
     
     
     if (debug) {
-        
+
         reconstruction->SimulateStacks(stacks, true);
         
         for (unsigned int i=0;i<stacks.size();i++) {

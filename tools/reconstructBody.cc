@@ -480,7 +480,10 @@ int main(int argc, char **argv)
             RealImage *tmp_p_stack = new RealImage(argv[1]);
             template_stack = *tmp_p_stack;
             
-            
+            if (template_stack.GetT() > 1) {
+                
+                template_stack = template_stack.GetRegion(0,0,0,0,template_stack.GetX(),template_stack.GetY(),template_stack.GetZ(),1);
+            }
             
             ok = true;
             argc--;

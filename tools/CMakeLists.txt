@@ -307,6 +307,24 @@ mirtk_add_executable(
 
 
 
+
+mirtk_add_executable(
+  pad-3
+  SOURCES
+    pad-3.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
 mirtk_add_executable(
   get-t
   SOURCES

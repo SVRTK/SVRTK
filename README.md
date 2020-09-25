@@ -41,7 +41,7 @@ Compiled SVR toolbox is available at: [https://hub.docker.com/repository/docker/
 *mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
 
 
-In order to make sure that reconstruction is fast enough - please select a sufficient number of CPU cores (e.g., > 8) and amount of RAM (e.g., > 15 GB) in the docker settings. 
+In order to make sure that reconstruction is fast enough - please select a sufficient number of CPU cores (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the docker settings. 
 
 
 

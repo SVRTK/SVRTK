@@ -309,9 +309,9 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  pad-3
+  pad-3d
   SOURCES
-    pad-3.cc
+    pad-3d.cc
   DEPENDS
     LibCommon
     LibNumerics

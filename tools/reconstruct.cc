@@ -99,6 +99,7 @@ void usage()
     cout << "\t-no_intensity_matching    Switch off intensity matching."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
     cout << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
+    cout << "\t-exclude_wrong_stacks     Automated exclusion of misregistered stacks."<<endl;
     cout << "\t-rescale_stacks           Rescale stacks to avoid nan pixel errors. [Default: False]"<<endl;
     cout << "\t-svr_only                 Only SVR registration to a template stack."<<endl;
     cout << "\t-no_global                No global stack registration."<<endl;
@@ -172,6 +173,7 @@ int main(int argc, char **argv)
     bool use_template = false;
     RealImage template_stack;
     
+    bool flag_no_overlap_thickness = false;
     
     
     // Default values.
@@ -350,6 +352,9 @@ int main(int argc, char **argv)
             ok = true;
         }
         
+                
+        
+        
         //Read number of packages for each stack
         if ((ok == false) && (strcmp(argv[1], "-packages") == 0)) {
             argc--;
@@ -519,6 +524,14 @@ int main(int argc, char **argv)
             remote_flag=true;
             ok = true;
         }
+        
+        if ((ok == false) && (strcmp(argv[1], "-exact-thickness") == 0)) {
+            argc--;
+            argv++;
+            flag_no_overlap_thickness=true;
+            ok = true;
+        }
+        
         
         
         if ((ok == false) && (strcmp(argv[1], "-rescale_stacks") == 0)) {
@@ -692,6 +705,20 @@ int main(int argc, char **argv)
         }
         
     }
+    
+    
+    
+    if (flag_no_overlap_thickness && thickness.size() < 1) {
+        
+        for (i=0; i<stacks.size(); i++) {
+            
+            thickness.push_back(stacks[i].GetZSize());
+            
+        }
+        
+    }
+    
+    
     
     if (has_4D_stacks) {
         
@@ -1076,8 +1103,6 @@ int main(int argc, char **argv)
     
     
     
-    
-    
     if (exclude_wrong_stacks) {
     
         
@@ -1095,8 +1120,6 @@ int main(int argc, char **argv)
         reconstruction->CropImage(template_to_check, transformed_template_mask);
         reconstruction->CropImage(transformed_template_mask, transformed_template_mask);
         
-//        template_to_check *= transformed_template_mask;
-//        template_to_check.Write("main.nii.gz");
         
         Array<double> all_ncc_array;
         Array<double> all_slice_ncc_array;
@@ -1150,10 +1173,6 @@ int main(int argc, char **argv)
             average_slice_ncc = average_slice_ncc + slice_ncc;
             average_volume_ncc = average_volume_ncc + volume_ncc;
 
-//            cout << i << " : " << volume_ncc << " - "  << slice_ncc << " | " << count_ncc << " ; " << tx << " " << ty << " " << tz << " | " << rx << " " << ry << " " << rz << endl;
-                        
-//            sprintf(buffer,"checked-%i.nii.gz", i);
-//            stack_to_check.Write(buffer);
                         
             all_ncc_array.push_back(volume_ncc);
             all_indices_array.push_back(i);
@@ -1191,7 +1210,7 @@ int main(int argc, char **argv)
             
         
 //        cout << endl;
-        cout << " - average values : " << average_volume_ncc << "+/- " << std_volume_ncc << " ; " << average_slice_ncc << "+/- " << std_slice_ncc  << " | " << average_count_ncc << "+/- " << std_count_ncc << endl;
+        cout << " - average values : volume ncc = " << average_volume_ncc << " +/- " << std_volume_ncc << " ; slice ncc = " << average_slice_ncc << " +/- " << std_slice_ncc  << " ; volume [mm^3] = " << average_count_ncc << "+/- " << std_count_ncc << endl;
 //        cout << endl;
                
         
@@ -1216,7 +1235,7 @@ int main(int argc, char **argv)
                         selected_indices_array.push_back(all_indices_array[i]);
                         total_selected++;
                         new_stacks.push_back(stacks[all_indices_array[i]]);
-                        cout << "" << all_indices_array[i] << " : " << all_ncc_array[i] << " | " << all_slice_ncc_array[i] << endl;
+                        cout << "" << all_indices_array[i] << " : volume ncc = " << all_ncc_array[i] << " ; slice ncc = " << all_slice_ncc_array[i] << endl;
                         
                         if (stack_transformations.size()>0)
                             new_stack_transformations.push_back(stack_transformations[i]);

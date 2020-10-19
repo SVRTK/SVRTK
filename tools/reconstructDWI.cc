@@ -749,6 +749,15 @@ int main(int argc, char **argv)
         cout<<"."<<endl;
     }
     
+    if (packages.size()==0)
+    {
+        for (i=0;i<nStacks;i++)
+        {
+            packages.push_back(1);
+        }
+    }
+    
+    
     //this is the number of directions we expect at the bval and bvecs file, including b0
     cout<<"Number of diffusion weighted directions is "<<nStacks<<endl;
     Array<Array<double> > directions(3,Array<double>(nStacks+1,0));

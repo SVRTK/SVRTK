@@ -387,6 +387,10 @@ namespace mirtk {
         
         void NLMFiltering(Array<RealImage>& stacks);
         
+        double VolumeNCC(RealImage& input_stack, RealImage template_stack, RealImage mask);
+        
+        double GlobalNCC(RealImage slice_1, RealImage slice_2, double& count);
+        
         
         ///Initialise variables and parameters for EM
         void InitializeEM();
@@ -545,6 +549,9 @@ namespace mirtk {
         inline void SetMaskedStacks();
         
         
+        double ReconQualityReport(double& out_ncc, double& out_nrmse);
+        
+        
         ///Write included/excluded/outside slices
         void Evaluate( int iter );
         void EvaluateWithTiming( int iter );
@@ -662,6 +669,8 @@ namespace mirtk {
         void Transform2Reconstructed( int inputIndex, int& i, int& j, int& k, int mode );
         
         
+        
+        friend class ParallelQualityReport;
         friend class ParallelStackRegistrations;
         friend class ParallelSliceToVolumeRegistration;
         friend class ParallelSliceToVolumeRegistrationFFD;

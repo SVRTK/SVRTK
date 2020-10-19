@@ -232,6 +232,12 @@ int main(int argc, char **argv)
     bool thin_flag = false;
     
     
+    
+    int best_selected_stacks = -1;
+    bool exclude_wrong_stacks = false;
+    
+    
+    
     //Create reconstruction object
     Reconstruction *reconstruction = new Reconstruction();
     
@@ -264,7 +270,7 @@ int main(int argc, char **argv)
         
         stack_files.push_back(argv[1]);
         
-        cout<<"Stack " << i << " : "<<argv[1]<<endl;
+        cout<<"Stack " << i << " : "<<argv[1];
         
         tmp_fname = argv[1];
         image_reader.reset(ImageReader::TryNew(tmp_fname));
@@ -276,8 +282,24 @@ int main(int argc, char **argv)
         stack.GetMinMax(&smin, &smax);
         
         if (smin < 0 || smax < 0) {
-            template_stack.PutMinMaxAsDouble(0, 1000);
+            stack.PutMinMaxAsDouble(0, 1000);
         }
+        
+        double tmp_dx = stack.GetXSize();
+        double tmp_dy = stack.GetYSize();
+        double tmp_dz = stack.GetZSize();
+        double tmp_dt = stack.GetTSize();
+        
+        double tmp_sx = stack.GetX();
+        double tmp_sy = stack.GetY();
+        double tmp_sz = stack.GetZ();
+        double tmp_st = stack.GetT();
+        
+        
+        cout << "  ;  size : " << tmp_sx << " - " << tmp_sy << " - " << tmp_sz << " - " << tmp_st  << "  ;";
+        cout << "  voxel : " << tmp_dx << " - " << tmp_dy << " - " << tmp_dz << " - " << tmp_dt  << "  ;";
+        cout << "  range : [" << smin << "; " << smax << "]" << endl;
+        
         
         argc--;
         argv++;
@@ -534,6 +556,18 @@ int main(int argc, char **argv)
         }
         
         
+        
+        if ((ok == false) && (strcmp(argv[1], "-exclude_wrong_stacks") == 0)) {
+            argc--;
+            argv++;
+            
+            exclude_wrong_stacks = true;
+            
+            ok = true;
+        }
+        
+        
+        
 
         //Use NCC similarity metric for SVR
         if ((ok == false) && (strcmp(argv[1], "-ncc") == 0)) {
@@ -661,7 +695,7 @@ int main(int argc, char **argv)
     
     if (has_4D_stacks) {
         
-        cout << "Splitting stacks into dynamincs ... " << endl;
+        cout << "Splitting stacks into dynamincs ... "; //<< endl;
         
         Array<double> new_thickness;
         Array<int> new_packages;
@@ -724,6 +758,9 @@ int main(int argc, char **argv)
         new_packages.clear();
         new_stack_transformations.clear();
     }
+    
+    
+    
     
     
     
@@ -1034,6 +1071,204 @@ int main(int argc, char **argv)
         cout << "StackRegistrations ";
         cout << "- " << elapsed_seconds.count() << "s " << endl;
     }
+    
+    
+    
+    
+    
+    
+    
+    if (exclude_wrong_stacks) {
+    
+        
+        best_selected_stacks = stacks.size();
+        
+        
+        cout << "Selecting stacks : " << " " << endl;
+    
+        RealImage transformed_template_mask = *mask;
+        RealImage template_to_check = template_stack;
+        RigidTransformation *tmp_rreg = new RigidTransformation();
+        reconstruction->TransformMask(template_to_check, transformed_template_mask, *tmp_rreg);
+        
+        
+        reconstruction->CropImage(template_to_check, transformed_template_mask);
+        reconstruction->CropImage(transformed_template_mask, transformed_template_mask);
+        
+//        template_to_check *= transformed_template_mask;
+//        template_to_check.Write("main.nii.gz");
+        
+        Array<double> all_ncc_array;
+        Array<double> all_slice_ncc_array;
+        Array<int> all_indices_array;
+        Array<double> all_count_array;
+        
+        Array<double> sorted_ncc_array;
+        Array<int> sorted_indices_array;
+        Array<double> sorted_count_array;
+        
+        Array<double> selected_ncc_array;
+        Array<int> selected_indices_array;
+        
+        double max_ncc = -1.0;
+        int max_index = -1;
+        int average_count_ncc = 0;
+        double average_slice_ncc = 0;
+        double average_volume_ncc = 0;
+        
+        
+        
+        Array<RealImage> new_stacks;
+        Array<double> new_thickness;
+        Array<int> new_packages;
+        Array<RigidTransformation> new_stack_transformations;
+        
+        
+        
+        for (i=0; i<stacks.size(); i++) {
+            
+            RealImage stack_to_check = stacks[i];
+            
+            Matrix m = stack_transformations[i].GetMatrix();
+            stack_to_check.PutAffineMatrix(m, true);
+            
+            double tx, ty, tz, rx, ry, rz;
+            tx = stack_transformations[i].GetTranslationX();
+            ty = stack_transformations[i].GetTranslationY();
+            tz = stack_transformations[i].GetTranslationZ();
+            rx = stack_transformations[i].GetRotationX();
+            ry = stack_transformations[i].GetRotationY();
+            rz = stack_transformations[i].GetRotationZ();
+            
+
+            double slice_ncc = 0.0;
+            slice_ncc = reconstruction->VolumeNCC(stack_to_check, template_to_check, transformed_template_mask);
+            double count_ncc = -1;
+            double volume_ncc = reconstruction->GlobalNCC(stack_to_check, template_to_check, count_ncc);
+            
+            average_count_ncc = average_count_ncc + count_ncc;
+            average_slice_ncc = average_slice_ncc + slice_ncc;
+            average_volume_ncc = average_volume_ncc + volume_ncc;
+
+//            cout << i << " : " << volume_ncc << " - "  << slice_ncc << " | " << count_ncc << " ; " << tx << " " << ty << " " << tz << " | " << rx << " " << ry << " " << rz << endl;
+                        
+//            sprintf(buffer,"checked-%i.nii.gz", i);
+//            stack_to_check.Write(buffer);
+                        
+            all_ncc_array.push_back(volume_ncc);
+            all_indices_array.push_back(i);
+            all_count_array.push_back(count_ncc);
+            all_slice_ncc_array.push_back(slice_ncc);
+                        
+            if (volume_ncc > max_ncc) {
+                max_ncc = volume_ncc;
+                max_index = i;
+            }
+                    
+        }
+              
+        
+        average_count_ncc = ((average_count_ncc/stacks.size()));
+        average_slice_ncc = ((average_slice_ncc/stacks.size()));
+        average_volume_ncc = ((average_volume_ncc/stacks.size()));
+        
+        double std_count_ncc = 0;
+        double std_slice_ncc = 0;
+        double std_volume_ncc = 0;
+        
+        
+        for (i=0; i<stacks.size(); i++) {
+        
+            std_count_ncc = std_count_ncc + pow((all_count_array[i] - average_count_ncc),2);
+            std_slice_ncc = std_slice_ncc + pow((all_slice_ncc_array[i] - average_slice_ncc),2);
+            std_volume_ncc = average_volume_ncc + pow((all_ncc_array[i] - average_volume_ncc),2);
+  
+        }
+            
+        std_slice_ncc = std_slice_ncc / stacks.size();
+        std_volume_ncc = std_volume_ncc / stacks.size();
+        std_count_ncc = std_count_ncc / stacks.size();
+            
+        
+//        cout << endl;
+        cout << " - average values : " << average_volume_ncc << "+/- " << std_volume_ncc << " ; " << average_slice_ncc << "+/- " << std_slice_ncc  << " | " << average_count_ncc << "+/- " << std_count_ncc << endl;
+//        cout << endl;
+               
+        
+        sorted_ncc_array = all_ncc_array;
+        sorted_indices_array = all_indices_array;
+        
+        std::sort(sorted_ncc_array.begin(), sorted_ncc_array.end());
+        std::reverse(sorted_ncc_array.begin(), sorted_ncc_array.end());
+        
+        
+        cout << " - selected : " << endl;
+        int total_selected = 0;
+        for (int j=0; j<sorted_ncc_array.size(); j++) {
+            
+            for (i=0; i<stacks.size(); i++) {
+
+                if (total_selected < best_selected_stacks) {
+                    
+                    if (sorted_ncc_array[j] == all_ncc_array[i] && all_count_array[i] > 0.65*average_count_ncc && all_ncc_array[i] > (average_volume_ncc - 2*std_volume_ncc)) {
+                        
+                        selected_ncc_array.push_back(all_ncc_array[i]);
+                        selected_indices_array.push_back(all_indices_array[i]);
+                        total_selected++;
+                        new_stacks.push_back(stacks[all_indices_array[i]]);
+                        cout << "" << all_indices_array[i] << " : " << all_ncc_array[i] << " | " << all_slice_ncc_array[i] << endl;
+                        
+                        if (stack_transformations.size()>0)
+                            new_stack_transformations.push_back(stack_transformations[i]);
+                        if (packages.size()>0)
+                            new_packages.push_back(packages[i]);
+                        if (thickness.size()>0)
+                            new_thickness.push_back(thickness[i]);
+                        
+                        
+                    }
+                    
+                }
+
+            }
+             
+        }
+                   
+        
+        nStacks = new_stacks.size();
+        stacks.clear();
+        thickness.clear();
+        packages.clear();
+        stack_transformations.clear();
+        
+        
+        for (i=0; i<new_stacks.size(); i++) {
+            stacks.push_back(new_stacks[i]);
+            
+            if (new_thickness.size()>0)
+                thickness.push_back(new_thickness[i]);
+            if (new_packages.size()>0)
+                packages.push_back(new_packages[i]);
+            if (new_stack_transformations.size()>0)
+                stack_transformations.push_back(new_stack_transformations[i]);
+            
+        }
+        
+        
+        new_stacks.clear();
+        new_thickness.clear();
+        new_packages.clear();
+        new_stack_transformations.clear();
+
+        
+    }
+    
+    
+    cout << "------------------------------------------------------" << endl;
+    
+//    exit(1);
+    
+    
     
     
     
@@ -1446,17 +1681,44 @@ int main(int argc, char **argv)
             reconstructed.Write(buffer);
 //        }
         
+            double out_ncc = 0;
+            double out_nrmse = 0;
+            reconstruction->ReconQualityReport(out_ncc, out_nrmse);
+            
+            cout << " - global metrics: ncc = " << out_ncc << " ; nrmse = " << out_nrmse << endl;
         
-        
-        //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-        if ( ! no_log ) {
-            cout.rdbuf (fileEv.rdbuf());
-        }
-        reconstruction->Evaluate(iter);
-        // cout<<endl;
-        if ( ! no_log ) {
+        {
+            name = "output-metric-ncc.txt";
+            ofstream f_out_ncc(name.c_str());
+            name = "output-metric-nrmse.txt";
+            ofstream f_out_nrmse(name.c_str());
+            
+            cout.rdbuf (f_out_ncc.rdbuf());
+            cout << out_ncc << endl;
+            
+            cout.rdbuf (f_out_nrmse.rdbuf());
+            cout << out_nrmse << endl;
+            
             cout.rdbuf (strm_buffer);
         }
+        
+        
+        
+
+        
+        if (debug) {
+            //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
+            if ( ! no_log ) {
+                cout.rdbuf (fileEv.rdbuf());
+            }
+            reconstruction->Evaluate(iter);
+                    // cout<<endl;
+            if ( ! no_log ) {
+                cout.rdbuf (strm_buffer);
+            }
+        }
+        
+        
         
     } // end of interleaved registration-reconstruction iterations
     

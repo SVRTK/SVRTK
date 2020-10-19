@@ -786,6 +786,293 @@ namespace mirtk {
         transformation.PutRotationZ(0);
     }
     
+
+    //-------------------------------------------------------------------
+
+
+
+    class ParallelQualityReport {
+        Reconstruction* reconstructor;
+    public:
+        double out_global_ncc;
+        double out_global_nrmse;
+        
+        void operator()( const blocked_range<size_t>& r ) {
+            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
+
+                double tmp_var = 0;
+                double out_ncc = reconstructor->GlobalNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], tmp_var);
+                out_global_ncc =  out_global_ncc + out_ncc;
+                
+                
+                double s_diff = 0;
+                double s_t = 0;
+                int s_n = 0;
+                double point_ns = 0;
+                double point_nt = 0;
+                
+                for (int x=0; x<reconstructor->_slices[inputIndex].GetX(); x++) {
+                    for (int y=0; y<reconstructor->_slices[inputIndex].GetY(); y++) {
+                        for (int z=0; z<reconstructor->_slices[inputIndex].GetZ(); z++) {
+                            
+                            if (reconstructor->_slices[inputIndex](x,y,z)>0 && reconstructor->_simulated_slices[inputIndex](x,y,z)>0) {
+                            
+                                point_nt = reconstructor->_slices[inputIndex](x,y,z) * exp(-(reconstructor->_bias[inputIndex])(x,y,0)) * reconstructor->_scale[inputIndex];
+                                point_ns = reconstructor->_simulated_slices[inputIndex](x,y,z);
+                                
+                                s_t += point_nt;
+                                s_diff += (point_nt - point_ns) * (point_nt - point_ns);
+                                s_n++;
+
+                            }
+                            
+                        }
+                    }
+                }
+                
+                if (s_n > 0 && s_t > 0) {
+                    double out_nrmse = sqrt(s_diff/s_n)/(s_t/s_n);
+                    out_global_nrmse = out_global_nrmse + out_nrmse;
+                }
+                
+                if (out_global_nrmse != out_global_nrmse)
+                    out_global_nrmse = 0;
+                
+                                 
+            } //end of loop for a slice inputIndex
+        }
+        
+        ParallelQualityReport( ParallelQualityReport& x, split ) : reconstructor(x.reconstructor)
+        {
+            
+            out_global_ncc = 0;
+            out_global_nrmse = 0;
+            
+        }
+        
+        void join( const ParallelQualityReport& y ) {
+            
+            out_global_ncc = out_global_ncc + y.out_global_ncc;
+            out_global_nrmse = out_global_nrmse + y.out_global_nrmse;
+            
+        }
+        
+        ParallelQualityReport( Reconstruction *reconstructor ) : reconstructor(reconstructor)
+        {
+            out_global_ncc = 0;
+            out_global_nrmse = 0;
+        }
+        
+        // execute
+        void operator() () {
+            
+            parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
+            
+        }
+    };
+
+
+
+    double Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse)
+    {
+        
+        ParallelQualityReport parallelQualityReport(this);
+        parallelQualityReport();
+        out_ncc = parallelQualityReport.out_global_ncc / _slices.size();
+        out_nrmse = parallelQualityReport.out_global_nrmse / _slices.size();
+        
+        if (out_nrmse != out_nrmse)
+            out_nrmse = 0;
+        
+        
+        if (out_ncc != out_ncc)
+            out_ncc = 0;
+
+//        cout << " - global metrics: ncc = " << out_ncc << " ; nrmse = " << out_nrmse << endl;
+        
+    }
+
+
+
+    //-------------------------------------------------------------------
+
+    double Reconstruction::GlobalNCC(RealImage slice_1, RealImage slice_2, double& count)
+    {
+        
+        int slice_1_N, slice_2_N;
+        double *slice_1_ptr, *slice_2_ptr;
+        
+        int slice_1_n, slice_2_n;
+        double slice_1_m, slice_2_m;
+        double slice_1_sq, slice_2_sq;
+        
+        double tmp_val, diff_sum;
+        double average_CC, CC_slice;
+        
+        
+        
+        slice_1_N = slice_1.GetNumberOfVoxels();
+        slice_2_N = slice_2.GetNumberOfVoxels();
+        
+        slice_1_ptr = slice_1.GetPointerToVoxels();
+        slice_2_ptr = slice_2.GetPointerToVoxels();
+        
+        slice_1_n = 0;
+        slice_1_m = 0;
+        for (int j = 0; j < slice_1_N; j++) {
+            
+            if (slice_1_ptr[j]>0.1 && slice_2_ptr[j]>0.1) {
+                slice_1_m = slice_1_m + slice_1_ptr[j];
+                slice_1_n = slice_1_n + 1;
+            }
+        }
+        slice_1_m = slice_1_m / slice_1_n;
+        
+        slice_2_n = 0;
+        slice_2_m = 0;
+        for (int j = 0; j < slice_2_N; j++) {
+            if (slice_1_ptr[j]>0.1 && slice_2_ptr[j]>0.1) {
+                slice_2_m = slice_2_m + slice_2_ptr[j];
+                slice_2_n = slice_2_n + 1;
+            }
+        }
+        slice_2_m = slice_2_m / slice_2_n;
+        
+        
+        count = 0;
+        for (int j = 0; j < slice_1_N; j++) {
+            
+            if (slice_1_ptr[j]>0.1) {
+                count = count + 1;
+            }
+        }
+        
+        
+        count = count * slice_2.GetXSize() * slice_2.GetYSize() * slice_2.GetZSize();
+        
+        
+        if (slice_1_n<5 || slice_2_n<5) {
+            
+            CC_slice = -1;
+            
+        }
+        else {
+            
+            diff_sum = 0;
+            slice_1_sq = 0;
+            slice_2_sq = 0;
+            
+            for (int j = 0; j < slice_1_N; j++) {
+                
+                if (slice_1_ptr[j]>0.1 && slice_2_ptr[j]>0.1) {
+                    
+                    diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m)*(slice_2_ptr[j] - slice_2_m));
+                    slice_1_sq = slice_1_sq + pow((slice_1_ptr[j] - slice_1_m), 2);
+                    slice_2_sq = slice_2_sq + pow((slice_2_ptr[j] - slice_2_m), 2);
+                }
+            }
+            
+            if ((slice_1_sq * slice_2_sq)>0)
+            CC_slice = diff_sum / sqrt(slice_1_sq * slice_2_sq);
+            else
+            CC_slice = 0;
+            
+        }
+        
+        
+        return CC_slice;
+        
+    }
+
+
+    //-------------------------------------------------------------------
+
+
+    double Reconstruction::VolumeNCC(RealImage& input_stack, RealImage template_stack, RealImage mask) {
+        
+        
+        template_stack *= mask;
+        
+        
+        RigidTransformation *r_init = new RigidTransformation();
+        r_init->PutTranslationX(0.0001);
+        r_init->PutTranslationY(0.0001);
+        r_init->PutTranslationZ(-0.0001);
+        
+        ParameterList params;
+        Insert(params, "Transformation model", "Rigid");
+        Insert(params, "Background value for image 1", 0);
+        
+        GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+        registration->Parameter(params);
+        registration->Input(&template_stack, &input_stack);
+        Transformation *dofout = nullptr;
+        registration->Output(&dofout);
+        registration->InitialGuess(r_init);
+        registration->GuessParameter();
+        registration->Run();
+        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
+        
+        
+        
+        GenericLinearInterpolateImageFunction<RealImage> interpolator;
+        double source_padding = 0;
+        double target_padding = -inf;
+        bool dofin_invert = false;
+        bool twod = false;
+
+        RealImage output =  template_stack;
+        output = 0;
+        
+        ImageTransformation *imagetransformation = new ImageTransformation;
+        imagetransformation->Input(&input_stack);
+        imagetransformation->Transformation(r_dofout);
+        imagetransformation->Output(&output);
+        imagetransformation->TargetPaddingValue(target_padding);
+        imagetransformation->SourcePaddingValue(source_padding);
+        imagetransformation->Interpolator(&interpolator);
+        imagetransformation->TwoD(twod);
+        imagetransformation->Invert(dofin_invert);
+        imagetransformation->Run();
+        delete imagetransformation;
+        
+        
+        input_stack = output;
+        input_stack *= mask;
+        
+
+        double ncc = 0;
+        int count = 0;
+
+        RealImage slice_1, slice_2;
+        
+        
+        
+
+        for (int z = 0; z < input_stack.GetZ()-1; z++) {
+            
+            int sh=5;
+            slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX()-sh, input_stack.GetY()-sh, z+1);
+            slice_2 = input_stack.GetRegion(sh, sh, z+1, input_stack.GetX()-sh, input_stack.GetY()-sh, z+2);
+            
+            double slice_count = -1;
+            double slice_ncc = GlobalNCC(slice_1, slice_2, slice_count);
+            
+            if (slice_ncc>0) {
+                ncc = ncc + slice_ncc;
+                count += 1;
+            }
+            
+        }
+
+        ncc /= count;
+
+        
+        return ncc;
+    }
+
+
+
     //-------------------------------------------------------------------
     
     class ParallelStackRegistrations {

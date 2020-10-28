@@ -34,11 +34,11 @@ Compiled SVR toolbox is available at: [https://hub.docker.com/repository/docker/
 
 *docker pull fetalsvrtk/svrtk*
 
-*docker run -it --mount type=bind,source=location_on_your_machine,target=/home/data fetalsvrtk/svrtk /bin/bash*
+*docker run -it --rm --mount type=bind,source=location_on_your_machine,target=/home/data fetalsvrtk/svrtk /bin/bash*
 
 *cd /home/data*
 
-*mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
+*mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../stack2.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
 
 
 In order to make sure that reconstruction is fast enough - please select a sufficient number of CPU cores (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the docker settings. 
@@ -53,7 +53,7 @@ Examples:
 
 3D brain reconstruction:
 
-*mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template_number 0 -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 -remote*
+*mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 -remote*
  
    ---
 3D fetal body DSVR reconstruction:

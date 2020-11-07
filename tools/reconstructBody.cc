@@ -74,6 +74,7 @@ void usage()
     cout << "\t-thickness_array [th_1] .. [th_N] Give slice thickness.[Default: twice voxel size in z direction]"<<endl;
     cout << "\t-mask [mask]              Binary mask to define the region od interest. [Default: whole image]"<<endl;
     cout << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 3]"<<endl;
+    cout << "\t-sr_iterations [iter]     Number of SR reconstruction iterations. [Default: i=5; ixix4*i]"<<endl;
     cout << "\t-sigma [sigma]            Stdev for bias field. [Default: 12mm]"<<endl;
     cout << "\t-resolution [res]         Isotropic resolution of the volume. [Default: 0.85mm]"<<endl;
     cout << "\t-multires [levels]        Multiresolution smooting with given number of levels. [Default: 3]"<<endl;
@@ -204,6 +205,9 @@ int main(int argc, char **argv)
     
     int d_packages = -1;
     double d_thickness = -1;
+    
+    
+    int sr_iterations = 5;
     
     //-----------------------------------------------------------------------
     
@@ -564,6 +568,18 @@ int main(int argc, char **argv)
             argc--;
             argv++;
         }
+        
+        
+        
+        if ((ok == false) && (strcmp(argv[1], "-sr_iterations") == 0)) {
+            argc--;
+            argv++;
+            sr_iterations=atoi(argv[1]);
+            ok = true;
+            argc--;
+            argv++;
+        }
+        
         
         //Variance of Gaussian kernel to smooth the bias field.
         if ((ok == false) && (strcmp(argv[1], "-sigma") == 0)) {
@@ -1740,13 +1756,13 @@ int main(int argc, char **argv)
         
         //number of reconstruction iterations
         if ( iter==(iterations-1) ) {
-            rec_iterations = 20;
+            rec_iterations = sr_iterations*4;
             
             if (flag_full)
                 rec_iterations = 30;
         }
         else {
-            rec_iterations = 7;
+            rec_iterations = sr_iterations;
             
             if (flag_full)
                 rec_iterations = 10;

@@ -133,6 +133,10 @@ namespace mirtk {
         
         _n_treads = 8;
         
+        _number_of_slices_org = 0;
+        
+        _average_thickness_org = 0;
+        
         _step = 0.0001;
         _debug = false;
         _quality_factor = 2;
@@ -162,7 +166,7 @@ namespace mirtk {
         _masked_stacks = false;
         
         _nmi_bins = -1;
-        _global_NCC_threshold = 0.75;
+        _global_NCC_threshold = 0.65;
         
         _filtered_cmp_flag = false;
         
@@ -504,7 +508,7 @@ namespace mirtk {
         else
             d = resolution;
         
-        cout << "Reconstructed volume voxel size : " << d << endl;
+        cout << "Reconstructed volume voxel size : " << d << " mm " << endl;
         
         //resample "enlarged" to resolution "d"
         InterpolationMode interpolation = Interpolation_Linear;
@@ -727,6 +731,27 @@ namespace mirtk {
         //set flag that mask was created
         _have_mask = true;
         
+        
+        double dx = _reconstructed.GetXSize();
+        double vol = 0;
+        
+        
+        for (int i = 0; i < _mask.GetX(); i++) {
+            for (int j = 0; j < _mask.GetY(); j++) {
+                for (int k = 0; k < _mask.GetZ(); k++) {
+                    if (_mask(i,j,k) > 0.1)
+                        vol = vol + 1;
+                }
+            }
+        }
+        
+        vol = vol * dx * dx * dx;
+        
+        cout << "ROI volume : " << vol << " mm^3 " << endl;
+        
+        
+        
+        
         if (_debug)
             _mask.Write("mask.nii.gz");
     }
@@ -873,7 +898,7 @@ namespace mirtk {
 
 
 
-    double Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse)
+    double Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded)
     {
         
         ParallelQualityReport parallelQualityReport(this);
@@ -888,6 +913,17 @@ namespace mirtk {
         if (out_ncc != out_ncc)
             out_ncc = 0;
 
+        average_weight = _average_volume_weight;
+        
+        double count_excluded = 0;
+        for (int i=0; i<_slices.size(); i++) {
+            if(_slice_weight[i]<0.5) {
+                count_excluded = count_excluded + 1;
+            }
+        }
+        
+        ratio_excluded = count_excluded / _slices.size();
+        
 //        cout << " - global metrics: ncc = " << out_ncc << " ; nrmse = " << out_nrmse << endl;
         
     }
@@ -2020,6 +2056,9 @@ namespace mirtk {
         // if (_debug)
         // cout << "CreateSlicesAndTransformations" << endl;
         
+        
+        double average_thickness = 0;
+        
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
@@ -2108,6 +2147,8 @@ namespace mirtk {
                     //initialize slice transformation with the stack transformation
                     _transformations.push_back(stack_transformations[i]);
                     
+                    average_thickness = average_thickness + thickness[i];
+                    
                     if (_ffd) {
                         
                         MultiLevelFreeFormTransformation *mffd = new MultiLevelFreeFormTransformation();
@@ -2128,6 +2169,12 @@ namespace mirtk {
             
         }
         cout << "Number of slices: " << _slices.size() << endl;
+        
+        
+        _number_of_slices_org = _slices.size();
+        
+        _average_thickness_org = average_thickness / _number_of_slices_org;
+        
         
     }
     
@@ -3280,7 +3327,7 @@ namespace mirtk {
                     str_sim = "";
                     if (reconstructor->_ncc_reg) {
                         
-                        str_sim = "-sim NCC -window 0 mm sigma";
+                        str_sim = "-sim NCC -window 5 ";
                     }
                     
                     str_ds = "";
@@ -3358,7 +3405,7 @@ namespace mirtk {
                     str_sim = "";
                     if (reconstructor->_ncc_reg) {
                      
-                        str_sim = "-sim NCC -window 0 mm sigma";
+                        str_sim = "-sim NCC -window 0 ";
                     }
                     
                     str_bg1 = "-bg1 " + to_string(0);
@@ -3393,7 +3440,7 @@ namespace mirtk {
         ImageAttributes attr_recon = _reconstructed.GetImageAttributes();
         
         if (_debug)
-            cout << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
+            cout << "RemoteSliceToVolumeRegistration" << endl;
         
         string str_source = str_current_exchange_file_path + "/current-source.nii.gz";
         _reconstructed.Write(str_source.c_str());
@@ -3560,18 +3607,178 @@ namespace mirtk {
         
     }
     
+    
+
+    //-------------------------------------------------------------------
+
+
+    void Reconstruction::SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration)
+    {
+        
+        cout << "SaveModelRemote : " << current_iteration << endl;
+        
+        if (status_flag > 0) {
+
+            for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+                
+                string str_slice = str_current_exchange_file_path + "/org-slice-" + to_string(inputIndex) + ".nii.gz";
+                _slices[inputIndex].Write(str_slice.c_str());
+
+            }
+            
+            string str_mask = str_current_exchange_file_path + "/current-mask.nii.gz";
+            _mask.Write(str_mask.c_str());
+                
+        }
+        
+        
+        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
+
+//            string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(inputIndex) + ".dof";
+//            _transformations[inputIndex].Write(str_dofin.c_str());
+            
+            string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
+            _transformations[inputIndex].Write(str_dofin.c_str());
+            
+        }
+        
+        
+        string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
+        _reconstructed.Write(str_recon.c_str());
+        
+        
+    }
+        
+
+     
+    void Reconstruction::LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration)
+    {
+        
+        cout << "LoadResultsRemote : " << current_iteration << endl;
+        
+        string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
+        _reconstructed.Read(str_recon.c_str());
+        
+        
+//         for (int inputIndex=0; inputIndex<current_number_of_slices; inputIndex++) {
+//
+//             string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
+//             Transformation *t = Transformation::New(str_dofin.c_str());
+//
+//             RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t);
+//             _transformations[inputIndex] = *rigidTransf;
+//
+//
+//         }
+        
+        
+    }
+
+
+    void Reconstruction::LoadModelRemote(string str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration)
+    {
+        
+        cout << "LoadModelRemote : " << current_iteration << endl;
+        
+        string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
+        string str_mask = str_current_exchange_file_path + "/current-mask.nii.gz";
+        
+        _reconstructed.Read(str_recon.c_str());
+        _mask.Read(str_mask.c_str());
+        
+        _template_created = true;
+        _grey_reconstructed = _reconstructed;
+        _attr_reconstructed = _reconstructed.GetImageAttributes();
+        
+        _have_mask = true;
+        
+        
+        for (int inputIndex=0; inputIndex<current_number_of_slices; inputIndex++) {
+            
+            int j = inputIndex;
+            
+            RealImage slice;
+            string str_slice = str_current_exchange_file_path + "/org-slice-" + to_string(inputIndex) + ".nii.gz";
+            slice.Read(str_slice.c_str());
+            
+            slice.PutPixelSize(slice.GetXSize(), slice.GetYSize(), average_thickness);
+            
+            _slices.push_back(slice);
+            
+            
+//            string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(inputIndex) + ".dof";
+            string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
+            Transformation *t = Transformation::New(str_dofin.c_str());
+            
+            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t);
+            _transformations.push_back(*rigidTransf);
+            
+//            cout << rigidTransf->GetTranslationX() << " " << rigidTransf->GetTranslationY() << " " << rigidTransf->GetTranslationZ() << " " << endl;
+//            cout << rigidTransf->GetRotationX() << " " << rigidTransf->GetRotationY() << " " << rigidTransf->GetRotationZ() << " " << endl;
+            
+            RealPixel tmin, tmax;
+            slice.GetMinMax(&tmin, &tmax);
+            if (tmax > 1 && ((tmax-tmin) > 1) ) { 
+                _zero_slices.push_back(1);
+            } else {
+                _zero_slices.push_back(-1);
+            }
+            
+            _package_index.push_back(0);
+            
+            ImageAttributes attr_s = slice.GetImageAttributes();
+            _slice_attributes.push_back(attr_s);
+                    
+            GreyImage grey = slice;
+            _grey_slices.push_back(grey);
+                    
+            slice = 0;
+            _slice_dif.push_back(slice);
+            _simulated_slices.push_back(slice);
+                    
+            _reg_slice_weight.push_back(1);
+            _slice_pos.push_back(j);
+            
+             slice = 1;
+            _simulated_weights.push_back(slice);
+            _simulated_inside.push_back(slice);
+
+            _stack_index.push_back(0);
+
+            if (_ffd) {
+                MultiLevelFreeFormTransformation *mffd = new MultiLevelFreeFormTransformation();
+                _mffd_transformations.push_back(*mffd);
+            }
+            
+        }
+        
+//        cout << " - loaded : " << _slices.size() << endl;
+        
+         
+    }
+                        
+                        
 
 
     //-------------------------------------------------------------------
 
-    void Reconstruction::SaveSliceInfo()
+    void Reconstruction::SaveSliceInfo(int current_iteration = -1)
     {
         
+        char buffer[256];
+        
         ofstream GD_csv_file;
-        GD_csv_file.open("summary-slice-info.csv"); 
+        
+        if (current_iteration > 0) {
+            sprintf(buffer, "summary-slice-info-%i.csv", current_iteration);
+        } else {
+           sprintf(buffer, "summary-slice-info.csv");
+        }
+            
+        GD_csv_file.open(buffer);
         
         
-        GD_csv_file << "Stack" << "," << "Slice" << "," << "Rx" << "," << "Ry" << "," << "Rz" << "," << "Tx" << "," << "Ty" << "," << "Tz" << "," << "Weight" << "," << "Inside" << endl;
+        GD_csv_file << "Stack" << "," << "Slice" << "," << "Rx" << "," << "Ry" << "," << "Rz" << "," << "Tx" << "," << "Ty" << "," << "Tz" << "," << "Weight" << "," << "Inside" << "," << "Scale" << endl;
         
         
         for (int i=0; i<_slices.size(); i++) {
@@ -3588,7 +3795,7 @@ namespace mirtk {
             if (_slice_inside[i])
                 inside = 1;
             
-            GD_csv_file << _stack_index[i] << "," << i << "," << rx << "," << ry << "," << rz << "," << tx << "," << ty << "," << tz << "," << _slice_weight[i] << "," << inside << endl;
+            GD_csv_file << _stack_index[i] << "," << i << "," << rx << "," << ry << "," << rz << "," << tx << "," << ty << "," << tz << "," << _slice_weight[i] << "," << inside << "," << _scale[i] << endl;
             
         }
         
@@ -3635,6 +3842,7 @@ namespace mirtk {
         void operator() (const blocked_range<size_t> &r) const {
             
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
+                
                 
                 bool slice_inside;
 
@@ -3788,12 +3996,15 @@ namespace mirtk {
                 }
                 
                 if (reconstructor->_reg_slice_weight[inputIndex] > 0 && !excluded_slice) {
+                    
+                    
                 
                 
                 for (i = 0; i < global_slice.GetX(); i++)
                     for (j = 0; j < global_slice.GetY(); j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                             //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
+                                                        
                             x = i;
                             y = j;
                             z = 0;
@@ -3966,6 +4177,7 @@ namespace mirtk {
         _slice_inside.clear();
         _slice_inside.resize(_slices.size());
         _attr_reconstructed = _reconstructed.GetImageAttributes();
+        
 
         ParallelCoeffInit coeffinit(this);
         coeffinit();
@@ -4690,6 +4902,7 @@ namespace mirtk {
                 }
             }
         }
+        
         
     }
     

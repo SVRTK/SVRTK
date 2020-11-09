@@ -2503,8 +2503,8 @@ namespace mirtk {
 
         char buffer[256];
         
-        ofstream N_csv_file1;
-        N_csv_file1.open("S-W.csv");
+//        ofstream N_csv_file1;
+//        N_csv_file1.open("S-W.csv");
         
         for (int i=0; i<_slices.size(); i++) {
             N_csv_file1 << _slice_weight[i] << endl;
@@ -2517,8 +2517,8 @@ namespace mirtk {
 
         delete p_cstep;
         
-        ofstream N_csv_file;
-        N_csv_file.open("S-NCC.csv");
+//        ofstream N_csv_file;
+//        N_csv_file.open("S-NCC.csv");
         
         for (int i=0; i<_slices.size(); i++) {
             N_csv_file << _structural_slice_weight[i] << endl;

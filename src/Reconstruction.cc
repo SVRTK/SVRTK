@@ -3614,8 +3614,8 @@ namespace mirtk {
 
     void Reconstruction::SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration)
     {
-        
-        cout << "SaveModelRemote : " << current_iteration << endl;
+        if (_debug)
+            cout << "SaveModelRemote : " << current_iteration << endl;
         
         if (status_flag > 0) {
 
@@ -3653,8 +3653,8 @@ namespace mirtk {
      
     void Reconstruction::LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration)
     {
-        
-        cout << "LoadResultsRemote : " << current_iteration << endl;
+        if (_debug)
+            cout << "LoadResultsRemote : " << current_iteration << endl;
         
         string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
         _reconstructed.Read(str_recon.c_str());
@@ -3678,7 +3678,8 @@ namespace mirtk {
     void Reconstruction::LoadModelRemote(string str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration)
     {
         
-        cout << "LoadModelRemote : " << current_iteration << endl;
+        if (_debug)
+            cout << "LoadModelRemote : " << current_iteration << endl;
         
         string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
         string str_mask = str_current_exchange_file_path + "/current-mask.nii.gz";

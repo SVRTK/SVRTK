@@ -114,6 +114,7 @@ void usage()
     cerr << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
     cout << "\t-remote                   Run SVR registration as remote functions in case of memory issues [Default: false]."<<endl;
     cout << "\t-full_remote              Run SR+SVR steps as remote functions in case of memory issues (slower option) [Default: false]."<<endl;
+    cout << "\t-exclude_wrong_stacks     Exclude misregistered stacks [Default: false]."<< endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
     cout << "\t" << endl;

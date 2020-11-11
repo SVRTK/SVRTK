@@ -4964,7 +4964,7 @@ namespace mirtk {
         double pkg_dz = attr._dz*packages;
 
         char buffer[256];
-        int i, j, k, l;
+        int i, j, k, l, t;
         double x, y, z, sx, sy, sz, ox, oy, oz;
         for (l = 0; l < packages; l++) {
             attr = image.GetImageAttributes();
@@ -4977,10 +4977,12 @@ namespace mirtk {
             RealImage stack(attr);
             stack.GetOrigin(ox, oy, oz);
             
-            for (k = 0; k < stack.GetZ(); k++)
-                for (j = 0; j < stack.GetY(); j++)
-                    for (i = 0; i < stack.GetX(); i++)
-                        stack.Put(i, j, k, image(i, j, k * packages + l));
+            for (t = 0; t < stack.GetT(); t++) {
+                for (k = 0; k < stack.GetZ(); k++)
+                    for (j = 0; j < stack.GetY(); j++)
+                        for (i = 0; i < stack.GetX(); i++)
+                            stack(i, j, k, t) = image(i, j, k * packages + l, t);
+            }
             
             x = 0;
             y = 0;

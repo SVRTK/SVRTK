@@ -22,7 +22,7 @@ SVRTK contributes to https://github.com/mriphysics/fetal_cmr_4d pipeline.
 Docker 
 ---
 
-Compiled SVR toolbox is available at: [docker_fetalsvrtk_svrtk](https://hub.docker.com/repository/docker/fetalsvrtk/svrtk)
+Compiled SVR toolbox is available via [DockerHub](https://hub.docker.com/repository/docker/fetalsvrtk/svrtk):
 
 ```bash
 docker pull fetalsvrtk/svrtk

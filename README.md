@@ -1,7 +1,10 @@
 SVRTK - slice to volume reconstruction toolkit
 ====================
 
-![alt text](https://github.com/SVRTK/SVRTK/tree/master/additional_files/svr-logo.png?raw=true)
+<p align="center">
+  <img src="https://github.com/SVRTK/SVRTK/tree/master/additional_files/svr-logo.png" width="50%" alt='project-svrtk'>
+</p>
+
 
 SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) for fetal MRI motion correction including:
 - 3D brain

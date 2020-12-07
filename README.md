@@ -32,14 +32,12 @@ Docker
 
 Compiled SVR toolbox is available at: [https://hub.docker.com/repository/docker/fetalsvrtk/svrtk](https://hub.docker.com/repository/docker/fetalsvrtk/svrtk)
 
-*docker pull fetalsvrtk/svrtk*
-
-*docker run -it --rm --mount type=bind,source=location_on_your_machine,target=/home/data fetalsvrtk/svrtk /bin/bash*
-
-*cd /home/data*
-
-*mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../stack2.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
-
+```bash
+docker pull fetalsvrtk/svrtk
+docker run -it --rm --mount type=bind,source=location_on_your_machine,target=/home/data fetalsvrtk/svrtk /bin/bash
+cd /home/data
+mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../stack2.nii.gz -thickness 2.5 -default -remote -resolution 0.85
+```
 
 In order to make sure that reconstruction is fast enough - please select a sufficient number of CPU cores (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the docker settings. 
 
@@ -53,41 +51,51 @@ Examples:
 
 3D brain reconstruction:
 
-*mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 -remote*
+```bash
+mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 -remote
+```
  
    ---
 3D fetal body DSVR reconstruction:
 
-*mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 0.85*
-
+```bash
+mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 0.85
+```
   ---
 3D placenta DSVR reconstruction:
- 
-*mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 1.25*
 
+```bash
+mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 1.25
+```
   ---
 3D multi-channel DSVR reconstruction for T2* (reconstruction of 3D T2* maps driven by one of the echoes, e.g., e2):
- 
-*mirtk reconstructMC ../outputDSVR-E2.nii.gz 3 ../stack1-E2.nii.gz ../stack2-E2.nii.gz ../stack3-E2.nii.gz -channels 1 ../stack1-T2sMAP.nii.gz ../stack2-T2sMAP.nii.gz ../stack3-T2sMAP.nii.gz -mask ../mask.nii.gz -template ../template-stack-E2.nii.gz -thickness 2.5 -default -remote -no_intensity_matching -resolution 1.25*
-  
+
+```bash
+mirtk reconstructMC ../outputDSVR-E2.nii.gz 3 ../stack1-E2.nii.gz ../stack2-E2.nii.gz ../stack3-E2.nii.gz -channels 1 ../stack1-T2sMAP.nii.gz ../stack2-T2sMAP.nii.gz ../stack3-T2sMAP.nii.gz -mask ../mask.nii.gz -template ../template-stack-E2.nii.gz -thickness 2.5 -default -remote -no_intensity_matching -resolution 1.25
+```  
 (the output T2* map will be in mc-image-0.nii.gz file) 
   
  ---
 4D cardiac velocity reconstruction:
 - see fetal_cmr_4d git repository for full framework: https://github.com/tomaroberts/fetal_cmr_4d
  
-*mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz ../phase_stack3.nii.gz ../phase_stack4.nii.gz ../phase_stack5.nii.gz ../g_values.txt ../g_directions.txt -thickness 6 6 6 6 6 -mask ../mask.nii.gz -rec_iterations 40 -transformations [folder with slice transformations from 4D cardiac reconstruction] -limit_intensities -rec_iterations 40 -resolution 1.25 -force_exclude [list of slices that should be excluded] -numcardphase 25 -rrinterval 0.407046 -rrintervals [number of rr_intervals] [list of rr_intervals] -cardphase [number of slices] [cardiac phases for each of the slices] -debug > log-main.txt*
-
+```bash
+mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz ../phase_stack3.nii.gz ../phase_stack4.nii.gz ../phase_stack5.nii.gz ../g_values.txt ../g_directions.txt -thickness 6 6 6 6 6 -mask ../mask.nii.gz -rec_iterations 40 -transformations [folder with slice transformations from 4D cardiac reconstruction] -limit_intensities -rec_iterations 40 -resolution 1.25 -force_exclude [list of slices that should be excluded] -numcardphase 25 -rrinterval 0.407046 -rrintervals [number of rr_intervals] [list of rr_intervals] -cardphase [number of slices] [cardiac phases for each of the slices] -debug > log-main.txt
+```
   ---
  Higher order spherical harmonics (SH) reconstruction of fetal brain diffusion MRI:
 
-*mirtk reconstructDWI ../recon-3D-vol.nii.gz ../4D-DWI-stack.nii.gz ../gradient-directions.b ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number] -motion_model_hs -sr_sh_iterations 10*
+```bash
+mirtk reconstructDWI ../recon-3D-vol.nii.gz ../4D-DWI-stack.nii.gz ../gradient-directions.b ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number] -motion_model_hs -sr_sh_iterations 10
+```
 
 The resulting reconstructed signal is in _simulated_signal.nii.gz and the SH coefficients are in shCoeff9.nii.gz files.
 This should be followed by constrained spherical deconvolution for representation of the signal in SH basis based on the functions from MRtrix (https://github.com/MRtrix3/mrtrix3):
 
-*dwi2response tournier _simulated_signal.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz*   
-*dwi2fod csd signal.nii.gz response.txt csd-out.mif -lmax 6 -grad ../gradient-directions.b -force -mask ../mask-wm.nii.gz*  
+```bash
+dwi2response tournier _simulated_signal.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz
+dwi2fod csd signal.nii.gz response.txt csd-out.mif -lmax 6 -grad ../gradient-directions.b -force -mask ../mask-wm.nii.gz
+```
  
  (please note that distorion and bias field correction prior should be applied prior to reconstruction)
  

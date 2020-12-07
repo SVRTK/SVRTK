@@ -32,7 +32,7 @@ mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz .
 ```
 
 In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the Desktop 
-Docker settings. 
+Docker settings. You can increase RAM by using virtual RAM on Window and or swap on Ubuntu.  
 
 
 
@@ -41,7 +41,9 @@ Installation
 
 Please follow installation instructions in InstallationInstructions.txt file.
 
-Note, the software requires Ubuntu or OS X. In case of "-9" memory errors - please run reconstruction with "-remote" option.
+Note, the software can be compiled on either Ubuntu or OS X. 
+In order achieve optimal performance it is recommended to run reconstruction on machine  with minimum 6 CPU cores and 32 GB RAM. 
+In case of "-9" memory errors - please run reconstruction with "-remote" option (and increase RAM/SWAP).
 
 
 

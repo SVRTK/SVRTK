@@ -122,7 +122,6 @@ The MIRTK SVRTK package is distributed under the terms of the
 Citation and acknowledgements
 -----------------------------
 
-Publications:
 
 In case you found SVRTK useful please give appropriate credit to the software.
 

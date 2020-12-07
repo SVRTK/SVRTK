@@ -1,7 +1,7 @@
 SVRTK - slice to volume reconstruction toolkit
 ====================
 
-<img src="additional_files/svr-logo.png" alt="SVRTK" height="240" align ="left" />
+<img src="additional_files/svr-logo.png" alt="SVRTK" height="260" align ="left" />
 
 
 

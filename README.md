@@ -1,6 +1,7 @@
 SVRTK - slice to volume reconstruction toolkit
 ====================
 
+<img src="additional_files/svr-logo.png" alt="SVRTK" height="260" align ="left" />
 
 
 
@@ -142,5 +143,6 @@ SH brain diffusion reconstruction (HARDI):
 
 3D and 4D T2* placenta reconstruction: 
 > Uus, A., Steinweg, J. K., Ho, A., Jackson, L. H., Hajnal, J. V., Rutherford, M. A., Deprez, M., Hutter, J. (2020) Deformable Slice-to-Volume Registration for Reconstruction of Quantitative T2* Placental and Fetal MRI. In: Hu Y. et al. (eds) Medical Ultrasound, and Preterm, Perinatal and Paediatric Image Analysis. ASMUS 2020, PIPPI 2020. Lecture Notes in Computer Science, vol 12437. Springer, Cham: https://doi.org/10.1007/978-3-030-60334-2_22
+
 
 

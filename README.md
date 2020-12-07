@@ -46,11 +46,11 @@ Docker settings. You can increase RAM by using virtual RAM on Window and or swap
 Installation 
 ------------
 
-Please follow installation instructions in InstallationInstructions.txt file.
+Please follow the installation instructions in InstallationInstructions.txt file.
 
 Note, the software can be compiled on either Ubuntu or OS X. 
-In order achieve optimal performance it is recommended to run reconstruction on machine  with minimum 6 CPU cores and 32 GB RAM. 
-In case of "-9" memory errors - please run reconstruction with "-remote" option (and increase RAM/SWAP).
+In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and 32 GB RAM. 
+In case of "-9" memory errors - please run reconstruction with "-remote" option (and increase SWAP).
 
 
 

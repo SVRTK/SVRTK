@@ -265,6 +265,11 @@ namespace mirtk {
         ///Destructor
         ~Reconstruction();
         
+        
+        int _number_of_slices_org;
+        double _average_thickness_org;
+        
+        
         ///Create zero image as a template for reconstructed volume
         double CreateTemplate( RealImage stack,
                               double resolution=0 );
@@ -292,7 +297,7 @@ namespace mirtk {
         
         void SliceDifference();
 
-        void SaveSliceInfo();
+        void SaveSliceInfo(int current_iteration);
         
         ///Center stacks
         void CenterStacks( Array<RealImage>& stacks,
@@ -428,6 +433,15 @@ namespace mirtk {
         void RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path);
         
         
+        
+        void SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration);
+        
+        void LoadModelRemote(string str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration);
+        
+        void LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration);
+        
+        
+        
         ///Slice to volume registrations with OMP
         void SliceToVolumeRegistrationOMP();
         
@@ -549,7 +563,7 @@ namespace mirtk {
         inline void SetMaskedStacks();
         
         
-        double ReconQualityReport(double& out_ncc, double& out_nrmse);
+        double ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
         
         
         ///Write included/excluded/outside slices

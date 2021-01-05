@@ -49,7 +49,7 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: ... \n" << endl;
+    cout << "Usage: pad-3d [input] [output] [isotropic-3d-voxel-grid-size] [interpolation mode: 0 - NN (for masks), 1 - Linear (for images)] \n" << endl;
     exit(0);
 }
 
@@ -64,6 +64,9 @@ void usage()
 int main(int argc, char **argv)
 {
     
+     //if not enough arguments print help
+    if (argc < 5)
+    usage();
     
     
     
@@ -117,9 +120,7 @@ int main(int argc, char **argv)
     
     double new_res = 1.05*(main_stack.GetXSize() * dim_max)/grid_dim;
     
-    
-    
-    
+
     InterpolationMode interpolation = Interpolation_Linear;
     UniquePtr<InterpolateImageFunction> interpolator;
     interpolator.reset(InterpolateImageFunction::New(interpolation));
@@ -172,9 +173,7 @@ int main(int argc, char **argv)
     
     fin_stack.Write(out_fname);
     
-
-    //-------------------------------------------------------------------
-
+    
     
     return 0;
 }

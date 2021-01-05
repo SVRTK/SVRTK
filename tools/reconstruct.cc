@@ -87,6 +87,7 @@ void usage()
     cout << "\t                          volume approach. [Default: slice to volume registration only]"<<endl;
     cout << "\t-template_number          Number of the template stack. [Default: 0]"<<endl;
     cout << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 3]"<<endl;
+    cout << "\t-sr_iterations [sr_iter]  Number of SR reconstruction iterations. [Default: 7,...,7,7*3]"<<endl;
     cout << "\t-sigma [sigma]            Stdev for bias field. [Default: 12mm]"<<endl;
     cout << "\t-resolution [res]         Isotropic resolution of the volume. [Default: 0.75mm]"<<endl;
     cout << "\t-multires [levels]        Multiresolution smooting with given number of levels. [Default: 3]"<<endl;
@@ -112,6 +113,7 @@ void usage()
     cerr << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction->"<<endl;
     cerr << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
     cout << "\t-remote                   Run SVR registration as remote functions in case of memory issues [Default: false]."<<endl;
+    cout << "\t-full_remote              Run SR+SVR steps as remote functions in case of memory issues (slower option) [Default: false]."<<endl;
     cout << "\t-debug                    Debug mode - save intermediate results."<<endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
@@ -180,6 +182,7 @@ int main(int argc, char **argv)
     int templateNumber=0;
     RealImage *mask=NULL;
     int iterations = 3;
+    int sr_iterations = 7;
     bool debug = false;
     double sigma = 20;
     double resolution = 0.75;
@@ -232,6 +235,13 @@ int main(int argc, char **argv)
     bool no_global_flag = false;
     
     bool thin_flag = false;
+    
+    
+    
+    bool full_remote_recon = false;
+    
+    
+    string str_flags = " ";
     
     
     
@@ -427,7 +437,25 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
+            
+            str_flags = str_flags + " -iterations " + to_string(iterations) + " ";
+            
         }
+        
+        
+        
+        if ((ok == false) && (strcmp(argv[1], "-sr_iterations") == 0)) {
+            argc--;
+            argv++;
+            sr_iterations=atoi(argv[1]);
+            ok = true;
+            argc--;
+            argv++;
+            
+            str_flags = str_flags + " -sr_iterations " + to_string(sr_iterations) + " ";
+            
+        }
+        
         
         
         //Read template number
@@ -465,6 +493,9 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
+            
+            str_flags = str_flags + " -sigma " + to_string(sigma) + " ";
+            
         }
         
         //Smoothing parameter
@@ -475,6 +506,9 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
+            
+            str_flags = str_flags + " -lambda " + to_string(lambda) + " ";
+            
         }
         
         //Smoothing parameter for last iteration
@@ -485,6 +519,9 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
+            
+            str_flags = str_flags + " -lastIter " + to_string(lastIterLambda) + " ";
+            
         }
         
         //Parameter to define what is an edge
@@ -495,6 +532,9 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
+            
+            str_flags = str_flags + " -delta " + to_string(delta) + " ";
+            
         }
         
         //Isotropic resolution for the reconstructed volume
@@ -505,6 +545,9 @@ int main(int argc, char **argv)
             ok = true;
             argc--;
             argv++;
+            
+            str_flags = str_flags + " -resolution " + to_string(resolution) + " ";
+            
         }
         
         //Number of resolution levels
@@ -523,7 +566,22 @@ int main(int argc, char **argv)
             argv++;
             remote_flag=true;
             ok = true;
+            
+            str_flags = str_flags + " -remote ";
+            
         }
+        
+        
+        
+        if ((ok == false) && (strcmp(argv[1], "-full_remote") == 0)) {
+            argc--;
+            argv++;
+            full_remote_recon=true;
+            ok = true;
+            remote_flag=true;
+            str_flags = str_flags + " -remote ";
+        }
+        
         
         if ((ok == false) && (strcmp(argv[1], "-exact-thickness") == 0)) {
             argc--;
@@ -548,6 +606,9 @@ int main(int argc, char **argv)
             argv++;
             svr_only=true;
             ok = true;
+            
+            str_flags = str_flags + " -svr_only ";
+            
         }
         
         
@@ -589,6 +650,9 @@ int main(int argc, char **argv)
             ncc_reg_flag=true;
             reconstruction->SetNCC(ncc_reg_flag);
             ok = true;
+            
+            str_flags = str_flags + " -ncc ";
+            
         }
         
         
@@ -637,6 +701,9 @@ int main(int argc, char **argv)
             argv++;
             intensity_matching=false;
             ok = true;
+            
+            str_flags = str_flags + " -no_intensity_matching ";
+            
         }
         
         //Switch off robust statistics
@@ -645,6 +712,9 @@ int main(int argc, char **argv)
             argv++;
             robust_statistics=false;
             ok = true;
+            
+            str_flags = str_flags + " -no_robust_statistics ";
+            
         }
 
         //Use structural exclusion of slices
@@ -653,6 +723,9 @@ int main(int argc, char **argv)
             argv++;
             structural=true;
             ok = true;
+            
+            str_flags = str_flags + " -structural ";
+            
         }
         
         //Robust statistics for slices only
@@ -661,6 +734,9 @@ int main(int argc, char **argv)
             argv++;
             robust_slices_only = true;
             ok = true;
+            
+            str_flags = str_flags + " -exclude_slices_only ";
+            
         }
         
         //Switch off registration
@@ -669,6 +745,9 @@ int main(int argc, char **argv)
             argv++;
             registration_flag=false;
             ok = true;
+            iterations = 1;
+            str_flags = str_flags + " -no_registration ";
+            
         }
         
         //Perform bias correction of the reconstructed image agains the GW image in the same motion correction iteration
@@ -677,6 +756,9 @@ int main(int argc, char **argv)
             argv++;
             global_bias_correction=true;
             ok = true;
+            
+            str_flags = str_flags + " -global_bias_correction ";
+            
         }
         
         //Debug mode
@@ -685,6 +767,9 @@ int main(int argc, char **argv)
             argv++;
             debug=true;
             ok = true;
+            
+            str_flags = str_flags + " -debug ";
+            
         }
         
         if (ok == false) {
@@ -955,7 +1040,7 @@ int main(int argc, char **argv)
     name = log_id+"log-registration-error.txt";
     ofstream file_e(name.c_str());
     //files for reconstruction output
-    name = log_id+"log-reconstruction->txt";
+    name = log_id+"log-reconstruction.txt";
     ofstream file2(name.c_str());
     name = log_id+"log-evaluation.txt";
     ofstream fileEv(name.c_str());
@@ -1285,18 +1370,7 @@ int main(int argc, char **argv)
     
     cout << "------------------------------------------------------" << endl;
     
-//    exit(1);
-    
-    
-    
-    
-    
-    // //redirect output back to screen
-    // if ( ! no_log ) {
-    //     cout.rdbuf (strm_buffer);
-    //     cerr.rdbuf (strm_buffer_e);
-    // }
-    
+
     
     
     //Rescale intensities of the stacks to have the same average
@@ -1337,6 +1411,13 @@ int main(int argc, char **argv)
     Array<RealImage> probability_maps;
     reconstruction->CreateSlicesAndTransformations(stacks, stack_transformations, thickness, probability_maps);
     
+    
+    if (full_remote_recon) {
+
+        reconstruction->SaveModelRemote(str_current_exchange_file_path, 1, 0);
+    
+    }
+    
 
     //Mask all the slices
     cout.rdbuf (file.rdbuf());
@@ -1368,280 +1449,201 @@ int main(int argc, char **argv)
         iterations = 1;
     }
     
-    //interleaved registration-reconstruction iterations
-    for (int iter=0; iter<iterations; iter++) {
-        //Print iteration number on the screen
-        // if ( ! no_log ) {
-        //     cout.rdbuf (strm_buffer);
-        // }
-//        cout << "------------------------------------------------------" << endl;
-        cout << "------------------------------------------------------" << endl;
-        cout<<"Iteration : " << iter << endl;
-        
-        reconstruction->MaskVolume();
-        
-        if (svr_only) {
-            if (debug)
-                start = std::chrono::system_clock::now();
-            
-            cout.rdbuf (file.rdbuf());
-            if (remote_flag) {
-                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
-            } else {
-                reconstruction->SliceToVolumeRegistration();
-            }
-            cout.rdbuf (strm_buffer);
-            
-            if (debug) {
-                end = std::chrono::system_clock::now();
-                elapsed_seconds = end-start;
-                cout << "SliceToVolumeRegistration ";
-                cout << "- " << elapsed_seconds.count() << "s " << endl;
-            }
-        }
-        else {
-            if (iter>0) {
-                if((packages.size()>0)&&(iter<iterations-1)) {
-                    
-                    if (debug)
-                        start = std::chrono::system_clock::now();
-                    
-//                    cout.rdbuf (file.rdbuf());
-                    cout.rdbuf (strm_buffer);
-                    reconstruction->PackageToVolume(stacks, packages, stack_transformations);
-//                    cout.rdbuf (strm_buffer);
-                    
-                    if (debug) {
-                        end = std::chrono::system_clock::now();
-                        elapsed_seconds = end-start;
-                        cout << "PackageToVolume ";
-                        cout << "- " << elapsed_seconds.count() << "s " << endl;
-                    }
-                    
-                    
-                }
-                else {
-                    if (debug)
-                        start = std::chrono::system_clock::now();
-
-                    cout.rdbuf (file.rdbuf());
-                    if (remote_flag) {
-                        reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
-                    } else {
-                        reconstruction->SliceToVolumeRegistration();
-                    }
-                    cout.rdbuf (strm_buffer);
-                    
-                    if (debug) {
-                        end = std::chrono::system_clock::now();
-                        elapsed_seconds = end-start;
-                        cout << "SliceToVolumeRegistration ";
-                        cout << "- " << elapsed_seconds.count() << "s " << endl;
-                    }
-                    
-                }
-
-            }
-            
-        }
-        
-        
-        if (structural && iter>1) {
-            
-             cout.rdbuf (strm_buffer);
-            
-            if (debug)
-                start = std::chrono::system_clock::now();
-            
-            reconstruction->StructuralExclusion();
-            
-            if (debug) {
-                end = std::chrono::system_clock::now();
-                elapsed_seconds = end-start;
-                cout << "StructuralExclusion ";
-                cout << "- " << elapsed_seconds.count() << "s " << endl;
-            }
-            
-            cout.rdbuf (file.rdbuf());
-            
-        }
     
-        
-        //Set smoothing parameters
-        //amount of smoothing (given by lambda) is decreased with improving alignment
-        //delta (to determine edges) stays constant throughout
-        cout.rdbuf (file.rdbuf());
-        if(iter==(iterations-1))
-            reconstruction->SetSmoothingParameters(delta,lastIterLambda);
-        else
-        {
-            double l=lambda;
-            for (i=0;i<levels;i++) {
-                if (iter==iterations*(levels-i-1)/levels)
-                    reconstruction->SetSmoothingParameters(delta, l);
-                l*=2;
-            }
-        }
-        cout.rdbuf (strm_buffer);
-        
-        //Use faster reconstruction during iterations and slower for final reconstruction
-        if ( iter<(iterations-1) )
-            reconstruction->SpeedupOn();
-        else
-            reconstruction->SpeedupOff();
-        
-        if(robust_slices_only)
-            reconstruction->ExcludeWholeSlicesOnly();
-        
-        if (debug)
-            start = std::chrono::system_clock::now();
-        cout.rdbuf (file.rdbuf());
-        reconstruction->InitializeEMValues();
-        cout.rdbuf (strm_buffer);
-        if (debug) {
-            end = std::chrono::system_clock::now();
-            elapsed_seconds = end-start;
-            cout << "InitializeEMValues ";
-            cout << "- " << elapsed_seconds.count() << "s " << endl;
-        }
-        
-        
-        if (debug)
-            start = std::chrono::system_clock::now();
-        //Calculate matrix of transformation between voxels of slices and volume
-        
-        // cout.rdbuf (file.rdbuf());
-        reconstruction->CoeffInit();
-        // cout.rdbuf (strm_buffer);
-        if (debug) {
-            end = std::chrono::system_clock::now();
-            elapsed_seconds = end-start;
-            cout << "CoeffInit ";
-            cout << "- " << elapsed_seconds.count() << "s " << endl;
-        }
-        
-        if (debug)
-            start = std::chrono::system_clock::now();
-        //Initialize reconstructed image with Gaussian weighted reconstruction
-        
-        cout.rdbuf (file.rdbuf());
-        reconstruction->GaussianReconstruction();
-        cout.rdbuf (strm_buffer);
-        if (debug) {
-            end = std::chrono::system_clock::now();
-            elapsed_seconds = end-start;
-            cout << "GaussianReconstruction ";
-            cout << "- " << elapsed_seconds.count() << "s " << endl;
-        }
-        
-        if (debug)
-            start = std::chrono::system_clock::now();
-        //Simulate slices (needs to be done after Gaussian reconstruction)
-        
-        cout.rdbuf (file.rdbuf());
-        reconstruction->SimulateSlices();
-        cout.rdbuf (strm_buffer);
-        if (debug) {
-            end = std::chrono::system_clock::now();
-            elapsed_seconds = end-start;
-            cout << "SimulateSlices ";
-            cout << "- " << elapsed_seconds.count() << "s " << endl;
-        }
-        
-        //Initialize robust statistics parameters
-        cout.rdbuf (file.rdbuf());
-        reconstruction->InitializeRobustStatistics();
-        cout.rdbuf (strm_buffer);
-        
-        //EStep
-        if(robust_statistics) {
+    int current_iteration = 0;
+    
+    
+    if (full_remote_recon && (packages.size()<1) ) {
+    
+        for (int iter=0; iter<iterations; iter++) {
             
+            
+            current_iteration = iter;
+            
+            int current_iteration = iter;
+            string str_iter = to_string(current_iteration);
+            string str_num_slices = to_string(reconstruction->_number_of_slices_org);
+            string str_thickness = to_string(reconstruction->_average_thickness_org);
+
+            string reconstruct_cmd = str_mirtk_path + "/reconstruct-round " + " " + str_mirtk_path + " " + str_current_main_file_path + " " + str_current_exchange_file_path + " " + str_iter + " " + str_num_slices + " " + str_thickness + " " + str_flags;
+
+            int tmp_log = system(reconstruct_cmd.c_str());
+            
+        }
+        
+        
+    
+    } else {
+
+        //interleaved registration-reconstruction iterations
+        for (int iter=0; iter<iterations; iter++) {
+            //Print iteration number on the screen
+            // if ( ! no_log ) {
+            //     cout.rdbuf (strm_buffer);
+            // }
+    //        cout << "------------------------------------------------------" << endl;
+            cout << "------------------------------------------------------" << endl;
+            cout<<"Iteration : " << iter << endl;
+            
+            reconstruction->MaskVolume();
+            
+            if (svr_only) {
+                if (debug)
+                    start = std::chrono::system_clock::now();
+                
+                cout.rdbuf (file.rdbuf());
+                if (remote_flag) {
+                    reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                } else {
+                    reconstruction->SliceToVolumeRegistration();
+                }
+                cout.rdbuf (strm_buffer);
+                
+                if (debug) {
+                    end = std::chrono::system_clock::now();
+                    elapsed_seconds = end-start;
+                    cout << "SliceToVolumeRegistration ";
+                    cout << "- " << elapsed_seconds.count() << "s " << endl;
+                }
+            }
+            else {
+                if (iter>0) {
+                    if((packages.size()>0)&&(iter<iterations-1)) {
+                        
+                        if (debug)
+                            start = std::chrono::system_clock::now();
+                        
+    //                    cout.rdbuf (file.rdbuf());
+                        cout.rdbuf (strm_buffer);
+                        reconstruction->PackageToVolume(stacks, packages, stack_transformations);
+    //                    cout.rdbuf (strm_buffer);
+                        
+                        if (debug) {
+                            end = std::chrono::system_clock::now();
+                            elapsed_seconds = end-start;
+                            cout << "PackageToVolume ";
+                            cout << "- " << elapsed_seconds.count() << "s " << endl;
+                        }
+                        
+                        
+                    }
+                    else {
+                        if (debug)
+                            start = std::chrono::system_clock::now();
+
+                        cout.rdbuf (file.rdbuf());
+                        if (remote_flag) {
+                            reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                        } else {
+                            reconstruction->SliceToVolumeRegistration();
+                        }
+                        cout.rdbuf (strm_buffer);
+                        
+                        if (debug) {
+                            end = std::chrono::system_clock::now();
+                            elapsed_seconds = end-start;
+                            cout << "SliceToVolumeRegistration ";
+                            cout << "- " << elapsed_seconds.count() << "s " << endl;
+                        }
+                        
+                    }
+
+                }
+                
+            }
+            
+            
+            if (structural && iter>1) {
+                
+                 cout.rdbuf (strm_buffer);
+                
+                if (debug)
+                    start = std::chrono::system_clock::now();
+                
+                reconstruction->StructuralExclusion();
+                
+                if (debug) {
+                    end = std::chrono::system_clock::now();
+                    elapsed_seconds = end-start;
+                    cout << "StructuralExclusion ";
+                    cout << "- " << elapsed_seconds.count() << "s " << endl;
+                }
+                
+                cout.rdbuf (file.rdbuf());
+                
+            }
+        
+            
+            //Set smoothing parameters
+            //amount of smoothing (given by lambda) is decreased with improving alignment
+            //delta (to determine edges) stays constant throughout
             cout.rdbuf (file.rdbuf());
-            reconstruction->EStep();
+            if(iter==(iterations-1))
+                reconstruction->SetSmoothingParameters(delta,lastIterLambda);
+            else
+            {
+                double l=lambda;
+                for (i=0;i<levels;i++) {
+                    if (iter==iterations*(levels-i-1)/levels)
+                        reconstruction->SetSmoothingParameters(delta, l);
+                    l*=2;
+                }
+            }
             cout.rdbuf (strm_buffer);
-        }
-        
-        //number of reconstruction iterations
-        if ( iter==(iterations-1) )
-            rec_iterations = 20;
-        else
-            rec_iterations = 10;
-        
-        
-        //reconstruction iterations
-        i=0;
-        for (i=0;i<rec_iterations;i++) {
             
-            if (debug) {
-                cout << "------------------------------------------------------" << endl;
-                cout<<"Reconstruction iteration : "<<i<<endl;
-            }
+            //Use faster reconstruction during iterations and slower for final reconstruction
+            if ( iter<(iterations-1) )
+                reconstruction->SpeedupOn();
+            else
+                reconstruction->SpeedupOff();
             
-            if (intensity_matching) {
-                
-                //calculate bias fields
-                if (debug)
-                    start = std::chrono::system_clock::now();
-                cout.rdbuf (file.rdbuf());
-                if (sigma>0)
-                    reconstruction->Bias();
-                cout.rdbuf (strm_buffer);
-                if (debug) {
-                    end = std::chrono::system_clock::now();
-                    elapsed_seconds = end-start;
-                    cout << "Bias ";
-                    cout << "- " << elapsed_seconds.count() << "s " << endl;
-                }
-                
-                
-                //calculate scales
-                if (debug)
-                    start = std::chrono::system_clock::now();
-                cout.rdbuf (file.rdbuf());
-                reconstruction->Scale();
-                cout.rdbuf (strm_buffer);
-                if (debug) {
-                    end = std::chrono::system_clock::now();
-                    elapsed_seconds = end-start;
-                    cout << "Scale ";
-                    cout << "- " << elapsed_seconds.count() << "s " << endl;
-                }
-                
-            }
+            if(robust_slices_only)
+                reconstruction->ExcludeWholeSlicesOnly();
             
-            //Update reconstructed volume
             if (debug)
                 start = std::chrono::system_clock::now();
-            
             cout.rdbuf (file.rdbuf());
-            reconstruction->Superresolution(i+1);
+            reconstruction->InitializeEMValues();
             cout.rdbuf (strm_buffer);
             if (debug) {
                 end = std::chrono::system_clock::now();
                 elapsed_seconds = end-start;
-                cout << "Superresolution ";
+                cout << "InitializeEMValues ";
                 cout << "- " << elapsed_seconds.count() << "s " << endl;
             }
             
-            if (intensity_matching) {
-                if (debug)
-                    start = std::chrono::system_clock::now();
-                cout.rdbuf (file.rdbuf());
-                if((sigma>0)&&(!global_bias_correction))
-                    reconstruction->NormaliseBias(i);
-                cout.rdbuf (strm_buffer);
-                if (debug) {
-                    end = std::chrono::system_clock::now();
-                    elapsed_seconds = end-start;
-                    cout << "NormaliseBias ";
-                    cout << "- " << elapsed_seconds.count() << "s " << endl;
-                }
-            }
             
-            // Simulate slices (needs to be done
-            // after the update of the reconstructed volume)
             if (debug)
                 start = std::chrono::system_clock::now();
+            //Calculate matrix of transformation between voxels of slices and volume
+            
+            // cout.rdbuf (file.rdbuf());
+            reconstruction->CoeffInit();
+            // cout.rdbuf (strm_buffer);
+            if (debug) {
+                end = std::chrono::system_clock::now();
+                elapsed_seconds = end-start;
+                cout << "CoeffInit ";
+                cout << "- " << elapsed_seconds.count() << "s " << endl;
+            }
+            
+            if (debug)
+                start = std::chrono::system_clock::now();
+            //Initialize reconstructed image with Gaussian weighted reconstruction
+            
+            cout.rdbuf (file.rdbuf());
+            reconstruction->GaussianReconstruction();
+            cout.rdbuf (strm_buffer);
+            if (debug) {
+                end = std::chrono::system_clock::now();
+                elapsed_seconds = end-start;
+                cout << "GaussianReconstruction ";
+                cout << "- " << elapsed_seconds.count() << "s " << endl;
+            }
+            
+            if (debug)
+                start = std::chrono::system_clock::now();
+            //Simulate slices (needs to be done after Gaussian reconstruction)
             
             cout.rdbuf (file.rdbuf());
             reconstruction->SimulateSlices();
@@ -1653,95 +1655,252 @@ int main(int argc, char **argv)
                 cout << "- " << elapsed_seconds.count() << "s " << endl;
             }
             
+            //Initialize robust statistics parameters
+            cout.rdbuf (file.rdbuf());
+            reconstruction->InitializeRobustStatistics();
+            cout.rdbuf (strm_buffer);
+            
+            //EStep
             if(robust_statistics) {
-                if (debug)
-                    start = std::chrono::system_clock::now();
-                
-                cout.rdbuf (file.rdbuf());
-                reconstruction->MStep(i+1);
-                cout.rdbuf (strm_buffer);
-                
                 
                 cout.rdbuf (file.rdbuf());
                 reconstruction->EStep();
                 cout.rdbuf (strm_buffer);
+            }
+            
+            //number of reconstruction iterations
+            if ( iter==(iterations-1) )
+                rec_iterations = sr_iterations*3;
+            else
+                rec_iterations = sr_iterations;
+            
+            
+            //reconstruction iterations
+            i=0;
+            for (i=0;i<rec_iterations;i++) {
                 
+                if (debug) {
+                    cout << "------------------------------------------------------" << endl;
+                    cout<<"Reconstruction iteration : "<<i<<endl;
+                }
+                
+                if (intensity_matching) {
+                    
+                    //calculate bias fields
+                    if (debug)
+                        start = std::chrono::system_clock::now();
+                    cout.rdbuf (file.rdbuf());
+                    if (sigma>0)
+                        reconstruction->Bias();
+                    cout.rdbuf (strm_buffer);
+                    if (debug) {
+                        end = std::chrono::system_clock::now();
+                        elapsed_seconds = end-start;
+                        cout << "Bias ";
+                        cout << "- " << elapsed_seconds.count() << "s " << endl;
+                    }
+                    
+                    
+                    //calculate scales
+                    if (debug)
+                        start = std::chrono::system_clock::now();
+                    cout.rdbuf (file.rdbuf());
+                    reconstruction->Scale();
+                    cout.rdbuf (strm_buffer);
+                    if (debug) {
+                        end = std::chrono::system_clock::now();
+                        elapsed_seconds = end-start;
+                        cout << "Scale ";
+                        cout << "- " << elapsed_seconds.count() << "s " << endl;
+                    }
+                    
+                }
+                
+                //Update reconstructed volume
+                if (debug)
+                    start = std::chrono::system_clock::now();
+                
+                cout.rdbuf (file.rdbuf());
+                reconstruction->Superresolution(i+1);
+                cout.rdbuf (strm_buffer);
                 if (debug) {
                     end = std::chrono::system_clock::now();
                     elapsed_seconds = end-start;
-                    cout << "Robust statistics ";
+                    cout << "Superresolution ";
                     cout << "- " << elapsed_seconds.count() << "s " << endl;
+                }
+                
+                if (intensity_matching) {
+                    if (debug)
+                        start = std::chrono::system_clock::now();
+                    cout.rdbuf (file.rdbuf());
+                    if((sigma>0)&&(!global_bias_correction))
+                        reconstruction->NormaliseBias(i);
+                    cout.rdbuf (strm_buffer);
+                    if (debug) {
+                        end = std::chrono::system_clock::now();
+                        elapsed_seconds = end-start;
+                        cout << "NormaliseBias ";
+                        cout << "- " << elapsed_seconds.count() << "s " << endl;
+                    }
+                }
+                
+                // Simulate slices (needs to be done
+                // after the update of the reconstructed volume)
+                if (debug)
+                    start = std::chrono::system_clock::now();
+                
+                cout.rdbuf (file.rdbuf());
+                reconstruction->SimulateSlices();
+                cout.rdbuf (strm_buffer);
+                if (debug) {
+                    end = std::chrono::system_clock::now();
+                    elapsed_seconds = end-start;
+                    cout << "SimulateSlices ";
+                    cout << "- " << elapsed_seconds.count() << "s " << endl;
+                }
+                
+                if(robust_statistics) {
+                    if (debug)
+                        start = std::chrono::system_clock::now();
+                    
+                    cout.rdbuf (file.rdbuf());
+                    reconstruction->MStep(i+1);
+                    cout.rdbuf (strm_buffer);
+                    
+                    
+                    cout.rdbuf (file.rdbuf());
+                    reconstruction->EStep();
+                    cout.rdbuf (strm_buffer);
+                    
+                    if (debug) {
+                        end = std::chrono::system_clock::now();
+                        elapsed_seconds = end-start;
+                        cout << "Robust statistics ";
+                        cout << "- " << elapsed_seconds.count() << "s " << endl;
+                    }
+                }
+                
+                //Save intermediate reconstructed image
+                if (debug) {
+                    reconstructed=reconstruction->GetReconstructed();
+                    sprintf(buffer,"super%i.nii.gz",i);
+                    reconstructed.Write(buffer);
+                }
+                
+                if (debug) {
+                    double error = reconstruction->EvaluateReconQuality(1);
+                    cout << "Total reconstruction error : " << error << endl;
+                }
+                
+                
+            }//end of reconstruction iterations
+            
+            //Mask reconstructed image to ROI given by the mask
+            reconstruction->MaskVolume();
+            
+            //Save reconstructed image
+    //        if (debug)
+    //        {
+                reconstructed = reconstruction->GetReconstructed();
+                sprintf(buffer, "image%i.nii.gz", iter);
+                reconstructed.Write(buffer);
+    //        }
+            
+
+                    double out_ncc = 0;
+                    double out_nrmse = 0;
+                    double average_volume_weight = 0;
+                    double ratio_excluded = 0;
+            
+                    reconstruction->ReconQualityReport(out_ncc, out_nrmse, average_volume_weight, ratio_excluded);
+                    
+                    cout << " - global metrics: ncc = " << out_ncc << " ; nrmse = " << out_nrmse << " ; average weight = " << average_volume_weight << " ; excluded slices = " << ratio_excluded << endl;
+                
+                {
+                    name = "output-metric-ncc.txt";
+                    ofstream f_out_ncc(name.c_str());
+                    name = "output-metric-nrmse.txt";
+                    ofstream f_out_nrmse(name.c_str());
+                    name = "output-metric-average-weight.txt";
+                    ofstream f_out_weight(name.c_str());
+                    name = "output-metric-excluded-ratio.txt";
+                    ofstream f_out_excluded(name.c_str());
+                    
+                    cout.rdbuf (f_out_ncc.rdbuf());
+                    cout << out_ncc << endl;
+                    
+                    cout.rdbuf (f_out_nrmse.rdbuf());
+                    cout << out_nrmse << endl;
+                    
+                    cout.rdbuf (f_out_weight.rdbuf());
+                    cout << average_volume_weight << endl;
+                    
+                    cout.rdbuf (f_out_excluded.rdbuf());
+                    cout << ratio_excluded << endl;
+                    
+                    cout.rdbuf (strm_buffer);
+                }
+        
+            
+//            reconstruction->SaveSliceInfo(iter);
+
+            
+            if (debug) {
+                //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
+                if ( ! no_log ) {
+                    cout.rdbuf (fileEv.rdbuf());
+                }
+                reconstruction->Evaluate(iter);
+                        // cout<<endl;
+                if ( ! no_log ) {
+                    cout.rdbuf (strm_buffer);
                 }
             }
             
-            //Save intermediate reconstructed image
+            
+            
+        } // end of interleaved registration-reconstruction iterations
+        
+        cout << "------------------------------------------------------" << endl;
+        
+        reconstruction->RestoreSliceIntensities();
+        
             if (debug) {
-                reconstructed=reconstruction->GetReconstructed();
-                sprintf(buffer,"super%i.nii.gz",i);
-                reconstructed.Write(buffer);
+                reconstruction->SaveTransformations();
+                reconstruction->SaveSlices();
             }
-            
-            if (debug) {
-                double error = reconstruction->EvaluateReconQuality(1);
-                cout << "Total reconstruction error : " << error << endl; 
-            }
-            
-            
-        }//end of reconstruction iterations
-        
-        //Mask reconstructed image to ROI given by the mask
-        reconstruction->MaskVolume();
-        
-        //Save reconstructed image
-//        if (debug)
-//        {
-            reconstructed = reconstruction->GetReconstructed();
-            sprintf(buffer, "image%i.nii.gz", iter);
-            reconstructed.Write(buffer);
-//        }
-        
-            double out_ncc = 0;
-            double out_nrmse = 0;
-            reconstruction->ReconQualityReport(out_ncc, out_nrmse);
-            
-            cout << " - global metrics: ncc = " << out_ncc << " ; nrmse = " << out_nrmse << endl;
-        
-        {
-            name = "output-metric-ncc.txt";
-            ofstream f_out_ncc(name.c_str());
-            name = "output-metric-nrmse.txt";
-            ofstream f_out_nrmse(name.c_str());
-            
-            cout.rdbuf (f_out_ncc.rdbuf());
-            cout << out_ncc << endl;
-            
-            cout.rdbuf (f_out_nrmse.rdbuf());
-            cout << out_nrmse << endl;
-            
-            cout.rdbuf (strm_buffer);
-        }
-        
-        
-        
 
-        
-        if (debug) {
-            //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            if ( ! no_log ) {
-                cout.rdbuf (fileEv.rdbuf());
+             
+            
+        //     if ( info_filename.length() > 0 )
+        //         reconstruction->SlicesInfo( info_filename.c_str(),
+        //                                    stack_files );
+            
+            if(debug)
+            {
+                reconstruction->SaveWeights();
+                reconstruction->SaveBiasFields();
+                reconstruction->SimulateStacks(stacks);
+                for (unsigned int i=0;i<stacks.size();i++)
+                {
+                    sprintf(buffer,"simulated%i.nii.gz",i);
+                    stacks[i].Write(buffer);
+                }
             }
-            reconstruction->Evaluate(iter);
-                    // cout<<endl;
-            if ( ! no_log ) {
-                cout.rdbuf (strm_buffer);
-            }
-        }
         
+        reconstruction->ScaleVolume();
         
+    }
         
-    } // end of interleaved registration-reconstruction iterations
     
-    cout << "------------------------------------------------------" << endl;
+    if (full_remote_recon) {
+        reconstruction->LoadResultsRemote(str_current_exchange_file_path, reconstruction->_number_of_slices_org, current_iteration);
+        reconstruction->ScaleVolume();
+    }
+    
+    
+   
     
     //save final result
     
@@ -1750,9 +1909,7 @@ int main(int argc, char **argv)
         int tmp_log_rm = system(remove_folder_cmd.c_str());
     }
 
-    reconstruction->RestoreSliceIntensities();
     
-    reconstruction->ScaleVolume();
     reconstructed=reconstruction->GetReconstructed();
     reconstructed.Write(output_name);
     
@@ -1763,28 +1920,7 @@ int main(int argc, char **argv)
     cout << "Total time:" << elapsed_seconds.count() << "s " << endl;
     
     
-    if (debug) {
-        reconstruction->SaveTransformations();
-        reconstruction->SaveSlices();
-    }
 
-//     reconstruction->SaveSliceInfo();
-    
-//     if ( info_filename.length() > 0 )
-//         reconstruction->SlicesInfo( info_filename.c_str(),
-//                                    stack_files );
-    
-    if(debug)
-    {
-        reconstruction->SaveWeights();
-        reconstruction->SaveBiasFields();
-        reconstruction->SimulateStacks(stacks);
-        for (unsigned int i=0;i<stacks.size();i++)
-        {
-            sprintf(buffer,"simulated%i.nii.gz",i);
-            stacks[i].Write(buffer);
-        }
-    }
     
     cout << "------------------------------------------------------" << endl;
     

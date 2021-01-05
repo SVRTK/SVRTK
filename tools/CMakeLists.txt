@@ -24,6 +24,23 @@
 
 #set(USE_Python TRUE) 
 
+
+mirtk_add_executable(
+  reconstruct-round
+  SOURCES
+    reconstruct-round.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
 mirtk_add_executable(
   reconstruct
   SOURCES

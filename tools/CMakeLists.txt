@@ -291,6 +291,23 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
+  mask_volume
+  SOURCES
+    mask_volume.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
+mirtk_add_executable(
   extract-packages
   SOURCES
     extract-packages.cc
@@ -309,9 +326,9 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  pad-3d
+  prepare-for-cnn
   SOURCES
-    pad-3d.cc
+    prepare-for-cnn.cc
   DEPENDS
     LibCommon
     LibNumerics

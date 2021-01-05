@@ -20,7 +20,7 @@
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
-#include <set>#include <set>
+#include <set>
 
 using namespace mirtk;
 using namespace std;

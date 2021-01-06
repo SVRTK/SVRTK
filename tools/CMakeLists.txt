@@ -42,6 +42,21 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
+  extract-label
+  SOURCES
+    extract-label.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
   reconstruct
   SOURCES
     reconstruct.cc

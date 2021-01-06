@@ -1,8 +1,7 @@
 /*
  * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2008-2017 Imperial College London
- * Copyright 2018-2019 King's College London
+ * Copyright 2018-2021 King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +14,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */  
+ */
 
 
 #include "mirtk/Common.h"

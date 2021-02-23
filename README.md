@@ -38,8 +38,7 @@ mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz .
 
 ```
 
-In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the Desktop 
-Docker settings. You can increase RAM by using virtual RAM on Window and or swap on Ubuntu.  
+_Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the Desktop Docker settings. You can increase RAM by using virtual RAM on Window and or swap on Ubuntu._ 
 
 
 
@@ -48,9 +47,9 @@ Installation
 
 Please follow the installation instructions in InstallationInstructions.txt file.
 
-Note, the software can be compiled on either Ubuntu or OS X. 
+_Notes: The software can be compiled on either Ubuntu or OS X. 
 In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and 32 GB RAM. 
-In case of "-9" memory errors - please run reconstruction with "-remote" option (and increase SWAP).
+In case of "-9" memory errors - please run reconstruction with "-remote" option (and increase SWAP)._
 
 
 
@@ -66,12 +65,17 @@ Examples:
 mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 -remote
 ```
  
+ _Notes: The template stack should be the least motion corrupted and the brain position should correspond to the average position between all stacks (e.g., in the middle of the acquisition). The mask should be created for the template stack and cover the brain/head only - without stationary maternal tissue._
+ 
    ---
 3D fetal body DSVR reconstruction:
 
 ```bash
 mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 0.85
 ```
+
+ _Notes: The template stack should be the least motion corrupted and the brain position should correspond to the average position between all stacks (e.g., in the middle of the acquisition). The mask should be created for the template stack and cover the investigated ROI._
+
   ---
 3D placenta DSVR reconstruction:
 
@@ -79,12 +83,12 @@ mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz .
 mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 1.25
 ```
   ---
-3D multi-channel DSVR reconstruction for T2* (reconstruction of 3D T2* maps driven by one of the echoes, e.g., e2):
+3D multi-channel DSVR reconstruction for T2* (reconstruction of 3D T2* maps driven by one of the echoes, e.g., E2, and transformations are propagated to the T2* map channel):
 
 ```bash
 mirtk reconstructMC ../outputDSVR-E2.nii.gz 3 ../stack1-E2.nii.gz ../stack2-E2.nii.gz ../stack3-E2.nii.gz -channels 1 ../stack1-T2sMAP.nii.gz ../stack2-T2sMAP.nii.gz ../stack3-T2sMAP.nii.gz -mask ../mask.nii.gz -template ../template-stack-E2.nii.gz -thickness 2.5 -default -remote -no_intensity_matching -resolution 1.25
 ```  
-(the output T2* map will be in mc-image-0.nii.gz file) 
+ _Notes: The output reconstructed T2* map will be in mc-image-0.nii.gz file._
   
  ---
 4D cardiac velocity reconstruction:
@@ -100,15 +104,17 @@ mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz
 mirtk reconstructDWI ../recon-3D-vol.nii.gz ../4D-DWI-stack.nii.gz ../gradient-directions.b ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number] -motion_model_hs -sr_sh_iterations 10
 ```
 
+ _Notes: The ../4D-DWI-stack.nii.gz stack should include only single shell dynamics (e.g., only B=1000 and no B0 volumes). The current version accepts only one HARDI 4D stack with one orientation. The next release will include the option for multile orientations._ 
+
 The resulting reconstructed signal is in _simulated_signal.nii.gz and the SH coefficients are in shCoeff9.nii.gz files.
 This should be followed by constrained spherical deconvolution for representation of the signal in SH basis based on the functions from MRtrix (https://github.com/MRtrix3/mrtrix3):
 
-```bash
+```bash v
 dwi2response tournier _simulated_signal.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz
 dwi2fod csd signal.nii.gz response.txt csd-out.mif -lmax 6 -grad ../gradient-directions.b -force -mask ../mask-wm.nii.gz
 ```
  
- (please note that distorion and bias field correction prior should be applied prior to reconstruction)
+ _Notes: Please note that distorion and bias field correction prior should be applied prior to reconstruction._
  
   ---
 

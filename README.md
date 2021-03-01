@@ -14,7 +14,7 @@ SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mir
 - SH brain diffusion (HARDI) 
 
 
-The general pipeline for fetal brain reconstruction is based on the  `reconstruction`  function in IRTK: https://biomedia.doc.ic.ac.uk/software/irtk/.
+The general pipeline for fetal brain reconstruction is based on the  `reconstruction`  function in IRTK implemented by Maria Deprez: https://biomedia.doc.ic.ac.uk/software/irtk/.
 
 4D cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 

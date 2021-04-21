@@ -111,7 +111,7 @@ int main(int argc, char **argv)
            for (int y = sh; y < input_stack.GetY()-sh; y++) {
                for (int z = sh; z < input_stack.GetZ()-sh; z++) {
 
-                   if (input_mask(x,y,z)>0.1) {
+                   if (input_mask(x,y,z)>0.5) {
                        output_stack(x,y,z,t) = input_stack(x,y,z,t);
                        output_mask(x,y,z) = 1;
                    }

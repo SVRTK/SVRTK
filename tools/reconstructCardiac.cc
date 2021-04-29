@@ -88,6 +88,7 @@ void usage()
     cerr << "\t-force_exclude [n] [ind1]..[indN]  Force exclusion of image-frames with these indices."<<endl;
     cerr << "\t-force_exclude_sliceloc [n] [ind1]..[indN]  Force exclusion of slice-locations with these indices."<<endl;
     cerr << "\t-force_exclude_stack [n] [ind1]..[indN]  Force exclusion of stacks with these indices."<<endl;
+    cerr << "\t-kt_block_cine_loc [n] [ind1]..[indN]  Reconstruct k-t block cines at z-indexed locations."<<endl;
     cerr << "\t-no_stack_intensity_matching  Switch off stack intensity matching."<<endl;
     cerr << "\t-no_intensity_matching     Switch off intensity matching."<<endl;
     cerr << "\t-no_robust_statistics      Switch off robust statistics."<<endl;
@@ -218,7 +219,7 @@ int main(int argc, char **argv)
     bool have_ref_transformations = false;
     //flag to remove black background, e.g. when neonatal motion correction is performed
     bool remove_black_background = false;
-    //flag to swich the intensity matching on and off
+    //flag to switch the intensity matching on and off
     bool stack_intensity_matching = true;
     bool intensity_matching = true;
     bool rescale_stacks = false;
@@ -248,6 +249,11 @@ int main(int argc, char **argv)
     int number_of_force_excluded_locs = 0;
     Array<int> force_excluded_locs;
     
+    // k-t SWEEP block cine recon
+    bool kt_block_cine_recon = false;
+    int number_of_block_cine_locs = 0;
+    Array<int> kt_block_cine_locs;
+
     //Create reconstruction object
     ReconstructionCardiac4D reconstruction;
     
@@ -793,6 +799,27 @@ int main(int argc, char **argv)
             cout<<"."<<endl;
             ok = true;
         }
+
+        //k-t SWEEP block cine reconstruction
+        if ((ok == false) && (strcmp(argv[1], "-kt_block_cine_loc") == 0)){
+            argc--;
+            argv++;
+            kt_block_cine_recon=true;
+            number_of_block_cine_locs = atoi(argv[1]);
+            argc--;
+            argv++;
+            
+            cout<< number_of_block_cine_locs << " k-t block cine mid-point locations: ";
+            for (i=0;i<number_of_block_cine_locs;i++)
+            {
+                kt_block_cine_locs.push_back(atoi(argv[1]));
+                cout<<kt_block_cine_locs[i]<<" ";
+                argc--;
+                argv++;
+            }
+            cout<<"."<<endl;
+            ok = true;
+        }
         
         //Get name of reference volume for adjustment of spatial position of reconstructed volume
         if ((ok == false) && (strcmp(argv[1], "-ref_vol") == 0)){
@@ -928,9 +955,7 @@ int main(int argc, char **argv)
         cout<<"."<<endl;
     }
 
-    
-    
-    
+      
     
     Array<RealImage> masked_stacks;
     
@@ -1142,7 +1167,7 @@ int main(int argc, char **argv)
             stacks[i].Write(buffer);
         }
     }
-    
+
     //Rescale intensities of the stacks to have the same average
     if (stack_intensity_matching)
     reconstruction.MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
@@ -1159,18 +1184,27 @@ int main(int argc, char **argv)
     average.Write("average2.nii.gz");
     
     //Create slices and slice-dependent transformations
-    reconstruction.CreateSlicesAndTransformationsCardiac4D(stacks,stack_transformations,thickness);
+    if (!kt_block_cine_recon) {
+        reconstruction.CreateSlicesAndTransformationsCardiac4D(stacks,stack_transformations,thickness);
+    }
+
+    // k-t block cine recon - assign slices within block to single z-location 
+    if (kt_block_cine_recon) {
+    reconstruction.AssignKtBlockSlicesToSingleLocation(stacks,stack_transformations,thickness,kt_block_cine_locs);
+    // return 0;
+    }
+    
     if(debug){
         reconstruction.InitCorrectedSlices();
         reconstruction.InitError();
     }
-    
+
     //if given, read transformations
     if (folder!=NULL)
     reconstruction.ReadTransformation(folder);  // image-frame to volume registrations
     else {
         if (slice_transformations_folder!=NULL)     // slice-location to volume registrations
-        reconstruction.ReadSliceTransformation(slice_transformations_folder);
+        reconstruction.ReadSliceTransformation(slice_transformations_folder,kt_block_cine_locs);
     }
     
     //if given, read reference transformations

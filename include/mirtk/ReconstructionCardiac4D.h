@@ -77,6 +77,15 @@ namespace mirtk {
         
         // Slice SVR Target Cardiac Phase
         Array<int> _slice_svr_card_index;
+
+        // k-t block mid-points indexed within stacks
+        Array<int> _mid_point_index;
+
+        // k-t block mid-points indexed across all stacks
+        Array<int> _stack_mid_point_index;
+
+        // k-t block transformations
+        Array<int> _kt_block_cine_transformations;
         
         // Displacement
         Array<double> _slice_displacement;
@@ -139,7 +148,7 @@ namespace mirtk {
         inline RealImage GetVolumeWeights();
         
         // Get Slice-Location transformations
-        void ReadSliceTransformation(char* slice_transformations_folder);
+        void ReadSliceTransformation(char* slice_transformations_folder, Array<int> kt_block_cine_locs);
         
         ///Set stacks to be excluded
         inline void SetForceExcludedStacks( Array<int>& force_excluded_stacks );
@@ -181,6 +190,13 @@ namespace mirtk {
         
         //Set stack factors
         void InitStackFactor(Array<RealImage>& stacks);
+
+
+        // AssignKtBlockSlicesToSingleLocation
+        void AssignKtBlockSlicesToSingleLocation( Array<RealImage> &stacks,
+                        Array<RigidTransformation> &stack_transformations,
+                        Array<double> &thickness,
+                        Array<int> kt_block_cine_locs );
         
         // Create slices from the stacks and
         // slice-dependent transformations from stack transformations

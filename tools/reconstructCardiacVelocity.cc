@@ -210,6 +210,11 @@ int main(int argc, char **argv)
     Array<int> force_excluded_stacks;
     int number_of_force_excluded_locs = 0;
     Array<int> force_excluded_locs;
+
+    // k-t SWEEP block cine recon
+    bool kt_block_cine_recon = false;
+    int number_of_block_cine_locs = 0;
+    Array<int> kt_block_cine_locs;
     
     //Create reconstruction object
     ReconstructionCardiacVelocity4D reconstruction;
@@ -914,7 +919,7 @@ int main(int argc, char **argv)
         reconstruction.ReadTransformation(folder);  // image-frame to volume registrations
     else {
         if (slice_transformations_folder!=NULL)     // slice-location to volume registrations
-            reconstruction.ReadSliceTransformation(slice_transformations_folder);
+            reconstruction.ReadSliceTransformation(slice_transformations_folder,kt_block_cine_locs);
 
     }
     

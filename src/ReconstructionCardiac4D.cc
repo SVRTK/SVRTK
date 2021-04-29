@@ -116,7 +116,7 @@ namespace mirtk {
     // -----------------------------------------------------------------------------
     // Get Slice-Location Transformations
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ReadSliceTransformation(char* slice_transformations_folder)
+    void ReconstructionCardiac4D::ReadSliceTransformation(char* slice_transformations_folder, Array<int> kt_block_cine_locs)
     {
         if (_slices.size()==0)
         {
@@ -125,6 +125,8 @@ namespace mirtk {
         }
         
         int nLoc = _loc_index.back() + 1;
+        // int loc_offset = 0;
+        // int ctr = 1;
         
         char name[256];
         char path[256];
@@ -132,11 +134,20 @@ namespace mirtk {
         Transformation *transformation;
         RigidTransformation *rigidTransf;
         
+        if ( !kt_block_cine_locs.size()==0 )
+            cout << "Assigning transformations according to k-t block reconstruction." << endl;
+
         // Read transformations from file
         cout << "Reading transformations:" << endl;
         for (int iLoc = 0; iLoc < nLoc; iLoc++) {
             if (slice_transformations_folder != NULL) {
                 sprintf(name, "/transformation%05i.dof", iLoc);
+                
+                // k-t block reconstruction adjustment
+                if ( !kt_block_cine_locs.size()==0 ) {
+                    sprintf(name, "/transformation%05i.dof", (_kt_block_cine_transformations[iLoc]) );
+                }
+                
                 strcpy(path, slice_transformations_folder);
                 strcat(path, name);
             }
@@ -383,10 +394,139 @@ namespace mirtk {
         for(unsigned int stackIndex=0; stackIndex<stacks.size(); stackIndex++)
             _stack_factor.push_back(1);
     }
-    
-    
-    
-    
+
+    // -----------------------------------------------------------------------------
+    // AssignKtBlockSlicesToSingleLocation
+    // -----------------------------------------------------------------------------    
+    void ReconstructionCardiac4D::AssignKtBlockSlicesToSingleLocation( Array<RealImage> &stacks,
+                                            Array<RigidTransformation> &stack_transformations,
+                                            Array<double> &thickness,
+                                            Array<int> kt_block_cine_locs )
+    {
+        double sliceAcqTime;
+        int loc_index = 0;
+
+        int kt_block_width = kt_block_cine_locs.size();
+        int mid_point = kt_block_cine_locs[kt_block_width-1] - ( kt_block_width / 2 );
+        int blk_loc_ctr = 0;
+        int stack_loc_mid_point = 0;
+
+        // construct stack_loc_offset array
+        Array<int> stack_sizes; stack_sizes.push_back(0);
+        Array<int> stack_loc_offset; stack_loc_offset.push_back(0);
+        for (unsigned int i = 0; i < stacks.size(); i++) {
+            ImageAttributes attr = stacks[i].GetImageAttributes();
+            stack_sizes.push_back(attr._z);
+            stack_loc_offset.push_back( accumulate(stack_sizes.begin(), stack_sizes.end(), 0) );
+        }
+
+        if (_debug)
+            cout << "AssignKtBlockSlicesToSingleLocation" << endl;
+            cout << "k-t block width: " << kt_block_width << endl;
+            cout << "k-t block mid_point: " << mid_point << endl;
+            cout << "stack_loc_offset: ";
+            for (unsigned int i = 0; i < stack_loc_offset.size(); i++) {
+                cout << stack_loc_offset[i] <<" ";
+            }
+            cout<<"."<<endl;
+
+        //for each stack
+        for (unsigned int i = 0; i < stacks.size(); i++) {
+            
+            //image attributes contain image and voxel size
+            ImageAttributes attr = stacks[i].GetImageAttributes();
+
+            //attr._z is number of slices in the stack
+            for (int j = 0; j < attr._z; j++) {
+                
+                //attr._t is number of frames in the stack
+                for (int k = 0; k < attr._t; k++) {
+
+                    // get current slice
+                    RealImage slice = stacks[i].GetRegion(0, 0, j, k, attr._x, attr._y, j + 1, k + 1);
+
+                    if ( kt_block_cine_locs[blk_loc_ctr] == loc_index ) {
+                        stack_loc_mid_point = mid_point - stack_loc_offset[i];
+                        // cout << "stack_loc_offset: " << stack_loc_offset[i] << endl;
+                        // cout << "stack_loc_mid_point: " << stack_loc_mid_point << endl;
+                        
+                        // get attributes from middle slice in k-t block
+                        RealImage ref_slice = stacks[i].GetRegion(0, 0, stack_loc_mid_point, k, attr._x, attr._y, stack_loc_mid_point + 1, k + 1);
+                        ref_slice.PutPixelSize(attr._dx, attr._dy, thickness[i], attr._dt);
+                        ImageAttributes ref_attr = ref_slice.GetImageAttributes();
+                        // transplant middle slice attributes to current slice
+                        slice.PutAttributes(ref_attr);
+                        cout << "Assigned attributes of k-t block mid_point (" << stack_loc_mid_point << ") to loc_index: " << loc_index << endl;
+                    }
+
+                    // SWEEP slice acquisition time
+                    sliceAcqTime = attr._torigin + loc_index * attr._dt;
+                    cout << "loc_index = " << loc_index << ", attr._torigin = " << attr._torigin << ", attr._dt = " << attr._dt << ", sliceAcqTime = " << sliceAcqTime << endl;
+
+                    // // nb: must do manually as in SWEEP nifti, k = 0
+                    // if ( kt_block_cine_locs[blk_loc_ctr] == loc_index ) {
+                    //     sliceAcqTime = attr._torigin + blk_loc_ctr * attr._dt;
+                    //     cout << "blk_loc_ctr = " << blk_loc_ctr << ", attr._torigin = " << attr._torigin << ", attr._dt = " << attr._dt << ", sliceAcqTime = " << sliceAcqTime << endl;
+                    // } else {
+                    //     sliceAcqTime = attr._torigin + k * attr._dt;
+                    // }
+
+                    _slice_time.push_back(sliceAcqTime);
+                    //set slice temporal resolution
+                    _slice_dt.push_back(attr._dt);
+                    //remember the slice
+                    _slices.push_back(slice);
+                    _simulated_slices.push_back(slice);
+                    _simulated_weights.push_back(slice);
+                    _simulated_inside.push_back(slice);
+                    _zero_slices.push_back(1);
+                    //remeber stack indices for this slice
+                    _stack_index.push_back(i);
+                    _loc_index.push_back(loc_index);
+                    _stack_loc_index.push_back(j);
+                    _stack_dyn_index.push_back(k);
+                    //initialize slice transformation with the stack transformation
+                    _transformations.push_back(stack_transformations[i]);
+                    //initialise slice exclusion flags
+                    _slice_excluded.push_back(0);
+                    //initialise cardiac phase to use for 2D-3D registration
+                    _slice_svr_card_index.push_back(0);
+                    //remember k-t block transformation
+                    if ( kt_block_cine_locs[blk_loc_ctr] == loc_index ) {
+                        _kt_block_cine_transformations.push_back(mid_point);
+                        blk_loc_ctr++;
+                    } else {
+                        _kt_block_cine_transformations.push_back(loc_index);
+                    }
+                }
+                loc_index++;
+            }
+
+        }
+
+        // if (_debug){
+        //     cout << "_kt_block_cine_transformations: ";
+        //     for (unsigned int i = 0; i < _kt_block_cine_transformations.size(); i++) {
+        //         cout << _kt_block_cine_transformations[i] <<" ";
+        //     }
+        //     cout<<"."<<endl;
+        // }
+
+        cout << "Number of images: " << _slices.size() << endl;
+        //set excluded slices
+        for (unsigned int i = 0; i < _force_excluded.size(); i++)
+            _slice_excluded[_force_excluded[i]] = 1;
+        for (unsigned int i = 0; i < _force_excluded_stacks.size(); i++)
+            for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+                if (_force_excluded_stacks[i]==_stack_index[inputIndex])
+                    _slice_excluded[inputIndex] = 1;
+        for (unsigned int i = 0; i < _force_excluded_locs.size(); i++)
+            for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+                if (_force_excluded_locs[i]==_loc_index[inputIndex])
+                    _slice_excluded[inputIndex] = 1;
+    }
+
+
     // -----------------------------------------------------------------------------
     // Create Slices and Associated Transformations
     // -----------------------------------------------------------------------------
@@ -419,6 +559,7 @@ namespace mirtk {
                     slice.PutPixelSize(attr._dx, attr._dy, thickness[i], attr._dt);
                     //set slice acquisition time
                     sliceAcqTime = attr._torigin + k * attr._dt;
+                    // cout << "k = " << k << ", attr._torigin = " << attr._torigin << ", attr._dt = " << attr._dt << ", sliceAcqTime = " << sliceAcqTime << endl;
                     _slice_time.push_back(sliceAcqTime);
                     //set slice temporal resolution
                     _slice_dt.push_back(attr._dt);
@@ -4026,6 +4167,7 @@ namespace mirtk {
         << "MeanDisplacementZ" << "\t"
         << "WeightedMeanDisplacement" << "\t"
         << "TRE" << "\t"
+        << "KtBlockTransformation" << "\t"
         << "TranslationX" << "\t"
         << "TranslationY" << "\t"
         << "TranslationZ" << "\t"
@@ -4058,6 +4200,7 @@ namespace mirtk {
             << _slice_tz[i] << "\t"
             << _slice_weighted_displacement[i] << "\t"
             << _slice_tre[i] << "\t"
+            << _kt_block_cine_transformations[i] << "\t"
             << t.GetTranslationX() << "\t"
             << t.GetTranslationY() << "\t"
             << t.GetTranslationZ() << "\t"

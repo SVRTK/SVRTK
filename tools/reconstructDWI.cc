@@ -63,14 +63,15 @@ using namespace std;
 
 void usage()
 {
-    cerr << "Usage: reconstructDWI [reconstructed] [DWI] [g_directions] [target] [init_transformation] <options>\n" << endl;
+    cerr << "Usage: reconstructDWI [reconstructed_signal] [N] [4D_DWI_stacks] [g_directions] [target] [init_transformation] <options>\n" << endl;
     cerr << endl;
     
-    cerr << "\t[reconstructed]         Name for the reconstructed volume. Nifti or Analyze format." << endl;
-    cerr << "\t[N]                     Number of stacks." << endl;
-    cerr << "\t[stack_1] .. [stack_N]  The input stacks. Nifti or Analyze format." << endl;
-    cerr << "\t[bvalues]               List of b-values for each image and direction in a text file." << endl;
-    cerr << "\t[directions]            List of directions for each image and direction in a text file." << endl;
+    cerr << "\t[reconstructed_signal]   Name for the reconstructed signal volume." << endl;
+    cerr << "\t[N]                      Number of 4D DWI stacks [Nifti]." << endl;
+    cerr << "\t[4D_DWI_stack_1] .. [4D_DWI_stack_4]  The input DWI stacks. Nifti or Analyze format." << endl;
+    cerr << "\t[bval_bgrad_file_1]  ..  [bval_bgrad_file_1]         List of .txt files with b-values and grad. directions for each DWI stack and direction in a text file." << endl;
+    cerr << "\t[T2_ref]                 Reference T2 volume in the atlas space." << endl;
+    cerr << "\t[dof_to_T2_ref]          Tranformation [.dof] from the diffusion to the reference T2 volume." << endl;
     cerr << "\t" << endl;
     cerr << "Options:" << endl;
     cerr << "\t-dofin [dof_1]   .. [dof_N]    The transformations of the input stack to template" << endl;
@@ -80,31 +81,31 @@ void usage()
     cerr << "\t                        Use \'id\' for an identity transformation for at least" << endl;
     cerr << "\t                        one stack. The first stack with \'id\' transformation" << endl;
     cerr << "\t                        will be resampled as template." << endl;
-    cerr << "\t-thickness [th_1] .. [th_N] Give slice thickness.[Default: twice voxel size in z direction]"<<endl;
-    cerr << "\t-mask [mask]              Binary mask to define the region od interest. [Default: whole image]"<<endl;
-    cerr << "\t-packages [num]           Give number of packages used during acquisition for each stack."<<endl;
-    cerr << "\t                          The stacks will be split into packages during registration iteration 1"<<endl;
-    cerr << "\t                          and then into odd and even slices within each package during "<<endl;
-    cerr << "\t                          registration iteration 2. The method will then continue with slice to"<<endl;
-    cerr << "\t                          volume approach. [Default: slice to volume registration only]"<<endl;
-    cerr << "\t-iterations [iter]        Number of registration-reconstruction iterations. [Default: 9]"<<endl;
-    cerr << "\t-sigma [sigma]            Stdev for bias field. [Default: 12mm]"<<endl;
-    cerr << "\t-resolution [res]         Isotropic resolution of the volume. [Default: 0.75mm]"<<endl;
+    cerr << "\t-order [order]          SH order for reconstruction. [Default: 4]"<<endl;
+    cerr << "\t-motion_model_hs        Option for procesing motion parameters. [Default: false]"<<endl;
+    cerr << "\t-intensity_exclusion [low_slice_intensity] Set lowest intensity threshold for exclusion of dark slices. [Default: no intensity-based slice exclusion.]"<<endl;
+    cerr << "\t-thickness [th]           Slice thickness for all stacks.[Default: voxel size in z direction]"<<endl;
+    cerr << "\t-packages [n_packages]   Number of packages for all stacks.[Default: 1]"<<endl;
+    cerr << "\t-mask [mask]              Binary mask to define the region of interest. [Default: whole image]"<<endl;
+    cerr << "\t-iterations [iter]        Number of SVR-SR (registration-reconstruction) iterations. [Default: 9]"<<endl;
+    cerr << "\t-sigma [sigma]            Stdev for bias field. [Default: 30mm]"<<endl;
+    cerr << "\t-motion_sigma [motion_sigma] Sigma for SH reconstruction. [Default: 5mm]"<<endl;
+    cerr << "\t-resolution [res]         Isotropic resolution of the output volumes. [Default: 1mm]"<<endl;
     cerr << "\t-multires [levels]        Multiresolution smooting with given number of levels. [Default: 3]"<<endl;
-    cerr << "\t-average [average]        Average intensity value for stacks [Default: 700]"<<endl;
-    cerr << "\t-delta [delta]            Parameter to define what is an edge. [Default: 150]"<<endl;
+    cerr << "\t-delta [delta]            Parameter to define what is an edge. [Default: 0.001]"<<endl;
     cerr << "\t-lambda [lambda]          Smoothing parameter. [Default: 0.02]"<<endl;
-    cerr << "\t-lambdaLB [lambdaLB]          Smoothing parameter. [Default: 0.05]"<<endl;
-    cerr << "\t-regul_steps [steps]      Number of regularisation steps. [Default: 1]"<<endl;
-    cerr << "\t-lastIter [lambda]        Smoothing parameter for last iteration. [Default: 0.01]"<<endl;
-    cerr << "\t-smooth_mask [sigma]      Smooth the mask to reduce artefacts of manual segmentation. [Default: 4mm]"<<endl;
-    cerr << "\t-global_bias_correction   Correct the bias in reconstructed image against previous estimation."<<endl;
-    cerr << "\t-low_intensity_cutoff     Lower intensity threshold for inclusion of voxels in global bias correction."<<endl;
+    cerr << "\t-lambdaLB [lambdaLB]      Smoothing parameter. [Default: 0.0]"<<endl;
+    cerr << "\t-regul_steps [steps]      Number of regularisation steps. [Default: 0]"<<endl;
+    cerr << "\t-lastIter [lastIterLambda]  Smoothing parameter for last iteration. [Default: 0.01]"<<endl;
+    cerr << "\t-smooth_mask [sigma]      Smooth the mask to reduce artefacts of manual segmentation. [Default: 0mm / none]"<<endl;
+    cerr << "\t-global_bias_correction   Correct the bias in reconstructed image against previous estimation. [Default: false]"<<endl;
+    cerr << "\t-low_intensity_cutoff [low_intensity]  Lower intensity threshold for inclusion of voxels in global bias correction. [Default: 0.01]"<<endl;
     cerr << "\t-transformations [folder] Use existing slice-to-volume transformations to initialize the reconstruction."<<endl;
     cerr << "\t-force_exclude [number of slices] [ind1] ... [indN]  Force exclusion of slices with these indices."<<endl;
     cerr << "\t-force_exclude_stacks [number of stacks] [ind1] ... [indN]  Force exclusion of whole stacks with these indices."<<endl;
     cerr << "\t-no_intensity_matching    Switch off intensity matching."<<endl;
     cerr << "\t-no_robust_statistics     Switch off robust statistics."<<endl;
+    cerr << "\t-no_sh_intensity_matching   Switch off SH reconstruction intensity matching."<<endl;
     cerr << "\t-exclude_slices_only      Do not exclude individual voxels."<<endl;
     cerr << "\t-log_prefix [prefix]      Prefix for the log file."<<endl;
     cerr << "\t-info [filename]          Filename for slice information in\
@@ -235,36 +236,220 @@ int main(int argc, char **argv)
     output_name = argv[1];
     argc--;
     argv++;
-    cout<<"Recontructed volume name ... "<<output_name<<endl;
+    cout<<"Recontructed DWI signal volume name ... "<<output_name<<endl;
     
-    //read 4D image
-    RealImage image4D;
-    cout<<"Reading stack ... "<<argv[1]<<endl;
-    image4D.Read(argv[1]);
+    
+    cout<<"Total number of input 4D DWI stacks ... "<<argv[1]<<endl;
+    int global_nStacks = atoi(argv[1]);
+    ok = true;
     argc--;
     argv++;
     
-    ImageAttributes attr = image4D.GetImageAttributes();
-    nStacks = attr._t;
-    cout<<"Number 0f stacks ... "<<nStacks<<endl;
+    
+    nStacks = 0;
+    
+    Array<int> nStackDynamics;
     
     // Read stacks
-    for (i=0;i<nStacks;i++)
+    for (int j=0; j<global_nStacks; j++)
     {
-        cout<<"Stack "<<i<<endl; cout.flush();
-        stacks.push_back(image4D.GetRegion(0,0,0,i,attr._x, attr._y,attr._z,i+1));
-        corrected_stacks.push_back(stacks[i]);
-        sprintf(buffer,"stack%i.nii.gz",i);
-        stacks[i].Write(buffer);
+        //read 4D image
+        RealImage image4D;
+        cout<<"Reading stack " << j <<  " ... "<<argv[1]<<endl;
+        image4D.Read(argv[1]);
+        
+        ImageAttributes attr = image4D.GetImageAttributes();
+        int local_nStacks = attr._t;
+        cout<<"Splitting into  ... "<<local_nStacks<<endl;
+        
+        nStackDynamics.push_back(local_nStacks);
+        
+        // Read stacks
+        for (i=0; i<local_nStacks; i++)
+        {
+
+            stacks.push_back(image4D.GetRegion(0,0,0,i,attr._x, attr._y,attr._z,i+1));
+            corrected_stacks.push_back(stacks[i]);
+                    
+        }
+
+        nStacks = nStacks + local_nStacks;
+        
+        argc--;
+        argv++;
+    
+    }
+    
+    
+    cout << "Total number of 3D stacks (diffusion weighted directions): " << nStacks << endl;
+    
+    
+    Array<Array<double> > directions(3,Array<double>(nStacks+1,0));
+    Array<double> bvalues(nStacks+1,0);
+    
+    int coord = 0;
+    int dir = 0;
+    double num;
+    
+    
+    for (int j=0; j<global_nStacks; j++)
+    {
+    
+        //Read the name of the textfile with directions
+        char *textfile = argv[1];
+        argc--;
+        argv++;
+        cout<<"Reading directions textfile " << j << " ... " <<textfile<<endl;
+    
+        int local_nStacks = nStackDynamics[j];
+        
+        ifstream in(textfile);
+        
+        coord = 0;
+        int local_dir = 0;
+        num = 0;
+        
+        cout<<"Reading directions: "<<endl;
+        if (in.is_open())
+        {
+                        
+            while (!in.eof())
+            {
+                in >> num;
+                    
+                
+                if ((coord<4)&&(local_dir<local_nStacks))
+                {
+                    if(coord<3) {
+                        cout << " (" << coord << "," << dir+1 << ") ";
+                        directions[coord][dir+1]=num;
+                    }
+                    else
+                        bvalues[dir+1]=num;
+                }
+                cout << num << " ";
+                coord++;
+                if (coord>=4)
+                {
+                    coord=0;
+                    dir++;
+                    local_dir++;
+                    cout<<endl;
+                }
+            }
+            in.close();
+        }
+        else
+        {
+            cout << "Unable to open file " << textfile << endl;
+            exit(1);
+        }
+        
+
+    }
+          
+    
+    cout << endl;
+    
+    cout<<"Selected b-value for reconstructions ... "<<argv[1]<<endl;
+    int main_bvalue = atoi(argv[1]);
+    ok = true;
+    argc--;
+    argv++;
+    
+    cout << endl;
+    
+    int all_new_count = 0;
+    
+    for (i=0; i<nStacks; i++)
+    {
+        
+        int dir_i = i+1;
+        if ((bvalues[dir_i] < main_bvalue*0.95) || (bvalues[dir_i] > main_bvalue*1.05)) {
+//            cout << i << " : " << directions[0][dir_i] << " " << directions[1][dir_i] << " " << directions[2][dir_i] << " " << bvalues[dir_i] << endl;
+        } else {
+            all_new_count = all_new_count + 1;
+        }
+        
         
     }
     
-    //Read the name of the textfile with directions
-    char *textfile = argv[1];
-    argc--;
-    argv++;
-    cout<<"Directions textfile is "<<textfile<<endl;
+    cout << endl;
     
+    int new_nStacks = 0;
+    Array<RealImage> new_stacks;
+    Array<Array<double> > new_directions(3,Array<double>(all_new_count+1,0));
+    Array<double> new_bvalues(all_new_count+1,0);
+    
+    
+    
+    int total_excluded = 0;
+    
+    int new_dir_i = 1;
+    
+    
+    ofstream out_b_file;
+    sprintf(buffer, "final-b-file.b");
+    out_b_file.open(buffer);
+    
+    
+    cout<<"Excluding stacks with other b-values ... ";
+    for (i=0; i<nStacks; i++)
+    {
+        int dir_i = i+1;
+        if ((bvalues[dir_i] < main_bvalue*0.95) || (bvalues[dir_i] > main_bvalue*1.05)) {
+            cout << i << "(" << dir_i << " / " << bvalues[dir_i] << ") ";
+            total_excluded = total_excluded + 1;
+        } else {
+            new_stacks.push_back(stacks[i]);
+            
+            
+            out_b_file << directions[0][dir_i] << " " << directions[1][dir_i] << " " << directions[2][dir_i] << " " << bvalues[dir_i] << endl;
+            
+            new_directions[0][new_dir_i] = directions[0][dir_i];
+            new_directions[1][new_dir_i] = directions[1][dir_i];
+            new_directions[2][new_dir_i] = directions[2][dir_i];
+            
+            new_bvalues[new_dir_i] = bvalues[dir_i];
+            
+            new_nStacks = new_nStacks + 1;
+            new_dir_i = new_dir_i + 1;
+        }
+    
+    }
+    
+    
+    out_b_file.close();
+    
+//    if (total_excluded > 0) {
+        
+        stacks.clear();
+        bvalues.clear();
+        directions.clear();
+        corrected_stacks.clear();
+        
+        for (i=0; i<new_stacks.size(); i++) {
+            int dir_i = i+1;
+            stacks.push_back(new_stacks[i]);
+            corrected_stacks.push_back(new_stacks[i]);
+            
+            sprintf(buffer,"stack%i.nii.gz",(i));
+            new_stacks[i].Write(buffer);
+            
+//            cout << i << " : " << new_directions[0][dir_i] << " " << new_directions[1][dir_i] << " " << new_directions[2][dir_i] << " " << new_bvalues[dir_i] << endl;
+        }
+        
+        nStacks = stacks.size();
+        
+//    }
+    
+    
+    
+    cout << endl ;
+    cout << "Final number of stacks: " << nStacks << endl;
+    cout << "Final .b file: final-b-file.b" << endl;
+    
+                    
     //read target
     RealImage target(argv[1]);
     cout<<"Target is "<<argv[1]<<endl;
@@ -346,8 +531,8 @@ int main(int argc, char **argv)
                 packages.push_back(pnum);
                 cout<<packages[i]<<" ";
             }
-            cout<<"size="<<packages.size()<<endl;
-            cout<<"."<<endl;
+//            cout<<"size="<<packages.size()<<endl;
+            cout << " . " <<  endl;
             ok = true;
         }
         
@@ -743,7 +928,7 @@ int main(int argc, char **argv)
         {
             double dx,dy,dz;
             stacks[i].GetPixelSize(&dx,&dy,&dz);
-            thickness.push_back(dz*2);
+            thickness.push_back(dz*1);
             cout<<thickness[i]<<" ";
         }
         cout<<"."<<endl;
@@ -758,46 +943,46 @@ int main(int argc, char **argv)
     }
     
     
-    //this is the number of directions we expect at the bval and bvecs file, including b0
-    cout<<"Number of diffusion weighted directions is "<<nStacks<<endl;
-    Array<Array<double> > directions(3,Array<double>(nStacks+1,0));
-    Array<double> bvalues(nStacks+1,0);
-    
-    ifstream in(textfile);
-    int coord = 0;
-    int dir = 0;
-    double num;
-    
-    cout<<"Reading directions: "<<endl;
-    if (in.is_open())
-    {
-        while (!in.eof())
-        {
-            in >> num;
-            if ((coord<4)&&(dir<nStacks))
-            {
-                if(coord<3)
-                    directions[coord][dir+1]=num;
-                else
-                    bvalues[dir+1]=num;
-            }
-            cout<<num<<" ";
-            coord++;
-            if (coord>=4)
-            {
-                coord=0;
-                dir++;
-                cout<<endl;
-            }
-        }
-        in.close();
-    }
-    else
-    {
-        cout << "Unable to open file " << textfile << endl;
-        exit(1);
-    }
-    
+//    //this is the number of directions we expect at the bval and bvecs file, including b0
+//    cout<<"Number of diffusion weighted directions is "<<nStacks<<endl;
+//    Array<Array<double> > directions(3,Array<double>(nStacks+1,0));
+//    Array<double> bvalues(nStacks+1,0);
+//
+//    ifstream in(textfile);
+//    int coord = 0;
+//    int dir = 0;
+//    double num;
+//
+//    cout<<"Reading directions: "<<endl;
+//    if (in.is_open())
+//    {
+//        while (!in.eof())
+//        {
+//            in >> num;
+//            if ((coord<4)&&(dir<nStacks))
+//            {
+//                if(coord<3)
+//                    directions[coord][dir+1]=num;
+//                else
+//                    bvalues[dir+1]=num;
+//            }
+//            cout<<num<<" ";
+//            coord++;
+//            if (coord>=4)
+//            {
+//                coord=0;
+//                dir++;
+//                cout<<endl;
+//            }
+//        }
+//        in.close();
+//    }
+//    else
+//    {
+//        cout << "Unable to open file " << textfile << endl;
+//        exit(1);
+//    }
+//
     
     
     //Output volume
@@ -910,7 +1095,7 @@ int main(int argc, char **argv)
     
     //Create slices and slice-dependent transformations
     reconstruction.CreateSlicesAndTransformations(stacks,stack_transformations,thickness);
-    reconstruction.CreateSliceDirections(directions,bvalues);
+    reconstruction.CreateSliceDirections(new_directions,new_bvalues);
     //reconstruction.SaveSlices();
     reconstruction.SetForceExcludedStacks(force_excluded_stacks);
     //calculate slice order
@@ -1256,7 +1441,7 @@ int main(int argc, char **argv)
     Matrix dirs_xyz(nDir,3);
     for(int i=0;i<nDir;i++)
         for(int j=0;j<3;j++)
-            dirs_xyz(i,j) = directions[j][i+1];
+            dirs_xyz(i,j) = new_directions[j][i+1];
     dirs_xyz.Print();
     
     //SH reconstruction

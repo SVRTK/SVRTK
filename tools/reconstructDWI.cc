@@ -398,7 +398,7 @@ int main(int argc, char **argv)
     {
         int dir_i = i+1;
         if ((bvalues[dir_i] < main_bvalue*0.95) || (bvalues[dir_i] > main_bvalue*1.05)) {
-            cout << i << "(" << dir_i << " / " << bvalues[dir_i] << ") ";
+            cout << i << "(" << bvalues[dir_i] << ") ";
             total_excluded = total_excluded + 1;
         } else {
             new_stacks.push_back(stacks[i]);

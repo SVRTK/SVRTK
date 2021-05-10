@@ -110,7 +110,7 @@ The resulting reconstructed DWI signal will be in ../recon-DWI-vol.nii.gz and th
 This should be followed by constrained spherical deconvolution for representation of the signal in SH basis based on the functions from MRtrix (https://github.com/MRtrix3/mrtrix3):
 
 ```bash v
-dwi2response tournier ../recon-DWI-vol.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz
+dwi2response tournier ../recon-DWI-vol.nii.gz response.txt -lmax 6 -grad final-b-file.b  -force -mask ../mask-wm.nii.gz
 dwi2fod csd signal.nii.gz response.txt csd-out.mif -lmax 6 -grad ../gradient-directions.b -force -mask ../mask-wm.nii.gz
 ```
  

@@ -232,6 +232,8 @@ namespace mirtk {
         
         void SetTemplateImage(RealImage t, RigidTransformation);
         
+        
+        RealImage ReturnSimulatedSignal();
 
         void SetGA(double ga);
 

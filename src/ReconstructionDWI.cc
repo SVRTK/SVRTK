@@ -5426,7 +5426,7 @@ namespace mirtk {
                                 slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                             
                             if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > 0 )
-                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
+                                slice(i,j,0) = slice(i,j,0) - reconstructor->_simulated_slices[inputIndex](i,j,0);
                             else
                                 slice(i,j,0) = 0;
                             
@@ -5704,6 +5704,7 @@ namespace mirtk {
         cout<<"B-Arrays: ";
         for(uint j=0; j<_directionsDTI.size(); j++)
         {
+            cout << " - " << j << " : ";
             for(uint i=0;i<_directionsDTI[j].size(); i++)
                 cout<<_directionsDTI[j][i]<<" ";
             cout<<endl;
@@ -5720,7 +5721,12 @@ namespace mirtk {
             _sh.InitSHT(dirs,order);
         
         _SH_coeffs = _sh.Signal2Coeff(_simulated_signal);
-        _SH_coeffs.Write("_SH_coeffs.nii.gz");
+//        _SH_coeffs.Write("_SH_coeffs-init.nii.gz");
+        
+//        _SH_coeffs = 0;
+
+        _SH_coeffs.Write("init_SH_coeffs-init.nii.gz");
+        
         _order = order;
         _dirs = dirs;
         _coeffNum = _sh.NforL(_order);
@@ -5749,7 +5755,15 @@ namespace mirtk {
         _simulated_signal.Write("_simulated_signal.nii.gz");
         
     }
-    
+
+
+    RealImage ReconstructionDWI::ReturnSimulatedSignal()
+    {
+        return _simulated_signal;
+        
+    }
+
+
     void ReconstructionDWI::SaveSHcoeffs(int iteration)
     {
         char buffer[256];

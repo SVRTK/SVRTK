@@ -1604,6 +1604,11 @@ int main(int argc, char **argv)
         corrected_stacks[i].Write(buffer);
     }
     
+    
+    cout << "Reconstructed DWI signal: " << output_name << endl;
+    RealImage final_simulated_signal = reconstruction.ReturnSimulatedSignal();
+    final_simulated_signal.Write(output_name);
+    
 
     
     return 0;

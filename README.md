@@ -101,16 +101,16 @@ mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz
  Higher order spherical harmonics (SH) reconstruction of fetal brain diffusion MRI:
 
 ```bash
-mirtk reconstructDWI ../recon-3D-vol.nii.gz ../4D-DWI-stack.nii.gz ../gradient-directions.b ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number] -motion_model_hs -sr_sh_iterations 10
+mirtk reconstructDWI ../recon-DWI-vol.nii.gz 2 ../4D-DWI-stack-1.nii.gz ../4D-DWI-stack-2.nii.gz ../gradient-directions-1.b ../gradient-directions-2.b 1000 ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number, e.g., 10] -motion_model_hs -sr_sh_iterations 10 -resolution 1.75 -no_robust_statistics 
 ```
 
- _Notes: The ../4D-DWI-stack.nii.gz stack should include only single shell dynamics (e.g., only B=1000 and no B0 volumes). The current version accepts only one HARDI 4D stack with one orientation. The next release will include the option for multile orientations._ 
-
-The resulting reconstructed signal is in _simulated_signal.nii.gz and the SH coefficients are in shCoeff9.nii.gz files.
+ _Notes: The algorithm uses only 1 shell for reconstruction. You need to specify it after the .b files (e.g., B=1000).
+ 
+The resulting reconstructed DWI signal will be in ../recon-DWI-vol.nii.gz and the SH coefficients are in shCoeff9.nii.gz files.
 This should be followed by constrained spherical deconvolution for representation of the signal in SH basis based on the functions from MRtrix (https://github.com/MRtrix3/mrtrix3):
 
 ```bash v
-dwi2response tournier _simulated_signal.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz
+dwi2response tournier ../recon-DWI-vol.nii.gz response.txt -lmax 6 -grad ../gradient-directions.b  -force -mask ../mask-wm.nii.gz
 dwi2fod csd signal.nii.gz response.txt csd-out.mif -lmax 6 -grad ../gradient-directions.b -force -mask ../mask-wm.nii.gz
 ```
  

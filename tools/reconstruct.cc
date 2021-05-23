@@ -79,6 +79,7 @@ void usage()
     cout << "\t                        will be resampled as template." << endl;
     cout << "\t-template [volume]        Template for registration" << endl;
     cout << "\t-thickness [th_1] .. [th_N] Give slice thickness.[Default: twice voxel size in z direction]"<<endl;
+    cout << "\t-default_thickness [d_th] Default thickness for all stacks. [Default: twice voxel size in z direction]"<<endl;
     cout << "\t-mask [mask]              Binary mask to define the region od interest. [Default: whole image]"<<endl;
     cout << "\t-packages [num_1] .. [num_N] Give number of packages used during acquisition for each stack."<<endl;
     cout << "\t                          The stacks will be split into packages during registration iteration 1"<<endl;
@@ -442,6 +443,22 @@ int main(int argc, char **argv)
             
         }
         
+        if ((ok == false) && (strcmp(argv[1], "-default_thickness") == 0)) {
+            argc--;
+            argv++;
+            double default_thickness=atof(argv[1]);
+
+            cout<< "Slice thickness (default for all stacks): ";
+            for (i=0;i<nStacks;i++) {
+                thickness.push_back(default_thickness);
+                cout<<thickness[i]<<" ";
+            }
+            cout<<endl;
+
+            ok = true;
+            argc--;
+            argv++;
+        }
         
         
         if ((ok == false) && (strcmp(argv[1], "-sr_iterations") == 0)) {

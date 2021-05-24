@@ -1392,22 +1392,28 @@ int main(int argc, char **argv)
     
     //Rescale intensities of the stacks to have the same average
     
-    if (debug)
-        start = std::chrono::system_clock::now();
+    if (intensity_matching) {
     
-    cout.rdbuf (file.rdbuf());
-    if (intensity_matching)
-        reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
-    else
-        reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue,true);
-    cout.rdbuf (strm_buffer);
-    
-    if (debug) {
-        end = std::chrono::system_clock::now();
-        elapsed_seconds = end-start;
-        cout << "MatchStackIntensitiesWithMasking ";
-        cout << "- " << elapsed_seconds.count() << "s " << endl;
+        if (debug)
+            start = std::chrono::system_clock::now();
+
+        cout.rdbuf (file.rdbuf());
+        if (intensity_matching)
+            reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue);
+        else
+            reconstruction->MatchStackIntensitiesWithMasking(stacks,stack_transformations,averageValue,true);
+        cout.rdbuf (strm_buffer);
+
+        if (debug) {
+            end = std::chrono::system_clock::now();
+            elapsed_seconds = end-start;
+            cout << "MatchStackIntensitiesWithMasking ";
+            cout << "- " << elapsed_seconds.count() << "s " << endl;
+        }
+        
     }
+    
+    
     
     if (debug)
         start = std::chrono::system_clock::now();

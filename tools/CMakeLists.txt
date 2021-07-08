@@ -42,6 +42,87 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
+  register_landmarks
+  SOURCES
+    register_landmarks.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
+mirtk_add_executable(
+  stacks-and-masks-selection
+  SOURCES
+    stacks-and-masks-selection.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  stacks-selection
+  SOURCES
+    stacks-selection.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  transform-and-rename
+  SOURCES
+    transform-and-rename.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  weighted-average
+  SOURCES
+    weighted-average.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
+
+mirtk_add_executable(
   extract-label
   SOURCES
     extract-label.cc

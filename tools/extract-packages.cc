@@ -1,23 +1,10 @@
 /*
-* SVRTK : SVR reconstruction based on MIRTK
-*
-* Copyright 2018-2021 King's College London
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * ....
+ */
+
 
 #include "mirtk/Common.h"
-#include "mirtk/Options.h" 
+#include "mirtk/Options.h"
 
 #include "mirtk/IOConfig.h"
 #include "mirtk/GenericImage.h"
@@ -25,7 +12,7 @@
 
 #include "mirtk/ReconstructionFFD.h"
 
-using namespace mirtk; 
+using namespace mirtk;
 using namespace std;
 
 // =============================================================================
@@ -36,9 +23,87 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: extract-packages [stack_name] [number_of_packages] \n" << endl;
+    cout << "Usage: mirtk extract-packages [stack_name] [number_of_packages] \n" << endl;
     exit(0);
 }
+
+
+double SliceCC(RealImage slice_1, RealImage slice_2)
+{
+    
+    int slice_1_N, slice_2_N;
+    double *slice_1_ptr, *slice_2_ptr;
+    
+    int slice_1_n, slice_2_n;
+    double slice_1_m, slice_2_m;
+    double slice_1_sq, slice_2_sq;
+    
+    double tmp_val, diff_sum;
+    double average_CC, CC_slice;
+    
+    int min_count = 20;
+    
+    
+    slice_1_N = slice_1.GetNumberOfVoxels();
+    slice_2_N = slice_2.GetNumberOfVoxels();
+    
+    slice_1_ptr = slice_1.GetPointerToVoxels();
+    slice_2_ptr = slice_2.GetPointerToVoxels();
+    
+    slice_1_n = 0;
+    slice_1_m = 0;
+    for (int j = 0; j < slice_1_N; j++) {
+        
+        if (slice_1_ptr[j]>0.1 && slice_2_ptr[j]>0.1) {
+            slice_1_m = slice_1_m + slice_1_ptr[j];
+            slice_1_n = slice_1_n + 1;
+        }
+    }
+    slice_1_m = slice_1_m / slice_1_n;
+    
+    slice_2_n = 0;
+    slice_2_m = 0;
+    for (int j = 0; j < slice_2_N; j++) {
+        if (slice_1_ptr[j]>0.1 && slice_2_ptr[j]>0.1) {
+            slice_2_m = slice_2_m + slice_2_ptr[j];
+            slice_2_n = slice_2_n + 1;
+        }
+    }
+    slice_2_m = slice_2_m / slice_2_n;
+    
+    if (slice_1_n<min_count || slice_2_n<min_count) {
+        
+        CC_slice = -1;
+        
+    }
+    else {
+        
+        diff_sum = 0;
+        slice_1_sq = 0;
+        slice_2_sq = 0;
+        
+        for (int j = 0; j < slice_1_N; j++) {
+            
+            if (slice_1_ptr[j]>0.1 && slice_2_ptr[j]>0.1) {
+                
+                diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m)*(slice_2_ptr[j] - slice_2_m));
+                slice_1_sq = slice_1_sq + pow((slice_1_ptr[j] - slice_1_m), 2);
+                slice_2_sq = slice_2_sq + pow((slice_2_ptr[j] - slice_2_m), 2);
+            }
+        }
+        
+        if ((slice_1_sq * slice_2_sq)>0)
+            CC_slice = diff_sum / sqrt(slice_1_sq * slice_2_sq);
+        else
+            CC_slice = 0;
+        
+    }
+    
+    
+    return CC_slice;
+    
+}
+
 
 // -----------------------------------------------------------------------------
 
@@ -60,16 +125,16 @@ int main(int argc, char **argv)
     UniquePtr<BaseImage> tmp_image;
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
-
-
+    
+    
     //-------------------------------------------------------------------
-   
+    
     RealImage main_stack;
-
+    
     tmp_fname = argv[1];
     image_reader.reset(ImageReader::TryNew(tmp_fname));
     tmp_image.reset(image_reader->Run());
-        
+    
     main_stack = *tmp_image;
     
     
@@ -77,9 +142,20 @@ int main(int argc, char **argv)
     argv++;
     
     int number_of_packages = atoi(argv[1]);
-
-
+    
+    
     //-------------------------------------------------------------------
+    
+    if (number_of_packages < 0) {
+        
+        double dz = main_stack.GetZSize();
+        
+        if (dz > 2.25)
+            number_of_packages = 1;
+        else
+            number_of_packages = 4;
+        
+    }
     
     
     if (number_of_packages > 1) {
@@ -94,28 +170,98 @@ int main(int argc, char **argv)
         std::size_t pos = org_name.find(".nii");
         std::string main_name = org_name.substr (0, pos);
         std::string end_name = org_name.substr (pos, org_name.length());
-
-        for (int t=0; t<number_of_packages; t++) {
         
+        for (int t=0; t<number_of_packages; t++) {
+            
             std::string stack_index = "-p" + to_string(t);
             string new_name = main_name + stack_index + end_name;
             char *c_new_name = &new_name[0];
             
             RealImage stack = packages[t];
-
+            
             stack.Write(c_new_name);
             cout << c_new_name << endl;
             
         }
-
+        
+        
+        
+        
+        RealImage selected_package_template = packages[0];
+        
+        double tmp_ncc = -1;
+        int best_package_id = 0;
+        
+        
+        for (int i=0; i<packages.size(); i++) {
+            
+            RealImage current_stack = packages[i];
+            
+            for (int z = 0; z < current_stack.GetZ(); z++) {
+                for (int y = 0; y < current_stack.GetY(); y++) {
+                    for (int x = 0; x < current_stack.GetX(); x++) {
+                        if (current_stack(x,y,z)<1) {
+                            current_stack(x,y,z) = 0;
+                        }
+                    }
+                }
+            }
+            
+            
+            double ncc = 0;
+            int count = 0;
+            int sh=5;
+            for (int z = 0; z < current_stack.GetZ()-1; z++) {
+                RealImage slice_1 = current_stack.GetRegion(sh, sh, z, current_stack.GetX()-sh, current_stack.GetY()-sh, z+1);
+                RealImage slice_2 = current_stack.GetRegion(sh, sh, z+1, current_stack.GetX()-sh, current_stack.GetY()-sh, z+2);
+                double slice_ncc = SliceCC(slice_1, slice_2);
+                if (slice_ncc>0) {
+                    ncc = ncc + slice_ncc;
+                    count += 1;
+                }
+            }
+            if (count>0) {
+                ncc /= count;
+            }
+            
+            if (ncc > tmp_ncc) {
+                tmp_ncc = ncc;
+                best_package_id = i;
+                selected_package_template = current_stack;
+            }
+            
+        }
+        
+        selected_package_template.Write("package-template.nii.gz");
+        
+        
+    } else {
+        
+        string org_name(tmp_fname);
+        std::size_t pos = org_name.find(".nii");
+        std::string main_name = org_name.substr (0, pos);
+        std::string end_name = org_name.substr (pos, org_name.length());
+        
+        int t = 0;
+        std::string stack_index = "-p" + to_string(t);
+        string new_name = main_name + stack_index + end_name;
+        char *c_new_name = &new_name[0];
+        main_stack.Write(c_new_name);
+        
+        cout << c_new_name << endl;
+        
+        main_stack.Write("package-template.nii.gz");
+        
     }
     
-
+    
+    
     //-------------------------------------------------------------------
-
+    
     
     return 0;
 }
+
 
 
 

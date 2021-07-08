@@ -641,6 +641,31 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    RealImage Reconstruction::ThreholdNormalisedMask( RealImage image, double threshold )
+    {
+        
+        RealPixel smin, smax;
+        image.GetMinMax(&smin, &smax);
+        
+        if (smax > 0)
+            image /= smax;
+        
+        RealPixel* ptr = image.GetPointerToVoxels();
+        
+        for (int i = 0; i < image.GetNumberOfVoxels(); ++i) {
+            
+            if (*ptr > threshold)
+                *ptr = 1;
+            else
+                *ptr = 0;
+            ptr++;
+        }
+        
+        return image;
+    }
+    
+    //-------------------------------------------------------------------
+    
     void Reconstruction::CreateMaskFromBlackBackground( Array<RealImage> stacks, Array<RigidTransformation> stack_transformations, double smooth_mask )
     {
         
@@ -7633,7 +7658,7 @@ namespace mirtk {
         x1 = i;
         
         // if no intersection with mask, force exclude
-        if ((x2 < x1) || (y2 < y1) || (z2 < z1) ) {
+        if ((x2 <= x1) || (y2 <= y1) || (z2 <= z1) ) {
             x1 = 0;
             y1 = 0;
             z1 = 0;
@@ -7642,8 +7667,12 @@ namespace mirtk {
             z2 = 0;
         }
         
-        //Cut region of interest
-        image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
+//        else {
+        
+            //Cut region of interest
+            image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
+            
+//        }
     }
     
     //-------------------------------------------------------------------
@@ -7767,7 +7796,7 @@ namespace mirtk {
         x1 = i;
         
         // if no intersection with mask, force exclude
-        if ((x2 < x1) || (y2 < y1) || (z2 < z1) ) {
+        if ((x2 <= x1) || (y2 <= y1) || (z2 <= z1) ) {
             x1 = 0;
             y1 = 0;
             z1 = 0;
@@ -7776,8 +7805,12 @@ namespace mirtk {
             z2 = 0;
         }
         
-        //Cut region of interest
-        image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
+//        else {
+        
+            //Cut region of interest
+            image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
+            
+//        }
     }
     
     //-------------------------------------------------------------------
@@ -7909,6 +7942,325 @@ namespace mirtk {
         
     }
     
+    //-------------------------------------------------------------------
+    
+    
+    double Reconstruction::ComputeNCC(RealImage slice_1, RealImage slice_2, double& count)
+    {
+        
+        int slice_1_N, slice_2_N;
+        double *slice_1_ptr, *slice_2_ptr;
+        
+        int slice_1_n, slice_2_n;
+        double slice_1_m, slice_2_m;
+        double slice_1_sq, slice_2_sq;
+        
+        double tmp_val, diff_sum;
+        double average_CC, CC_slice;
+        
+        slice_1_N = slice_1.GetNumberOfVoxels();
+        slice_2_N = slice_2.GetNumberOfVoxels();
+        
+        slice_1_ptr = slice_1.GetPointerToVoxels();
+        slice_2_ptr = slice_2.GetPointerToVoxels();
+        
+        slice_1_n = 0;
+        slice_1_m = 0;
+        for (int j = 0; j < slice_1_N; j++) {
+            
+            if (slice_1_ptr[j]>0.01 && slice_2_ptr[j]>0.01) {
+                slice_1_m = slice_1_m + slice_1_ptr[j];
+                slice_1_n = slice_1_n + 1;
+            }
+        }
+        slice_1_m = slice_1_m / slice_1_n;
+        
+        slice_2_n = 0;
+        slice_2_m = 0;
+        for (int j = 0; j < slice_2_N; j++) {
+            if (slice_1_ptr[j]>0.01 && slice_2_ptr[j]>0.01) {
+                slice_2_m = slice_2_m + slice_2_ptr[j];
+                slice_2_n = slice_2_n + 1;
+            }
+        }
+        slice_2_m = slice_2_m / slice_2_n;
+        
+        
+        count = 0;
+        for (int j = 0; j < slice_1_N; j++) {
+            
+            if (slice_1_ptr[j]>0.01 && slice_2_ptr[j]>0.01) {
+                count = count + 1;
+            }
+        }
+        
+        
+        //    count = count * slice_2.GetXSize() * slice_2.GetYSize() * slice_2.GetZSize();
+        
+        
+        if (slice_1_n<5 || slice_2_n<5) {
+            
+            CC_slice = -1;
+            
+        }
+        else {
+            
+            diff_sum = 0;
+            slice_1_sq = 0;
+            slice_2_sq = 0;
+            
+            for (int j = 0; j < slice_1_N; j++) {
+                
+                if (slice_1_ptr[j]>0.01 && slice_2_ptr[j]>0.01) {
+                    
+                    diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m)*(slice_2_ptr[j] - slice_2_m));
+                    slice_1_sq = slice_1_sq + pow((slice_1_ptr[j] - slice_1_m), 2);
+                    slice_2_sq = slice_2_sq + pow((slice_2_ptr[j] - slice_2_m), 2);
+                }
+            }
+            
+            if ((slice_1_sq * slice_2_sq)>0)
+                CC_slice = diff_sum / sqrt(slice_1_sq * slice_2_sq);
+            else
+                CC_slice = 0;
+            
+        }
+        
+        
+        return CC_slice;
+        
+    }
+    
+    //-------------------------------------------------------------------
+    
+    class ParallelGlobalSimilarityStats {
+        
+    public:
+        
+        Reconstruction *reconstructor;
+        int nStacks;
+        Array<RealImage> stacks;
+        Array<RealImage> masks;
+        Array<double> &all_global_ncc_array;
+        Array<double> &all_global_volume_array;
+        
+        ParallelGlobalSimilarityStats ( Reconstruction *in_reconstructor, int in_nStacks, Array<RealImage> in_stacks, Array<RealImage> in_masks, Array<double> &in_all_global_ncc_array, Array<double> &in_all_global_volume_array) :
+        reconstructor(in_reconstructor),
+        nStacks(in_nStacks),
+        stacks(in_stacks),
+        masks(in_masks),
+        all_global_ncc_array(in_all_global_ncc_array),
+        all_global_volume_array(in_all_global_volume_array) { }
+        
+        
+        void operator() (const blocked_range<size_t> &r) const {
+            
+            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
+                
+                
+                double average_ncc = 0;
+                double average_volume = 0;
+                Array<RigidTransformation> current_stack_tranformations;
+                
+                cout << " - " << inputIndex << endl;
+                
+                reconstructor->GlobalStackStats(stacks[inputIndex], masks[inputIndex], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
+                
+                cout << " + " << inputIndex << endl;
+                
+                all_global_ncc_array[inputIndex] = average_ncc;
+                all_global_volume_array[inputIndex] = average_volume;
+                
+                
+            } // end of inputIndex
+            
+        }
+        
+        // execute
+        void operator() () const {
+            parallel_for( blocked_range<size_t>(0, nStacks), *this );
+        }
+        
+    };
+
+    
+    //-------------------------------------------------------------------
+    
+    void Reconstruction::RunParallelGlobalStackStats( Array<RealImage> stacks, Array<RealImage> masks, Array<double> &all_global_ncc_array, Array<double> &all_global_volume_array )
+    {
+        
+        all_global_ncc_array.clear();
+        all_global_volume_array.clear();
+        
+        for (int i=0; i<stacks.size(); i++) {
+            all_global_ncc_array.push_back(0);
+            all_global_volume_array.push_back(0);
+        }
+        
+        cout << " start ... " << endl;
+        
+        ParallelGlobalSimilarityStats registration(this, stacks.size(), stacks, masks, all_global_ncc_array, all_global_volume_array);
+        registration();
+        
+        return;
+    }
+    
+    //-------------------------------------------------------------------
+
+    void Reconstruction::GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations)
+    {
+        
+        template_stack *= template_mask;
+        
+        
+        
+        RigidTransformation *r_init = new RigidTransformation();
+        r_init->PutTranslationX(0.0001);
+        r_init->PutTranslationY(0.0001);
+        r_init->PutTranslationZ(-0.0001);
+        
+        
+        ParameterList params;
+        Insert(params, "Transformation model", "Rigid");
+        Insert(params, "Background value for image 1", 0);
+        Insert(params, "Background value for image 2", 0);
+        
+        
+        average_ncc = 0;
+        average_volume = 0;
+        
+        for (int i=0; i<stacks.size(); i++) {
+            
+            
+            RealImage input_stack = stacks[i];
+            
+            input_stack *= masks[i];
+            
+            
+            GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+            registration->Parameter(params);
+            registration->Input(&template_stack, &input_stack);
+            Transformation *dofout = nullptr;
+            registration->Output(&dofout);
+            registration->InitialGuess(r_init);
+            registration->GuessParameter();
+            registration->Run();
+            RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
+            
+            
+            GenericLinearInterpolateImageFunction<RealImage> interpolator;
+            double source_padding = 0;
+            double target_padding = -inf;
+            bool dofin_invert = false;
+            bool twod = false;
+            
+            RealImage output =  template_stack;
+            output = 0;
+            
+            ImageTransformation *imagetransformation = new ImageTransformation;
+            imagetransformation->Input(&input_stack);
+            imagetransformation->Transformation(r_dofout);
+            imagetransformation->Output(&output);
+            imagetransformation->TargetPaddingValue(target_padding);
+            imagetransformation->SourcePaddingValue(source_padding);
+            imagetransformation->Interpolator(&interpolator);
+            imagetransformation->TwoD(twod);
+            imagetransformation->Invert(dofin_invert);
+            imagetransformation->Run();
+            delete imagetransformation;
+            
+            input_stack = output;
+            //            input_stack *= template_mask;
+            
+            double slice_count = 0;
+            double local_ncc = ComputeNCC(template_stack, input_stack, slice_count);
+            
+            //        cout << local_ncc << " ";
+            
+            average_ncc = average_ncc + local_ncc;
+            average_volume = average_volume + slice_count;
+            
+            
+            current_stack_tranformations.push_back(*r_dofout);
+            
+        }
+        
+        
+        average_ncc = average_ncc / stacks.size();
+        
+        average_volume = average_volume / stacks.size();
+        
+        average_volume = average_volume * template_stack.GetXSize() * template_stack.GetYSize() * template_stack.GetZSize() / 1000;
+        
+        return;
+        
+    }
+    
+    //-------------------------------------------------------------------
+    
+    void Reconstruction::StackStats(RealImage input_stack, RealImage mask, double& mask_volume, double& slice_ncc)
+    {
+        
+        input_stack *= mask;
+        
+        
+        double ncc = 0;
+        int slice_num = 0;
+        
+        
+        for (int z = 0; z < input_stack.GetZ()-1; z++) {
+            
+            RealImage slice_1, slice_2;
+            int sh=1;
+            slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX()-sh, input_stack.GetY()-sh, z+1);
+            slice_2 = input_stack.GetRegion(sh, sh, z+1, input_stack.GetX()-sh, input_stack.GetY()-sh, z+2);
+            
+            double slice_count = -1;
+            double local_ncc = ComputeNCC(slice_1, slice_2, slice_count);
+            
+            if (local_ncc > 0) {
+                slice_ncc = slice_ncc + local_ncc;
+                slice_num += 1;
+            }
+            
+        }
+        
+        if (slice_num > 0)
+            slice_ncc /= slice_num;
+        else
+            slice_ncc = 0;
+        
+        
+        double mask_count = 0;
+        
+        for (int x = 0; x < mask.GetX(); x++) {
+            for (int y = 0; y < mask.GetY(); y++) {
+                for (int z = 0; z < mask.GetZ(); z++) {
+                    
+                    if (mask(x,y,z) > 0.01) {
+                        
+                        mask_count = mask_count + 1;
+                        
+                    }
+                    
+                }
+            }
+        }
+        
+        mask_volume = mask_count * mask.GetXSize() * mask.GetYSize() * mask.GetZSize() / 1000;
+        
+        return;
+    }
+    
+    //-------------------------------------------------------------------
+    
+    
+    
+    //-------------------------------------------------------------------
+    
+    
+    
+    //-------------------------------------------------------------------
     
     
     

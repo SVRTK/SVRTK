@@ -101,9 +101,15 @@ int main(int argc, char **argv)
     reconstruction.TransformMask(input_stack, input_mask, *rigidTransf_mask);
     
     
-    reconstruction.CropImage(output_stack,input_mask);
+    RealPixel smin, smax;
+    input_mask.GetMinMax(&smin, &smax);
     
-
+    
+    if (smax > 0.5) {
+        reconstruction.CropImage(output_stack,input_mask);
+    } else {
+        cout << "Warning: zero mask ..." << endl;
+    }
     
     output_stack.Write(output_name);
 

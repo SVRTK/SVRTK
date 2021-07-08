@@ -565,6 +565,26 @@ namespace mirtk {
         
         double ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
         
+        RealImage ThreholdNormalisedMask( RealImage image, double threshold );
+        
+        double ComputeNCC(RealImage slice_1, RealImage slice_2, double& count);
+        
+        void GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations);
+        
+        
+        void StackStats(RealImage input_stack, RealImage mask, double& mask_volume, double& slice_ncc);
+        
+        void RunParallelGlobalStackStats( Array<RealImage> stacks, Array<RealImage> masks, Array<double> &all_global_ncc_array, Array<double> &all_global_volume_array );
+        
+        
+        
+//        void GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage*> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations);
+//        
+//        
+//        void StackStats(RealImage input_stack, RealImage mask, double& mask_volume, double& slice_ncc);
+        
+        
+        
         
         ///Write included/excluded/outside slices
         void Evaluate( int iter );
@@ -683,7 +703,7 @@ namespace mirtk {
         void Transform2Reconstructed( int inputIndex, int& i, int& j, int& k, int mode );
         
         
-        
+        friend class ParallelGlobalSimilarityStats;
         friend class ParallelQualityReport;
         friend class ParallelStackRegistrations;
         friend class ParallelSliceToVolumeRegistration;

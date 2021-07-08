@@ -105,6 +105,7 @@ void usage()
     cout << "\t-rescale_stacks           Rescale stacks to avoid nan pixel errors. [Default: False]"<<endl;
     cout << "\t-svr_only                 Only SVR registration to a template stack."<<endl;
     cout << "\t-no_global                No global stack registration."<<endl;
+    cout << "\t-exact_thickness          Exact slice thickness without negative gap. [Default: False]"<<endl;
     cout << "\t-ncc                      Use global NCC similarity for SVR steps. [Default: NMI]"<<endl;
     cout << "\t-nmi_bins [nmi_bins]      Number of NMI bins for registration. [Default: 16]"<<endl;
     cout << "\t-structural               Use structrural exclusion of slices at the last iteration."<<endl;
@@ -600,7 +601,7 @@ int main(int argc, char **argv)
         }
         
         
-        if ((ok == false) && (strcmp(argv[1], "-exact-thickness") == 0)) {
+        if ((ok == false) && (strcmp(argv[1], "-exact_thickness") == 0)) {
             argc--;
             argv++;
             flag_no_overlap_thickness=true;

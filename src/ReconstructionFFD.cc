@@ -3238,15 +3238,24 @@ namespace mirtk {
                         
                         if ((100*jac) > 50) {
                             _volume_weights(p.x, p.y, p.z) += p.value;
-                        } else {
-                            
-                            weighted_negative_jac_volume(p.x, p.y, p.z) += 100*jac*p.value;
-                            
                         }
                     }
                     
                 }
         }
+        
+        for ( int z = 0; z < _volume_weights.GetZ(); z++) {
+            for ( int y = 0; y < _volume_weights.GetY(); y++) {
+                for ( int x = 0; x < _volume_weights.GetX(); x++) {
+                    
+                    if (_volume_weights(x,y,z) < 0.0001) {
+                        _volume_weights(x,y,z) = 1;
+                    }
+                    
+                }
+            }
+        }
+        
         if (_debug)
             _volume_weights.Write("volume_weights.nii.gz");
         

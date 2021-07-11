@@ -3236,7 +3236,7 @@ namespace mirtk {
                         _slices[inputIndex]->ImageToWorld(x, y, z);
                         double jac = _mffd_transformations[inputIndex]->Jacobian(x, y, z, 0, 0);
                         
-                        if ((100*jac) > 50) {
+                        if ((100*jac) > 60) {
                             _volume_weights(p.x, p.y, p.z) += p.value;
                         }
                     }
@@ -3332,7 +3332,7 @@ namespace mirtk {
                         _slices[inputIndex]->ImageToWorld(x, y, z);
                         double jac = _mffd_transformations[inputIndex]->Jacobian(x, y, z, 0, 0);
                         
-                        if ((100*jac) > 50) {
+                        if ((100*jac) > 60) {
 
                             slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                             
@@ -4080,7 +4080,7 @@ namespace mirtk {
 
                                 double jac = reconstructor->_mffd_transformations[inputIndex]->Jacobian(p.x, p.y, p.z, 0, 0);
                                 
-                                if ((100*jac) > 50) {
+                                if ((100*jac) > 60) {
                                 
                                     if (reconstructor->_structural_exclusion) {
 

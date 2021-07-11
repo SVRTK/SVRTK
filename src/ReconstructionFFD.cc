@@ -3231,7 +3231,14 @@ namespace mirtk {
                     n = _volcoeffs[inputIndex][i][j].size();
                     for (k = 0; k < n; k++) {
                         p = _volcoeffs[inputIndex][i][j][k];
-                        _volume_weights(p.x, p.y, p.z) += p.value;
+                        
+                        double x = i, y = j, z = 0;
+                        _slices[inputIndex]->ImageToWorld(x, y, z);
+                        double jac = _mffd_transformations[inputIndex]->Jacobian(x, y, z, 0, 0);
+                        
+                        if ((100*jac) > 50) {
+                            _volume_weights(p.x, p.y, p.z) += p.value;
+                        }
                     }
                     
                 }
@@ -3307,33 +3314,38 @@ namespace mirtk {
             for (i = 0; i < slice.GetX(); i++)
                 for (j = 0; j < slice.GetY(); j++)
                     if (slice(i, j, 0) != -1) {
-
-                        slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                         
-                        if (_multiple_channels_flag && (_number_of_channels > 0)) {
-                            for (int n=0; n<_number_of_channels; n++) {
-                                mc_slices[n](i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                            }
-                        }
+                        double x = i, y = j, z = 0;
+                        _slices[inputIndex]->ImageToWorld(x, y, z);
+                        double jac = _mffd_transformations[inputIndex]->Jacobian(x, y, z, 0, 0);
                         
+                        if ((100*jac) > 60) {
 
-                        n = _volcoeffs[inputIndex][i][j].size();
-
-                        if (n>0)
-                            slice_vox_num++;
-
-                        for (k = 0; k < n; k++) {
-                            p = _volcoeffs[inputIndex][i][j][k];
-                            _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
-                            
+                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
                             
                             if (_multiple_channels_flag && (_number_of_channels > 0)) {
                                 for (int n=0; n<_number_of_channels; n++) {
-                                    _mc_reconstructed[n](p.x, p.y, p.z) += p.value * mc_slices[n](i, j, 0);
+                                    mc_slices[n](i, j, 0) *= exp(-b(i, j, 0)) * scale;
                                 }
                             }
                             
 
+                            n = _volcoeffs[inputIndex][i][j].size();
+
+                            if (n>0)
+                                slice_vox_num++;
+
+                            for (k = 0; k < n; k++) {
+                                p = _volcoeffs[inputIndex][i][j][k];
+                                _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
+                                
+                                if (_multiple_channels_flag && (_number_of_channels > 0)) {
+                                    for (int n=0; n<_number_of_channels; n++) {
+                                        _mc_reconstructed[n](p.x, p.y, p.z) += p.value * mc_slices[n](i, j, 0);
+                                    }
+                                }
+                            }
+                            
                         }
                     }
             voxel_num.push_back(slice_vox_num);
@@ -4053,63 +4065,62 @@ namespace mirtk {
                             for (int k = 0; k < n; k++) {
                                 p = reconstructor->_volcoeffs[inputIndex][i][j][k];
 
-                                if (reconstructor->_structural_exclusion) {
+                                double jac = reconstructor->_mffd_transformations[inputIndex]->Jacobian(p.x, p.y, p.z, 0, 0);
+                                
+                                if ((100*jac) > 60) {
+                                
+                                    if (reconstructor->_structural_exclusion) {
 
-                                    if (reconstructor->_stack_index[inputIndex] != reconstructor->_excluded_stack) {
-                                        
-                                        
-                                        if (reconstructor->_slice_weight[inputIndex] < 0.6) {
-                                            reconstructor->_structural_slice_weight[inputIndex] = reconstructor->_slice_weight[inputIndex]/10;
-                                        }
-                                        else {
-                                            reconstructor->_structural_slice_weight[inputIndex] = reconstructor->_slice_weight[inputIndex];
-                                        }
+                                        if (reconstructor->_stack_index[inputIndex] != reconstructor->_excluded_stack) {
+                                            
+                                            
+                                            if (reconstructor->_slice_weight[inputIndex] < 0.6) {
+                                                reconstructor->_structural_slice_weight[inputIndex] = reconstructor->_slice_weight[inputIndex]/10;
+                                            }
+                                            else {
+                                                reconstructor->_structural_slice_weight[inputIndex] = reconstructor->_slice_weight[inputIndex];
+                                            }
 
-                                        double sw = reconstructor->_slice_2dncc[inputIndex]->GetAsDouble(i, j, 0);
-                                        
-                                        addon(p.x, p.y, p.z) += sw * p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
-                                        confidence_map(p.x, p.y, p.z) += sw * p.value * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
-                                        
-                                        
-                                        if (reconstructor->_multiple_channels_flag) {
-                                            for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
-                                                mc_addons[nc](p.x, p.y, p.z) += sw * p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
+                                            double sw = reconstructor->_slice_2dncc[inputIndex]->GetAsDouble(i, j, 0);
+                                            
+                                            addon(p.x, p.y, p.z) += sw * p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
+                                            confidence_map(p.x, p.y, p.z) += sw * p.value * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
+                                            
+                                            
+                                            if (reconstructor->_multiple_channels_flag) {
+                                                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                                    mc_addons[nc](p.x, p.y, p.z) += sw * p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_structural_slice_weight[inputIndex];
+                                                }
                                             }
                                         }
-                                        
-                                        
+
                                     }
-                                    
+                                    else {
+                                        if (reconstructor->_robust_slices_only) {
 
-                                }
-                                else {
-                                    if (reconstructor->_robust_slices_only) {
+                                            addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                            confidence_map(p.x, p.y, p.z) += p.value * reconstructor->_slice_weight[inputIndex];
+                                            
+                                            
+                                            if (reconstructor->_multiple_channels_flag) {
+                                                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                                    mc_addons[nc](p.x, p.y, p.z) += p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                                }
+                                            }
 
-                                        addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                        confidence_map(p.x, p.y, p.z) += p.value * reconstructor->_slice_weight[inputIndex];
-                                        
-                                        
-                                        if (reconstructor->_multiple_channels_flag) {
-                                            for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
-                                                mc_addons[nc](p.x, p.y, p.z) += p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                        } else {
+                                            addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                            confidence_map(p.x, p.y, p.z) += p.value * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                            
+                                            
+                                            if (reconstructor->_multiple_channels_flag) {
+                                                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                                    mc_addons[nc](p.x, p.y, p.z) += p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                                }
                                             }
                                         }
-                                        
-                                        
-
-                                    } else {
-                                        addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                        confidence_map(p.x, p.y, p.z) += p.value * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                        
-                                        
-                                        if (reconstructor->_multiple_channels_flag) {
-                                            for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
-                                                mc_addons[nc](p.x, p.y, p.z) += p.value * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0) * (reconstructor->_weights[inputIndex])->GetAsDouble(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                            }
-                                        }
-                                        
-                                        
                                     }
+                                
                                 }
 
                             }

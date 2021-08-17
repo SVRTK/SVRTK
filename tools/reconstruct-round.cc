@@ -334,18 +334,6 @@ int main(int argc, char **argv)
         
         
         
-        //Read number of threads
-        if ((ok == false) && (strcmp(argv[1], "-nthreads") == 0)) {
-            argc--;
-            argv++;
-            int n_treads=atoi(argv[1]);
-            reconstruction->SetNThreads(n_treads);
-            ok = true;
-            argc--;
-            argv++;
-        }
-        
-        
         //Variance of Gaussian kernel to smooth the bias field.
         if ((ok == false) && (strcmp(argv[1], "-sigma") == 0)) {
             argc--;

@@ -2,7 +2,7 @@
  * SVRTK : SVR reconstruction based on MIRTK
  *
  * Copyright 2008-2017 Imperial College London
- * Copyright 2018-2020 King's College London
+ * Copyright 2018-2021 King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,15 +76,15 @@ namespace mirtk {
         
     protected:
         
-        //Reconstruction type
+        // Reconstruction type
         RECON_TYPE _recon_type;
         
-        /// Structures to store the matrix of transformation between volume and slices
+        // Structures to store the matrix of transformation between volume and slices
         Array<SLICECOEFFS> _volcoeffs;
         Array<SLICECOEFFS> _volcoeffsSF;
         
+        // flags
         int _slicePerDyn;
-        
         bool _ffd;
         bool _blurring;
         bool _structural;
@@ -94,7 +94,7 @@ namespace mirtk {
         bool _reg_log;
         bool _masked_stacks;
         
-        int _n_treads;
+        
         double _global_NCC_threshold;
         Array<int> _n_packages;
         
@@ -109,7 +109,7 @@ namespace mirtk {
         bool _bg_flag;
         
 
-        /// Slices
+        // Slices
         Array<RealImage> _slices;
         Array<RealImage> _slicesRwithMB;
         Array<RealImage> _simulated_slices;
@@ -126,95 +126,95 @@ namespace mirtk {
         Array<int> _package_index;
         Array<int> _slice_pos;
         
-        /// Transformations
+        // Transformations
         Array<RigidTransformation> _transformations;
         Array<RigidTransformation> _previous_transformations;
         Array<RigidTransformation> _transformationsRwithMB;
         Array<MultiLevelFreeFormTransformation> _mffd_transformations;
         
-        /// Indicator whether slice has an overlap with volumetric mask
+        // Indicator whether slice has an overlap with volumetric mask
         Array<bool> _slice_inside;
         Array<bool> _slice_insideSF;
         
         
-        /// Flag to say whether the template volume has been created
+        // Flag to say whether the template volume has been created
         bool _template_created;
-        /// Flag to say whether we have a mask
+        // Flag to say whether we have a mask
         bool _have_mask;
         
-        /// Volumes
+        // Volumes
         RealImage _reconstructed;
         RealImage _mask;
         RealImage _target;
         RealImage _brain_probability;
         Array<RealImage> _probability_maps;
         
-        /// Weights for Gaussian reconstruction
+        // Weights for Gaussian reconstruction
         RealImage _volume_weights;
         RealImage _volume_weightsSF;
         
-        /// Weights for regularization
+        // Weights for regularization
         RealImage _confidence_map;
         
         
         //EM algorithm
-        /// Variance for inlier voxel errors
+        // Variance for inlier voxel errors
         double _sigma;
-        /// Proportion of inlier voxels
+        // Proportion of inlier voxels
         double _mix;
-        /// Uniform distribution for outlier voxels
+        // Uniform distribution for outlier voxels
         double _m;
-        /// Mean for inlier slice errors
+        // Mean for inlier slice errors
         double _mean_s;
-        /// Variance for inlier slice errors
+        // Variance for inlier slice errors
         double _sigma_s;
-        /// Mean for outlier slice errors
+        // Mean for outlier slice errors
         double _mean_s2;
-        /// Variance for outlier slice errors
+        // Variance for outlier slice errors
         double _sigma_s2;
-        /// Proportion of inlier slices
+        // Proportion of inlier slices
         double _mix_s;
-        /// Step size for likelihood calculation
+        // Step size for likelihood calculation
         double _step;
-        /// Voxel posteriors
+        // Voxel posteriors
         Array<RealImage> _weights;
-        /// Slice posteriors
+        // Slice posteriors
         Array<double> _slice_weight;
         
-        /// NMI registration bins
+        // NMI registration bins
         int _nmi_bins;
         
         //Bias field
-        ///Variance for bias field
+        // Variance for bias field
         double _sigma_bias;
-        /// Slice-dependent bias fields
+        // Slice-dependent bias fields
         Array<RealImage> _bias;
         
-        ///Slice-dependent scales
+        // Slice-dependent scales
         Array<double> _scale;
         
-        ///Quality factor - higher means slower and better
+        // Quality factor - higher means slower and better
         double _quality_factor;
-        ///Intensity min and max
+        // Intensity min and max
         double _max_intensity;
         double _min_intensity;
         
         //Gradient descent and regulatization parameters
-        ///Step for gradient descent
+        // Step for gradient descent
         double _alpha;
-        ///Determine what is en edge in edge-preserving smoothing
+        // Determine what is en edge in edge-preserving smoothing
         double _delta;
-        ///Amount of smoothing
+        // Amount of smoothing
         double _lambda;
-        ///Average voxel wights to modulate parameter alpha
+        // Average voxel wights to modulate parameter alpha
         double _average_volume_weight;
         double _average_volume_weightSF;
         
         
         //global bias field correction
-        ///global bias correction flag
+        // global bias correction flag
         bool _global_bias_correction;
-        ///low intensity cutoff for bias field estimation
+        // low intensity cutoff for bias field estimation
         double _low_intensity_cutoff;
         
         //to restore original signal intensity of the MRI slices
@@ -234,11 +234,11 @@ namespace mirtk {
         //slices identify as too small to be used
         Array<int> _small_slices;
         
-        /// use adaptive or non-adaptive regularisation (default:false)
+        // use adaptive or non-adaptive regularisation (default:false)
         bool _adaptive;
         
         //utility
-        ///Debug mode
+        // Debug mode
         bool _debug;
         
         //do not exclude voxels, only whole slices
@@ -247,22 +247,22 @@ namespace mirtk {
         bool _withMB;
         
         //Probability density functions
-        ///Zero-mean Gaussian PDF
+        // Zero-mean Gaussian PDF
         inline double G(double x,double s);
-        ///Uniform PDF
+        // Uniform PDF
         inline double M(double m);
         
         int _directions[13][3];
         
-        /// Gestational age (to compute expected brain volume)
+        // Gestational age (to compute expected brain volume)
         double _GA;
 
         
     public:
 
-        ///Constructor
+        // Constructor
         Reconstruction();
-        ///Destructor
+        // Destructor
         ~Reconstruction();
         
         
@@ -270,7 +270,7 @@ namespace mirtk {
         double _average_thickness_org;
         
         
-        ///Create zero image as a template for reconstructed volume
+        // Create zero image as a template for reconstructed volume
         double CreateTemplate( RealImage stack,
                               double resolution=0 );
         
@@ -287,19 +287,19 @@ namespace mirtk {
         
         Array<int> _excluded_entirely;
         
-        ///Remember volumetric mask and smooth it if necessary
+        // Remember volumetric mask and smooth it if necessary
         void SetMask( RealImage* mask,
                      double sigma,
                      double threshold=0.5 );
         
-        /// Set gestational age (to compute expected brain volume)
+        // Set gestational age (to compute expected brain volume)
         void SetGA( double ga );
         
         void SliceDifference();
 
         void SaveSliceInfo(int current_iteration);
         
-        ///Center stacks
+        // Center stacks
         void CenterStacks( Array<RealImage>& stacks,
                           Array<RigidTransformation>& stack_transformations,
                           int templateNumber );
@@ -309,22 +309,22 @@ namespace mirtk {
                                 Array<RigidTransformation>& stack_transformations );
         
         
-        ///Transform and resample mask to the space of the image
+        // Transform and resample mask to the space of the image
         void TransformMask( RealImage& image,
                            RealImage& mask,
                            RigidTransformation& transformation );
         
-        /// Rescale image ignoring negative values
+        // Rescale image ignoring negative values
         void Rescale( RealImage &img,
                      double max);
         
-        ///Calculate initial registrations
+        // Calculate initial registrations
         void StackRegistrations( Array<RealImage>& stacks,
                                 Array<RigidTransformation>& stack_transformations,
                                 int templateNumber);
         
-        ///Create slices from the stacks and slice-dependent transformations from
-        ///stack transformations
+        // Create slices from the stacks and slice-dependent transformations from
+        // stack transformations
         void CreateSlicesAndTransformations( Array<RealImage> &stacks,
                                             Array<RigidTransformation> &stack_transformations,
                                             Array<double> &thickness,
@@ -338,7 +338,7 @@ namespace mirtk {
         void ResetSlices( Array<RealImage>& stacks,
                          Array<double>& thickness );
         
-        ///Update slices if stacks have changed
+        // Update slices if stacks have changed
         void UpdateSlices( Array<RealImage>& stacks,
                           Array<double>& thickness );
         
@@ -348,23 +348,23 @@ namespace mirtk {
         
         void SaveProbabilityMap( int i );
         
-        ///Invert all stack transformation
+        // Invert all stack transformation
         void InvertStackTransformations( Array<RigidTransformation>& stack_transformations );
         
-        ///Match stack intensities
+        // Match stack intensities
         void MatchStackIntensities ( Array<RealImage>& stacks,
                                     Array<RigidTransformation>& stack_transformations,
                                     double averageValue,
                                     bool together=false);
         
-        ///Match stack intensities with masking
+        // Match stack intensities with masking
         void MatchStackIntensitiesWithMasking ( Array<RealImage>& stacks,
                                                Array<RigidTransformation>& stack_transformations,
                                                double averageValue,
                                                bool together=false);
         
-        ///If template image has been masked instead of creating the mask in separate
-        ///file, this function can be used to create mask from the template image
+        // If template image has been masked instead of creating the mask in separate
+        // file, this function can be used to create mask from the template image
         RealImage CreateMask( RealImage image );
         
         void CreateMaskFromBlackBackground( Array<RealImage> stacks,
@@ -372,152 +372,137 @@ namespace mirtk {
                                            double smooth_mask );
         
         
-        ///Mask all stacks
+        // Mask all stacks
         void MaskStacks(Array<RealImage>& stacks,Array<RigidTransformation>& stack_transformations);
         
-        ///Mask all slices
+        // Mask all slices
         void MaskSlices();
         
-        ///Set reconstructed image
+        // Set reconstructed image
         void SetTemplate(RealImage tempImage);
         
-        ///Calculate transformation matrix between slices and voxels
+        // Calculate transformation matrix between slices and voxels
         void CoeffInit();
         void CoeffInitSF(int begin, int end);
         
-        ///Reconstruction using weighted Gaussian PSF
+        // Reconstruction using weighted Gaussian PSF
         void GaussianReconstruction();
         void GaussianReconstructionSF(Array<RealImage>& stacks);
         
-        
+        // NLM filtering
         void NLMFiltering(Array<RealImage>& stacks);
         
+        // NCC stats
         double VolumeNCC(RealImage& input_stack, RealImage template_stack, RealImage mask);
-        
         double GlobalNCC(RealImage slice_1, RealImage slice_2, double& count);
         
         
-        ///Initialise variables and parameters for EM
+        // Initialise variables and parameters for EM
         void InitializeEM();
         
-        ///Initialise values of variables and parameters for EM
+        // Initialise values of variables and parameters for EM
         void InitializeEMValues();
         
-        ///Initalize robust statistics
+        // Initalize robust statistics
         void InitializeRobustStatistics();
         
-        ///Perform E-step
+        // Perform E-step
         void EStep();
         
-        ///Calculate slice-dependent scale
+        // Calculate slice-dependent scale
         void Scale();
         
-        ///Calculate slice-dependent bias fields
+        // Calculate slice-dependent bias fields
         void Bias();
         void NormaliseBias( int iter );
         
-        ///Superresolution
+        // Superresolution
         void Superresolution( int iter );
         
-        ///Calculation of voxel-vise robust statistics
+        // Calculation of voxel-vise robust statistics
         void MStep( int iter );
         
-        ///Edge-preserving regularization
+        // Edge-preserving regularization
         void Regularization( int iter );
         
-        ///Edge-preserving regularization with confidence map
+        // Edge-preserving regularization with confidence map
         void AdaptiveRegularization( int iter, RealImage& original );
         
-        ///Slice to volume registrations
+        // Slice to volume registrations
         void SliceToVolumeRegistration();
         void RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path);
-        
-        
-        
+
+        // remote recon functions
         void SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration);
-        
         void LoadModelRemote(string str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration);
-        
         void LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration);
-        
-        
-        
-        ///Slice to volume registrations with OMP
-        void SliceToVolumeRegistrationOMP();
-        
-        void CoeffInitOMP();
-        
-        void CoeffInitRound(int inputIndex);
-        
-        
-        void SliceToVolumeRegistrationRound(GreyImage volume, GreyImage slice, RigidTransformation& transformation);
-        
-        ///Correct bias in the reconstructed volume
+
+        // Correct bias in the reconstructed volume
         void BiasCorrectVolume( RealImage& original );
         
-        ///Mask the volume
+        // Mask the volume
         void MaskVolume();
         void MaskImage( RealImage& image, double padding=-1);
         
-        ///Save slices
+        // Save slices
         void SaveSlices();
         void SaveSlicesWithTiming();
         void SlicesInfo( const char* filename,
                         Array<string> &stack_filenames );
         
-        ///Save simulated slices
+        // Save simulated slices
         void SaveSimulatedSlices();
         
-        ///Save weights
+        // Save weights
         void SaveWeights();
         void SaveRegistrationStep(Array<RealImage>& stacks,int step);
         
-        ///Save transformations
+        // Save transformations
         void SaveTransformations();
         void SaveTransformationsWithTiming();
         void SaveTransformationsWithTiming(int iter);
         void GetTransformations( Array<RigidTransformation> &transformations );
         void SetTransformations( Array<RigidTransformation> &transformations );
         
-        ///Save confidence map
+        // Save confidence map
         void SaveConfidenceMap();
         
-        ///Save bias field
+        // Save bias field
         void SaveBiasFields();
         
-        ///Remember stdev for bias field
+        // Remember stdev for bias field
         inline void SetSigma( double sigma );
         
-        ///Return reconstructed volume
+        // Return reconstructed volume
         inline RealImage GetReconstructed();
         
         void SetReconstructed( RealImage &reconstructed );
         
-        ///Return resampled mask
+        // Return resampled mask
         inline RealImage GetMask();
         
-        ///Remember volumetric mask
+        // Remember volumetric mask
         inline void PutMask( RealImage mask );
         
-        ///Set smoothing parameters
+        // Set smoothing parameters
         inline void SetSmoothingParameters( double delta, double lambda );
         
-        ///Use faster lower quality reconstruction
+        // Use faster lower quality reconstruction
         inline void SpeedupOn();
         
-        ///Use slower better quality reconstruction
+        // Use slower better quality reconstruction
         inline void SpeedupOff();
         
-        ///Switch on global bias correction
+        // Switch on global bias correction
         inline void GlobalBiasCorrectionOn();
         
-        ///Switch off global bias correction
+        // Switch off global bias correction
         inline void GlobalBiasCorrectionOff();
         
-        ///Set lower threshold for low intensity cutoff during bias estimation
+        // Set lower threshold for low intensity cutoff during bias estimation
         inline void SetLowIntensityCutoff( double cutoff );
         
-        ///Set slices which need to be excluded by default
+        // Set slices which need to be excluded by default
         inline void SetForceExcludedSlices( Array<int>& force_excluded );
         
         inline void Set3DRecon();
@@ -539,9 +524,9 @@ namespace mirtk {
         
         
         //utility
-        ///Save intermediate results
+        // Save intermediate results
         inline void DebugOn();
-        ///Do not save intermediate results
+        // Do not save intermediate results
         inline void DebugOff();
         
         inline void UseAdaptiveRegularisation();
@@ -571,46 +556,36 @@ namespace mirtk {
         
         void GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations);
         
-        
         void StackStats(RealImage input_stack, RealImage mask, double& mask_volume, double& slice_ncc);
         
         void RunParallelGlobalStackStats( Array<RealImage> stacks, Array<RealImage> masks, Array<double> &all_global_ncc_array, Array<double> &all_global_volume_array );
         
         
-        
-//        void GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage*> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations);
-//        
-//        
-//        void StackStats(RealImage input_stack, RealImage mask, double& mask_volume, double& slice_ncc);
-        
-        
-        
-        
-        ///Write included/excluded/outside slices
+        // Write included/excluded/outside slices
         void Evaluate( int iter );
         void EvaluateWithTiming( int iter );
         
-        /// Read Transformations
+        // Read Transformations
         void ReadTransformation( char* folder );
         
         //To recover original scaling
-        ///Restore slice intensities to their original values
+        // Restore slice intensities to their original values
         void RestoreSliceIntensities();
-        ///Scale volume to match the slice intensities
+        // Scale volume to match the slice intensities
         void ScaleVolume();
         
-        ///To compare how simulation from the reconstructed volume matches the original stacks
+        // To compare how simulation from the reconstructed volume matches the original stacks
         void SimulateStacks( Array<RealImage>& stacks );
         
         void SimulateSlices();
         
-        ///Puts origin of the image into origin of world coordinates
+        // Puts origin of the image into origin of world coordinates
         void ResetOrigin( GreyImage &image, RigidTransformation& transformation);
         
-        ///Puts origin of the image into origin of world coordinates
+        // Puts origin of the image into origin of world coordinates
         void ResetOrigin( RealImage &image, RigidTransformation& transformation);
         
-        ///Packages to volume registrations
+        // Packages to volume registrations
         void PackageToVolume( Array<RealImage>& stacks,
                              Array<int> &pack_num,
                              Array<RigidTransformation> stack_transformations);
@@ -659,47 +634,48 @@ namespace mirtk {
         // Calculate relative change of displacement field across different iterations
         double calculateResidual(int padding);
         
-        
+        // Filter backgound
         void BackgroundFiltering( Array<RealImage>& stacks, double fg_sigma , double bg_sigma );
         
         
-        ///Splits stacks into packages
+        // Splits stacks into packages
         void SplitImage( RealImage image,
                         int packages,
                         Array<RealImage>& stacks );
         
-        ///Splits stacks into packages and each package into even and odd slices
+        // Splits stacks into packages and each package into even and odd slices
         void SplitImageEvenOdd( RealImage image,
                                int packages,
                                Array<RealImage>& stacks );
         
-        ///Splits image into top and bottom half roi according to z coordinate
+        // Splits image into top and bottom half roi according to z coordinate
         void HalfImage( RealImage image,
                        Array<RealImage>& stacks );
         
-        ///Splits stacks into packages and each package into even and odd slices and top and bottom roi
+        // Splits stacks into packages and each package into even and odd slices and top and bottom roi
         void SplitImageEvenOddHalf( RealImage image,
                                    int packages,
                                    Array<RealImage>& stacks,
                                    int iter=1);
         
-        ///Crop image according to the given mask
+        // Crop image according to the given mask
         void CropImage( RealImage& image, RealImage& mask );
-        
         void CropImageIgnoreZ( RealImage& image, RealImage& mask );
         
         
-        
+        // Run structure-based rejection of outliers
         void StructuralExclusion();
+        
+        // Calculare NCC between two images
         double SliceCC( RealImage slice_1, RealImage slice_2 );
         
-        void SimulateSlicesOMP();
-        void SimulateSlice( int inputIndex );
-        
+        // Evaluated reconstruction quality (errors per slices)
         double EvaluateReconQuality( int index );
         
+        // Initialisation with stack transformations
         void InitialiseWithStackTransformations( Array<RigidTransformation> stack_transformations );
         
+        // transformation to the reconstructed image space
         void Transform2Reconstructed( int inputIndex, int& i, int& j, int& k, int mode );
         
         
@@ -728,9 +704,9 @@ namespace mirtk {
         
     };  // end of Reconstruction class definition
     
-    ////////////////////////////////////////////////////////////////////////////////
+    //-------------------------------------------------------------------------------
     // Inline/template definitions
-    ////////////////////////////////////////////////////////////////////////////////
+    //-------------------------------------------------------------------------------
     
     
     inline double Reconstruction::G(double x,double s)
@@ -757,7 +733,6 @@ namespace mirtk {
     {
         _mask=mask;
     }
-    
     
     inline void Reconstruction::SetFFD(bool flag_ffd)
     {
@@ -832,17 +807,11 @@ namespace mirtk {
         _GA = ga;
     }
     
-    inline void Reconstruction::SetNThreads(int N)
-    {
-        _n_treads = N;
-    }
     
     inline void Reconstruction::SetNPackages(Array<int> N)
     {
         _n_packages = N;
-        
     }
-
     
     inline void Reconstruction::SpeedupOn()
     {
@@ -898,8 +867,7 @@ namespace mirtk {
         _nmi_bins = nmi_bins;
         
     }
-    
-    
+
     inline void Reconstruction::Set3DRecon()
     {
         _recon_type = _3D;

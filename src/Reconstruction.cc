@@ -2,7 +2,7 @@
  * SVRTK : SVR reconstruction based on MIRTK
  *
  * Copyright 2008-2017 Imperial College London
- * Copyright 2018-2020 King's College London
+ * Copyright 2018-2021 King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // Extract specific image ROI
     void bbox( RealImage &stack, RigidTransformation &transformation, double &min_x, double &min_y, double &min_z, double &max_x, double &max_y, double &max_z ) {
         
         min_x = DBL_MAX;
@@ -64,6 +65,9 @@ namespace mirtk {
 
     }
     
+    //-------------------------------------------------------------------
+    
+    // Crop to non zero ROI
     void bboxCrop( RealImage &image ) {
         int min_x, min_y, min_z, max_x, max_y, max_z;
         min_x = image.GetX()-1;
@@ -100,6 +104,7 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
     
+    // Find centroid
     void centroid(RealImage &image, double &x, double &y, double &z) {
         double sum_x = 0;
         double sum_y = 0;
@@ -130,12 +135,9 @@ namespace mirtk {
     
     Reconstruction::Reconstruction()
     {
-        
-        _n_treads = 8;
-        
         _number_of_slices_org = 0;
-        
         _average_thickness_org = 0;
+        _cp_spacing = -1;
         
         _step = 0.0001;
         _debug = false;
@@ -148,14 +150,16 @@ namespace mirtk {
         _delta = 1;
         _lambda = 0.1;
         _alpha = (0.05 / _lambda) * _delta * _delta;
+        _low_intensity_cutoff = 0.01;
+        _nmi_bins = -1;
+        _global_NCC_threshold = 0.65;
+        
         _template_created = false;
         _have_mask = false;
-        _low_intensity_cutoff = 0.01;
         _global_bias_correction = false;
         _adaptive = false;
         _robust_slices_only = false;
         _recon_type = _3D;
-        
         _ffd = false;
         _blurring = false;
         _structural = false;
@@ -164,15 +168,8 @@ namespace mirtk {
         _no_sr = false;
         _reg_log = false;
         _masked_stacks = false;
-        
-        _nmi_bins = -1;
-        _global_NCC_threshold = 0.65;
-        
         _filtered_cmp_flag = false;
-        
         _bg_flag = false;
-        _cp_spacing = -1;
-        
         
         int directions[13][3] = {
             { 1, 0, -1},
@@ -201,6 +198,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // Center stacks with respect to the centre of the mask
     void Reconstruction::CenterStacks( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber )
     {
         double x0, y0, z0;
@@ -209,14 +207,11 @@ namespace mirtk {
         RealImage mask;
         mask = stacks[templateNumber];
         
-        
         for (tx=0; tx<mask.GetX(); tx++) {
             for (ty=0; ty<mask.GetY(); ty++) {
                 for (tz=0; tz<mask.GetZ(); tz++) {
-                    
                     if (mask(tx,ty,tz) < 0)
                         mask(tx,ty,tz) = 0;
-                    
                 }
             }
         }
@@ -229,14 +224,11 @@ namespace mirtk {
                 continue;
             
             mask = stacks[i];
-            
             for (tx=0; tx<mask.GetX(); tx++) {
                 for (ty=0; ty<mask.GetY(); ty++) {
                     for (tz=0; tz<mask.GetZ(); tz++) {
-                        
                         if (mask(tx,ty,tz) < 0)
                             mask(tx,ty,tz) = 0;
-                        
                     }
                 }
             }
@@ -257,6 +249,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // Class for computing average of all stacks
     class ParallelAverage {
         Reconstruction* reconstructor;
         Array<RealImage> &stacks;
@@ -274,8 +267,7 @@ namespace mirtk {
         
         // Volumetric registrations are stack-to-template while slice-to-volume
         // registrations are actually performed as volume-to-slice
-        // (reasons: technicalities of implementation)
-        // so transformations need to be inverted beforehand.
+        // (reasons: technicalities of implementation) so transformations need to be inverted beforehand.
         
         bool linear;
         
@@ -302,8 +294,7 @@ namespace mirtk {
                         }
                     }
                 }
-                
-                
+
                 ImageTransformation imagetransformation;
                 imagetransformation.Input(&s);
                 imagetransformation.Transformation(&t);
@@ -367,7 +358,7 @@ namespace mirtk {
             linear = _linear;
         }
         
-        // execute
+        
         
         void operator()() {
             
@@ -440,7 +431,7 @@ namespace mirtk {
             weights = 0;
         }
         
-        // execute
+        
         void operator() () const {
             
             parallel_for( blocked_range<size_t>(0,average.GetZ()), *this );
@@ -451,6 +442,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // Create average of all stacks based on the input transformations
     RealImage Reconstruction::CreateAverage( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations )
     {
         if (!_template_created) {
@@ -479,7 +471,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // Set given template with specific resolution
     double Reconstruction::CreateTemplate( RealImage stack, double resolution )
     {
         double dx, dy, dz, d;
@@ -521,6 +513,7 @@ namespace mirtk {
         stack.GetMinMax(&smin, &smax);
         enlarged = stack;
         
+        // interpolate the input stack to the given resolution
         if (smin < -0.1) {
             ResamplingWithPadding<RealPixel> resampling(d, d, d, -1);
             GenericLinearInterpolateImageFunction<RealImage> interpolator;
@@ -548,10 +541,8 @@ namespace mirtk {
                 resampler.Run();
                 
             }
-            
         }
         
-
         //initialize recontructed volume
         _reconstructed = enlarged;
         _template_created = true;
@@ -567,6 +558,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // Create anisotropic template
     double Reconstruction::CreateTemplateAniso(RealImage stack)
     {
         double dx, dy, dz, d;
@@ -594,6 +586,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // Set template
     void Reconstruction::SetTemplate( RealImage templateImage )
     {
         RealImage t2template = _reconstructed;
@@ -621,14 +614,11 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // binarise mask
     RealImage Reconstruction::CreateMask( RealImage image )
     {
-        //binarize mask
-        
         RealPixel* ptr = image.GetPointerToVoxels();
-        
         for (int i = 0; i < image.GetNumberOfVoxels(); ++i) {
-            
             if (*ptr > 0.5)
                 *ptr = 1;
             else
@@ -641,6 +631,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // normalise and threshold mask
     RealImage Reconstruction::ThreholdNormalisedMask( RealImage image, double threshold )
     {
         
@@ -666,6 +657,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // create mask from dark / black background
     void Reconstruction::CreateMaskFromBlackBackground( Array<RealImage> stacks, Array<RigidTransformation> stack_transformations, double smooth_mask )
     {
         
@@ -698,6 +690,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // Set given mask to the reconstruction object
     void Reconstruction::SetMask(RealImage *mask, double sigma, double threshold)
     {
         if (!_template_created) {
@@ -756,11 +749,8 @@ namespace mirtk {
         //set flag that mask was created
         _have_mask = true;
         
-        
-        double dx = _reconstructed.GetXSize();
+        // compute mask volume
         double vol = 0;
-        
-        
         for (int i = 0; i < _mask.GetX(); i++) {
             for (int j = 0; j < _mask.GetY(); j++) {
                 for (int k = 0; k < _mask.GetZ(); k++) {
@@ -770,12 +760,9 @@ namespace mirtk {
             }
         }
         
-        vol = vol * dx * dx * dx;
+        vol = vol * _reconstructed.GetXSize() * _reconstructed.GetYSize() * _reconstructed.GetZSize() / 1000;
         
-        cout << "ROI volume : " << vol << " mm^3 " << endl;
-        
-        
-        
+        cout << "ROI volume : " << vol << " cc " << endl;
         
         if (_debug)
             _mask.Write("mask.nii.gz");
@@ -783,6 +770,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // transform mask to the specified stack space
     void Reconstruction::TransformMask(RealImage& image, RealImage& mask, RigidTransformation& transformation)
     {
         //transform mask to the space of image
@@ -808,6 +796,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // reset image origin and save it into the output transforamtion (GreyImage)
     void Reconstruction::ResetOrigin(GreyImage &image, RigidTransformation& transformation)
     {
         double ox,oy,oz;
@@ -823,6 +812,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // reset image origin and save it into the output transforamtion (RealImage)
     void Reconstruction::ResetOrigin(RealImage &image, RigidTransformation& transformation)
     {
         double ox,oy,oz;
@@ -838,8 +828,6 @@ namespace mirtk {
     
 
     //-------------------------------------------------------------------
-
-
 
     class ParallelQualityReport {
         Reconstruction* reconstructor;
@@ -866,14 +854,12 @@ namespace mirtk {
                         for (int z=0; z<reconstructor->_slices[inputIndex].GetZ(); z++) {
                             
                             if (reconstructor->_slices[inputIndex](x,y,z)>0 && reconstructor->_simulated_slices[inputIndex](x,y,z)>0) {
-                            
                                 point_nt = reconstructor->_slices[inputIndex](x,y,z) * exp(-(reconstructor->_bias[inputIndex])(x,y,0)) * reconstructor->_scale[inputIndex];
                                 point_ns = reconstructor->_simulated_slices[inputIndex](x,y,z);
                                 
                                 s_t += point_nt;
                                 s_diff += (point_nt - point_ns) * (point_nt - point_ns);
                                 s_n++;
-
                             }
                             
                         }
@@ -894,17 +880,13 @@ namespace mirtk {
         
         ParallelQualityReport( ParallelQualityReport& x, split ) : reconstructor(x.reconstructor)
         {
-            
             out_global_ncc = 0;
             out_global_nrmse = 0;
-            
         }
         
         void join( const ParallelQualityReport& y ) {
-            
             out_global_ncc = out_global_ncc + y.out_global_ncc;
             out_global_nrmse = out_global_nrmse + y.out_global_nrmse;
-            
         }
         
         ParallelQualityReport( Reconstruction *reconstructor ) : reconstructor(reconstructor)
@@ -913,16 +895,13 @@ namespace mirtk {
             out_global_nrmse = 0;
         }
         
-        // execute
         void operator() () {
-            
             parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
-            
         }
     };
 
 
-
+    // generate reconstruction quality report / metrics
     double Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded)
     {
         
@@ -949,14 +928,12 @@ namespace mirtk {
         
         ratio_excluded = count_excluded / _slices.size();
         
-//        cout << " - global metrics: ncc = " << out_ncc << " ; nrmse = " << out_nrmse << endl;
-        
     }
-
 
 
     //-------------------------------------------------------------------
 
+    // compute NCC between two RealImage objects
     double Reconstruction::GlobalNCC(RealImage slice_1, RealImage slice_2, double& count)
     {
         
@@ -969,9 +946,7 @@ namespace mirtk {
         
         double tmp_val, diff_sum;
         double average_CC, CC_slice;
-        
-        
-        
+
         slice_1_N = slice_1.GetNumberOfVoxels();
         slice_2_N = slice_2.GetNumberOfVoxels();
         
@@ -1008,17 +983,12 @@ namespace mirtk {
             }
         }
         
-        
         count = count * slice_2.GetXSize() * slice_2.GetYSize() * slice_2.GetZSize();
         
-        
         if (slice_1_n<5 || slice_2_n<5) {
-            
             CC_slice = -1;
-            
         }
         else {
-            
             diff_sum = 0;
             slice_1_sq = 0;
             slice_2_sq = 0;
@@ -1037,24 +1007,19 @@ namespace mirtk {
             CC_slice = diff_sum / sqrt(slice_1_sq * slice_2_sq);
             else
             CC_slice = 0;
-            
         }
-        
-        
+
         return CC_slice;
-        
     }
 
 
     //-------------------------------------------------------------------
 
-
+    // compute inter-slice volume NCC (motion metric)
     double Reconstruction::VolumeNCC(RealImage& input_stack, RealImage template_stack, RealImage mask) {
         
-        
         template_stack *= mask;
-        
-        
+
         RigidTransformation *r_init = new RigidTransformation();
         r_init->PutTranslationX(0.0001);
         r_init->PutTranslationY(0.0001);
@@ -1073,9 +1038,7 @@ namespace mirtk {
         registration->GuessParameter();
         registration->Run();
         RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
-        
-        
-        
+
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
         double source_padding = 0;
         double target_padding = -inf;
@@ -1097,21 +1060,15 @@ namespace mirtk {
         imagetransformation->Run();
         delete imagetransformation;
         
-        
         input_stack = output;
         input_stack *= mask;
-        
-
+    
         double ncc = 0;
         int count = 0;
 
         RealImage slice_1, slice_2;
-        
-        
-        
 
         for (int z = 0; z < input_stack.GetZ()-1; z++) {
-            
             int sh=5;
             slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX()-sh, input_stack.GetY()-sh, z+1);
             slice_2 = input_stack.GetRegion(sh, sh, z+1, input_stack.GetX()-sh, input_stack.GetY()-sh, z+2);
@@ -1123,12 +1080,10 @@ namespace mirtk {
                 ncc = ncc + slice_ncc;
                 count += 1;
             }
-            
         }
 
         ncc /= count;
 
-        
         return ncc;
     }
 
@@ -1136,6 +1091,7 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
     
+    // class for global 3D stack registration
     class ParallelStackRegistrations {
         Reconstruction *reconstructor;
         Array<RealImage>& stacks;
@@ -1253,7 +1209,7 @@ namespace mirtk {
             }
         }
         
-        // execute
+        
         void operator() () const {
             
             parallel_for( blocked_range<size_t>(0, stacks.size() ), *this );
@@ -1261,39 +1217,29 @@ namespace mirtk {
         }
         
     };
-    
-    
-    //-------------------------------------------------------------------
-    
 
-    
     //-------------------------------------------------------------------
     
+    // run global stack registration to the template
     void Reconstruction::StackRegistrations(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber)
     {
-        // if (_debug)
-        // cout << "StackRegistrations" << endl;
-        
+
         InvertStackTransformations(stack_transformations);
-        
-        
+
         RealImage target;
-        
-        
+        // check whether to use the global template or the selected stack
         if (!_template_flag) {
             target = stacks[templateNumber];
         }
         else {
             target = _reconstructed;
         }
-        
-        
+
         RealImage m_tmp = _mask;
         RigidTransformation *rigidTransf_m = new RigidTransformation;
         TransformMask(target, m_tmp, *rigidTransf_m);
         target = target * m_tmp;
         target.Write("masked.nii.gz");
-        
         
         if(_debug)
         {
@@ -1316,17 +1262,15 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // restore the original slice intensities
     void Reconstruction::RestoreSliceIntensities()
     {
-        // if (_debug)
-        //     cout << "Restoring the intensities of the slices. "<<endl;
-        
+
         for (int inputIndex=0;inputIndex<_slices.size();inputIndex++) {
             //calculate scaling factor
             double factor = _stack_factor[_stack_index[inputIndex]];//_average_value;
             
             RealPixel *p;
-            
             // read the pointer to current slice
             p = _slices[inputIndex].GetPointerToVoxels();
             for(int i=0; i<_slices[inputIndex].GetNumberOfVoxels(); i++) {
@@ -1339,14 +1283,9 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // scale the output reconstructed volume
     void Reconstruction::ScaleVolume()
     {
-        
-        // if (_debug)
-        // cout << "Scaling volume: ";
-        
-        
-        
         double scalenum = 0, scaleden = 0;
         
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
@@ -1370,9 +1309,7 @@ namespace mirtk {
                     }
 
         } //end of loop for a slice inputIndex
-        
-        
-        
+
         //calculate scale for the volume
         double scale = 1;
         
@@ -1381,20 +1318,18 @@ namespace mirtk {
         
         if(_debug)
             cout<<"scale : "<<scale << endl;
-        
-        
-        // _reconstructed *= scale;
-        
+
         RealPixel *ptr = _reconstructed.GetPointerToVoxels();
         for(int i=0;i<_reconstructed.GetNumberOfVoxels();i++) {
             if(*ptr>0) *ptr = *ptr * scale;
             ptr++;
         }
-        // cout<<endl;
+
     }
     
     //-------------------------------------------------------------------
     
+    // class for simulation of slices from the current reconstructed 3D volume - v1
     class ParallelSimulateSlices {
         Reconstruction *reconstructor;
         
@@ -1434,16 +1369,14 @@ namespace mirtk {
             }
         }
         
-        // execute
+        
         void operator() () const {
-            
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
-            
         }
         
     };
     
-    
+    // class for simulation of slices from the current reconstructed 3D volume - v2 (use this one)
     class ParallelSimulateSlices2{
         Reconstruction* reconstructor;
     public:
@@ -1456,7 +1389,6 @@ namespace mirtk {
                 reconstructor->_simulated_weights[inputIndex] = 0;
                 reconstructor->_simulated_inside[inputIndex] = 0;
                 reconstructor->_slice_inside[inputIndex] = false;
-                
                 RealImage sim_slice = reconstructor->_simulated_slices[inputIndex];
                 RealImage sim_weight = reconstructor->_simulated_weights[inputIndex];
                 
@@ -1468,9 +1400,7 @@ namespace mirtk {
                             int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             for ( unsigned int k = 0; k < n; k++ ) {
                                 p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                                
                                 sim_slice(i, j, 0) += p.value * reconstructor->_reconstructed(p.x, p.y, p.z);
-                                
                                 weight += p.value;
                                 if (reconstructor->_mask(p.x, p.y, p.z) > 0.1) {
                                     reconstructor->_simulated_inside[inputIndex](i, j, 0) = 1;
@@ -1502,103 +1432,29 @@ namespace mirtk {
         {
         }
         
-        // execute
+        
         void operator() () {
-            
             parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
-            
         }
     };
     
     
     //-------------------------------------------------------------------
     
+    // run simulation of slices from the reconstruction volume
     void Reconstruction::SimulateSlices()
     {
-        // if (_debug)
-        // cout<<"Simulating slices."<<endl;
-        
         ParallelSimulateSlices2 *p_sim = new ParallelSimulateSlices2( this );
         (*p_sim)();
         
         delete p_sim;
+    }
 
-        // if (_debug)
-        // cout<<"done."<<endl;
-    }
-    
-    
-    
     //-------------------------------------------------------------------
     
-    void Reconstruction::SimulateSlice(int inputIndex)
-    {
-        
-        POINT3D p;
-        for ( unsigned int i = 0; i < _slices[inputIndex].GetX(); i++ )
-            for ( unsigned int j = 0; j < _slices[inputIndex].GetY(); j++ )
-                if ( _slices[inputIndex](i, j, 0) > -0.01 ) {
-                    double weight = 0;
-                    int n = _volcoeffs[inputIndex][i][j].size();
-                    for ( unsigned int k = 0; k < n; k++ ) {
-                        p = _volcoeffs[inputIndex][i][j][k];
-                        _simulated_slices[inputIndex](i, j, 0) += p.value * _reconstructed(p.x, p.y, p.z);
-                        weight += p.value;
-                        if (_mask(p.x, p.y, p.z) == 1) {
-                            _simulated_inside[inputIndex](i, j, 0) = 1;
-                            _slice_inside[inputIndex] = true;
-                        }
-                    }
-                    if( weight > 0 ) {
-                        _simulated_slices[inputIndex](i,j,0) /= weight;
-                        _simulated_weights[inputIndex](i,j,0) = weight;
-                    }
-                };
-        
-        
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
-    void Reconstruction::SimulateSlicesOMP()
-    {
-        // if (_debug)
-        // cout<<"Simulating slices."<<endl;
-        
-#pragma omp parallel
-        {
-#pragma omp for
-            for(int inputIndex=0; inputIndex<_slices.size(); ++inputIndex)
-            {
-                _simulated_slices[inputIndex] = 0;
-                _simulated_weights[inputIndex] = 0;
-                _simulated_inside[inputIndex] = 0;
-                _slice_inside[inputIndex] = false;
-            }
-        }
-        
-#pragma omp parallel
-        {
-#pragma omp for
-            for(int inputIndex=0; inputIndex<_slices.size(); ++inputIndex)
-            {
-                SimulateSlice(inputIndex);
-            }
-        }
-        
-        // if (_debug)
-        // cout<<"done."<<endl;
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
+    // simulate stacks from the reconstructed volume
     void Reconstruction::SimulateStacks( Array<RealImage>& stacks )
     {
-        // if (_debug)
-        // cout<<"Simulating stacks."<<endl;
-        
         unsigned int inputIndex;
         int i, j, k, n;
         RealImage sim;
@@ -1609,13 +1465,8 @@ namespace mirtk {
         z=-1;//this is the z coordinate of the stack
         current_stack=-1; //we need to know when to start a new stack
         
-        // #pragma omp parallel
-        // {
-        //     #pragma omp for
         for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)
         {
-            
-            
             // read the current slice
             RealImage& slice = _slices[inputIndex];
             
@@ -1654,23 +1505,20 @@ namespace mirtk {
                 for(j=0;j<sim.GetY();j++) {
                     stacks[_stack_index[inputIndex]](i,j,z)=sim(i,j,0);
                 }
-            //end of loop for a slice inputIndex
         }
-        // }
+
     }
     
     
     //-------------------------------------------------------------------
     
+    
+    // match stack intensities with respect to the average
     void Reconstruction::MatchStackIntensities( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together )
     {
-        // if (_debug)
-        // cout << "Matching intensities of stacks. ";
-        
+
         //Calculate the averages of intensities for all stacks
-        
         char buffer[256];
-        
         Array<double> stack_average;
         
         //remember the set average value
@@ -1678,52 +1526,45 @@ namespace mirtk {
         
         for (int i=0; i< stacks.size(); i++)
             stack_average.push_back(0);
-        
-        
-#pragma omp parallel
-        {
-            //averages need to be calculated only in ROI
-#pragma omp for
-            for (int ind = 0; ind < stacks.size(); ++ind) {
-                
-                double sum, num;
-                double x, y, z;
-                
-                sum = 0;
-                num = 0;
-                
-                for (int i = 0; i < stacks[ind].GetX(); i++)
-                    for (int j = 0; j < stacks[ind].GetY(); j++)
-                        for (int k = 0; k < stacks[ind].GetZ(); k++) {
-                            //image coordinates of the stack voxel
-                            x = i;
-                            y = j;
-                            z = k;
-                            //change to world coordinates
-                            stacks[ind].ImageToWorld(x, y, z);
-                            //transform to template (and also _mask) space
-                            stack_transformations[ind].Transform(x, y, z);
-                            //change to mask image coordinates - mask is aligned with template
-                            _mask.WorldToImage(x, y, z);
-                            x = round(x);
-                            y = round(y);
-                            z = round(z);
-                            //if the voxel is inside mask ROI include it
-                            if ( stacks[ind](i, j, k) > 0 ) {
-                                sum += stacks[ind](i, j, k);
-                                num++;
-                            }
+
+        //averages need to be calculated only in ROI
+        for (int ind = 0; ind < stacks.size(); ++ind) {
+            
+            double sum, num;
+            double x, y, z;
+            sum = 0;
+            num = 0;
+            for (int i = 0; i < stacks[ind].GetX(); i++)
+                for (int j = 0; j < stacks[ind].GetY(); j++)
+                    for (int k = 0; k < stacks[ind].GetZ(); k++) {
+                        //image coordinates of the stack voxel
+                        x = i;
+                        y = j;
+                        z = k;
+                        //change to world coordinates
+                        stacks[ind].ImageToWorld(x, y, z);
+                        //transform to template (and also _mask) space
+                        stack_transformations[ind].Transform(x, y, z);
+                        //change to mask image coordinates - mask is aligned with template
+                        _mask.WorldToImage(x, y, z);
+                        x = round(x);
+                        y = round(y);
+                        z = round(z);
+                        //if the voxel is inside mask ROI include it
+                        if ( stacks[ind](i, j, k) > 0 ) {
+                            sum += stacks[ind](i, j, k);
+                            num++;
                         }
-                //calculate average for the stack
-                if (num > 0)
-                    stack_average[ind] = (sum / num);
-                else {
-                    cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                    exit(1);
-                }
+                    }
+            //calculate average for the stack
+            if (num > 0)
+            stack_average[ind] = (sum / num);
+            else {
+                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
+                exit(1);
             }
         }
-        
+
         double global_average;
         if (together) {
             global_average = 0;
@@ -1739,22 +1580,16 @@ namespace mirtk {
             cout << endl;
             cout << "The new average value is " << averageValue << endl;
         }
-        
-        
+
         _stack_factor.clear();
         for (int i=0; i< stacks.size(); i++)
             _stack_factor.push_back(1);
-        
-        
-#pragma omp parallel
+
         {
             //Rescale stacks
-#pragma omp for
             for (int ind = 0; ind < stacks.size(); ++ind) {
-                
                 RealPixel *ptr;
                 double factor;
-                
                 if (together) {
                     factor = averageValue / global_average;
                     _stack_factor[ind] = factor;
@@ -1764,7 +1599,6 @@ namespace mirtk {
                     _stack_factor[ind] = factor;
                     
                 }
-                
                 ptr = stacks[ind].GetPointerToVoxels();
                 for (int i = 0; i < stacks[ind].GetNumberOfVoxels(); i++) {
                     if (*ptr > 0)
@@ -1793,6 +1627,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // evaluate reconstruction quality (NRMSE)
     double Reconstruction::EvaluateReconQuality(int stackIndex)
     {
         Array<double> rmse_values;
@@ -1803,56 +1638,37 @@ namespace mirtk {
             rmse_numbers.push_back(0);
         }
         
-        
-        
-#pragma omp parallel
-        {
-#pragma omp for
-            for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)
-            {
-                
-                RealImage nt, ns;
-                
-                nt = _slices[inputIndex];
-                ns = _simulated_slices[inputIndex];
-                
-                double nrmse = 0;
-                
-                double s_diff = 0;
-                double s_t = 0;
-                int s_n = 0;
-                
-                int z = 0;
-                
-                for (int x=0; x<nt.GetX(); x++) {
-                    for (int y=0; y<nt.GetY(); y++) {
-                        
-                        if (nt(x,y,z)>0 && ns(x,y,z)>0) {
-                            
-                            nt(x,y,z) *= exp(-(_bias[inputIndex])(x,y,z)) * _scale[inputIndex];
-                            
-                            s_t += nt(x,y,z);
-                            s_diff += (nt(x,y,z)-ns(x,y,z))*(nt(x,y,z)-ns(x,y,z));
-                            
-                            s_n++;
-                        }
+        // compute NRMSE between the simulated and original slice for non-zero voxels
+        for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+            RealImage nt, ns;
+            nt = _slices[inputIndex];
+            ns = _simulated_slices[inputIndex];
+            double nrmse = 0;
+            double s_diff = 0;
+            double s_t = 0;
+            int s_n = 0;
+            int z = 0;
+            for (int x=0; x<nt.GetX(); x++) {
+                for (int y=0; y<nt.GetY(); y++) {
+                    if (nt(x,y,z)>0 && ns(x,y,z)>0) {
+                        nt(x,y,z) *= exp(-(_bias[inputIndex])(x,y,z)) * _scale[inputIndex];
+                        s_t += nt(x,y,z);
+                        s_diff += (nt(x,y,z)-ns(x,y,z))*(nt(x,y,z)-ns(x,y,z));
+                        s_n++;
                     }
                 }
-                if (s_n > 0)
-                    nrmse = sqrt(s_diff/s_n)/(s_t/s_n);
-                else
-                    nrmse = 0;
-                
-                rmse_values[inputIndex] = nrmse;
-                if (nrmse > 0)
-                    rmse_numbers[inputIndex] = 1;
             }
-            
+            if (s_n > 0)
+                nrmse = sqrt(s_diff/s_n)/(s_t/s_n);
+            else
+                nrmse = 0;
+            rmse_values[inputIndex] = nrmse;
+            if (nrmse > 0)
+                rmse_numbers[inputIndex] = 1;
         }
-        
+
         double rmse_total = 0;
         int slice_n = 0;
-        
         for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
             rmse_total += rmse_values[inputIndex];
             slice_n += rmse_numbers[inputIndex];
@@ -1868,80 +1684,58 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // mask stacks with respect to the reconstruction mask and given transformations
     void Reconstruction::MaskStacks(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations)
     {
-        // cout << "Masking stacks " << endl;
-        
         //Check whether we have a mask
         if (!_have_mask) {
             cout << "Could not mask slices because no mask has been set." << endl;
             return;
         }
-        
-#pragma omp parallel
-        {
-            //mask slices
-#pragma omp for
-            for (int inputIndex = 0; inputIndex < stacks.size(); ++inputIndex) {
-                
-                double x, y, z;
-                
-                RealImage& stack = stacks[inputIndex];
-                for (int i = 0; i < stack.GetX(); i++)
-                    for (int j = 0; j < stack.GetY(); j++) {
-                        for (int k = 0; k < stack.GetZ(); k++) {
-                            //if the value is smaller than 1 assume it is padding
-                            if (stack(i,j,k) < 0.01)
-                                stack(i,j,k) = -1;
-                            //image coordinates of a slice voxel
-                            x = i;
-                            y = j;
-                            z = k;
-                            //change to world coordinates in slice space
-                            stack.ImageToWorld(x, y, z);
-                            //world coordinates in volume space
-                            stack_transformations[inputIndex].Transform(x, y, z);
-                            //image coordinates in volume space
-                            _mask.WorldToImage(x, y, z);
-                            x = round(x);
-                            y = round(y);
-                            z = round(z);
-                            //if the voxel is outside mask ROI set it to -1 (padding value)
-                            if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
-                                && (z < _mask.GetZ())) {
-                                if (_mask(x, y, z) == 0)
-                                    stack(i, j, k) = -1;
-                            }
-                            else
-                                stack(i, j, k) = -1;
-                        }
+
+        for (int inputIndex = 0; inputIndex < stacks.size(); ++inputIndex) {
+            double x, y, z;
+            RealImage& stack = stacks[inputIndex];
+            for (int i = 0; i < stack.GetX(); i++)
+            for (int j = 0; j < stack.GetY(); j++) {
+                for (int k = 0; k < stack.GetZ(); k++) {
+                    //if the value is smaller than 1 assume it is padding
+                    if (stack(i,j,k) < 0.01)
+                    stack(i,j,k) = -1;
+                    //image coordinates of a slice voxel
+                    x = i;
+                    y = j;
+                    z = k;
+                    //change to world coordinates in slice space
+                    stack.ImageToWorld(x, y, z);
+                    //world coordinates in volume space
+                    stack_transformations[inputIndex].Transform(x, y, z);
+                    //image coordinates in volume space
+                    _mask.WorldToImage(x, y, z);
+                    x = round(x);
+                    y = round(y);
+                    z = round(z);
+                    //if the voxel is outside mask ROI set it to -1 (padding value)
+                    if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
+                        && (z < _mask.GetZ())) {
+                        if (_mask(x, y, z) == 0)
+                        stack(i, j, k) = -1;
                     }
-                //remember masked slice
-                //_slices[inputIndex] = slice;
-                
-                stacks[inputIndex] = stack;
+                    else
+                    stack(i, j, k) = -1;
+                }
             }
+            stacks[inputIndex] = stack;
         }
-        
+
     }
-    
-    
-    
-    
-    
+
     //-------------------------------------------------------------------
     
+    // match stack intensities with respect to the masked ROI
     void Reconstruction::MatchStackIntensitiesWithMasking( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together )
     {
-        // if (_debug)
-        // cout << "Matching intensities of stacks. ";
-        
-        //Calculate the averages of intensities for all stacks
-        
         char buffer[256];
-        
-        
         Array<double> stack_average;
         
         for (int i=0; i< stacks.size(); i++)
@@ -1950,59 +1744,54 @@ namespace mirtk {
         //remember the set average value
         _average_value = averageValue;
         
-#pragma omp parallel
-        {
-            //averages need to be calculated only in ROI
-#pragma omp for
-            for (int ind = 0; ind < stacks.size(); ++ind) {
-                
-                double x, y, z;
-                double sum, num;
-                RealImage m =stacks[ind];
-                sum = 0;
-                num = 0;
-                for (int i = 0; i < stacks[ind].GetX(); i++)
-                    for (int j = 0; j < stacks[ind].GetY(); j++)
-                        for (int k = 0; k < stacks[ind].GetZ(); k++) {
-                            //image coordinates of the stack voxel
-                            x = i;
-                            y = j;
-                            z = k;
-                            //change to world coordinates
-                            stacks[ind].ImageToWorld(x, y, z);
-                            //transform to template (and also _mask) space
-                            stack_transformations[ind].Transform(x, y, z);
-                            //change to mask image coordinates - mask is aligned with template
-                            _mask.WorldToImage(x, y, z);
-                            x = round(x);
-                            y = round(y);
-                            z = round(z);_stack_factor.clear();
-                            //if the voxel is inside mask ROI include it
-                            if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
-                                && (z < _mask.GetZ()))
-                            {
-                                if (_mask(x, y, z) == 1)
-                                {
-                                    m(i,j,k)=1;
-                                    sum += stacks[ind](i, j, k);
-                                    num++;
-                                }
-                                else
-                                    m(i,j,k)=0;
-                            }
-                        }
-                if(_debug)
+        //Calculate the averages of intensities for all stacks in the mask ROI
+
+        for (int ind = 0; ind < stacks.size(); ++ind) {
+            double x, y, z;
+            double sum, num;
+            RealImage m =stacks[ind];
+            sum = 0;
+            num = 0;
+            for (int i = 0; i < stacks[ind].GetX(); i++)
+            for (int j = 0; j < stacks[ind].GetY(); j++)
+            for (int k = 0; k < stacks[ind].GetZ(); k++) {
+                //image coordinates of the stack voxel
+                x = i;
+                y = j;
+                z = k;
+                //change to world coordinates
+                stacks[ind].ImageToWorld(x, y, z);
+                //transform to template (and also _mask) space
+                stack_transformations[ind].Transform(x, y, z);
+                //change to mask image coordinates - mask is aligned with template
+                _mask.WorldToImage(x, y, z);
+                x = round(x);
+                y = round(y);
+                z = round(z);_stack_factor.clear();
+                //if the voxel is inside mask ROI include it
+                if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0) && (z < _mask.GetZ()))
                 {
-                    sprintf(buffer,"mask-for-matching%i.nii.gz",ind);
-                    m.Write(buffer);
+                    if (_mask(x, y, z) == 1)
+                    {
+                        m(i,j,k)=1;
+                        sum += stacks[ind](i, j, k);
+                        num++;
+                    }
+                    else
+                    m(i,j,k)=0;
                 }
-                //calculate average for the stack
-                if (num > 0)
-                    stack_average[ind] = (sum / num);
-                else {
-                    cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                    exit(1);
-                }
+            }
+            if(_debug)
+            {
+                sprintf(buffer,"mask-for-matching%i.nii.gz",ind);
+                m.Write(buffer);
+            }
+            //calculate average for the stack
+            if (num > 0)
+            stack_average[ind] = (sum / num);
+            else {
+                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
+                exit(1);
             }
         }
 
@@ -2027,36 +1816,28 @@ namespace mirtk {
         }
         
         //Rescale stacks
-        
-        
-        
-#pragma omp parallel
-        {
-#pragma omp for
-            for (int ind = 0; ind < stacks.size(); ++ind) {
+        for (int ind = 0; ind < stacks.size(); ++ind) {
+            
+            RealPixel *ptr;
+            double factor;
+            
+            if (together) {
+                factor = averageValue / global_average;
+                _stack_factor[ind] = (factor);
+            }
+            else {
+                factor = averageValue / stack_average[ind];
+                _stack_factor[ind] = (factor);
                 
-                RealPixel *ptr;
-                double factor;
-                
-                if (together) {
-                    factor = averageValue / global_average;
-                    _stack_factor[ind] = (factor);
-                }
-                else {
-                    factor = averageValue / stack_average[ind];
-                    _stack_factor[ind] = (factor);
-                    
-                }
-                
-                ptr = stacks[ind].GetPointerToVoxels();
-                for (int i = 0; i < stacks[ind].GetNumberOfVoxels(); i++) {
-                    if (*ptr > 0)
-                        *ptr *= factor;
-                    ptr++;
-                }
+            }
+            
+            ptr = stacks[ind].GetPointerToVoxels();
+            for (int i = 0; i < stacks[ind].GetNumberOfVoxels(); i++) {
+                if (*ptr > 0)
+                *ptr *= factor;
+                ptr++;
             }
         }
-        
         
         if (_debug) {
             for (int ind = 0; ind < stacks.size(); ind++) {
@@ -2076,12 +1857,9 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // create slices from the input stacks
     void Reconstruction::CreateSlicesAndTransformations( Array<RealImage> &stacks, Array<RigidTransformation> &stack_transformations, Array<double> &thickness, const Array<RealImage> &probability_maps )
     {
-        // if (_debug)
-        // cout << "CreateSlicesAndTransformations" << endl;
-        
-        
         double average_thickness = 0;
         
         //for each stack
@@ -2095,37 +1873,26 @@ namespace mirtk {
             //attr._z is number of slices in the stack
             for (int j = 0; j < attr._z; j++) {
                 
-                
                 if (_n_packages.size() > 0) {
-                    
                     current_package++;
-                    
                     if (current_package > (_n_packages[i]-1))
                         current_package = 0;
-                        
                 }
                 else {
                     current_package = 0;
-                    
                 }
-
                 bool excluded = false;
-                
                 for (int fe=0; fe<_excluded_entirely.size(); fe++) {
-                    
                     if (j == _excluded_entirely[fe])
                         excluded = true;
-                    
                 }
                 
                 if (!excluded) {
-                    
                     //create slice by selecting the appropreate region of the stack
                     RealImage slice = stacks[i].GetRegion(0, 0, j, attr._x, attr._y, j + 1);
                     //set correct voxel size in the stack. Z size is equal to slice thickness.
                     slice.PutPixelSize(attr._dx, attr._dy, thickness[i]);
                     //remember the slice
-                    
                     RealPixel tmin, tmax;
                     slice.GetMinMax(&tmin, &tmax);
                     if (tmax > 1 && ((tmax-tmin) > 1) ) {
@@ -2133,37 +1900,27 @@ namespace mirtk {
                     } else {
                         _zero_slices.push_back(-1);
                     }
-                    
-                    
+
+                    // if 2D gaussian filtering is required
                     if (_blurring) {
-                        
                         GaussianBlurring<RealPixel> gbt(0.6*slice.GetXSize());
                         gbt.Input(&slice);
                         gbt.Output(&slice);
                         gbt.Run();
-                        
                     }
-                    
-                    
-                    _slices.push_back(slice);
 
+                    _slices.push_back(slice);
                     _package_index.push_back(current_package);
-                    
-                    
                     ImageAttributes attr_s = slice.GetImageAttributes();
                     _slice_attributes.push_back(attr_s);
                     
                     GreyImage grey = slice;
                     _grey_slices.push_back(grey);
-                    
                     slice = 0;
                     _slice_dif.push_back(slice);
                     _simulated_slices.push_back(slice);
-                    
                     _reg_slice_weight.push_back(1);
-                    
                     _slice_pos.push_back(j);
-                    
                     slice = 1;
                     _simulated_weights.push_back(slice);
                     _simulated_inside.push_back(slice);
@@ -2174,11 +1931,10 @@ namespace mirtk {
                     
                     average_thickness = average_thickness + thickness[i];
                     
+                    // if non-rigid FFD registartion option was selected
                     if (_ffd) {
-                        
                         MultiLevelFreeFormTransformation *mffd = new MultiLevelFreeFormTransformation();
                         _mffd_transformations.push_back(*mffd);
-                        
                     }
                     
                     if ( probability_maps.size() > 0 ) {
@@ -2188,31 +1944,24 @@ namespace mirtk {
                     }
                     
                 }
-                
             }
-            
-            
         }
         cout << "Number of slices: " << _slices.size() << endl;
-        
-        
         _number_of_slices_org = _slices.size();
-        
         _average_thickness_org = average_thickness / _number_of_slices_org;
-        
-        
+
     }
     
     
     //-------------------------------------------------------------------
     
+    // reset slices array and read them from the input stacks
     void Reconstruction::ResetSlices( Array<RealImage>& stacks, Array<double>& thickness )
     {
         if (_debug)
             cout << "ResetSlices" << endl;
         
         _slices.clear();
-        
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
@@ -2238,6 +1987,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // set slices and transformation from the given array
     void Reconstruction::SetSlicesAndTransformations( Array<RealImage>& slices, Array<RigidTransformation>& slice_transformations, Array<int>& stack_ids, Array<double>& thickness )
     {
         _slices.clear();
@@ -2263,6 +2013,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // update slices array based on the given stacks
     void Reconstruction::UpdateSlices(Array<RealImage>& stacks, Array<double>& thickness)
     {
         _slices.clear();
@@ -2288,242 +2039,61 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // mask slices based on the reconstruction mask
     void Reconstruction::MaskSlices()
     {
-//        cout << "Masking slices " << endl;
-
         //Check whether we have a mask
         if (!_have_mask) {
             cout << "Could not mask slices because no mask has been set." << endl;
             return;
         }
-        
-#pragma omp parallel
-        {
-            //mask slices
-#pragma omp for
-            for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-                
-                double x, y, z;
-                RealImage& slice = _slices[inputIndex];
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++) {
-                        //if the value is smaller than 1 assume it is padding
-                        if (slice(i,j,0) < 0.01)
-                            slice(i,j,0) = -1;
-                        //image coordinates of a slice voxel
-                        x = i;
-                        y = j;
-                        z = 0;
-                        //change to world coordinates in slice space
-                        slice.ImageToWorld(x, y, z);
-                        //world coordinates in volume space
-                        
-                        if (!_ffd)
-                            _transformations[inputIndex].Transform(x, y, z);
-                        else
-                            _mffd_transformations[inputIndex].Transform(-1, 1, x, y, z);
-                        
-                        
-                        //image coordinates in volume space
-                        _mask.WorldToImage(x, y, z);
-                        x = round(x);
-                        y = round(y);
-                        z = round(z);
-                        //if the voxel is outside mask ROI set it to -1 (padding value)
-                        if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
-                            && (z < _mask.GetZ())) {
-                            if (_mask(x, y, z) == 0)
-                                slice(i, j, 0) = -1;
-                        }
-                        else
-                            slice(i, j, 0) = -1;
-                    }
-                //remember masked slice
-                _slices[inputIndex] = slice;
+
+        //mask slices
+        for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+            
+            double x, y, z;
+            RealImage& slice = _slices[inputIndex];
+            for (int i = 0; i < slice.GetX(); i++)
+            for (int j = 0; j < slice.GetY(); j++) {
+                //if the value is smaller than 1 assume it is padding
+                if (slice(i,j,0) < 0.01)
+                slice(i,j,0) = -1;
+                //image coordinates of a slice voxel
+                x = i;
+                y = j;
+                z = 0;
+                //change to world coordinates in slice space
+                slice.ImageToWorld(x, y, z);
+
+                // use either rigid or FFD transformation models
+                if (!_ffd)
+                    _transformations[inputIndex].Transform(x, y, z);
+                else
+                    _mffd_transformations[inputIndex].Transform(-1, 1, x, y, z);
+
+                //image coordinates in volume space
+                _mask.WorldToImage(x, y, z);
+                x = round(x);
+                y = round(y);
+                z = round(z);
+                //if the voxel is outside mask ROI set it to -1 (padding value)
+                if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
+                    && (z < _mask.GetZ())) {
+                    if (_mask(x, y, z) == 0)
+                    slice(i, j, 0) = -1;
+                }
+                else
+                slice(i, j, 0) = -1;
             }
-        }
-        
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
-    void Reconstruction::SliceToVolumeRegistrationRound(GreyImage volume, GreyImage slice, RigidTransformation& transformation)
-    {
-        
-        char buffer[256];
-        GreyPixel smin, smax;
-
-        GreyImage source = volume;
-        GreyImage target = slice;
-
-        target.GetMinMax(&smin, &smax);
-        
-        if (smax > 1 && (smax - smin) > 1) {
-            
-            // _nmi_bins = 16;
-            
-            ParameterList params;
-            Insert(params, "Transformation model", "Rigid");
-            // Insert(params, "Optimisation method", "GradientDescent");
-            // Insert(params, "Image (dis-)similarity measure", "NMI");
-            if (_nmi_bins>0)
-                Insert(params, "No. of bins", _nmi_bins);
-            // Insert(params, "Image interpolation mode", "Linear");
-            
-            if (smin < 0)
-                Insert(params, "Background value", -1);
-            else
-                if (smin == 0)
-                    Insert(params, "Background value", 0);
-            
-            // Insert(params, "Background value for image 1", 0);
-            // Insert(params, "Background value for image 2", -1);
-            
-            GenericRegistrationFilter *registration = new GenericRegistrationFilter();
-            registration->Parameter(params);
-
-            //put origin to zero
-            RigidTransformation offset;
-            
-            ResetOrigin(target,offset);
-            Matrix mo = offset.GetMatrix();
-            Matrix m = transformation.GetMatrix();
-            m=m*mo;
-            
-            transformation.PutMatrix(m);
-            
-            
-            registration->Input(&target, &source);
-            Transformation *dofout = nullptr;
-            registration->Output(&dofout);
-            
-            registration->InitialGuess(&transformation);
-            registration->GuessParameter();
-            registration->Run();
-            
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
-            transformation = *rigidTransf;
-            
-            //undo the offset
-            mo.Invert();
-            m = transformation.GetMatrix();
-            m=m*mo;
-            transformation.PutMatrix(m);
-            
-            delete registration;
-            
-        }
- 
-        
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    void Reconstruction::SliceToVolumeRegistrationOMP()
-    {
-        if (_debug)
-            _reconstructed.Write("target.nii.gz");
-        
-        _grey_reconstructed = _reconstructed;
-
-#pragma omp parallel
-        {
-#pragma omp for
-            for(int inputIndex=0; inputIndex<_slices.size(); ++inputIndex)
-            {
-                SliceToVolumeRegistrationRound(_grey_reconstructed, _grey_slices[inputIndex], _transformations[inputIndex]);
-            }
+            //remember masked slice
+            _slices[inputIndex] = slice;
         }
 
     }
-    
-    
+
     //-------------------------------------------------------------------
     
-    void Reconstruction::CoeffInitOMP()
-    {
-        
-        //clear slice-volume matrix from previous iteration
-        _volcoeffs.clear();
-        _volcoeffs.resize(_slices.size());
-        
-        //clear indicator of slice having and overlap with volumetric mask
-        _slice_inside.clear();
-        _slice_inside.resize(_slices.size());
-        
-        _attr_reconstructed = _reconstructed.GetImageAttributes();
-        
-#pragma omp parallel
-        {
-#pragma omp for
-            for(int inputIndex=0; inputIndex<_slices.size(); ++inputIndex)
-            {
-                // cout << inputIndex << endl;
-                CoeffInitRound(inputIndex);
-            }
-        }
-        
-        //prepare image for volume weights, will be needed for Gaussian Reconstruction
-        _volume_weights.Initialize( _reconstructed.GetImageAttributes() );
-        _volume_weights = 0;
-        
-        int inputIndex, i, j, n, k;
-        POINT3D p;
-        for ( inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-            
-            bool excluded = false;
-            
-            for (int fe=0; fe<_force_excluded.size(); fe++) {
-                
-                if (inputIndex == _force_excluded[fe])
-                    excluded = true;
-                
-            }
-            
-            if (!excluded) {
-                
-                for ( i = 0; i < _slices[inputIndex].GetX(); i++)
-                    for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
-                        n = _volcoeffs[inputIndex][i][j].size();
-                        for (k = 0; k < n; k++) {
-                            p = _volcoeffs[inputIndex][i][j][k];
-                            _volume_weights(p.x, p.y, p.z) += p.value;
-                        }
-                    }
-            }
-            
-        }
-        if (_debug)
-            _volume_weights.Write("volume_weights.nii.gz");
-        
-        //find average volume weight to modify alpha parameters accordingly
-        RealPixel *ptr = _volume_weights.GetPointerToVoxels();
-        RealPixel *pm = _mask.GetPointerToVoxels();
-        double sum = 0;
-        int num=0;
-        for (int i=0;i<_volume_weights.GetNumberOfVoxels();i++) {
-            if (*pm==1) {
-                sum+=*ptr;
-                num++;
-            }
-            ptr++;
-            pm++;
-        }
-        _average_volume_weight = sum/num;
-        
-        if(_debug) {
-            cout<<"Average volume weight is "<<_average_volume_weight<<endl;
-        }
- 
-    }
-    
-    
-    //-------------------------------------------------------------------
-    
+    // transform slice coordinates to the reconstructed space
     void Reconstruction::Transform2Reconstructed( int inputIndex, int& i, int& j, int& k, int mode )
     {
         double x, y, z;
@@ -2539,15 +2109,13 @@ namespace mirtk {
             _mffd_transformations[inputIndex].Transform(-1, 1, x, y, z);
         
         _reconstructed.WorldToImage(x, y, z);
-        
+
         if (mode ==  0) {
-            
             i = (int) round(x);
             j = (int) round(y);
             k = (int) round(z);
         }
         else {
-            
             i = (int) floor(x);
             j = (int) floor(y);
             k = (int) floor(z);
@@ -2555,307 +2123,12 @@ namespace mirtk {
 
     }
 
-    
-    //-------------------------------------------------------------------
-    
-    void Reconstruction::CoeffInitRound( int inputIndex )
-    {
-        
-        bool slice_inside;
-        ImageAttributes attr_g = _reconstructed.GetImageAttributes();
-        RealImage global_reconstructed(attr_g);
-        
-        ImageAttributes attr_s = _slices[inputIndex].GetImageAttributes();
-        RealImage global_slice(attr_s);
-        
-        //get resolution of the volume
-        double vx, vy, vz;
-        global_reconstructed.GetPixelSize(&vx, &vy, &vz);
-        //volume is always isotropic
-        double res = vx;
-        
-        //prepare structures for storage
-        POINT3D p;
-        VOXELCOEFFS empty;
-        SLICECOEFFS slicecoeffs(global_slice.GetX(), Array < VOXELCOEFFS > (global_slice.GetY(), empty));
-        
-        //to check whether the slice has an overlap with mask ROI
-        slice_inside = false;
-        
-        //PSF will be calculated in slice space in higher resolution
-        
-        //get slice voxel size to define PSF
-        double dx, dy, dz;
-        global_slice.GetPixelSize(&dx, &dy, &dz);
-        
-        //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
-        double sigmax, sigmay, sigmaz;
-        if(_recon_type == _3D)
-        {
-            sigmax = 1.2 * dx / 2.3548;
-            sigmay = 1.2 * dy / 2.3548;
-            sigmaz = dz / 2.3548;
-        }
-        
-        if(_recon_type == _1D)
-        {
-            sigmax = 0.5 * dx / 2.3548;
-            sigmay = 0.5 * dy / 2.3548;
-            sigmaz = dz / 2.3548;
-        }
-        
-        if(_recon_type == _interpolate)
-        {
-            sigmax = 0.5 * dx / 2.3548;
-            sigmay = 0.5 * dx / 2.3548;
-            sigmaz = 0.5 * dx / 2.3548;
-        }
-        
-        //calculate discretized PSF
-        
-        //isotropic voxel size of PSF - derived from resolution of reconstructed volume
-        double size = res / _quality_factor;
-        
-        //number of voxels in each direction
-        //the ROI is 2*voxel dimension
-        
-        int xDim = round(2 * dx / size);
-        int yDim = round(2 * dy / size);
-        int zDim = round(2 * dz / size);
-        
-        ///test to make dimension always odd
-        xDim = xDim/2*2+1;
-        yDim = yDim/2*2+1;
-        zDim = zDim/2*2+1;
-        ///end test
-        
-        
-        //image corresponding to PSF
-        ImageAttributes attr;
-        attr._x = xDim;
-        attr._y = yDim;
-        attr._z = zDim;
-        attr._dx = size;
-        attr._dy = size;
-        attr._dz = size;
-        RealImage PSF(attr);
-        
-        //centre of PSF
-        double cx, cy, cz;
-        cx = 0.5 * (xDim - 1);
-        cy = 0.5 * (yDim - 1);
-        cz = 0.5 * (zDim - 1);
-        PSF.ImageToWorld(cx, cy, cz);
-        
-        double x, y, z;
-        double sum = 0;
-        int i, j, k;
-        for (i = 0; i < xDim; i++)
-            for (j = 0; j < yDim; j++)
-                for (k = 0; k < zDim; k++) {
-                    x = i;
-                    y = j;
-                    z = k;
-                    PSF.ImageToWorld(x, y, z);
-                    x -= cx;
-                    y -= cy;
-                    z -= cz;
-                    //continuous PSF does not need to be normalized as discrete will be
-                    PSF(i, j, k) = exp(
-                                       -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
-                                       - z * z / (2 * sigmaz * sigmaz));
-                    sum += PSF(i, j, k);
-                }
-        PSF /= sum;
-        
-        if (_debug)
-            if (inputIndex == 0)
-                PSF.Write("PSF.nii.gz");
-        
-        //prepare storage for PSF transformed and resampled to the space of reconstructed volume
-        //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
-        //Note conversion from PSF image coordinates to tPSF image coordinates *size/res
-        int dim = (floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2))
-        * 2 + 1 + 2;
-        //prepare image attributes. Voxel dimension will be taken from the reconstructed volume
-        attr._x = dim;
-        attr._y = dim;
-        attr._z = dim;
-        attr._dx = res;
-        attr._dy = res;
-        attr._dz = res;
-        //create matrix from transformed PSF
-        RealImage tPSF(attr);
-        //calculate centre of tPSF in image coordinates
-        int centre = (dim - 1) / 2;
-        
-        //for each voxel in current slice calculate matrix coefficients
-        int ii, jj, kk;
-        int tx, ty, tz;
-        int nx, ny, nz;
-        int l, m, n;
-        double weight;
-        for (i = 0; i < global_slice.GetX(); i++)
-            for (j = 0; j < global_slice.GetY(); j++)
-                if (_slices[inputIndex](i, j, 0) > -0.01) {
-                    //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
-                    x = i;
-                    y = j;
-                    z = 0;
-                    global_slice.ImageToWorld(x, y, z);
-                    
-                    if(!_ffd)
-                        _transformations[inputIndex].Transform(x, y, z);
-                    else
-                        _mffd_transformations[inputIndex].Transform(-1, 1, x, y, z);
-                    
-                    
-                    
-                    global_reconstructed.WorldToImage(x, y, z);
-                    tx = round(x);
-                    ty = round(y);
-                    tz = round(z);
-                    
-                    //Clear the transformed PSF
-                    for (ii = 0; ii < dim; ii++)
-                        for (jj = 0; jj < dim; jj++)
-                            for (kk = 0; kk < dim; kk++)
-                                tPSF(ii, jj, kk) = 0;
-                    
-                    //for each POINT3D of the PSF
-                    for (ii = 0; ii < xDim; ii++)
-                        for (jj = 0; jj < yDim; jj++)
-                            for (kk = 0; kk < zDim; kk++) {
-                                //Calculate the position of the POINT3D of PSF centered over current slice voxel
-                                //This is a bit complicated because slices can be oriented in any direction
-                                
-                                //PSF image coordinates
-                                x = ii;
-                                y = jj;
-                                z = kk;
-                                //change to PSF world coordinates - now real sizes in mm
-                                PSF.ImageToWorld(x, y, z);
-                                //centre around the centrepoint of the PSF
-                                x -= cx;
-                                y -= cy;
-                                z -= cz;
-                                
-                                //Need to convert (x,y,z) to slice image coordinates because slices can have
-                                //transformations included in them (they are nifti)  and those are not reflected in
-                                //PSF. In slice image coordinates we are sure that z is through-plane
-                                
-                                //adjust according to voxel size
-                                x /= dx;
-                                y /= dy;
-                                z /= dz;
-                                //center over current voxel
-                                x += i;
-                                y += j;
-                                
-                                //convert from slice image coordinates to world coordinates
-                                global_slice.ImageToWorld(x, y, z);
-                                
-                                //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
-                                //Transform to space of reconstructed volume reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                                
-                                if (!_ffd)
-                                    _transformations[inputIndex].Transform(x, y, z);
-                                else
-                                    _mffd_transformations[inputIndex].Transform(-1, 1, x, y, z);
-                                
-                                
-                                
-                                //Change to image coordinates
-                                global_reconstructed.WorldToImage(x, y, z);
-                                
-                                //determine coefficients of volume voxels for position x,y,z using linear interpolation
-                                
-                                //Find the 8 closest volume voxels
-                                
-                                //lowest corner of the cube
-                                nx = (int) floor(x);
-                                ny = (int) floor(y);
-                                nz = (int) floor(z);
-                                
-                                //not all neighbours might be in ROI, thus we need to normalize
-                                //(l,m,n) are image coordinates of 8 neighbours in volume space
-                                //for each we check whether it is in volume
-                                sum = 0;
-                                //to find wether the current slice voxel has overlap with ROI
-                                bool inside = false;
-                                for (l = nx; l <= nx + 1; l++)
-                                    if ((l >= 0) && (l < global_reconstructed.GetX()))
-                                        for (m = ny; m <= ny + 1; m++)
-                                            if ((m >= 0) && (m < global_reconstructed.GetY()))
-                                                for (n = nz; n <= nz + 1; n++)
-                                                    if ((n >= 0) && (n < global_reconstructed.GetZ())) {
-                                                        weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                                        sum += weight;
-                                                        if (_mask(l, m, n) == 1) {
-                                                            inside = true;
-                                                            slice_inside = true;
-                                                        }
-                                                    }
-                                //if there were no voxels do nothing
-                                if ((sum <= 0) || (!inside))
-                                    continue;
-                                //now calculate the transformed PSF
-                                for (l = nx; l <= nx + 1; l++)
-                                    if ((l >= 0) && (l < global_reconstructed.GetX()))
-                                        for (m = ny; m <= ny + 1; m++)
-                                            if ((m >= 0) && (m < global_reconstructed.GetY()))
-                                                for (n = nz; n <= nz + 1; n++)
-                                                    if ((n >= 0) && (n < global_reconstructed.GetZ())) {
-                                                        weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                                        
-                                                        //image coordinates in tPSF
-                                                        //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
-                                                        int aa, bb, cc;
-                                                        aa = l - tx + centre;
-                                                        bb = m - ty + centre;
-                                                        cc = n - tz + centre;
-                                                        
-                                                        //resulting value
-                                                        double value = PSF(ii, jj, kk) * weight / sum;
-                                                        
-                                                        //Check that we are in tPSF
-                                                        if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0) || (cc >= dim)) {
-                                                            
-                                                        }
-                                                        else
-                                                            //update transformed PSF
-                                                            tPSF(aa, bb, cc) += value;
-                                                    }
-                                
-                            } //end of the loop for PSF points
-                    
-                    //store tPSF values
-                    for (ii = 0; ii < dim; ii++)
-                        for (jj = 0; jj < dim; jj++)
-                            for (kk = 0; kk < dim; kk++)
-                                if (tPSF(ii, jj, kk) > 0) {
-                                    p.x = ii + tx - centre;
-                                    p.y = jj + ty - centre;
-                                    p.z = kk + tz - centre;
-                                    p.value = tPSF(ii, jj, kk);
-                                    slicecoeffs[i][j].push_back(p);
-                                }
-                } //end of loop for slice voxels
-        
-        _volcoeffs[inputIndex] = slicecoeffs;
-        _slice_inside[inputIndex] = slice_inside;
-        
-        
-    }
-    
-    
-    
-    
-    
+
     
     
     //-------------------------------------------------------------------
     
+    // class for parallel SVR
     class ParallelSliceToVolumeRegistration {
     public:
         Reconstruction *reconstructor;
@@ -2864,33 +2137,19 @@ namespace mirtk {
         reconstructor(_reconstructor) { }
         
         void operator() (const blocked_range<size_t> &r) const {
-            
-            //            ImageAttributes attr = reconstructor->_reconstructed.GetImageAttributes();
-            // GreyImage source = ;
-            
-            // source.Write("s.nii.gz");
-            
-            
+
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
-                
                 char buffer[256];
-                
                 GreyPixel smin, smax;
-                
                 GreyImage target;
                 target = reconstructor->_grey_slices[inputIndex];
                 target.GetMinMax(&smin, &smax);
 
-                
                 if (smax > 1 && (smax - smin) > 1) {
-                    
                     
                     ParameterList params;
                     Insert(params, "Transformation model", "Rigid");
-                    // Insert(params, "Optimisation method", "GradientDescent");
-                    // Insert(params, "Image interpolation mode", "Linear");
-
                     GreyPixel tmin, tmax;
                     reconstructor->_grey_reconstructed.GetMinMax(&tmin, &tmax);
                     
@@ -2907,7 +2166,6 @@ namespace mirtk {
                         }
                     }
 
-                    
                     if (!reconstructor->_ncc_reg) {
                         Insert(params, "Image (dis-)similarity measure", "NMI");
                         if (reconstructor->_nmi_bins>0)
@@ -2920,33 +2178,28 @@ namespace mirtk {
                         double width = 0;
                         Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
                     }
-                    
-                    
+
                     GenericRegistrationFilter *registration = new GenericRegistrationFilter();
                     registration->Parameter(params);
                     
                     //put origin to zero
                     RigidTransformation offset;
-                    
                     reconstructor->ResetOrigin(target,offset);
                     Matrix mo = offset.GetMatrix();
                     Matrix m = reconstructor->_transformations[inputIndex].GetMatrix();
                     m=m*mo;
                     reconstructor->_transformations[inputIndex].PutMatrix(m);
-                    
-                    
+
+                    // run registration
                     registration->Input(&target, &reconstructor->_grey_reconstructed);
                     Transformation *dofout = nullptr;
                     registration->Output(&dofout);
-                    
-                    
                     registration->InitialGuess(&reconstructor->_transformations[inputIndex]);
                     registration->GuessParameter();
                     registration->Run();
 
-                    
+                    // output transformation
                     RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
-                    
                     reconstructor->_transformations[inputIndex] = *rigidTransf;
                     
                     //undo the offset
@@ -2957,7 +2210,7 @@ namespace mirtk {
                     
                     delete registration;
 
-                    
+                    // save log outputs
                     if(reconstructor->_reg_log) {
                         double tx = reconstructor->_transformations[inputIndex].GetTranslationX();
                         double ty = reconstructor->_transformations[inputIndex].GetTranslationY();
@@ -2972,16 +2225,13 @@ namespace mirtk {
                         
                     }
 
-                    
                 }
             }
         }
         
-        // execute
+        
         void operator() () const {
-            
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
-            
         }
         
     };
@@ -2989,6 +2239,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // ininialise slice transfromations with stack transformations
     void Reconstruction::InitialiseWithStackTransformations( Array<RigidTransformation> stack_transformations )
     {
         
@@ -3009,12 +2260,11 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
     
-    
+    // structure-based outlier rejection step (NCC-based)
     void Reconstruction::StructuralExclusion()
     {
         
         char buffer[256];
-        
         RealImage source = _reconstructed;
         
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
@@ -3032,20 +2282,18 @@ namespace mirtk {
             if (smin < 0.1)
                 source_padding = 0;
         }
-        
-        
+  
         Array<double> reg_ncc;
         double mean_ncc = 0;
         
         cout << " - excluded : ";
-        
         for ( int inputIndex=0; inputIndex<_slices.size(); inputIndex++ ) {
             
             RealImage output = _slices[inputIndex];
             output = 0;
             
+            // transfrom reconstructed volume to the slice space
             ImageTransformation *imagetransformation = new ImageTransformation;
-            
             imagetransformation->Input(&source);
             imagetransformation->Transformation(&(_transformations[inputIndex]));
             imagetransformation->Output(&output);
@@ -3055,30 +2303,29 @@ namespace mirtk {
             imagetransformation->TwoD(twod);
             imagetransformation->Invert(dofin_invert);
             imagetransformation->Run();
-
             delete imagetransformation;
             
+            // blur the original slice
             RealImage target = _slices[inputIndex];
-            
             GaussianBlurringWithPadding<RealPixel> gb(target.GetXSize()*0.6,source_padding);
             gb.Input(&target);
             gb.Output(&target);
             gb.Run();
             
+            // mask slices
             double output_ncc = 0;
-            
             RealImage slice_mask = _mask;
             RigidTransformation tmp_transformation = _transformations[inputIndex];
             TransformMask(target, slice_mask, tmp_transformation);
-            
             target *= slice_mask;
             output *= slice_mask;
             
+            // compute NCC
             output_ncc = SliceCC(target, output);
             reg_ncc.push_back(output_ncc);
-
             mean_ncc += output_ncc;
             
+            // set slice weight
             if (output_ncc > _global_NCC_threshold)
                 _reg_slice_weight[inputIndex] = 1;
             else {
@@ -3087,9 +2334,7 @@ namespace mirtk {
             }
             
         }
-        
         cout << endl;
-        
         mean_ncc /= _slices.size();
 
         cout << " - mean registration ncc: " << mean_ncc << endl;
@@ -3099,7 +2344,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // compute NCC between two images (non-zero ROI)
     double Reconstruction::SliceCC(RealImage slice_1, RealImage slice_2)
     {
         int i, j;
@@ -3142,12 +2387,9 @@ namespace mirtk {
         slice_2_m = slice_2_m / slice_2_n;
         
         if (slice_2_n<2) {
-            
             CC_slice = 1;
-            
         }
         else {
-            
             diff_sum = 0;
             slice_1_sq = 0;
             slice_2_sq = 0;
@@ -3175,7 +2417,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // class for FFD SVR
     class ParallelSliceToVolumeRegistrationFFD {
     public:
         Reconstruction *reconstructor;
@@ -3196,19 +2438,15 @@ namespace mirtk {
                 GreyImage slice, w, b;
                 RealImage t;
                 
-                Reconstruction dummy_reconstruction;
-                
                 target = reconstructor->_grey_slices[inputIndex];
-                
                 target.GetMinMax(&smin, &smax);
                 
                 
                 if (smax > 1 && (smax - smin) > 1) {
                     
-                    
+                    // define registration model
                     ParameterList params;
                     Insert(params, "Transformation model", "FFD");
-                    // Insert(params, "Optimisation method", "GradientDescent");
                     
                     if (!reconstructor->_ncc_reg) {
                         Insert(params, "Image (dis-)similarity measure", "NMI");
@@ -3225,7 +2463,6 @@ namespace mirtk {
                     
                     GreyPixel tmin, tmax;
                     reconstructor->_grey_reconstructed.GetMinMax(&tmin, &tmax);
-                    
                     if (smin < 1) {
                         Insert(params, "Background value for image 1", -1);
                     }
@@ -3240,25 +2477,24 @@ namespace mirtk {
                     }
                     
                     if (reconstructor->_cp_spacing > 0) {
-                        
                         int cp_spacing = reconstructor->_cp_spacing;
-                        Insert(params, "Control point spacing in X", cp_spacing);        // 10
-                        Insert(params, "Control point spacing in Y", cp_spacing);        // 10
-                        Insert(params, "Control point spacing in Z", cp_spacing);        // 10
+                        Insert(params, "Control point spacing in X", cp_spacing);
+                        Insert(params, "Control point spacing in Y", cp_spacing);
+                        Insert(params, "Control point spacing in Z", cp_spacing);
                     }
 
-                    
+                
+                    // run registration
                     GenericRegistrationFilter *registration = new GenericRegistrationFilter();
                     registration->Parameter(params);
-                    
                     registration->Input(&target, &reconstructor->_reconstructed);
                     Transformation *dofout = nullptr;
                     registration->Output(&dofout);
-                    
                     registration->InitialGuess(&(reconstructor->_mffd_transformations[inputIndex]));
                     registration->GuessParameter();
                     registration->Run();
 
+                    // read output transformation
                     MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*> (dofout);
                     reconstructor->_mffd_transformations[inputIndex] = *mffd_dofout;
                     
@@ -3268,7 +2504,7 @@ namespace mirtk {
             }
         }
         
-        // execute
+        
         void operator() () const {
             task_scheduler_init init(8);
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
@@ -3280,28 +2516,23 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run SVR 
     void Reconstruction::SliceToVolumeRegistration()
     {
-        // if (_debug)
-        //     cout << "SliceToVolumeRegistration" << endl;
-        
+
         if (_debug)
             _reconstructed.Write("target.nii.gz");
 
         _grey_reconstructed = _reconstructed;
         
         if (!_ffd) {
-            
             ParallelSliceToVolumeRegistration *p_reg = new ParallelSliceToVolumeRegistration(this);
             (*p_reg)();
-            
             delete p_reg;
         }
         else {
-
             ParallelSliceToVolumeRegistrationFFD *p_reg = new ParallelSliceToVolumeRegistrationFFD(this);
             (*p_reg)();
-            
             delete p_reg;
         }
         
@@ -3310,7 +2541,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // class for remote FFD SVR
     class ParallelRemoteSliceToVolumeRegistrationFFD {
     public:
         
@@ -3336,49 +2567,36 @@ namespace mirtk {
                 
                 if (reconstructor->_zero_slices[inputIndex] > 0) {
                 
+                    // define registration parameters
                     std::thread::id this_id = std::this_thread::get_id();
-                    //                cout << inputIndex  << " - " << this_id << " - " << endl;     //
-                    
                     string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim, str_ds;
-                    
                     str_target = str_current_exchange_file_path + "/slice-" + to_string(inputIndex) + ".nii.gz";
                     str_source = str_current_exchange_file_path + "/current-source.nii.gz";
                     str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
-                    
                     str_reg_model = "-model FFD";
-                    
                     str_dofout = "-dofout " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
-                    
                     str_sim = "";
                     if (reconstructor->_ncc_reg) {
-                        
                         str_sim = "-sim NCC -window 5 ";
                     }
-                    
                     str_ds = "";
                     if (reconstructor->_cp_spacing > 0) {
                         str_ds = "-ds "+ to_string(reconstructor->_cp_spacing);
                     }
-                    
                     str_bg1 = "-bg1 " + to_string(0);
                     str_bg2 = "-bg2 " + to_string(-1);
-                    
                     str_dofin = "-dofin " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
                     
+                    // run registration remotely
                     string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_ds + " " + str_log;
-                    
-//                    cout << register_cmd.c_str() << endl;
-                    
                     int tmp_log = system(register_cmd.c_str());
                     
                 }
                 
-                
             } // end of inputIndex
             
         }
-        
-        // execute
+
         void operator() () const {
             parallel_for( blocked_range<size_t>(svr_range_start, svr_range_stop), *this );
         }
@@ -3388,6 +2606,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
 
+    // class for remote rigid SVR
     class ParallelRemoteSliceToVolumeRegistration {
         
     public:
@@ -3414,42 +2633,32 @@ namespace mirtk {
                 
                 if (reconstructor->_zero_slices[inputIndex] > 0) {
                 
+                    // define registration parameters
                     std::thread::id this_id = std::this_thread::get_id();
-                    //                cout << inputIndex  << " - " << this_id << " - " << endl;     //
-                    
                     string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim;
-                    
                     str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
                     str_source = str_current_exchange_file_path + "/current-source.nii.gz";
                     str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
-                    
                     str_reg_model = "-model Rigid";
-
                     str_dofout = "-dofout " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-                    
                     str_sim = "";
                     if (reconstructor->_ncc_reg) {
-                     
                         str_sim = "-sim NCC -window 0 ";
                     }
-                    
                     str_bg1 = "-bg1 " + to_string(0);
                     str_bg2 = "-bg2 " + to_string(-1);
-                    
                     str_dofin = "-dofin " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
                     
+                    // run registration
                     string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_log;
-                    
                     int tmp_log = system(register_cmd.c_str());
                     
                 }
-                
-                
+
             } // end of inputIndex
             
         }
         
-        // execute
         void operator() () const {
             parallel_for( blocked_range<size_t>(svr_range_start, svr_range_stop), *this );
         }
@@ -3458,27 +2667,23 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
 
-    
+    // run remote SVR
     void Reconstruction::RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path)
     {
         
         ImageAttributes attr_recon = _reconstructed.GetImageAttributes();
-        
-        if (_debug)
-            cout << "RemoteSliceToVolumeRegistration" << endl;
-        
         string str_source = str_current_exchange_file_path + "/current-source.nii.gz";
         _reconstructed.Write(str_source.c_str());
-        
-        
+
         if (!_ffd) {
         
+            // rigid SVR
             if (iter < 3) {
                 
                 _offset_matrices.clear();
                 
+                // save slice .nii.gz files
                 for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
-                    
                     ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
                     GenericLinearInterpolateImageFunction<RealImage> interpolator;
                     
@@ -3509,7 +2714,7 @@ namespace mirtk {
                 }
             }
             
-            
+            // save slice transformations
             for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
                 
                 RigidTransformation r_transform = _transformations[inputIndex];
@@ -3527,9 +2732,9 @@ namespace mirtk {
             int svr_range_start = 0;
             int svr_range_stop = svr_range_start + stride;
             
+            // run remote SVR in strides
             while ( svr_range_start < _slices.size() )
             {
-                
                 ParallelRemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
                 registration();
                 
@@ -3539,9 +2744,9 @@ namespace mirtk {
                 if (svr_range_stop > _slices.size()) {
                     svr_range_stop = _slices.size();
                 }
-                
             }
             
+            // read output transformations
             for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
                 
                 string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
@@ -3561,10 +2766,10 @@ namespace mirtk {
         
         } else {
             
+            // FFD SVR
             if (iter < 3) {
-                
-//                _offset_matrices.clear();
-                
+
+                // save slice .nii.gz files and transformations
                 for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
                     
                     ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
@@ -3586,24 +2791,21 @@ namespace mirtk {
                     
                     string str_target = str_current_exchange_file_path + "/slice-" + to_string(inputIndex) + ".nii.gz";
                     target.Write(str_target.c_str());
-                    
-                    
+
                     string str_dofin = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
                     _mffd_transformations[inputIndex].Write(str_dofin.c_str());
                 
                 }
 
-                
             }
-            
-            
+
             int stride = 32;
             int svr_range_start = 0;
             int svr_range_stop = svr_range_start + stride;
             
+            // run parallel remote FFD SVR in strides
             while ( svr_range_start < _slices.size() )
             {
-                
                 ParallelRemoteSliceToVolumeRegistrationFFD registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
                 registration();
                 
@@ -3616,17 +2818,14 @@ namespace mirtk {
                 
             }
             
+            // read output transformations
             for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
-                
                 string str_dofout = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
-                
                 Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
                 MultiLevelFreeFormTransformation *tmp_mffd_transf = dynamic_cast<MultiLevelFreeFormTransformation*> (tmp_transf);
                 _mffd_transformations[inputIndex] = *tmp_mffd_transf;
-                
             }
-            
-            
+
         }
         
         
@@ -3636,46 +2835,37 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
 
-
+    // save the current recon model (for remote reconstruction option) - can be deleted
     void Reconstruction::SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration)
     {
         if (_debug)
             cout << "SaveModelRemote : " << current_iteration << endl;
         
+        // save slices
         if (status_flag > 0) {
-
             for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
-                
                 string str_slice = str_current_exchange_file_path + "/org-slice-" + to_string(inputIndex) + ".nii.gz";
                 _slices[inputIndex].Write(str_slice.c_str());
-
             }
-            
             string str_mask = str_current_exchange_file_path + "/current-mask.nii.gz";
             _mask.Write(str_mask.c_str());
-                
         }
-        
-        
-        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
 
-//            string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(inputIndex) + ".dof";
-//            _transformations[inputIndex].Write(str_dofin.c_str());
-            
+        // save transformations
+        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
             string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
             _transformations[inputIndex].Write(str_dofin.c_str());
             
         }
         
-        
+        // save recon volume
         string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
         _reconstructed.Write(str_recon.c_str());
-        
-        
+
     }
         
 
-     
+     // load remotely reconstructed volume (for remote reconstruction option) - can be deleted
     void Reconstruction::LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration)
     {
         if (_debug)
@@ -3684,22 +2874,9 @@ namespace mirtk {
         string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
         _reconstructed.Read(str_recon.c_str());
         
-        
-//         for (int inputIndex=0; inputIndex<current_number_of_slices; inputIndex++) {
-//
-//             string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
-//             Transformation *t = Transformation::New(str_dofin.c_str());
-//
-//             RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t);
-//             _transformations[inputIndex] = *rigidTransf;
-//
-//
-//         }
-        
-        
     }
 
-
+    // load the current recon model (for remote reconstruction option) - can be deleted
     void Reconstruction::LoadModelRemote(string str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration)
     {
         
@@ -3723,24 +2900,18 @@ namespace mirtk {
             
             int j = inputIndex;
             
+            // load slices
             RealImage slice;
             string str_slice = str_current_exchange_file_path + "/org-slice-" + to_string(inputIndex) + ".nii.gz";
             slice.Read(str_slice.c_str());
-            
             slice.PutPixelSize(slice.GetXSize(), slice.GetYSize(), average_thickness);
-            
             _slices.push_back(slice);
-            
-            
-//            string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(inputIndex) + ".dof";
+
+            // load transformations
             string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
             Transformation *t = Transformation::New(str_dofin.c_str());
-            
             RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t);
             _transformations.push_back(*rigidTransf);
-            
-//            cout << rigidTransf->GetTranslationX() << " " << rigidTransf->GetTranslationY() << " " << rigidTransf->GetTranslationZ() << " " << endl;
-//            cout << rigidTransf->GetRotationX() << " " << rigidTransf->GetRotationY() << " " << rigidTransf->GetRotationZ() << " " << endl;
             
             RealPixel tmin, tmax;
             slice.GetMinMax(&tmin, &tmax);
@@ -3754,7 +2925,7 @@ namespace mirtk {
             
             ImageAttributes attr_s = slice.GetImageAttributes();
             _slice_attributes.push_back(attr_s);
-                    
+  
             GreyImage grey = slice;
             _grey_slices.push_back(grey);
                     
@@ -3777,17 +2948,13 @@ namespace mirtk {
             }
             
         }
-        
-//        cout << " - loaded : " << _slices.size() << endl;
-        
-         
+
     }
-                        
-                        
 
 
     //-------------------------------------------------------------------
 
+    // save slice info in .csv
     void Reconstruction::SaveSliceInfo(int current_iteration = -1)
     {
         
@@ -3831,7 +2998,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // perform nonlocal means filtering
     void Reconstruction::NLMFiltering(Array<RealImage>& stacks)
     {
         
@@ -3857,7 +3024,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // class for calculation of transformation matrices
     class ParallelCoeffInit {
     public:
         Reconstruction *reconstructor;
@@ -3868,8 +3035,7 @@ namespace mirtk {
         void operator() (const blocked_range<size_t> &r) const {
             
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                
-                
+   
                 bool slice_inside;
 
                 ImageAttributes attr_g = reconstructor->_grey_reconstructed.GetImageAttributes();
@@ -3877,8 +3043,7 @@ namespace mirtk {
                 
                 ImageAttributes attr_s = reconstructor->_grey_slices[inputIndex].GetImageAttributes();
                 RealImage global_slice(attr_s);
-                
-                
+
                 //get resolution of the volume
                 double vx, vy, vz;
                 global_reconstructed.GetPixelSize(&vx, &vy, &vz);
@@ -4021,11 +3186,9 @@ namespace mirtk {
                     
                 }
                 
+                // check whether the slice was not excluded
                 if (reconstructor->_reg_slice_weight[inputIndex] > 0 && !excluded_slice) {
-                    
-                    
-                
-                
+
                 for (i = 0; i < global_slice.GetX(); i++)
                     for (j = 0; j < global_slice.GetY(); j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
@@ -4178,11 +3341,8 @@ namespace mirtk {
             
         }
         
-        // execute
         void operator() () const {
-            
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
-            
         }
         
     };
@@ -4190,11 +3350,10 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run calculation of transformation matrices
     void Reconstruction::CoeffInit()
     {
-        // if (_debug)
-        // cout << "CoeffInit" << endl;
-        
+
         //clear slice-volume matrix from previous iteration
         _volcoeffs.clear();
         _volcoeffs.resize(_slices.size());
@@ -4260,14 +3419,15 @@ namespace mirtk {
             cout<<"Average volume weight is "<<_average_volume_weight<<endl;
         }
         
-    }  //end of CoeffInit()
+    }
     
     
     //-------------------------------------------------------------------
     
+    // run gaussian reconstruction based on SVR & coeffinit outputs
     void Reconstruction::GaussianReconstruction()
     {
-        //        cout << "Gaussian reconstruction ... ";
+
         unsigned int inputIndex;
         int i, j, k, n;
         RealImage slice;
@@ -4334,12 +3494,9 @@ namespace mirtk {
         //for each volume voxe
         _reconstructed /= _volume_weights;
 
+        _reconstructed.Write("init.nii.gz");
         
-//        if (_debug)
-            _reconstructed.Write("init.nii.gz");
-        
-        //now find slices with small overlap with ROI and exclude them.
-        
+        // find slices with small overlap with ROI and exclude them.
         Array<int> voxel_num_tmp;
         for (i=0;i<voxel_num.size();i++)
             voxel_num_tmp.push_back(voxel_num[i]);
@@ -4365,7 +3522,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
+    // another version of CoeffInit
     class ParallelCoeffInitSF {
     public:
         
@@ -4675,7 +3832,7 @@ namespace mirtk {
             }  //end of loop through the slices
         }
         
-        // execute
+        
         void operator() () const {
             
             parallel_for( blocked_range<size_t>(_begin, _end),
@@ -4686,11 +3843,10 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // another version of CoeffInit
     void Reconstruction::CoeffInitSF(int begin, int end)
     {
-        //        if (_debug)
-        //            cout << "CoeffInitSF" << endl;
-        
+
         //clear slice-volume matrix from previous iteration
         _volcoeffsSF.clear();
         _volcoeffsSF.resize(_slicePerDyn);
@@ -4758,6 +3914,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // another version of gaussian reconstruction
     void Reconstruction::GaussianReconstructionSF(Array<RealImage>& stacks)
     {
         Array<RigidTransformation> currentTransformations;
@@ -4884,11 +4041,10 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // initialise slice EM step
     void Reconstruction::InitializeEM()
     {
-        // if (_debug)
-        // cout << "InitializeEM" << endl;
-        
+
         _weights.clear();
         _bias.clear();
         _scale.clear();
@@ -4909,10 +4065,7 @@ namespace mirtk {
         //Find the range of intensities
         _max_intensity = voxel_limits<RealPixel>::min();
         _min_intensity = voxel_limits<RealPixel>::max();
-        
-#pragma omp parallel
-        {
-#pragma omp for
+
             for (int i = 0; i < _slices.size(); ++i)
             {
                 //to update minimum we need to exclude padding value
@@ -4927,48 +4080,41 @@ namespace mirtk {
                     ptr++;
                 }
             }
-        }
-        
-        
+
     }
     
     
     //-------------------------------------------------------------------
     
+    // initiliase / reset EM values
     void Reconstruction::InitializeEMValues()
     {
-        // if (_debug)
-        // cout << "InitializeEMValues" << endl;
-        
-#pragma omp parallel
+ 
+        for (int i = 0; i < _slices.size(); ++i)
         {
-#pragma omp for
-            for (int i = 0; i < _slices.size(); ++i)
-            {
-                //Initialise voxel weights and bias values
-                RealPixel *pw = _weights[i].GetPointerToVoxels();
-                RealPixel *pb = _bias[i].GetPointerToVoxels();
-                RealPixel *pi = _slices[i].GetPointerToVoxels();
-                for (int j = 0; j < _weights[i].GetNumberOfVoxels(); j++) {
-                    if (*pi > -0.01) {
-                        *pw = 1;
-                        *pb = 0;
-                    }
-                    else {
-                        *pw = 0;
-                        *pb = 0;
-                    }
-                    pi++;
-                    pw++;
-                    pb++;
+            //Initialise voxel weights and bias values
+            RealPixel *pw = _weights[i].GetPointerToVoxels();
+            RealPixel *pb = _bias[i].GetPointerToVoxels();
+            RealPixel *pi = _slices[i].GetPointerToVoxels();
+            for (int j = 0; j < _weights[i].GetNumberOfVoxels(); j++) {
+                if (*pi > -0.01) {
+                    *pw = 1;
+                    *pb = 0;
                 }
-                
-                //Initialise slice weights
-                _slice_weight[i] = 1;
-                
-                //Initialise scaling factors for intensity matching
-                _scale[i] = 1;
+                else {
+                    *pw = 0;
+                    *pb = 0;
+                }
+                pi++;
+                pw++;
+                pb++;
             }
+            
+            //Initialise slice weights
+            _slice_weight[i] = 1;
+            
+            //Initialise scaling factors for intensity matching
+            _scale[i] = 1;
         }
         
         //Force exclusion of slices predefined by user
@@ -4982,13 +4128,10 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // initialise parameters of EM robust statistics
     void Reconstruction::InitializeRobustStatistics()
     {
-        // if (_debug)
-        // cout << "InitializeRobustStatistics" << endl;
-        
-        //Initialise parameter of EM robust statistics
-        
+
         double sigma = 0;
 
         Array<int> sigma_numbers;
@@ -4998,35 +4141,30 @@ namespace mirtk {
             sigma_numbers.push_back(0);
         }
         
-#pragma omp parallel
+        for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)
         {
-            //for each slice
-#pragma omp for
-            for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)
-            {
-                
-                RealImage slice, sim;
-                slice = _slices[inputIndex];
-                //Voxel-wise sigma will be set to stdev of volumetric errors
-                //For each slice voxel
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) > -0.01) {
-                            //calculate stev of the errors
-                            if ( (_simulated_inside[inputIndex](i, j, 0)==1)
-                                &&(_simulated_weights[inputIndex](i,j,0)>0.99) ) {
-                                slice(i,j,0) -= _simulated_slices[inputIndex](i,j,0);
-                                sigma_values[inputIndex] += slice(i, j, 0) * slice(i, j, 0);
-                                sigma_numbers[inputIndex]++;
-                            }
-                        }
-                
-                //if slice does not have an overlap with ROI, set its weight to zero
-                if (!_slice_inside[inputIndex])
-                    _slice_weight[inputIndex] = 0;
+            
+            RealImage slice, sim;
+            slice = _slices[inputIndex];
+            //Voxel-wise sigma will be set to stdev of volumetric errors
+            //For each slice voxel
+            for (int i = 0; i < slice.GetX(); i++)
+            for (int j = 0; j < slice.GetY(); j++)
+            if (slice(i, j, 0) > -0.01) {
+                //calculate stev of the errors
+                if ( (_simulated_inside[inputIndex](i, j, 0)==1)
+                    &&(_simulated_weights[inputIndex](i,j,0)>0.99) ) {
+                    slice(i,j,0) -= _simulated_slices[inputIndex](i,j,0);
+                    sigma_values[inputIndex] += slice(i, j, 0) * slice(i, j, 0);
+                    sigma_numbers[inputIndex]++;
+                }
             }
             
+            //if slice does not have an overlap with ROI, set its weight to zero
+            if (!_slice_inside[inputIndex])
+            _slice_weight[inputIndex] = 0;
         }
+
         
         int num = 0;
         
@@ -5063,6 +4201,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // class for EStep (RS)
     class ParallelEStep {
         Reconstruction* reconstructor;
         Array<double> &slice_potential;
@@ -5135,7 +4274,7 @@ namespace mirtk {
         reconstructor(reconstructor), slice_potential(slice_potential)
         { }
         
-        // execute
+        
         void operator() () const {
             
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
@@ -5147,11 +4286,9 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run EStep for calculation of voxel-wise and slice-wise posteriors (weights)
     void Reconstruction::EStep()
     {
-        //EStep performs calculation of voxel-wise and slice-wise posteriors (weights)
-        // if (_debug)
-         cout << "EStep: " << endl;
         
         unsigned int inputIndex;
         RealImage slice, w, b, sim;
@@ -5349,6 +4486,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // class for slice scale calculation
     class ParallelScale {
         Reconstruction *reconstructor;
         
@@ -5386,12 +4524,9 @@ namespace mirtk {
                 
             } //end of loop for a slice inputIndex
         }
-        
-        // execute
+
         void operator() () const {
-            
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
-            
         }
         
     };
@@ -5399,11 +4534,10 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run slice scaling
     void Reconstruction::Scale()
     {
-        // if (_debug)
-        // cout << "Scale" << endl;
-        
+
         ParallelScale parallelScale( this );
         parallelScale();
         
@@ -5418,6 +4552,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // class for slice bias calculation
     class ParallelBias {
         Reconstruction* reconstructor;
         
@@ -5510,7 +4645,7 @@ namespace mirtk {
         reconstructor(reconstructor)
         { }
         
-        // execute
+        
         void operator() () const {
             
             parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
@@ -5522,53 +4657,47 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run slice bias correction
     void Reconstruction::Bias()
     {
-        // if (_debug)
-        // cout << "Correcting bias ...";
-        
+
         ParallelBias parallelBias( this );
         parallelBias();
-        
-        if (_debug)
-            cout << "done. " << endl;
+
     }
     
     
     //-------------------------------------------------------------------
     
-    
+    // compute difference between simulated and original slices
     void Reconstruction::SliceDifference()
     {
 
-#pragma omp parallel
+        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++)
         {
-#pragma omp for
-            for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++)
-            {
-                
-                _slice_dif[inputIndex] = _slices[inputIndex];
-                
-                for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
-                    for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
-                        if (_slices[inputIndex](i, j, 0) > -0.01) {
-                            
-                            _slice_dif[inputIndex](i, j, 0) *= exp(-(_bias[inputIndex])(i, j, 0)) * _scale[inputIndex];
-                            _slice_dif[inputIndex](i, j, 0) -= _simulated_slices[inputIndex](i, j, 0);
-                            
-                        }
-                        else
-                            _slice_dif[inputIndex](i, j, 0) = 0;
+            
+            _slice_dif[inputIndex] = _slices[inputIndex];
+            
+            for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
+                for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    if (_slices[inputIndex](i, j, 0) > -0.01) {
+                        
+                        _slice_dif[inputIndex](i, j, 0) *= exp(-(_bias[inputIndex])(i, j, 0)) * _scale[inputIndex];
+                        _slice_dif[inputIndex](i, j, 0) -= _simulated_slices[inputIndex](i, j, 0);
                         
                     }
+                    else
+                    _slice_dif[inputIndex](i, j, 0) = 0;
+                    
                 }
             }
         }
-        
+
     }
     
     //-------------------------------------------------------------------
     
+    // class for SR reconstruction
     class ParallelSuperresolution {
         Reconstruction* reconstructor;
     public:
@@ -5637,27 +4766,22 @@ namespace mirtk {
             confidence_map.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
             confidence_map = 0;
         }
-        
-        // execute
+
         void operator() () {
-            
             parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
-            
         }
     };
     
     
     //-------------------------------------------------------------------
     
+    // run SR reconstruction step
     void Reconstruction::Superresolution(int iter)
     {
-        // if (_debug)
-        // cout << "Superresolution " << iter << endl;
-        
+
         RealImage addon, original;
-        
-        
-        //Remember current reconstruction for edge-preserving smoothing
+
+        // save current reconstruction for edge-preserving smoothing
         original = _reconstructed;
         
         SliceDifference();
@@ -5678,7 +4802,6 @@ namespace mirtk {
  
         }
 
-        
         if (!_adaptive) {
             for (int i = 0; i < addon.GetX(); i++)
                 for (int j = 0; j < addon.GetY(); j++)
@@ -5691,6 +4814,7 @@ namespace mirtk {
                         }
         }
         
+        // update the volume with computed addon
         _reconstructed += addon * _alpha; //_average_volume_weight;
         
         //bound the intensities
@@ -5703,7 +4827,7 @@ namespace mirtk {
                         _reconstructed(i, j, k) = _max_intensity * 1.1;
                 }
         
-        //Smooth the reconstructed image
+        //Smooth the reconstructed image with regularisation
         AdaptiveRegularization(iter, original);
         //Remove the bias in the reconstructed volume compared to previous iteration
         if (_global_bias_correction)
@@ -5714,6 +4838,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // class for MStep (RS)
     class ParallelMStep{
         Reconstruction* reconstructor;
     public:
@@ -5790,7 +4915,7 @@ namespace mirtk {
             max = voxel_limits<RealPixel>::min();
         }
         
-        // execute
+        
         void operator() () {
             
             parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
@@ -5800,11 +4925,10 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run MStep (RS)
     void Reconstruction::MStep(int iter)
     {
-        // if (_debug)
-        // cout << "MStep" << endl;
-        
+
         ParallelMStep parallelMStep(this);
         parallelMStep();
         double sigma = parallelMStep.sigma;
@@ -5839,6 +4963,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // class for adaptive regularisation (Part I)
     class ParallelAdaptiveRegularization1 {
         Reconstruction *reconstructor;
         Array<RealImage> &b;
@@ -5881,9 +5006,8 @@ namespace mirtk {
             }
         }
         
-        // execute
+        
         void operator() () const {
-            
             parallel_for( blocked_range<size_t>(0, 13), *this );
             
         }
@@ -5893,6 +5017,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // class for adaptive regularisation (Part II)
     class ParallelAdaptiveRegularization2 {
         Reconstruction *reconstructor;
         Array<RealImage> &b;
@@ -5955,7 +5080,7 @@ namespace mirtk {
             }
         }
         
-        // execute
+        
         void operator() () const {
             
             parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed.GetX()), *this );
@@ -5967,11 +5092,10 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run adaptive regularisation of the SR reconstructed volume
     void Reconstruction::AdaptiveRegularization(int iter, RealImage& original)
     {
-//        if (_debug)
-//            cout << "AdaptiveRegularization" << endl;
-        
+
         Array<double> factor(13,0);
         for (int i = 0; i < 13; i++) {
             for (int j = 0; j < 3; j++)
@@ -6006,6 +5130,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // correct bias
     void Reconstruction::BiasCorrectVolume(RealImage& original)
     {
         //remove low-frequancy component in the reconstructed image which might have accured due to overfitting of the biasfield
@@ -6076,6 +5201,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // evaluation based on the number of excluded slices
     void Reconstruction::Evaluate(int iter)
     {
         cout << "Iteration " << iter << ": " << endl;
@@ -6116,6 +5242,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // class for bias normalisation
     class ParallelNormaliseBias{
         Reconstruction* reconstructor;
     public:
@@ -6178,7 +5305,7 @@ namespace mirtk {
             bias = 0;
         }
         
-        // execute
+        
         void operator() () {
             
             parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
@@ -6189,10 +5316,9 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // normalise Bias
     void Reconstruction::NormaliseBias( int iter )
     {
-//        if(_debug)
-//            cout << "Normalise Bias ... ";
         
         ParallelNormaliseBias parallelNormaliseBias(this);
         parallelNormaliseBias();
@@ -6200,9 +5326,6 @@ namespace mirtk {
         
         // normalize the volume by proportion of contributing slice voxels for each volume voxel
         bias /= _volume_weights;
-        
-//        if(_debug)
-//            cout << "done." << endl;
         
         MaskImage(bias,0);
         RealImage m = _mask;
@@ -6461,6 +5584,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // save slice info
     void Reconstruction::SlicesInfo( const char* filename, Array<string> &stack_files )
     {
         ofstream info;
@@ -6505,6 +5629,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // get slice order parameters
     void Reconstruction::GetSliceAcquisitionOrder(Array<RealImage>& stacks, Array<int> &pack_num, Array<int> order, int step, int rewinder)
     {
         ImageAttributes attr;
@@ -6709,6 +5834,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // split images into varying N packages
     void Reconstruction::flexibleSplitImage(Array<RealImage>& stacks, Array<RealImage>& sliceStacks, Array<int> &pack_num, Array<int> sliceNums, Array<int> order, int step, int rewinder)
     {
         RealImage image;
@@ -6785,6 +5911,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // split images based on multi-band acquisition
     void Reconstruction::flexibleSplitImagewithMB(Array<RealImage>& stacks, Array<RealImage>& sliceStacks, Array<int> &pack_num, Array<int> sliceNums, Array<int> multiband_vector, Array<int> order, int step, int rewinder)
     {
         // initializing variables
@@ -6912,6 +6039,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // split stacks into packages based on specific order
     void Reconstruction::splitPackages(Array<RealImage>& stacks, Array<int> &pack_num, Array<RealImage>& packageStacks, Array<int> order, int step, int rewinder)
     {
         RealImage image;
@@ -6980,6 +6108,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // multi-band based
     void Reconstruction::splitPackageswithMB(Array<RealImage>& stacks, Array<int> &pack_num, Array<RealImage>& packageStacks, Array<int> multiband_vector, Array<int> order, int step, int rewinder)
     {
         // initializing variables
@@ -7077,6 +6206,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
 
+    // updated package-to-volume registration
     void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pack_num, Array<int> multiband_vector, Array<int> order, int step, int rewinder, int iter, int steps)
     {
         char buffer[256];
@@ -7269,9 +6399,7 @@ namespace mirtk {
                     _slice_timing.push_back( dyn*slices_per_dyn + _t_slice_order[i]);
                     cout<<"slice timing = "<<_slice_timing[i]<<endl;
                 }
-            
-            
-            
+
             for(int i = 0; i < _z_slice_order.size(); i++)
             {
                 cout<<"z("<<i<<")="<<_z_slice_order[i]<<endl;
@@ -7297,6 +6425,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // split image into N packages
     void Reconstruction::SplitImage( RealImage image, int packages, Array<RealImage>& stacks )
     {
         
@@ -7351,6 +6480,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // split image into 2 packages
     void Reconstruction::SplitImageEvenOdd( RealImage image, int packages, Array<RealImage>& stacks )
     {
         Array<RealImage> packs;
@@ -7373,6 +6503,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // split image into 4 packages
     void Reconstruction::SplitImageEvenOddHalf( RealImage image, int packages, Array<RealImage>& stacks, int iter )
     {
         Array<RealImage> packs;
@@ -7396,6 +6527,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // split image into 2 packages
     void Reconstruction::HalfImage( RealImage image, Array<RealImage>& stacks )
     {
         RealImage tmp;
@@ -7415,6 +6547,8 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    
+    // run package-to-volume registration
     void Reconstruction::PackageToVolume( Array<RealImage>& stacks, Array<int> &pack_num, Array<RigidTransformation> stack_transformations )
     {
         
@@ -7426,11 +6560,8 @@ namespace mirtk {
             firstSlice += stacks[i].GetZ();
         }
         
-//        cout<<"Package to volume: "<<endl;
-        
-#pragma omp parallel
         {
-#pragma omp for
+
             for (int i = 0; i < stacks.size(); i++) {
                 
                 char buffer[256];
@@ -7562,6 +6693,7 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
     
+    // crop image with respec to a mask
     void Reconstruction::CropImage(RealImage& image, RealImage& mask)
     {
         //Crops the image according to the mask
@@ -7667,12 +6799,9 @@ namespace mirtk {
             z2 = 0;
         }
         
-//        else {
-        
-            //Cut region of interest
-            image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
-            
-//        }
+        //Cut region of interest
+        image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
+
     }
     
     //-------------------------------------------------------------------
@@ -7805,16 +6934,13 @@ namespace mirtk {
             z2 = 0;
         }
         
-//        else {
-        
-            //Cut region of interest
-            image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
-            
-//        }
+        //Cut region of interest
+        image = image.GetRegion(x1, y1, z1, x2+1, y2+1, z2+1);
     }
     
     //-------------------------------------------------------------------
     
+    // invert transformations
     void Reconstruction::InvertStackTransformations( Array<RigidTransformation>& stack_transformations )
     {
         //for each stack
@@ -7827,6 +6953,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // mask reconstructed volume
     void Reconstruction::MaskVolume()
     {
         RealPixel *pr = _reconstructed.GetPointerToVoxels();
@@ -7841,6 +6968,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // mask input volume
     void Reconstruction::MaskImage( RealImage& image, double padding )
     {
         if(image.GetNumberOfVoxels()!=_mask.GetNumberOfVoxels()) {
@@ -7860,6 +6988,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // rescale input volume
     void Reconstruction::Rescale( RealImage &img, double max )
     {
         int i, n;
@@ -7878,17 +7007,15 @@ namespace mirtk {
     //-------------------------------------------------------------------
     
     
-    
+    // run stack background filtering (GS based)
     void Reconstruction::BackgroundFiltering( Array<RealImage>& stacks, double fg_sigma , double bg_sigma )
     {
         
         char buffer[256];
         
         GaussianBlurring<RealPixel> gb3(stacks[0].GetXSize()*fg_sigma);
-        
         GaussianBlurring<RealPixel> gb2(stacks[0].GetXSize()*bg_sigma);
         RealImage tmp_slice, tmp_slice_b;
-        
         RealImage global_blurred, stack;
         
         
@@ -7906,8 +7033,6 @@ namespace mirtk {
             
             
             for (int i = 0; i<stacks[j].GetZ(); i++) {
-                
-                
                 tmp_slice = stacks[j].GetRegion(0,0,i,stacks[j].GetX(),stacks[j].GetY(),(i+1));
                 tmp_slice_b = stacks[j].GetRegion(0,0,i,stacks[j].GetX(),stacks[j].GetY(),(i+1));
                 
@@ -7918,33 +7043,29 @@ namespace mirtk {
                 gb2.Input(&tmp_slice);
                 gb2.Output(&tmp_slice);
                 gb2.Run();
-                
-                
+
                 for (int x = 0; x < stacks[j].GetX(); x++) {
                     for (int y = 0; y < stacks[j].GetY(); y++) {
                         
                         stack(x,y,i) = tmp_slice_b(x,y,0) + global_blurred(x,y,i) - tmp_slice(x,y,0);
                         if(stack(x,y,i) < 0)
                             stack(x,y,i) = 1;
-                        
                     }
                 }
             }
             
             stacks[j] = stack;
-            
-            
+
             sprintf(buffer,"filtered-%i.nii.gz",j);
             stack.Write(buffer);
-            
-            
+ 
         }
         
     }
     
     //-------------------------------------------------------------------
     
-    
+    // another implementation of NCC betwen images (should be removed or the previous should be replaced)
     double Reconstruction::ComputeNCC(RealImage slice_1, RealImage slice_2, double& count)
     {
         
@@ -7994,14 +7115,8 @@ namespace mirtk {
             }
         }
         
-        
-        //    count = count * slice_2.GetXSize() * slice_2.GetYSize() * slice_2.GetZSize();
-        
-        
         if (slice_1_n<5 || slice_2_n<5) {
-            
             CC_slice = -1;
-            
         }
         else {
             
@@ -8025,14 +7140,14 @@ namespace mirtk {
                 CC_slice = 0;
             
         }
-        
-        
+
         return CC_slice;
         
     }
     
     //-------------------------------------------------------------------
     
+    // class for global stack similarity statists (for the stack selection function)
     class ParallelGlobalSimilarityStats {
         
     public:
@@ -8063,20 +7178,17 @@ namespace mirtk {
                 Array<RigidTransformation> current_stack_tranformations;
                 
                 cout << " - " << inputIndex << endl;
-                
                 reconstructor->GlobalStackStats(stacks[inputIndex], masks[inputIndex], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
-                
                 cout << " + " << inputIndex << endl;
                 
                 all_global_ncc_array[inputIndex] = average_ncc;
                 all_global_volume_array[inputIndex] = average_volume;
                 
                 
-            } // end of inputIndex
+            }
             
         }
-        
-        // execute
+
         void operator() () const {
             parallel_for( blocked_range<size_t>(0, nStacks), *this );
         }
@@ -8086,6 +7198,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // run parallel global similarity statists (for the stack selection function)
     void Reconstruction::RunParallelGlobalStackStats( Array<RealImage> stacks, Array<RealImage> masks, Array<double> &all_global_ncc_array, Array<double> &all_global_volume_array )
     {
         
@@ -8107,36 +7220,30 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
 
+    // run serial global similarity statists (for the stack selection function)
     void Reconstruction::GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations)
     {
         
         template_stack *= template_mask;
-        
-        
-        
+
         RigidTransformation *r_init = new RigidTransformation();
         r_init->PutTranslationX(0.0001);
         r_init->PutTranslationY(0.0001);
         r_init->PutTranslationZ(-0.0001);
-        
-        
+
         ParameterList params;
         Insert(params, "Transformation model", "Rigid");
         Insert(params, "Background value for image 1", 0);
         Insert(params, "Background value for image 2", 0);
-        
-        
+
         average_ncc = 0;
         average_volume = 0;
         
         for (int i=0; i<stacks.size(); i++) {
-            
-            
+
             RealImage input_stack = stacks[i];
-            
             input_stack *= masks[i];
-            
-            
+
             GenericRegistrationFilter *registration = new GenericRegistrationFilter();
             registration->Parameter(params);
             registration->Input(&template_stack, &input_stack);
@@ -8146,8 +7253,7 @@ namespace mirtk {
             registration->GuessParameter();
             registration->Run();
             RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
-            
-            
+
             GenericLinearInterpolateImageFunction<RealImage> interpolator;
             double source_padding = 0;
             double target_padding = -inf;
@@ -8170,26 +7276,17 @@ namespace mirtk {
             delete imagetransformation;
             
             input_stack = output;
-            //            input_stack *= template_mask;
-            
+
             double slice_count = 0;
             double local_ncc = ComputeNCC(template_stack, input_stack, slice_count);
-            
-            //        cout << local_ncc << " ";
-            
             average_ncc = average_ncc + local_ncc;
             average_volume = average_volume + slice_count;
-            
-            
             current_stack_tranformations.push_back(*r_dofout);
             
         }
-        
-        
+
         average_ncc = average_ncc / stacks.size();
-        
         average_volume = average_volume / stacks.size();
-        
         average_volume = average_volume * template_stack.GetXSize() * template_stack.GetYSize() * template_stack.GetZSize() / 1000;
         
         return;
@@ -8198,18 +7295,16 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
+    // compute internal stack statistics (volume and inter-slice NCC)
     void Reconstruction::StackStats(RealImage input_stack, RealImage mask, double& mask_volume, double& slice_ncc)
     {
         
         input_stack *= mask;
-        
-        
+
         double ncc = 0;
         int slice_num = 0;
-        
-        
+
         for (int z = 0; z < input_stack.GetZ()-1; z++) {
-            
             RealImage slice_1, slice_2;
             int sh=1;
             slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX()-sh, input_stack.GetY()-sh, z+1);
@@ -8222,7 +7317,6 @@ namespace mirtk {
                 slice_ncc = slice_ncc + local_ncc;
                 slice_num += 1;
             }
-            
         }
         
         if (slice_num > 0)
@@ -8238,9 +7332,7 @@ namespace mirtk {
                 for (int z = 0; z < mask.GetZ(); z++) {
                     
                     if (mask(x,y,z) > 0.01) {
-                        
                         mask_count = mask_count + 1;
-                        
                     }
                     
                 }
@@ -8254,16 +7346,7 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    
-    //-------------------------------------------------------------------
-    
-    
-    
+
     
 } // namespace mirtk
 

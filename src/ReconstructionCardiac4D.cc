@@ -2737,7 +2737,7 @@ namespace mirtk {
                 RealImage slice = _slices[i];
                 
                 int n=0;
-                double x,y,z,xx,yy,zz,e;
+                double e = 0;
                 
                 if(!_slice_excluded[i]) {
                     for(int ii=0;ii<_reconstructed4D.GetX();ii=ii+step)
@@ -2745,9 +2745,9 @@ namespace mirtk {
                             for(int kk=0;kk<_reconstructed4D.GetZ();kk=kk+step)
                                 if(_reconstructed4D(ii,jj,kk,0)>-1)
                                 {
-                                    x=ii; y=jj; z=kk;
+                                    double x = ii, y = jj, z = kk;
                                     _reconstructed4D.ImageToWorld(x,y,z);
-                                    xx=x;yy=y;zz=z;
+                                    double xx = x, yy = y, zz = z;
                                     orig.Transform(x,y,z);
                                     processed.Transform(xx,yy,zz);
                                     x-=xx;

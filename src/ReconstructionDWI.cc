@@ -3744,6 +3744,7 @@ namespace mirtk {
                 sprintf(path, "transformation%i.dof", i);
             }
 //            transformation = irtkTransformation::New(path);
+            // TODO: Fix this bug of rigidTransf being a NULL pointer, and called before initialised
             rigidTransf->Read(path);
             _transformations.push_back(*rigidTransf);
 
@@ -6128,7 +6129,7 @@ namespace mirtk {
                 
                 double tre=0;
                 int n=0;
-                double x,y,z,xx,yy,zz,e;
+                double x, y, z, xx, yy, zz, e = 0;
                 for(int ii=0;ii<slice.GetX();ii++)
                     for(int jj=0;jj<slice.GetY();jj++)
                         if(slice(ii,jj,0)>-1)
@@ -6440,7 +6441,7 @@ namespace mirtk {
                 
                 double tre=0;
                 int n=0;
-                double x,y,z,xx,yy,zz,e;
+                double x, y, z, xx, yy, zz, e = 0;
                 for(int ii=0;ii<_reconstructed.GetX();ii=ii+3)
                     for(int jj=0;jj<_reconstructed.GetY();jj=jj+3)
                         for(int kk=0;kk<_reconstructed.GetZ();kk=kk+3)
@@ -6732,7 +6733,7 @@ namespace mirtk {
                 
                 double tre=0;
                 int n=0;
-                double x,y,z,xx,yy,zz,e;
+                double x, y, z, xx, yy, zz, e = 0;
                 for(int ii=0;ii<_reconstructed.GetX();ii=ii+3)
                     for(int jj=0;jj<_reconstructed.GetY();jj=jj+3)
                         for(int kk=0;kk<_reconstructed.GetZ();kk=kk+3)

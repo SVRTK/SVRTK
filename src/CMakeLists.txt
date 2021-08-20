@@ -53,6 +53,7 @@ set(DEPENDS
   LibRegistration
   LibIO
   LibTransformation
+  ${Boost_LIBRARIES}
   ${TBB}
 )
 

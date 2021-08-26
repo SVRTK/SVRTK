@@ -42,6 +42,23 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
+  pad-3d
+  SOURCES
+    pad-3d.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
+mirtk_add_executable(
   register_landmarks
   SOURCES
     register_landmarks.cc

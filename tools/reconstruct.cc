@@ -32,6 +32,9 @@
 #include "mirtk/ImageReader.h"
 
 #include "mirtk/Reconstruction.h"
+#define SVRTK_TOOL
+#include "svrtk/Profiling.h"
+
 
 #include <iostream>
 #include <chrono>
@@ -91,12 +94,8 @@ int main(int argc, char **argv) {
     // Initialisation of MIRTK image reader library
     InitializeIOLibrary();
 
-    // Utility variables for time estimation
-    auto start = chrono::system_clock::now();
-    auto end = chrono::system_clock::now();
-    auto startTotal = chrono::system_clock::now();
-    auto endTotal = chrono::system_clock::now();
-    chrono::duration<double> elapsedSeconds;
+    // Initialise profiling
+    SVRTK_START_TIMING();
 
     // General utility variables
     int i, j, x, y, z;
@@ -643,6 +642,9 @@ int main(int argc, char **argv) {
     if (debug) reconstruction->DebugOn();
     else reconstruction->DebugOff();
 
+    // Set verbose mode on with file
+    reconstruction->VerboseOn("log-registration.txt");
+
     // Set force excluded slices option
     reconstruction->SetForceExcludedSlices(forceExcluded);
 
@@ -697,23 +699,6 @@ int main(int argc, char **argv) {
     if (removeBlackBackground)
         reconstruction->CreateMaskFromBlackBackground(stacks, stackTransformations, smoothMask);
 
-    // Options to redirect output from screen to text files
-
-    // cout and cerr buffer variables
-    streambuf *streamBuffer = cout.rdbuf();
-    streambuf *streamBufferError = cerr.rdbuf();
-    // Files for registration output
-    string name;
-    name = logId + "log-registration.txt";
-    ofstream logFile(name.c_str());
-    name = logId + "log-registration-error.txt";
-    ofstream errLogFile(name.c_str());
-    //files for reconstruction output
-    name = logId + "log-reconstruction.txt";
-    ofstream recLogFile(name.c_str());
-    name = logId + "log-evaluation.txt";
-    ofstream evFile(name.c_str());
-
     // Set precision
     cout << setprecision(3);
     cerr << setprecision(3);
@@ -726,33 +711,13 @@ int main(int argc, char **argv) {
     cout << "------------------------------------------------------" << endl;
 
     // Volumetric stack to template registration
-    if (!noGlobalFlag) {
-        if (debug) start = chrono::system_clock::now();
-        cout.rdbuf(logFile.rdbuf());
+    if (!noGlobalFlag)
         reconstruction->StackRegistrations(stacks, stackTransformations, templateNumber);
-        cout.rdbuf(streamBuffer);
-        if (debug) {
-            end = chrono::system_clock::now();
-            elapsedSeconds = end - start;
-            cout << "StackRegistrations ";
-            cout << "- " << elapsedSeconds.count() << "s " << endl;
-        }
-    }
-
 
     // Create average volume
-    if (debug) start = chrono::system_clock::now();
     average = reconstruction->CreateAverage(stacks, stackTransformations);
     if (debug)
         average.Write("average1.nii.gz");
-
-    if (debug) {
-        end = chrono::system_clock::now();
-        elapsedSeconds = end - start;
-
-        cout << "CreateAverage ";
-        cout << "- " << elapsedSeconds.count() << "s " << endl;
-    }
 
     // Mask is transformed to the all other stacks and they are cropped
     for (i = 0; i < nStacks; i++) {
@@ -799,18 +764,8 @@ int main(int argc, char **argv) {
     }
 
     // Perform volumetric registration again
-    if (debug) start = chrono::system_clock::now();
-    if (!noGlobalFlag) {
-        cout.rdbuf(logFile.rdbuf());
+    if (!noGlobalFlag)
         reconstruction->StackRegistrations(stacks, stackTransformations, templateNumber);
-        cout.rdbuf(streamBuffer);
-    }
-    if (debug) {
-        end = chrono::system_clock::now();
-        elapsedSeconds = end - start;
-        cout << "StackRegistrations ";
-        cout << "- " << elapsedSeconds.count() << "s " << endl;
-    }
 
     // Exclude low quality / similarity stacks (should be transferred to a separate function)
     if (excludeWrongStacks) {
@@ -953,34 +908,13 @@ int main(int argc, char **argv) {
     cout << "------------------------------------------------------" << endl;
 
     // Rescale intensities of the stacks to have the same average
-    if (intensityMatching) {
-        if (debug) start = chrono::system_clock::now();
-        cout.rdbuf(logFile.rdbuf());
-        if (intensityMatching)
-            reconstruction->MatchStackIntensitiesWithMasking(stacks, stackTransformations, averageValue);
-        else
-            reconstruction->MatchStackIntensitiesWithMasking(stacks, stackTransformations, averageValue, true);
-        cout.rdbuf(streamBuffer);
-        if (debug) {
-            end = chrono::system_clock::now();
-            elapsedSeconds = end - start;
-            cout << "MatchStackIntensitiesWithMasking ";
-            cout << "- " << elapsedSeconds.count() << "s " << endl;
-        }
-    }
+    if (intensityMatching)
+        reconstruction->MatchStackIntensitiesWithMasking(stacks, stackTransformations, averageValue);
 
     // Create average of the registered stacks
-    if (debug) start = chrono::system_clock::now();
-    cout.rdbuf(logFile.rdbuf());
     average = reconstruction->CreateAverage(stacks, stackTransformations);
-    cout.rdbuf(streamBuffer);
-    if (debug) {
+    if (debug)
         average.Write("average2.nii.gz");
-        end = chrono::system_clock::now();
-        elapsedSeconds = end - start;
-        cout << "CreateAverage ";
-        cout << "- " << elapsedSeconds.count() << "s " << endl;
-    }
 
     // Create slices and slice-dependent transformations
     Array<RealImage> probabilityMaps;
@@ -991,9 +925,7 @@ int main(int argc, char **argv) {
         reconstruction->SaveModelRemote(strCurrentExchangeFilePath, 1, 0);
 
     // Mask all the slices
-    cout.rdbuf(logFile.rdbuf());
     reconstruction->MaskSlices();
-    cout.rdbuf(streamBuffer);
 
     // Set sigma for the bias field smoothing
     if (sigma > 0)
@@ -1015,7 +947,6 @@ int main(int argc, char **argv) {
     reconstruction->InitializeEM();
 
     // If registration was switched off - only 1 iteration is required
-    cout.rdbuf(streamBuffer);
     if (!registrationFlag)
         iterations = 1;
 
@@ -1046,78 +977,30 @@ int main(int argc, char **argv) {
 
             // If only SVR option is used - skip 1st SR only averaging
             if (svrOnly) {
-                if (debug) start = chrono::system_clock::now();
-
-                cout.rdbuf(logFile.rdbuf());
                 if (remoteFlag)
                     reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentMainFilePath, strCurrentExchangeFilePath);
                 else
                     reconstruction->SliceToVolumeRegistration();
-                cout.rdbuf(streamBuffer);
-
-                if (debug) {
-                    end = chrono::system_clock::now();
-                    elapsedSeconds = end - start;
-                    cout << "SliceToVolumeRegistration ";
-                    cout << "- " << elapsedSeconds.count() << "s " << endl;
+            } else if (iter > 0) {
+                // Run package-based registartion is the number of packages was given
+                if (!packages.empty() && iter < iterations - 1) {
+                    reconstruction->PackageToVolume(stacks, packages, stackTransformations);
+                } else {
+                    // Run
+                    if (remoteFlag)
+                        reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentMainFilePath, strCurrentExchangeFilePath);
+                    else
+                        reconstruction->SliceToVolumeRegistration();
                 }
-            } else {
-
-                if (iter > 0) {
-                    // Run package-based registartion is the number of packages was given
-                    if ((packages.size() > 0) && (iter < iterations - 1)) {
-
-                        if (debug) start = chrono::system_clock::now();
-                        cout.rdbuf(streamBuffer);
-                        reconstruction->PackageToVolume(stacks, packages, stackTransformations);
-                        if (debug) {
-                            end = chrono::system_clock::now();
-                            elapsedSeconds = end - start;
-                            cout << "PackageToVolume ";
-                            cout << "- " << elapsedSeconds.count() << "s " << endl;
-                        }
-                    } else {
-
-                        // Run
-                        if (debug) start = chrono::system_clock::now();
-                        cout.rdbuf(logFile.rdbuf());
-                        if (remoteFlag) {
-                            reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentMainFilePath, strCurrentExchangeFilePath);
-                        } else {
-                            reconstruction->SliceToVolumeRegistration();
-                        }
-                        cout.rdbuf(streamBuffer);
-
-                        if (debug) {
-                            end = chrono::system_clock::now();
-                            elapsedSeconds = end - start;
-                            cout << "SliceToVolumeRegistration ";
-                            cout << "- " << elapsedSeconds.count() << "s " << endl;
-                        }
-
-                    }
-
-                }
-
             }
 
             // Run structure-based outlier rejection if specified
-            if (structural && iter > 1) {
-                cout.rdbuf(streamBuffer);
-                if (debug) start = chrono::system_clock::now();
+            if (structural && iter > 1)
                 reconstruction->StructuralExclusion();
-                if (debug) {
-                    end = chrono::system_clock::now();
-                    elapsedSeconds = end - start;
-                    cout << "StructuralExclusion - " << elapsedSeconds.count() << "s" << endl;
-                }
-                cout.rdbuf(logFile.rdbuf());
-            }
 
             // Set smoothing parameters
             // Amount of smoothing (given by lambda) is decreased with improving alignment
             // Delta (to determine edges) stays constant throughout
-            cout.rdbuf(logFile.rdbuf());
             if (iter == (iterations - 1))
                 reconstruction->SetSmoothingParameters(delta, lastIterLambda);
             else {
@@ -1128,7 +1011,6 @@ int main(int argc, char **argv) {
                     l *= 2;
                 }
             }
-            cout.rdbuf(streamBuffer);
 
             // Use faster reconstruction during iterations and slower for final reconstruction
             if (iter < iterations - 1)
@@ -1139,62 +1021,23 @@ int main(int argc, char **argv) {
             if (robustSlicesOnly)
                 reconstruction->ExcludeWholeSlicesOnly();
 
-            if (debug) start = chrono::system_clock::now();
-            cout.rdbuf(logFile.rdbuf());
             reconstruction->InitializeEMValues();
-            cout.rdbuf(streamBuffer);
-            if (debug) {
-                end = chrono::system_clock::now();
-                elapsedSeconds = end - start;
-                cout << "InitializeEMValues - " << elapsedSeconds.count() << "s" << endl;
-            }
 
             // Calculate matrix of transformation between voxels of slices and volume
-            if (debug) start = chrono::system_clock::now();
             reconstruction->CoeffInit();
-            if (debug) {
-                end = chrono::system_clock::now();
-                elapsedSeconds = end - start;
-                cout << "CoeffInit ";
-                cout << "- " << elapsedSeconds.count() << "s " << endl;
-            }
 
-            if (debug) start = chrono::system_clock::now();
             // Initialise reconstructed image with Gaussian weighted reconstruction
-
-            cout.rdbuf(logFile.rdbuf());
             reconstruction->GaussianReconstruction();
-            cout.rdbuf(streamBuffer);
-            if (debug) {
-                end = chrono::system_clock::now();
-                elapsedSeconds = end - start;
-                cout << "GaussianReconstruction ";
-                cout << "- " << elapsedSeconds.count() << "s " << endl;
-            }
 
             // Simulate slices (needs to be done after Gaussian reconstruction)
-            if (debug) start = chrono::system_clock::now();
-            cout.rdbuf(logFile.rdbuf());
             reconstruction->SimulateSlices();
-            cout.rdbuf(streamBuffer);
-            if (debug) {
-                end = chrono::system_clock::now();
-                elapsedSeconds = end - start;
-                cout << "SimulateSlices ";
-                cout << "- " << elapsedSeconds.count() << "s " << endl;
-            }
 
             // Initialize robust statistics parameters
-            cout.rdbuf(logFile.rdbuf());
             reconstruction->InitializeRobustStatistics();
-            cout.rdbuf(streamBuffer);
 
             // EStep
-            if (robustStatistics) {
-                cout.rdbuf(logFile.rdbuf());
+            if (robustStatistics)
                 reconstruction->EStep();
-                cout.rdbuf(streamBuffer);
-            }
 
             // Set number of reconstruction iterations
             if (iter == (iterations - 1))
@@ -1213,90 +1056,29 @@ int main(int argc, char **argv) {
                 if (intensityMatching) {
 
                     // Calculate bias fields
-                    if (debug) start = chrono::system_clock::now();
-                    cout.rdbuf(logFile.rdbuf());
                     if (sigma > 0)
                         reconstruction->Bias();
-                    cout.rdbuf(streamBuffer);
-                    if (debug) {
-                        end = chrono::system_clock::now();
-                        elapsedSeconds = end - start;
-                        cout << "Bias ";
-                        cout << "- " << elapsedSeconds.count() << "s " << endl;
-                    }
 
                     // Calculate scales
-                    if (debug) start = chrono::system_clock::now();
-                    cout.rdbuf(logFile.rdbuf());
                     reconstruction->Scale();
-                    cout.rdbuf(streamBuffer);
-                    if (debug) {
-                        end = chrono::system_clock::now();
-                        elapsedSeconds = end - start;
-                        cout << "Scale ";
-                        cout << "- " << elapsedSeconds.count() << "s " << endl;
-                    }
-
                 }
 
                 // Update reconstructed volume - super-resolution reconstruction
-                if (debug) start = chrono::system_clock::now();
-                cout.rdbuf(logFile.rdbuf());
                 reconstruction->Superresolution(i + 1);
-                cout.rdbuf(streamBuffer);
-                if (debug) {
-                    end = chrono::system_clock::now();
-                    elapsedSeconds = end - start;
-                    cout << "Superresolution ";
-                    cout << "- " << elapsedSeconds.count() << "s " << endl;
-                }
 
                 // Run bias normalisation
-                if (intensityMatching) {
-                    if (debug) start = chrono::system_clock::now();
-                    cout.rdbuf(logFile.rdbuf());
-                    if ((sigma > 0) && (!globalBiasCorrection))
-                        reconstruction->NormaliseBias(i);
-                    cout.rdbuf(streamBuffer);
-                    if (debug) {
-                        end = chrono::system_clock::now();
-                        elapsedSeconds = end - start;
-                        cout << "NormaliseBias ";
-                        cout << "- " << elapsedSeconds.count() << "s " << endl;
-                    }
-                }
+                if (intensityMatching && sigma > 0 && !globalBiasCorrection)
+                    reconstruction->NormaliseBias(i);
 
                 // Simulate slices (needs to be done after the update of the reconstructed volume)
-                if (debug) start = chrono::system_clock::now();
-
-                cout.rdbuf(logFile.rdbuf());
                 reconstruction->SimulateSlices();
-                cout.rdbuf(streamBuffer);
-                if (debug) {
-                    end = chrono::system_clock::now();
-                    elapsedSeconds = end - start;
-                    cout << "SimulateSlices ";
-                    cout << "- " << elapsedSeconds.count() << "s " << endl;
-                }
 
                 // Run robust statistics for rejection of outliers
                 if (robustStatistics) {
-                    if (debug) start = chrono::system_clock::now();
-
-                    cout.rdbuf(logFile.rdbuf());
+                    SVRTK_START_TIMING();
                     reconstruction->MStep(i + 1);
-                    cout.rdbuf(streamBuffer);
-
-                    cout.rdbuf(logFile.rdbuf());
                     reconstruction->EStep();
-                    cout.rdbuf(streamBuffer);
-
-                    if (debug) {
-                        end = chrono::system_clock::now();
-                        elapsedSeconds = end - start;
-                        cout << "Robust statistics ";
-                        cout << "- " << elapsedSeconds.count() << "s " << endl;
-                    }
+                    SVRTK_END_TIMING("robust statistics");
                 }
 
                 // Save intermediate reconstructed image
@@ -1407,9 +1189,7 @@ int main(int argc, char **argv) {
 
     cout << "Output volume : " << outputName << endl;
 
-    endTotal = chrono::system_clock::now();
-    elapsedSeconds = endTotal - startTotal;
-    cout << "Total time:" << elapsedSeconds.count() << "s " << endl;
+    SVRTK_END_TIMING("all");
 
     cout << "------------------------------------------------------" << endl;
 

@@ -18,6 +18,7 @@
  */
  
 #include "mirtk/Reconstruction.h"
+#include "svrtk/Profiling.h"
 
 
 using namespace std;
@@ -141,6 +142,7 @@ namespace mirtk {
         
         _step = 0.0001;
         _debug = false;
+        _verbose = false;
         _quality_factor = 2;
         _sigma_bias = 12;
         _sigma_s = 0.025;
@@ -445,6 +447,8 @@ namespace mirtk {
     // Create average of all stacks based on the input transformations
     RealImage Reconstruction::CreateAverage( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations )
     {
+        SVRTK_START_TIMING();
+
         if (!_template_created) {
             cerr << "Please create the template before calculating the average of the stacks." << endl;
             exit(1);
@@ -464,6 +468,8 @@ namespace mirtk {
         
         average /= weights;
         InvertStackTransformations(stack_transformations);
+
+        SVRTK_END_TIMING("CreateAverage");
         return average;
     }
     
@@ -1223,6 +1229,7 @@ namespace mirtk {
     // run global stack registration to the template
     void Reconstruction::StackRegistrations(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber)
     {
+        SVRTK_START_TIMING();
 
         InvertStackTransformations(stack_transformations);
 
@@ -1257,6 +1264,7 @@ namespace mirtk {
         
         InvertStackTransformations(stack_transformations);
         
+        SVRTK_END_TIMING("StackRegistrations");
     }
     
     
@@ -1316,8 +1324,8 @@ namespace mirtk {
         if (scaleden > 0)
             scalenum = scalenum / scaleden;
         
-        if(_debug)
-            cout<<"scale : "<<scale << endl;
+        if (_verbose)
+            _verbose_log << "scale : " << scale << endl;
 
         RealPixel *ptr = _reconstructed.GetPointerToVoxels();
         for(int i=0;i<_reconstructed.GetNumberOfVoxels();i++) {
@@ -1445,9 +1453,11 @@ namespace mirtk {
     void Reconstruction::SimulateSlices()
     {
         ParallelSimulateSlices2 *p_sim = new ParallelSimulateSlices2( this );
+        SVRTK_START_TIMING();
         (*p_sim)();
         
         delete p_sim;
+        SVRTK_END_TIMING("SimulateSlices");
     }
 
     //-------------------------------------------------------------------
@@ -1573,12 +1583,12 @@ namespace mirtk {
             global_average/=stack_average.size();
         }
         
-        if (_debug) {
-            cout << "Stack average intensities are ";
+        if (_verbose) {
+            _verbose_log << "Stack average intensities are ";
             for (int ind = 0; ind < stack_average.size(); ind++)
-                cout << stack_average[ind] << " ";
-            cout << endl;
-            cout << "The new average value is " << averageValue << endl;
+                _verbose_log << stack_average[ind] << " ";
+            _verbose_log << endl;
+            _verbose_log << "The new average value is " << averageValue << endl;
         }
 
         _stack_factor.clear();
@@ -1614,12 +1624,14 @@ namespace mirtk {
                 sprintf(buffer, "rescaled-stack%i.nii.gz", ind);
                 stacks[ind].Write(buffer);
             }
-            
-            cout << "Slice intensity factors are ";
+        }
+
+        if (_verbose) {
+            _verbose_log << "Slice intensity factors are ";
             for (int ind = 0; ind < stack_average.size(); ind++)
-                cout << _stack_factor[ind] << " ";
-            cout << endl;
-            cout << "The new average value is " << averageValue << endl;
+                _verbose_log << _stack_factor[ind] << " ";
+            _verbose_log << endl;
+            _verbose_log << "The new average value is " << averageValue << endl;
         }
         
     }
@@ -1735,6 +1747,7 @@ namespace mirtk {
     // match stack intensities with respect to the masked ROI
     void Reconstruction::MatchStackIntensitiesWithMasking( Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together )
     {
+        SVRTK_START_TIMING();
         char buffer[256];
         Array<double> stack_average;
         
@@ -1807,12 +1820,12 @@ namespace mirtk {
             global_average/=stack_average.size();
         }
         
-        if (_debug) {
-            cout << "Stack average intensities are ";
+        if (_verbose) {
+            _verbose_log << "Stack average intensities are ";
             for (int ind = 0; ind < stack_average.size(); ind++)
-                cout << stack_average[ind] << " ";
-            cout << endl;
-            cout << "The new average value is " << averageValue << endl;
+                _verbose_log << stack_average[ind] << " ";
+            _verbose_log << endl;
+            _verbose_log << "The new average value is " << averageValue << endl;
         }
         
         //Rescale stacks
@@ -1844,14 +1857,17 @@ namespace mirtk {
                 sprintf(buffer, "rescaled-stack%i.nii.gz", ind);
                 stacks[ind].Write(buffer);
             }
-            
-            cout << "Slice intensity factors are ";
+        }
+
+        if (_verbose) {
+            _verbose_log << "Slice intensity factors are ";
             for (int ind = 0; ind < stack_average.size(); ind++)
-                cout << _stack_factor[ind] << " ";
-            cout << endl;
-            cout << "The new average value is " << averageValue << endl;
+                _verbose_log << _stack_factor[ind] << " ";
+            _verbose_log << endl;
+            _verbose_log << "The new average value is " << averageValue << endl;
         }
         
+        SVRTK_END_TIMING("MatchStackIntensitiesWithMasking");
     }
     
     
@@ -1958,9 +1974,9 @@ namespace mirtk {
     // reset slices array and read them from the input stacks
     void Reconstruction::ResetSlices( Array<RealImage>& stacks, Array<double>& thickness )
     {
-        if (_debug)
-            cout << "ResetSlices" << endl;
-        
+        if (_verbose)
+            _verbose_log << "ResetSlices" << endl;
+
         _slices.clear();
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
@@ -2264,6 +2280,7 @@ namespace mirtk {
     void Reconstruction::StructuralExclusion()
     {
         
+        SVRTK_START_TIMING();
         char buffer[256];
         RealImage source = _reconstructed;
         
@@ -2339,6 +2356,7 @@ namespace mirtk {
 
         cout << " - mean registration ncc: " << mean_ncc << endl;
         
+        SVRTK_END_TIMING("StructuralExclusion");
     }
     
     
@@ -2519,6 +2537,7 @@ namespace mirtk {
     // run SVR 
     void Reconstruction::SliceToVolumeRegistration()
     {
+        SVRTK_START_TIMING();
 
         if (_debug)
             _reconstructed.Write("target.nii.gz");
@@ -2536,6 +2555,7 @@ namespace mirtk {
             delete p_reg;
         }
         
+        SVRTK_END_TIMING("SliceToVolumeRegistration");
     }
     
     
@@ -2671,6 +2691,8 @@ namespace mirtk {
     void Reconstruction::RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path)
     {
         
+        SVRTK_START_TIMING();
+
         ImageAttributes attr_recon = _reconstructed.GetImageAttributes();
         string str_source = str_current_exchange_file_path + "/current-source.nii.gz";
         _reconstructed.Write(str_source.c_str());
@@ -2829,6 +2851,7 @@ namespace mirtk {
         }
         
         
+        SVRTK_END_TIMING("RemoteSliceToVolumeRegistration");
     }
     
     
@@ -2838,9 +2861,9 @@ namespace mirtk {
     // save the current recon model (for remote reconstruction option) - can be deleted
     void Reconstruction::SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration)
     {
-        if (_debug)
-            cout << "SaveModelRemote : " << current_iteration << endl;
         
+        if (_verbose)
+            _verbose_log << "SaveModelRemote : " << current_iteration << endl;
         // save slices
         if (status_flag > 0) {
             for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
@@ -2868,9 +2891,9 @@ namespace mirtk {
      // load remotely reconstructed volume (for remote reconstruction option) - can be deleted
     void Reconstruction::LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration)
     {
-        if (_debug)
-            cout << "LoadResultsRemote : " << current_iteration << endl;
         
+        if (_verbose)
+            _verbose_log << "LoadResultsRemote : " << current_iteration << endl;
         string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
         _reconstructed.Read(str_recon.c_str());
         
@@ -2880,9 +2903,9 @@ namespace mirtk {
     void Reconstruction::LoadModelRemote(string str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration)
     {
         
-        if (_debug)
-            cout << "LoadModelRemote : " << current_iteration << endl;
         
+        if (_verbose)
+            _verbose_log << "LoadModelRemote : " << current_iteration << endl;
         string str_recon = str_current_exchange_file_path + "/latest-out-recon.nii.gz";
         string str_mask = str_current_exchange_file_path + "/current-mask.nii.gz";
         
@@ -3353,6 +3376,7 @@ namespace mirtk {
     // run calculation of transformation matrices
     void Reconstruction::CoeffInit()
     {
+        SVRTK_START_TIMING();
 
         //clear slice-volume matrix from previous iteration
         _volcoeffs.clear();
@@ -3415,10 +3439,10 @@ namespace mirtk {
         }
         _average_volume_weight = sum/num;
         
-        if(_debug) {
-            cout<<"Average volume weight is "<<_average_volume_weight<<endl;
-        }
         
+        if (_verbose)
+            _verbose_log << "Average volume weight is " << _average_volume_weight << endl;
+        SVRTK_END_TIMING("CoeffInit");
     }
     
     
@@ -3427,6 +3451,7 @@ namespace mirtk {
     // run gaussian reconstruction based on SVR & coeffinit outputs
     void Reconstruction::GaussianReconstruction()
     {
+        SVRTK_START_TIMING();
 
         unsigned int inputIndex;
         int i, j, k, n;
@@ -3510,13 +3535,14 @@ namespace mirtk {
         for (i=0;i<voxel_num.size();i++)
             if (voxel_num[i]<0.1*median)
                 _small_slices.push_back(i);
-        
-        if (_debug) {
-            cout<<"Small slices:";
-            for (i=0;i<_small_slices.size();i++)
-                cout<<" "<<_small_slices[i];
-            cout<<endl;
+
+        if (_verbose) {
+            _verbose_log << "Small slices:";
+            for (i = 0; i < _small_slices.size(); i++)
+                _verbose_log << " " << _small_slices[i];
+            _verbose_log << endl;
         }
+        SVRTK_END_TIMING("GaussianReconstruction");
     }
     
     
@@ -3906,10 +3932,9 @@ namespace mirtk {
         }
         _average_volume_weightSF = sum/num;
         
-        if(_debug) {
-            cout<<"Average volume weight is "<<_average_volume_weightSF<<endl;
-        }
         
+        if (_verbose)
+            _verbose_log << "Average volume weight is " << _average_volume_weightSF << endl;
     }  //end of CoeffInitSF()
     
     //-------------------------------------------------------------------
@@ -4030,11 +4055,11 @@ namespace mirtk {
             if (voxel_num[i]<0.1*median)
                 _small_slices.push_back(i);
         
-        if (_debug) {
-            cout<<"Small slices:";
-            for (int i=0;i<_small_slices.size();i++)
-                cout<<" "<<_small_slices[i];
-            cout<<endl;
+        if (_verbose) {
+            _verbose_log << "Small slices:";
+            for (int i = 0; i < _small_slices.size(); i++)
+                _verbose_log << " " << _small_slices[i];
+            _verbose_log << endl;
         }
     }
     
@@ -4117,6 +4142,7 @@ namespace mirtk {
             _scale[i] = 1;
         }
         
+        SVRTK_START_TIMING();
         //Force exclusion of slices predefined by user
         for (unsigned int i = 0; i < _force_excluded.size(); i++){
             
@@ -4124,6 +4150,7 @@ namespace mirtk {
                 _slice_weight[_force_excluded[i]] = 0;
         }
         
+        SVRTK_END_TIMING("InitializeEMValues");
     }
     
     //-------------------------------------------------------------------
@@ -4192,8 +4219,8 @@ namespace mirtk {
         //Initialise value for uniform distribution according to the range of intensities
         _m = 1 / (2.1 * _max_intensity - 1.9 * _min_intensity);
         
-        if (_debug)
-            cout << "Initializing robust statistics: " << "sigma=" << sqrt(_sigma) << " " << "m=" << _m
+        if (_verbose)
+            _verbose_log << "Initializing robust statistics: " << "sigma=" << sqrt(_sigma) << " " << "m=" << _m
             << " " << "mix=" << _mix << " " << "mix_s=" << _mix_s << endl;
         
     }
@@ -4320,11 +4347,11 @@ namespace mirtk {
         //but we want to use latest estimate of slice potentials
         //to update the parameters
         
-        if(_debug) {
-            cout<<endl<<"Slice potentials: ";
+        if (_verbose) {
+            _verbose_log << endl << "Slice potentials: ";
             for (inputIndex = 0; inputIndex < slice_potential.size(); inputIndex++)
-                cout<<slice_potential[inputIndex]<<" ";
-            cout<<endl;
+                _verbose_log << slice_potential[inputIndex] << " ";
+            _verbose_log << endl;
         }
 
         
@@ -4381,12 +4408,12 @@ namespace mirtk {
         }
         else {
             _sigma_s = 0.025;
-            if (_debug) {
+            if (_verbose) {
                 if (sum <= 0)
-                    cout << "All slices are equal. ";
+                    _verbose_log << "All slices are equal. ";
                 if (den < 0) //this should not happen
-                    cout << "All slices are outliers. ";
-                cout << "Setting sigma to " << sqrt(_sigma_s) << endl;
+                    _verbose_log << "All slices are outliers. ";
+                _verbose_log << "Setting sigma to " << sqrt(_sigma_s) << endl;
             }
         }
         
@@ -4403,12 +4430,12 @@ namespace mirtk {
             if (_sigma_s2 < _step * _step / 6.28)
                 _sigma_s2 = _step * _step / 6.28;
             
-            if (_debug) {
+            if (_verbose) {
                 if (sum2 <= 0)
-                    cout << "All slices are equal. ";
+                    _verbose_log << "All slices are equal. ";
                 if (den2 <= 0)
-                    cout << "All slices inliers. ";
-                cout << "Setting sigma_s2 to " << sqrt(_sigma_s2) << endl;
+                    _verbose_log << "All slices inliers. ";
+                _verbose_log << "Setting sigma_s2 to " << sqrt(_sigma_s2) << endl;
             }
         }
         
@@ -4469,16 +4496,16 @@ namespace mirtk {
             _mix_s = 0.9;
         }
         
-        if (_debug) {
-            cout << setprecision(3);
-            cout << "Slice robust statistics parameters: ";
-            cout << "means: " << _mean_s << " " << _mean_s2 << "  ";
-            cout << "sigmas: " << sqrt(_sigma_s) << " " << sqrt(_sigma_s2) << "  ";
-            cout << "proportions: " << _mix_s << " " << 1 - _mix_s << endl;
-            cout << "Slice weights: ";
+        if (_verbose) {
+            _verbose_log << setprecision(3);
+            _verbose_log << "Slice robust statistics parameters: ";
+            _verbose_log << "means: " << _mean_s << " " << _mean_s2 << "  ";
+            _verbose_log << "sigmas: " << sqrt(_sigma_s) << " " << sqrt(_sigma_s2) << "  ";
+            _verbose_log << "proportions: " << _mix_s << " " << 1 - _mix_s << endl;
+            _verbose_log << "Slice weights: ";
             for (inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-                cout << _slice_weight[inputIndex] << " ";
-            cout << endl;
+                _verbose_log << _slice_weight[inputIndex] << " ";
+            _verbose_log << endl;
         }
         
     }
@@ -4537,17 +4564,20 @@ namespace mirtk {
     // run slice scaling
     void Reconstruction::Scale()
     {
+        SVRTK_START_TIMING();
 
         ParallelScale parallelScale( this );
         parallelScale();
         
-        if (_debug) {
-            cout << setprecision(3);
-            cout << "Slice scale = ";
+        if (_verbose) {
+            _verbose_log << setprecision(3);
+            _verbose_log << "Slice scale = ";
             for (unsigned int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)
-                cout << _scale[inputIndex] << " ";
-            cout << endl;
+                _verbose_log << _scale[inputIndex] << " ";
+            _verbose_log << endl;
         }
+
+        SVRTK_END_TIMING("Scale");
     }
     
     //-------------------------------------------------------------------
@@ -4662,8 +4692,10 @@ namespace mirtk {
     {
 
         ParallelBias parallelBias( this );
+        SVRTK_START_TIMING();
         parallelBias();
 
+        SVRTK_END_TIMING("Bias");
     }
     
     
@@ -4778,6 +4810,7 @@ namespace mirtk {
     // run SR reconstruction step
     void Reconstruction::Superresolution(int iter)
     {
+        SVRTK_START_TIMING();
 
         RealImage addon, original;
 
@@ -4833,6 +4866,7 @@ namespace mirtk {
         if (_global_bias_correction)
             BiasCorrectVolume(original);
         
+        SVRTK_END_TIMING("Superresolution");
     }
     
     
@@ -4953,10 +4987,10 @@ namespace mirtk {
         //Calculate m
         _m = 1 / (max - min);
         
-        if (_debug) {
-            cout << "Voxel-wise robust statistics parameters: ";
-            cout << "sigma = " << sqrt(_sigma) << " mix = " << _mix << " ";
-            cout << " m = " << _m << endl;
+        if (_verbose) {
+            _verbose_log << "Voxel-wise robust statistics parameters: ";
+            _verbose_log << "sigma = " << sqrt(_sigma) << " mix = " << _mix << " ";
+            _verbose_log << " m = " << _m << endl;
         }
         
     }
@@ -5251,9 +5285,8 @@ namespace mirtk {
         void operator()( const blocked_range<size_t>& r ) {
             for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
                 
-                if(reconstructor->_debug) {
-                    cout<<inputIndex<<" ";
-                }
+                if (reconstructor->_verbose)
+                    reconstructor->_verbose_log << inputIndex << " ";
 
                 //read the current bias image
                 RealImage b = reconstructor->_bias[inputIndex];
@@ -5320,6 +5353,7 @@ namespace mirtk {
     void Reconstruction::NormaliseBias( int iter )
     {
         
+        SVRTK_START_TIMING();
         ParallelNormaliseBias parallelNormaliseBias(this);
         parallelNormaliseBias();
         RealImage bias = parallelNormaliseBias.bias;
@@ -5359,6 +5393,7 @@ namespace mirtk {
         
         
         
+        SVRTK_END_TIMING("NormaliseBias");
     }
     
     
@@ -6553,6 +6588,7 @@ namespace mirtk {
     {
         
         
+        SVRTK_START_TIMING();
         int firstSlice = 0;
         Array<int> firstSlice_array;
         for (int i = 0; i < stacks.size(); i++) {
@@ -6688,6 +6724,7 @@ namespace mirtk {
 
         
         
+        SVRTK_END_TIMING("PackageToVolume");
     }
     
 

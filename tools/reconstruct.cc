@@ -17,7 +17,7 @@
 * limitations under the License.
 */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
 #include "mirtk/NumericsConfig.h"
@@ -31,13 +31,16 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
+// SVRTK
 #include "mirtk/Reconstruction.h"
 #define SVRTK_TOOL
 #include "svrtk/Profiling.h"
 
+// Boost
+#include <boost/program_options.hpp>
 
+// C++ Standard
 #include <iostream>
-#include <chrono>
 #include <ctime>
 #include <fstream>
 #include <cmath>
@@ -49,8 +52,6 @@
 #include <cstdlib>
 #include <pthread.h>
 #include <string>
-
-#include <boost/program_options.hpp>
 
 
 using namespace std;
@@ -395,7 +396,7 @@ int main(int argc, char **argv) {
     } else if (vm.count("template_number"))
         templateStack = stacks[templateNumber];
 
-    // Binary mask for reconsturction / final volume
+    // Binary mask for reconstruction / final volume
     if (vm.count("mask")) {
         cout << "Mask : " << vm["mask"].as<string>() << endl;
         mask = new RealImage(vm["mask"].as<string>().c_str());
@@ -536,46 +537,33 @@ int main(int argc, char **argv) {
         for (i = 0; i < stacks.size(); i++) {
             if (stacks[i].GetT() == 1) {
                 newStacks.push_back(stacks[i]);
-                if (stackTransformations.size() > 0)
+                if (!stackTransformations.empty())
                     newStackTransformations.push_back(stackTransformations[i]);
-                if (packages.size() > 0)
+                if (!packages.empty())
                     newPackages.push_back(packages[i]);
-                if (thickness.size() > 0)
+                if (!thickness.empty())
                     newThickness.push_back(thickness[i]);
             } else {
                 for (int t = 0; t < stacks[i].GetT(); t++) {
                     RealImage stack = stacks[i].GetRegion(0, 0, 0, t, stacks[i].GetX(), stacks[i].GetY(), stacks[i].GetZ(), (t + 1));
                     newStacks.push_back(stack);
-                    if (stackTransformations.size() > 0)
+                    if (!stackTransformations.empty())
                         newStackTransformations.push_back(stackTransformations[i]);
-                    if (packages.size() > 0)
+                    if (!packages.empty())
                         newPackages.push_back(packages[i]);
-                    if (thickness.size() > 0)
+                    if (!thickness.empty())
                         newThickness.push_back(thickness[i]);
                 }
             }
         }
+
         nStacks = newStacks.size();
-        stacks.clear();
-        thickness.clear();
-        packages.clear();
-        stackTransformations.clear();
+        stacks = move(newStacks);
+        thickness = move(newThickness);
+        packages = move(newPackages);
+        stackTransformations = move(newStackTransformations);
 
         cout << "New number of stacks : " << nStacks << endl;
-        for (i = 0; i < newStacks.size(); i++) {
-            stacks.push_back(newStacks[i]);
-            if (newThickness.size() > 0)
-                thickness.push_back(newThickness[i]);
-            if (newPackages.size() > 0)
-                packages.push_back(newPackages[i]);
-            if (newStackTransformations.size() > 0)
-                stackTransformations.push_back(newStackTransformations[i]);
-        }
-
-        newStacks.clear();
-        newThickness.clear();
-        newPackages.clear();
-        newStackTransformations.clear();
     }
 
 
@@ -702,7 +690,6 @@ int main(int argc, char **argv) {
     // Set precision
     cout << setprecision(3);
     cerr << setprecision(3);
-
 
     // -----------------------------------------------------------------------------
     // RUN GLOBAL STACK REGISTRATION AND FURTHER PREPROCESSING
@@ -860,23 +847,20 @@ int main(int argc, char **argv) {
         cout << " - selected : " << endl;
         int totalSelected = 0;
         for (int j = 0; j < sortedNccArray.size(); j++) {
-
             for (i = 0; i < stacks.size(); i++) {
-
                 if (totalSelected < bestSelectedStacks) {
                     if (sortedNccArray[j] == allNccArray[i] && allCountArray[i] > 0.65 * averageCountNcc && allNccArray[i] > (averageVolumeNcc - 2 * stdVolumeNcc)) {
-
                         selectedNccArray.push_back(allNccArray[i]);
                         selectedIndicesArray.push_back(allIndicesArray[i]);
                         totalSelected++;
                         newStacks.push_back(stacks[allIndicesArray[i]]);
                         cout << "" << allIndicesArray[i] << " : volume ncc = " << allNccArray[i] << " ; slice ncc = " << allSliceNccArray[i] << endl;
 
-                        if (stackTransformations.size() > 0)
+                        if (!stackTransformations.empty())
                             newStackTransformations.push_back(stackTransformations[i]);
-                        if (packages.size() > 0)
+                        if (!packages.empty())
                             newPackages.push_back(packages[i]);
-                        if (thickness.size() > 0)
+                        if (!thickness.empty())
                             newThickness.push_back(thickness[i]);
                     }
                 }
@@ -884,25 +868,10 @@ int main(int argc, char **argv) {
         }
 
         nStacks = newStacks.size();
-        stacks.clear();
-        thickness.clear();
-        packages.clear();
-        stackTransformations.clear();
-
-        for (i = 0; i < newStacks.size(); i++) {
-            stacks.push_back(newStacks[i]);
-
-            if (newThickness.size() > 0)
-                thickness.push_back(newThickness[i]);
-            if (newPackages.size() > 0)
-                packages.push_back(newPackages[i]);
-            if (newStackTransformations.size() > 0)
-                stackTransformations.push_back(newStackTransformations[i]);
-        }
-        newStacks.clear();
-        newThickness.clear();
-        newPackages.clear();
-        newStackTransformations.clear();
+        stacks = move(newStacks);
+        thickness = move(newThickness);
+        packages = move(newPackages);
+        stackTransformations = move(newStackTransformations);
     }
 
     cout << "------------------------------------------------------" << endl;
@@ -1047,14 +1016,12 @@ int main(int argc, char **argv) {
 
             // SR reconstruction loop
             for (i = 0; i < recIterations; i++) {
-
                 if (debug) {
                     cout << "------------------------------------------------------" << endl;
                     cout << "Reconstruction iteration : " << i << endl;
                 }
 
                 if (intensityMatching) {
-
                     // Calculate bias fields
                     if (sigma > 0)
                         reconstruction->Bias();
@@ -1081,15 +1048,13 @@ int main(int argc, char **argv) {
                     SVRTK_END_TIMING("robust statistics");
                 }
 
-                // Save intermediate reconstructed image
                 if (debug) {
+                    // Save intermediate reconstructed image
                     reconstructed = reconstruction->GetReconstructed();
                     sprintf(buffer, "super%i.nii.gz", i);
                     reconstructed.Write(buffer);
-                }
 
-                // Evaluate reconstruction quality
-                if (debug) {
+                    // Evaluate reconstruction quality
                     double error = reconstruction->EvaluateReconQuality(1);
                     cout << "Total reconstruction error : " << error << endl;
                 }
@@ -1112,39 +1077,15 @@ int main(int argc, char **argv) {
             reconstruction->ReconQualityReport(outNcc, outNrmse, averageVolumeWeight, ratioExcluded);
             cout << " - global metrics: ncc = " << outNcc << " ; nrmse = " << outNrmse << " ; average weight = " << averageVolumeWeight << " ; excluded slices = " << ratioExcluded << endl;
 
-            name = "output-metric-ncc.txt";
-            ofstream ofsNcc(name.c_str());
-            name = "output-metric-nrmse.txt";
-            ofstream ofsNrmse(name.c_str());
-            name = "output-metric-average-weight.txt";
-            ofstream ofsWeight(name.c_str());
-            name = "output-metric-excluded-ratio.txt";
-            ofstream ofsExcluded(name.c_str());
+            ofstream ofsNcc("output-metric-ncc.txt");
+            ofstream ofsNrmse("output-metric-nrmse.txt");
+            ofstream ofsWeight("output-metric-average-weight.txt");
+            ofstream ofsExcluded("output-metric-excluded-ratio.txt");
 
-            cout.rdbuf(ofsNcc.rdbuf());
-            cout << outNcc << endl;
-
-            cout.rdbuf(ofsNrmse.rdbuf());
-            cout << outNrmse << endl;
-
-            cout.rdbuf(ofsWeight.rdbuf());
-            cout << averageVolumeWeight << endl;
-
-            cout.rdbuf(ofsExcluded.rdbuf());
-            cout << ratioExcluded << endl;
-
-            cout.rdbuf(streamBuffer);
-
-            // reconstruction->SaveSliceInfo(iter);
-
-            // Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            if (debug) {
-                if (!noLog)
-                    cout.rdbuf(evFile.rdbuf());
-                reconstruction->Evaluate(iter);
-                if (!noLog)
-                    cout.rdbuf(streamBuffer);
-            }
+            ofsNcc << outNcc << endl;
+            ofsNrmse << outNrmse << endl;
+            ofsWeight << averageVolumeWeight << endl;
+            ofsExcluded << ratioExcluded << endl;
 
         } // End of interleaved registration-reconstruction iterations
 

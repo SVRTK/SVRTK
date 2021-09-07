@@ -526,7 +526,7 @@ namespace mirtk {
 
         inline void SetMaskedStacks();
 
-        double ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
+        void ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
 
         RealImage ThreholdNormalisedMask(RealImage image, double threshold);
 

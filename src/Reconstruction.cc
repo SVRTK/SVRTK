@@ -782,7 +782,7 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     class ParallelQualityReport {
-        Reconstruction* reconstructor;
+        Reconstruction *reconstructor;
 
     public:
         double out_global_ncc;
@@ -803,7 +803,6 @@ namespace mirtk {
                 for (int x = 0; x < reconstructor->_slices[inputIndex].GetX(); x++) {
                     for (int y = 0; y < reconstructor->_slices[inputIndex].GetY(); y++) {
                         for (int z = 0; z < reconstructor->_slices[inputIndex].GetZ(); z++) {
-
                             if (reconstructor->_slices[inputIndex](x, y, z) > 0 && reconstructor->_simulated_slices[inputIndex](x, y, z) > 0) {
                                 point_nt = reconstructor->_slices[inputIndex](x, y, z) * exp(-(reconstructor->_bias[inputIndex])(x, y, 0)) * reconstructor->_scale[inputIndex];
                                 point_ns = reconstructor->_simulated_slices[inputIndex](x, y, z);
@@ -812,7 +811,6 @@ namespace mirtk {
                                 s_diff += (point_nt - point_ns) * (point_nt - point_ns);
                                 s_n++;
                             }
-
                         }
                     }
                 }
@@ -828,15 +826,12 @@ namespace mirtk {
             } //end of loop for a slice inputIndex
         }
 
-        ParallelQualityReport(ParallelQualityReport& x, split) : reconstructor(x.reconstructor) {
-            out_global_ncc = 0;
-            out_global_nrmse = 0;
+        void join(const ParallelQualityReport& y) {
+            out_global_ncc += y.out_global_ncc;
+            out_global_nrmse += y.out_global_nrmse;
         }
 
-        void join(const ParallelQualityReport& y) {
-            out_global_ncc = out_global_ncc + y.out_global_ncc;
-            out_global_nrmse = out_global_nrmse + y.out_global_nrmse;
-        }
+        ParallelQualityReport(ParallelQualityReport& x, split) : ParallelQualityReport(x.reconstructor) {}
 
         ParallelQualityReport(Reconstruction *reconstructor) : reconstructor(reconstructor) {
             out_global_ncc = 0;
@@ -849,30 +844,20 @@ namespace mirtk {
     };
 
     // generate reconstruction quality report / metrics
-    double Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded) {
-
+    void Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded) {
         ParallelQualityReport parallelQualityReport(this);
         parallelQualityReport();
         out_ncc = parallelQualityReport.out_global_ncc / _slices.size();
         out_nrmse = parallelQualityReport.out_global_nrmse / _slices.size();
-
-        if (out_nrmse != out_nrmse)
-            out_nrmse = 0;
-
-
-        if (out_ncc != out_ncc)
-            out_ncc = 0;
-
         average_weight = _average_volume_weight;
 
-        double count_excluded = 0;
+        size_t count_excluded = 0;
         for (int i = 0; i < _slices.size(); i++) {
-            if (_slice_weight[i] < 0.5) {
-                count_excluded = count_excluded + 1;
-            }
+            if (_slice_weight[i] < 0.5)
+                count_excluded++;
         }
 
-        ratio_excluded = count_excluded / _slices.size();
+        ratio_excluded = (double)count_excluded / _slices.size();
     }
 
     //-------------------------------------------------------------------

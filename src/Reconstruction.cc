@@ -646,7 +646,6 @@ namespace mirtk {
         msh2.Lcc(1);
         RealImage m = mask;
         SetMask(&m, smooth_mask);
-
     }
 
     //-------------------------------------------------------------------
@@ -905,13 +904,11 @@ namespace mirtk {
 
         count = 0;
         for (int j = 0; j < slice_1_N; j++) {
-
-            if (slice_1_ptr[j] > 0.1) {
-                count = count + 1;
-            }
+            if (slice_1_ptr[j] > 0.1)
+                count++;
         }
 
-        count = count * slice_2.GetXSize() * slice_2.GetYSize() * slice_2.GetZSize();
+        count *= slice_2.GetXSize() * slice_2.GetYSize() * slice_2.GetZSize();
 
         if (slice_1_n < 5 || slice_2_n < 5) {
             CC_slice = -1;
@@ -921,9 +918,7 @@ namespace mirtk {
             slice_2_sq = 0;
 
             for (int j = 0; j < slice_1_N; j++) {
-
                 if (slice_1_ptr[j] > 0.1 && slice_2_ptr[j] > 0.1) {
-
                     diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m) * (slice_2_ptr[j] - slice_2_m));
                     slice_1_sq = slice_1_sq + pow((slice_1_ptr[j] - slice_1_m), 2);
                     slice_2_sq = slice_2_sq + pow((slice_2_ptr[j] - slice_2_m), 2);
@@ -963,7 +958,7 @@ namespace mirtk {
         registration->InitialGuess(r_init);
         registration->GuessParameter();
         registration->Run();
-        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
+        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*>(dofout);
 
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
         double source_padding = 0;
@@ -986,8 +981,7 @@ namespace mirtk {
         imagetransformation->Run();
         delete imagetransformation;
 
-        input_stack = output;
-        input_stack *= mask;
+        input_stack = output * mask;
 
         double ncc = 0;
         int count = 0;
@@ -1003,7 +997,7 @@ namespace mirtk {
             double slice_ncc = GlobalNCC(slice_1, slice_2, slice_count);
 
             if (slice_ncc > 0) {
-                ncc = ncc + slice_ncc;
+                ncc += slice_ncc;
                 count += 1;
             }
         }
@@ -1066,8 +1060,7 @@ namespace mirtk {
                 resampling2.Run();
 
                 Matrix mo = offset.GetMatrix();
-                Matrix m = stack_transformations[i].GetMatrix();
-                m = m * mo;
+                Matrix m = stack_transformations[i].GetMatrix() * mo;
                 stack_transformations[i].PutMatrix(m);
 
                 ParameterList params;
@@ -1103,20 +1096,19 @@ namespace mirtk {
                 registration.GuessParameter();
                 registration.Run();
 
-                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
                 stack_transformations[i] = *rigidTransf;
 
                 mo.Invert();
-                m = stack_transformations[i].GetMatrix();
-                m = m * mo;
+                m = stack_transformations[i].GetMatrix() * mo;
                 stack_transformations[i].PutMatrix(m);
 
                 //save volumetric registrations
                 if (reconstructor->_debug) {
                     //buffer to create the name
-                    sprintf(buffer, "global-transformation%i.dof", i);
+                    sprintf(buffer, "global-transformation%zu.dof", i);
                     stack_transformations[i].Write(buffer);
-                    sprintf(buffer, "global-stack%i.nii.gz", i);
+                    sprintf(buffer, "global-stack%zu.nii.gz", i);
                     stacks[i].Write(buffer);
                 }
             }
@@ -2053,7 +2045,7 @@ namespace mirtk {
                     registration->Run();
 
                     // output transformation
-                    RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+                    RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
                     reconstructor->_transformations[inputIndex] = *rigidTransf;
 
                     //undo the offset
@@ -2074,7 +2066,7 @@ namespace mirtk {
                         double ry = reconstructor->_transformations[inputIndex].GetRotationY();
                         double rz = reconstructor->_transformations[inputIndex].GetRotationZ();
 
-                        sprintf(buffer, "%i %f %f %f %f %f %f", inputIndex, tx, ty, tz, rx, ry, rz);
+                        sprintf(buffer, "%zu %f %f %f %f %f %f", inputIndex, tx, ty, tz, rx, ry, rz);
                         cout << buffer << endl;
                     }
                 }
@@ -2331,7 +2323,7 @@ namespace mirtk {
                     registration->Run();
 
                     // read output transformation
-                    MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*> (dofout);
+                    MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*>(dofout);
                     reconstructor->_mffd_transformations[inputIndex] = *mffd_dofout;
 
                     delete registration;
@@ -2375,7 +2367,6 @@ namespace mirtk {
     // class for remote FFD SVR
     class ParallelRemoteSliceToVolumeRegistrationFFD {
     public:
-
         Reconstruction *reconstructor;
         int svr_range_start;
         int svr_range_stop;
@@ -2393,24 +2384,18 @@ namespace mirtk {
         }
 
         void operator()(const blocked_range<size_t> &r) const {
-
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
-
                 if (reconstructor->_zero_slices[inputIndex] > 0) {
-
                     // define registration parameters
-                    std::thread::id this_id = std::this_thread::get_id();
                     string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim, str_ds;
                     str_target = str_current_exchange_file_path + "/slice-" + to_string(inputIndex) + ".nii.gz";
                     str_source = str_current_exchange_file_path + "/current-source.nii.gz";
                     str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
                     str_reg_model = "-model FFD";
                     str_dofout = "-dofout " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
-                    str_sim = "";
                     if (reconstructor->_ncc_reg) {
                         str_sim = "-sim NCC -window 5 ";
                     }
-                    str_ds = "";
                     if (reconstructor->_cp_spacing > 0) {
                         str_ds = "-ds " + to_string(reconstructor->_cp_spacing);
                     }
@@ -2421,11 +2406,8 @@ namespace mirtk {
                     // run registration remotely
                     string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_ds + " " + str_log;
                     int tmp_log = system(register_cmd.c_str());
-
                 }
-
             } // end of inputIndex
-
         }
 
         void operator()() const {
@@ -2438,9 +2420,7 @@ namespace mirtk {
 
     // class for remote rigid SVR
     class ParallelRemoteSliceToVolumeRegistration {
-
     public:
-
         Reconstruction *reconstructor;
         int svr_range_start;
         int svr_range_stop;
@@ -2458,20 +2438,15 @@ namespace mirtk {
         }
 
         void operator()(const blocked_range<size_t> &r) const {
-
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
-
                 if (reconstructor->_zero_slices[inputIndex] > 0) {
-
                     // define registration parameters
-                    std::thread::id this_id = std::this_thread::get_id();
                     string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim;
                     str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
                     str_source = str_current_exchange_file_path + "/current-source.nii.gz";
                     str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
                     str_reg_model = "-model Rigid";
                     str_dofout = "-dofout " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-                    str_sim = "";
                     if (reconstructor->_ncc_reg) {
                         str_sim = "-sim NCC -window 0 ";
                     }
@@ -2482,11 +2457,8 @@ namespace mirtk {
                     // run registration
                     string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_log;
                     int tmp_log = system(register_cmd.c_str());
-
                 }
-
             } // end of inputIndex
-
         }
 
         void operator()() const {
@@ -2526,11 +2498,10 @@ namespace mirtk {
 
                     RealPixel tmin, tmax;
                     target.GetMinMax(&tmin, &tmax);
-                    if (tmax > 1 && ((tmax - tmin) > 1)) {
+                    if (tmax > 1 && ((tmax - tmin) > 1))
                         _zero_slices[inputIndex] = 1;
-                    } else {
+                    else
                         _zero_slices[inputIndex] = -1;
-                    }
 
                     string str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
                     target.Write(str_target.c_str());
@@ -2542,7 +2513,6 @@ namespace mirtk {
 
             // save slice transformations
             for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-
                 RigidTransformation r_transform = _transformations[inputIndex];
                 Matrix m = r_transform.GetMatrix();
                 m = m * _offset_matrices[inputIndex];
@@ -2570,11 +2540,10 @@ namespace mirtk {
 
             // read output transformations
             for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-
                 string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
 
                 Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
-                RigidTransformation *tmp_r_transf = dynamic_cast<RigidTransformation*> (tmp_transf);
+                RigidTransformation *tmp_r_transf = dynamic_cast<RigidTransformation*>(tmp_transf);
                 _transformations[inputIndex] = *tmp_r_transf;
                 
                 //undo the offset
@@ -2628,17 +2597,15 @@ namespace mirtk {
                 svr_range_start = svr_range_stop;
                 svr_range_stop = svr_range_start + stride;
 
-                if (svr_range_stop > _slices.size()) {
+                if (svr_range_stop > _slices.size())
                     svr_range_stop = _slices.size();
-                }
-
             }
 
             // read output transformations
             for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
                 string str_dofout = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
                 Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
-                MultiLevelFreeFormTransformation *tmp_mffd_transf = dynamic_cast<MultiLevelFreeFormTransformation*> (tmp_transf);
+                MultiLevelFreeFormTransformation *tmp_mffd_transf = dynamic_cast<MultiLevelFreeFormTransformation*>(tmp_transf);
                 _mffd_transformations[inputIndex] = *tmp_mffd_transf;
             }
 
@@ -2718,7 +2685,7 @@ namespace mirtk {
             // load transformations
             string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
             Transformation *t = Transformation::New(str_dofin.c_str());
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (t);
+            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(t);
             _transformations.push_back(*rigidTransf);
 
             RealPixel tmin, tmax;
@@ -2945,8 +2912,7 @@ namespace mirtk {
                 //prepare storage for PSF transformed and resampled to the space of reconstructed volume
                 //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
                 //Note conversion from PSF image coordinates to tPSF image coordinates *size/res
-                int dim = (floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2))
-                    * 2 + 1 + 2;
+                int dim = floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2) * 2 + 1 + 2;
                 //prepare image attributes. Voxel dimension will be taken from the reconstructed volume
                 attr._x = dim;
                 attr._y = dim;
@@ -5983,7 +5949,7 @@ namespace mirtk {
                         rigidregistration->GuessParameter();
                         rigidregistration->Run();
 
-                        RigidTransformation *rigid_dofout = dynamic_cast<RigidTransformation*> (dofout);
+                        RigidTransformation *rigid_dofout = dynamic_cast<RigidTransformation*>(dofout);
 
                         internal_transformations[j] = *rigid_dofout;
 
@@ -6272,7 +6238,7 @@ namespace mirtk {
                 rigidregistration.GuessParameter();
                 rigidregistration.Run();
 
-                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
                 _transformations[firstSliceIndex] = *rigidTransf;
 
                 //undo the offset
@@ -6860,7 +6826,7 @@ namespace mirtk {
             registration->InitialGuess(r_init);
             registration->GuessParameter();
             registration->Run();
-            RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
+            RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*>(dofout);
 
             GenericLinearInterpolateImageFunction<RealImage> interpolator;
             double source_padding = 0;

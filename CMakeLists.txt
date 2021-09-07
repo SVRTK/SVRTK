@@ -2,7 +2,7 @@
 # SVRTK : SVR reconstruction based on MIRTK
 #
 # Copyright 2008-2017 Imperial College London
-# Copyright 2018-2020 King's College London 
+# Copyright 2018-2021 King's College London 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +29,3 @@ endif ()
 #set(BASIS_PYTHON_LIBRARY_TARGET svrtk_pythonlib)
 
 mirtk_configure_module()  
-
-
-
-

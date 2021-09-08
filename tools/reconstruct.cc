@@ -99,7 +99,6 @@ int main(int argc, char **argv) {
 
     // General utility variables
     int i, j, x, y, z;
-    char buffer[256];
 
     // Names for output info files
     string infoFilename = "slice_info.tsv";
@@ -688,10 +687,8 @@ int main(int argc, char **argv) {
         reconstruction->CropImage(stacks[i], m);
 
         if (debug) {
-            sprintf(buffer, "mask%i.nii.gz", i);
-            m.Write(buffer);
-            sprintf(buffer, "cropped%i.nii.gz", i);
-            stacks[i].Write(buffer);
+            m.Write((boost::format("mask%1%.nii.gz") % i).str().c_str());
+            stacks[i].Write((boost::format("cropped%1%.nii.gz") % i).str().c_str());
         }
     }
 
@@ -1072,10 +1069,8 @@ int main(int argc, char **argv) {
             reconstruction->SaveWeights();
             reconstruction->SaveBiasFields();
             reconstruction->SimulateStacks(stacks);
-            for (unsigned int i = 0; i < stacks.size(); i++) {
-                sprintf(buffer, "simulated%i.nii.gz", i);
-                stacks[i].Write(buffer);
-            }
+            for (unsigned int i = 0; i < stacks.size(); i++)
+                stacks[i].Write((boost::format("simulated%1%.nii.gz") % i).str().c_str());
         }
 
         reconstruction->ScaleVolume();

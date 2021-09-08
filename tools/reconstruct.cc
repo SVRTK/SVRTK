@@ -123,10 +123,13 @@ int main(int argc, char **argv) {
     RealImage templateStack;
 
     // Input mask
-    RealImage *mask = NULL;
+    unique_ptr<RealImage> mask;
 
     // Array of stack transformation to the template space
     Array<RigidTransformation> stackTransformations;
+
+    // Default RigidTransformation variable for operations
+    const unique_ptr<RigidTransformation> rigidTransformation(new RigidTransformation);
 
     // Array of stack slice thickness
     vector<double> thickness;
@@ -221,7 +224,7 @@ int main(int argc, char **argv) {
     vector<string> dofinPaths;
 
     // Create reconstruction object
-    Reconstruction *reconstruction = new Reconstruction();
+    unique_ptr<Reconstruction> reconstruction(new Reconstruction());
 
     cout << "------------------------------------------------------" << endl;
 
@@ -395,7 +398,7 @@ int main(int argc, char **argv) {
     // Binary mask for reconstruction / final volume
     if (vm.count("mask")) {
         cout << "Mask : " << vm["mask"].as<string>() << endl;
-        mask = new RealImage(vm["mask"].as<string>().c_str());
+        mask = unique_ptr<RealImage>(new RealImage(vm["mask"].as<string>().c_str()));
     }
 
     // Number of registration-reconstruction iterations
@@ -579,11 +582,8 @@ int main(int argc, char **argv) {
     }
 
     // If transformations were not defined by user, set them to identity
-    for (i = 0; i < nStacks; i++) {
-        RigidTransformation *rigidTransf = new RigidTransformation;
-        stackTransformations.push_back(*rigidTransf);
-        delete rigidTransf;
-    }
+    for (i = 0; i < nStacks; i++)
+        stackTransformations.push_back(*rigidTransformation);
 
     // Initialise 2*slice thickness if not given by user
     if (thickness.size() == 0) {
@@ -612,7 +612,7 @@ int main(int argc, char **argv) {
 
     // If no mask was given - try to create mask from the template image in case it was padded
     if (mask == NULL) {
-        mask = new RealImage(stacks[templateNumber]);
+        mask = unique_ptr<RealImage>(new RealImage(stacks[templateNumber]));
         *mask = reconstruction->CreateMask(*mask);
         cout << "Warning : no mask was provided " << endl;
     }
@@ -638,8 +638,7 @@ int main(int argc, char **argv) {
     // If the template was provided separately - crop and mask the template with the given mask
     if (useTemplate) {
         RealImage m = *mask;
-        RigidTransformation *rigidTransf = new RigidTransformation;
-        reconstruction->TransformMask(templateStack, m, *rigidTransf);
+        reconstruction->TransformMask(templateStack, m, *rigidTransformation);
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = templateStack * m;
@@ -652,7 +651,7 @@ int main(int argc, char **argv) {
     resolution = reconstruction->CreateTemplate(maskedTemplate, resolution);
 
     // Set mask to reconstruction object
-    reconstruction->SetMask(mask, smoothMask);
+    reconstruction->SetMask(mask.get(), smoothMask);
 
     // If remove_black_background flag is set, create mask from black background of the stacks
     if (removeBlackBackground)
@@ -733,8 +732,7 @@ int main(int argc, char **argv) {
 
         RealImage transformedTemplateMask = *mask;
         RealImage templateToCheck = templateStack;
-        RigidTransformation *tmpRreg = new RigidTransformation();
-        reconstruction->TransformMask(templateToCheck, transformedTemplateMask, *tmpRreg);
+        reconstruction->TransformMask(templateToCheck, transformedTemplateMask, *rigidTransformation);
         reconstruction->CropImage(templateToCheck, transformedTemplateMask);
         reconstruction->CropImage(transformedTemplateMask, transformedTemplateMask);
 

@@ -2405,7 +2405,8 @@ namespace mirtk {
 
                     // run registration remotely
                     string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_ds + " " + str_log + " -threads 1";
-                    int tmp_log = system(register_cmd.c_str());
+                    if (system(register_cmd.c_str()) == -1)
+                        cerr << "The register command couldn't be executed!" << endl;
                 }
             } // end of inputIndex
         }
@@ -2456,7 +2457,8 @@ namespace mirtk {
 
                     // run registration
                     string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_log + " -threads 1";
-                    int tmp_log = system(register_cmd.c_str());
+                    if (system(register_cmd.c_str()) == -1)
+                        cerr << "The register command couldn't be executed!" << endl;
                 }
             } // end of inputIndex
         }

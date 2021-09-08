@@ -902,7 +902,10 @@ int main(int argc, char **argv) {
         for (int iter = 0; iter < iterations; iter++) {
             currentIteration = iter;
             string reconstructCmd = strMirtkPath + "/reconstruct-round " + " " + strMirtkPath + " " + strCurrentMainFilePath + " " + strCurrentExchangeFilePath + " " + to_string(currentIteration) + " " + to_string(reconstruction->_number_of_slices_org) + " " + to_string(reconstruction->_average_thickness_org) + " " + strFlags;
-            system(reconstructCmd.c_str());
+            if (system(reconstructCmd.c_str()) == -1) {
+                cerr << "The reconstruct command couldn't be executed!" << endl;
+                return 1;
+            }
         }
 
     } else {

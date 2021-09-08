@@ -2797,11 +2797,7 @@ namespace mirtk {
         }
 
         void operator()(const blocked_range<size_t> &r) const {
-
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
-
-                bool slice_inside;
-
                 ImageAttributes attr_g = reconstructor->_grey_reconstructed.GetImageAttributes();
                 RealImage global_reconstructed(attr_g);
 
@@ -2819,8 +2815,8 @@ namespace mirtk {
                 VOXELCOEFFS empty;
                 SLICECOEFFS slicecoeffs(global_slice.GetX(), Array < VOXELCOEFFS >(global_slice.GetY(), empty));
 
-                //to check whether the slice has an overlap with mask ROI
-                slice_inside = false;
+                // To check whether the slice has an overlap with mask ROI
+                bool slice_inside = false;
 
                 //PSF will be calculated in slice space in higher resolution
 
@@ -2830,22 +2826,22 @@ namespace mirtk {
 
                 //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
                 double sigmax, sigmay, sigmaz;
-                if (reconstructor->_recon_type == _3D) {
+                switch (reconstructor->_recon_type) {
+                case _3D:
                     sigmax = 1.2 * dx / 2.3548;
                     sigmay = 1.2 * dy / 2.3548;
                     sigmaz = dz / 2.3548;
-                }
+                    break;
 
-                if (reconstructor->_recon_type == _1D) {
+                case _1D:
                     sigmax = 0.5 * dx / 2.3548;
                     sigmay = 0.5 * dy / 2.3548;
                     sigmaz = dz / 2.3548;
-                }
+                    break;
 
-                if (reconstructor->_recon_type == _interpolate) {
-                    sigmax = 0.5 * dx / 2.3548;
-                    sigmay = 0.5 * dx / 2.3548;
-                    sigmaz = 0.5 * dx / 2.3548;
+                case _interpolate:
+                    sigmax = sigmay = sigmaz = 0.5 * dx / 2.3548;
+                    break;
                 }
 
                 if (reconstructor->_no_sr) {
@@ -2963,10 +2959,7 @@ namespace mirtk {
                                 tz = round(z);
 
                                 //Clear the transformed PSF
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
-                                            tPSF(ii, jj, kk) = 0;
+                                memset(tPSF.Data(), 0, sizeof(RealPixel) * tPSF.NumberOfVoxels());
 
                                 //for each POINT3D of the PSF
                                 for (ii = 0; ii < xDim; ii++)

@@ -295,7 +295,7 @@ namespace mirtk {
         RealImage CreateAverage(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations);
 
         // Transform and resample mask to the space of the image
-        void TransformMask(RealImage& image, RealImage& mask, RigidTransformation& transformation);
+        void TransformMask(const RealImage& image, RealImage& mask, const RigidTransformation& transformation);
 
         // Rescale image ignoring negative values
         void Rescale(RealImage &img, double max);

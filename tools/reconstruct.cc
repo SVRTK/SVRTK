@@ -38,6 +38,8 @@
 
 // Boost
 #include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/format.hpp>
 
 // C++ Standard
 #include <iostream>
@@ -89,9 +91,6 @@ int main(int argc, char **argv) {
     // INPUT VARIABLES, FLAG AND DEFAULT VALUES
     // -----------------------------------------------------------------------------
 
-    // Path to MIRTK executables (required for calling registration function outside reconstruction )
-    const char *currentMirtkPath = argv[0];
-
     // Initialisation of MIRTK image reader library
     InitializeIOLibrary();
 
@@ -119,9 +118,6 @@ int main(int argc, char **argv) {
     // Array of stacks and stack names
     Array<RealImage> stacks;
     vector<string> stackFiles;
-
-    // Output volume
-    RealImage reconstructed;
 
     // Template stack
     RealImage templateStack;
@@ -566,40 +562,15 @@ int main(int argc, char **argv) {
         cout << "New number of stacks : " << nStacks << endl;
     }
 
-
     // Read path to MIRTK executables for remote registration
-    string strMirtkPath;
-    string strCurrentMainFilePath;
-    string strCurrentExchangeFilePath;
+    string strMirtkPath(argv[0]);
+    strMirtkPath = strMirtkPath.substr(0, strMirtkPath.find_last_of("/"));
+    const string strCurrentMainFilePath = boost::filesystem::current_path().string();
 
-    string strReconPath(currentMirtkPath);
-    size_t pos = strReconPath.find_last_of("/");
-    strMirtkPath = strReconPath.substr(0, pos);
-
-    system("pwd > pwd.txt ");
-    ifstream pwdFile("pwd.txt");
-
-    if (pwdFile.is_open()) {
-        getline(pwdFile, strCurrentMainFilePath);
-        pwdFile.close();
-    } else {
-        cout << "System error: no rights to write in the current folder" << endl;
-        exit(1);
-    }
-
-    strCurrentExchangeFilePath = strCurrentMainFilePath + "/tmp-file-exchange";
-
-    if (!strCurrentExchangeFilePath.empty()) {
-        string removeFolderCmd = "rm -r " + strCurrentExchangeFilePath + " > tmp-log.txt ";
-        system(removeFolderCmd.c_str());
-
-        string createFolderCmd = "mkdir " + strCurrentExchangeFilePath + " > tmp-log.txt ";
-        system(createFolderCmd.c_str());
-    } else {
-        cout << "System error: could not create a folder for file exchange" << endl;
-        exit(1);
-    }
-
+    // Create an empty file exchange directory
+    const string strCurrentExchangeFilePath = strCurrentMainFilePath + "/tmp-file-exchange";
+    boost::filesystem::remove_all(strCurrentExchangeFilePath.c_str());
+    boost::filesystem::create_directory(strCurrentExchangeFilePath.c_str());
 
     // Rescale stack if specified
     if (rescaleStacks) {
@@ -1050,9 +1021,7 @@ int main(int argc, char **argv) {
 
                 if (debug) {
                     // Save intermediate reconstructed image
-                    reconstructed = reconstruction->GetReconstructed();
-                    sprintf(buffer, "super%i.nii.gz", i);
-                    reconstructed.Write(buffer);
+                    reconstruction->GetReconstructed().Write((boost::format("super%1%.nii.gz") % i).str().c_str());
 
                     // Evaluate reconstruction quality
                     double error = reconstruction->EvaluateReconQuality(1);
@@ -1065,9 +1034,7 @@ int main(int argc, char **argv) {
             reconstruction->MaskVolume();
 
             // Save reconstructed image
-            reconstructed = reconstruction->GetReconstructed();
-            sprintf(buffer, "image%i.nii.gz", iter);
-            reconstructed.Write(buffer);
+            reconstruction->GetReconstructed().Write((boost::format("image%1%.nii.gz") % iter).str().c_str());
 
             // Compute and save quality metrics
             double outNcc = 0;
@@ -1113,20 +1080,16 @@ int main(int argc, char **argv) {
         reconstruction->ScaleVolume();
     }
 
-    // Load results if remore reconstruction was used - this optin can be removed
+    // Load results if remote reconstruction was used - this option can be removed
     if (fullRemoteRecon) {
         reconstruction->LoadResultsRemote(strCurrentExchangeFilePath, reconstruction->_number_of_slices_org, currentIteration);
         reconstruction->ScaleVolume();
     }
 
-    // Save final result
-    if (!strCurrentExchangeFilePath.empty()) {
-        string removeFolderCmd = "rm -r " + strCurrentExchangeFilePath + " > tmp-log.txt ";
-        system(removeFolderCmd.c_str());
-    }
+    // Remove the file exchange directory
+    boost::filesystem::remove_all(strCurrentExchangeFilePath.c_str());
 
-    reconstructed = reconstruction->GetReconstructed();
-    reconstructed.Write(outputName.c_str());
+    reconstruction->GetReconstructed().Write(outputName.c_str());
 
     cout << "Output volume : " << outputName << endl;
 

@@ -727,7 +727,7 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     // transform mask to the specified stack space
-    void Reconstruction::TransformMask(RealImage& image, RealImage& mask, RigidTransformation& transformation) {
+    void Reconstruction::TransformMask(const RealImage& image, RealImage& mask, const RigidTransformation& transformation) {
         //transform mask to the space of image
         ImageTransformation imagetransformation;
 

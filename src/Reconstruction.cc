@@ -846,9 +846,18 @@ namespace mirtk {
     void Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded) {
         ParallelQualityReport parallelQualityReport(this);
         parallelQualityReport();
+
+        average_weight = _average_volume_weight;
         out_ncc = parallelQualityReport.out_global_ncc / _slices.size();
         out_nrmse = parallelQualityReport.out_global_nrmse / _slices.size();
-        average_weight = _average_volume_weight;
+
+        // Check if it's NaN; the result is false if the value is NaN
+        // ToDo: Implement it in a better way
+        if (out_nrmse != out_nrmse)
+            out_nrmse = 0;
+
+        if (out_ncc != out_ncc)
+            out_ncc = 0;
 
         size_t count_excluded = 0;
         for (int i = 0; i < _slices.size(); i++) {

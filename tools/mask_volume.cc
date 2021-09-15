@@ -31,7 +31,7 @@
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
 
-#include "mirtk/ReconstructionFFD.h"
+#include "svrtk/ReconstructionFFD.h"
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 

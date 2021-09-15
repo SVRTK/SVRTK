@@ -33,7 +33,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 
 
 using namespace mirtk;

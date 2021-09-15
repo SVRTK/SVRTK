@@ -32,7 +32,7 @@
 #include "mirtk/ImageReader.h"
 
 // SVRTK
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 #define SVRTK_TOOL
 #include "svrtk/Profiling.h"
 

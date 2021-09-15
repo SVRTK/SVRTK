@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#include "mirtk/MeanShift.h"
+#include "svrtk/MeanShift.h"
  
 
 using namespace std;

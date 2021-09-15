@@ -32,7 +32,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/ReconstructionCardiac4D.h"
+#include "svrtk/ReconstructionCardiac4D.h"
 #include <string>
 
 

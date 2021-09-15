@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "mirtk/ReconstructionCardiac4D.h"
+#include "svrtk/ReconstructionCardiac4D.h"
 #include "mirtk/Resampling.h"
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"

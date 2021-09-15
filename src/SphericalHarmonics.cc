@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "mirtk/SphericalHarmonics.h"
+#include "svrtk/SphericalHarmonics.h"
 
 
 using namespace std;

@@ -34,7 +34,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 
 #include <iostream>
 #include <chrono>

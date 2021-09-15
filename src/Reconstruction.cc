@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 #include "svrtk/Profiling.h"
 
 

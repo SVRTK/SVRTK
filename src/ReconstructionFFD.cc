@@ -17,7 +17,7 @@
  */
 
 
-#include "mirtk/ReconstructionFFD.h"
+#include "svrtk/ReconstructionFFD.h"
 
 
 namespace mirtk {

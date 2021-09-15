@@ -32,7 +32,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/ReconstructionDWI.h"
+#include "svrtk/ReconstructionDWI.h"
 
 #include <iostream>
 #include <chrono>

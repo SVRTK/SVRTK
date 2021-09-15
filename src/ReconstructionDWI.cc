@@ -16,7 +16,7 @@
  * limitations under the License.
  */
  
-#include "mirtk/ReconstructionDWI.h"
+#include "svrtk/ReconstructionDWI.h"
 
 
 using namespace std;

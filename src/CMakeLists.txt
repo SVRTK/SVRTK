@@ -3,7 +3,7 @@
 #
 # Copyright Imperial College London
 # Copyright 2018 Andreas Schuh
-# Copyright 2018-2020 King's College London
+# Copyright 2018-2021 King's College London
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@
 
 set(HEADERS
   ${BINARY_INCLUDE_DIR}/mirtk/SVRTKExport.h
-  Reconstruction.h
-  ReconstructionDWI.h
-  ReconstructionCardiac4D.h
-  ReconstructionCardiacVelocity4D.h
-  ReconstructionFFD.h
-  MeanShift.h
-  NLDenoising.h
-  SphericalHarmonics.h
+  ../svrtk/Reconstruction.h
+  ../svrtk/ReconstructionDWI.h
+  ../svrtk/ReconstructionCardiac4D.h
+  ../svrtk/ReconstructionCardiacVelocity4D.h
+  ../svrtk/ReconstructionFFD.h
+  ../svrtk/MeanShift.h
+  ../svrtk/NLDenoising.h
+  ../svrtk/SphericalHarmonics.h
 )
 
 set(SOURCES
@@ -57,7 +57,4 @@ set(DEPENDS
   ${TBB}
 )
 
-#list(APPEND DEPENDS tbb)
-
 mirtk_add_library()
-

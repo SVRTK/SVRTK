@@ -15,7 +15,7 @@
  =========================================================================*/
 
 
-#include "mirtk/NLDenoising.h"
+#include "svrtk/NLDenoising.h"
 
 using namespace std;
 

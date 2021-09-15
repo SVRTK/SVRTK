@@ -19,7 +19,7 @@
 #ifndef MIRTK_ReconstructionCardiac4D_H
 #define MIRTK_ReconstructionCardiac4D_H
  
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 
 
 namespace mirtk {

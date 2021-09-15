@@ -1100,9 +1100,9 @@ namespace mirtk {
         
         for (unsigned int i = 0; i < _slices.size(); i++) {
             //to update minimum we need to exclude padding value
-            RealPixel *ptr = _slices[i].GetPointerToVoxels();
+            RealPixel *ptr = _slices[i].Data();
             
-            for (int ind = 0; ind < _slices[i].GetNumberOfVoxels(); ind++) {
+            for (int ind = 0; ind < _slices[i].NumberOfVoxels(); ind++) {
                 if (*ptr > -10) {
                     
                     double tmp = abs(*ptr);
@@ -1133,11 +1133,11 @@ namespace mirtk {
         
         for (unsigned int i = 0; i < _slices.size(); i++) {
             //Initialise voxel weights and bias values
-            RealPixel *pw = _weights[i].GetPointerToVoxels();
-            RealPixel *pb = _bias[i].GetPointerToVoxels();
-            RealPixel *pi = _slices[i].GetPointerToVoxels();
+            RealPixel *pw = _weights[i].Data();
+            RealPixel *pb = _bias[i].Data();
+            RealPixel *pi = _slices[i].Data();
             
-            for (int j = 0; j < _weights[i].GetNumberOfVoxels(); j++) {
+            for (int j = 0; j < _weights[i].NumberOfVoxels(); j++) {
                 if (*pi > -10) {
                     *pw = 1;
                     *pb = 0;

@@ -349,8 +349,8 @@ namespace mirtk {
                 
             }
             
-            ptr = stacks[ind].GetPointerToVoxels();
-            for (i = 0; i < stacks[ind].GetNumberOfVoxels(); i++) {
+            ptr = stacks[ind].Data();
+            for (i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
                 if (*ptr > 0)
                     *ptr *= factor;
                 ptr++;
@@ -1175,8 +1175,8 @@ namespace mirtk {
         if(_debug)
             cout<<" scale = "<<scale;
         
-        RealPixel *ptr = _reconstructed4D.GetPointerToVoxels();
-        for(i=0;i<_reconstructed4D.GetNumberOfVoxels();i++) {
+        RealPixel *ptr = _reconstructed4D.Data();
+        for(i=0;i<_reconstructed4D.NumberOfVoxels();i++) {
             if(*ptr>0) *ptr = *ptr * scale;
             ptr++;
         }
@@ -1776,9 +1776,9 @@ namespace mirtk {
                 //read current scale factor
                 double scale = reconstructor->_scale[inputIndex];
                 
-                RealPixel *pi = slice.GetPointerToVoxels();
-                RealPixel *pb = b.GetPointerToVoxels();
-                for(int i = 0; i<slice.GetNumberOfVoxels(); i++) {
+                RealPixel *pi = slice.Data();
+                RealPixel *pb = b.Data();
+                for(int i = 0; i<slice.NumberOfVoxels(); i++) {
                     if((*pi>-1)&&(scale>0))
                         *pb -= log(scale);
                     pb++;

@@ -126,10 +126,10 @@ namespace mirtk {
                 imagetransformation.Interpolator(&interpolator);
                 imagetransformation.Run();
                 
-                RealPixel *pa = average.GetPointerToVoxels();
-                RealPixel *pi = image.GetPointerToVoxels();
-                RealPixel *pw = weights.GetPointerToVoxels();
-                for (int p = 0; p < average.GetNumberOfVoxels(); p++) {
+                RealPixel *pa = average.Data();
+                RealPixel *pi = image.Data();
+                RealPixel *pw = weights.Data();
+                for (int p = 0; p < average.NumberOfVoxels(); p++) {
                     if (*pi != background) {
                         *pa += *pi;
                         *pw += 1;
@@ -397,8 +397,8 @@ namespace mirtk {
                 gb.Output(mask);
                 gb.Run();
                 
-                RealPixel* ptr = mask->GetPointerToVoxels();
-                for (int i = 0; i < mask->GetNumberOfVoxels(); i++) {
+                RealPixel* ptr = mask->Data();
+                for (int i = 0; i < mask->NumberOfVoxels(); i++) {
                     if (*ptr > threshold)
                         *ptr = 1;
                     else
@@ -898,8 +898,8 @@ namespace mirtk {
 
             factor = _stack_factor[_stack_index[inputIndex]];
             
-            p = _slices[inputIndex].GetPointerToVoxels();
-            for(i=0;i<_slices[inputIndex].GetNumberOfVoxels();i++) {
+            p = _slices[inputIndex].Data();
+            for(i=0;i<_slices[inputIndex].NumberOfVoxels();i++) {
                 if(*p>0) *p = *p / factor;
                 p++;
             }
@@ -943,8 +943,8 @@ namespace mirtk {
         if(_debug)
             cout<<" scale = "<<scale;
         
-        RealPixel *ptr = _reconstructed.GetPointerToVoxels();
-        for(i=0;i<_reconstructed.GetNumberOfVoxels();i++) {
+        RealPixel *ptr = _reconstructed.Data();
+        for(i=0;i<_reconstructed.NumberOfVoxels();i++) {
             if(*ptr>0) *ptr = *ptr * scale;
             ptr++;
         }
@@ -1160,8 +1160,8 @@ namespace mirtk {
                 
             }
             
-            ptr = stacks[ind].GetPointerToVoxels();
-            for (i = 0; i < stacks[ind].GetNumberOfVoxels(); i++) {
+            ptr = stacks[ind].Data();
+            for (i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
                 if (*ptr > 0)
                     *ptr *= factor;
                 ptr++;
@@ -1326,8 +1326,8 @@ namespace mirtk {
                 
             }
             
-            ptr = stacks[ind].GetPointerToVoxels();
-            for (i = 0; i < stacks[ind].GetNumberOfVoxels(); i++) {
+            ptr = stacks[ind].Data();
+            for (i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
                 if (*ptr > 0)
                     *ptr *= factor;
                 ptr++;
@@ -1906,11 +1906,11 @@ namespace mirtk {
         if (_debug)
             _volume_weights.Write("volume_weights.nii.gz");
         
-        RealPixel *ptr = _volume_weights.GetPointerToVoxels();
-        RealPixel *pm = _mask.GetPointerToVoxels();
+        RealPixel *ptr = _volume_weights.Data();
+        RealPixel *pm = _mask.Data();
         double sum = 0;
         int num=0;
-        for (int i=0;i<_volume_weights.GetNumberOfVoxels();i++) {
+        for (int i=0;i<_volume_weights.NumberOfVoxels();i++) {
             if (*pm==1) {
                 sum+=*ptr;
                 num++;
@@ -2019,8 +2019,8 @@ namespace mirtk {
         _min_intensity = voxel_limits<RealPixel>::max();
         for (unsigned int i = 0; i < _slices.size(); i++) {
 
-            RealPixel *ptr = _slices[i].GetPointerToVoxels();
-            for (int ind = 0; ind < _slices[i].GetNumberOfVoxels(); ind++) {
+            RealPixel *ptr = _slices[i].Data();
+            for (int ind = 0; ind < _slices[i].NumberOfVoxels(); ind++) {
                 if (*ptr > 0) {
                     if (*ptr > _max_intensity)
                         _max_intensity = *ptr;
@@ -2041,10 +2041,10 @@ namespace mirtk {
         
         for (unsigned int i = 0; i < _slices.size(); i++) {
 
-            RealPixel *pw = _weights[i].GetPointerToVoxels();
-            RealPixel *pb = _bias[i].GetPointerToVoxels();
-            RealPixel *pi = _slices[i].GetPointerToVoxels();
-            for (int j = 0; j < _weights[i].GetNumberOfVoxels(); j++) {
+            RealPixel *pw = _weights[i].Data();
+            RealPixel *pb = _bias[i].Data();
+            RealPixel *pi = _slices[i].Data();
+            for (int j = 0; j < _weights[i].NumberOfVoxels(); j++) {
                 if (*pi != -1) {
                     *pw = 1;
                     *pb = 0;
@@ -2076,9 +2076,9 @@ namespace mirtk {
             bias.push_back(_bias[i]);
             scale.push_back(_scale[i]);
 
-            RealPixel *pb = _bias[i].GetPointerToVoxels();
-            RealPixel *pi = _slices[i].GetPointerToVoxels();
-            for (int j = 0; j < _bias[i].GetNumberOfVoxels(); j++) {
+            RealPixel *pb = _bias[i].Data();
+            RealPixel *pi = _slices[i].Data();
+            for (int j = 0; j < _bias[i].NumberOfVoxels(); j++) {
                 if (*pi != -1) {
                     *pb = 0;
                 }
@@ -2587,8 +2587,8 @@ namespace mirtk {
         RealPixel *ps;
         for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++)
         {
-            ps = _slices[inputIndex].GetPointerToVoxels();
-            for(int i=0; i<_slices[inputIndex].GetNumberOfVoxels();i++)
+            ps = _slices[inputIndex].Data();
+            for(int i=0; i<_slices[inputIndex].NumberOfVoxels();i++)
             {
                 if (*ps!=-1)
                 {
@@ -3303,9 +3303,9 @@ namespace mirtk {
         sum=0;
         int num=0;
         
-        RealPixel* pl = laplacian.GetPointerToVoxels();
-        RealPixel* pm = _mask_internal.GetPointerToVoxels();
-        for(i=0;i<laplacian.GetNumberOfVoxels(); i++)
+        RealPixel* pl = laplacian.Data();
+        RealPixel* pm = _mask_internal.Data();
+        for(i=0;i<laplacian.NumberOfVoxels(); i++)
         {
             if(*pm==1)
             {
@@ -3435,10 +3435,10 @@ namespace mirtk {
         RealImage residual = _reconstructed;
         RealImage weights = _mask;
         
-        RealPixel *pr = residual.GetPointerToVoxels();
-        RealPixel *po = original.GetPointerToVoxels();
-        RealPixel *pw = weights.GetPointerToVoxels();
-        for (int i = 0; i < _reconstructed.GetNumberOfVoxels(); i++) {
+        RealPixel *pr = residual.Data();
+        RealPixel *po = original.Data();
+        RealPixel *pw = weights.Data();
+        for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
   
             if ((*pw == 1) && (*po > _low_intensity_cutoff * _max_intensity)
                 && (*pr > _low_intensity_cutoff * _max_intensity)) {
@@ -3465,11 +3465,11 @@ namespace mirtk {
         gb.Output(&weights);
         gb.Run();
 
-        pr = residual.GetPointerToVoxels();
-        pw = weights.GetPointerToVoxels();
-        RealPixel *pm = _mask.GetPointerToVoxels();
-        RealPixel *pi = _reconstructed.GetPointerToVoxels();
-        for (int i = 0; i < _reconstructed.GetNumberOfVoxels(); i++) {
+        pr = residual.Data();
+        pw = weights.Data();
+        RealPixel *pm = _mask.Data();
+        RealPixel *pi = _reconstructed.Data();
+        for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
             
             if (*pm == 1) {
      
@@ -3556,9 +3556,9 @@ namespace mirtk {
                 
                 double scale = reconstructor->_scale[inputIndex];
                 
-                RealPixel *pi = slice.GetPointerToVoxels();
-                RealPixel *pb = b.GetPointerToVoxels();
-                for(int i = 0; i<slice.GetNumberOfVoxels(); i++) {
+                RealPixel *pi = slice.Data();
+                RealPixel *pb = b.Data();
+                for(int i = 0; i<slice.NumberOfVoxels(); i++) {
                     if((*pi>-1)&&(scale>0))
                         *pb -= log(scale);
                     pb++;
@@ -3646,9 +3646,9 @@ namespace mirtk {
         }
         
         RealPixel *pi, *pb;
-        pi = _reconstructed.GetPointerToVoxels();
-        pb = bias.GetPointerToVoxels();
-        for (int i = 0; i<_reconstructed.GetNumberOfVoxels();i++) {
+        pi = _reconstructed.Data();
+        pb = bias.Data();
+        for (int i = 0; i<_reconstructed.NumberOfVoxels();i++) {
             if(*pi!=-1)
                 *pi /=exp(-(*pb));
             pi++;
@@ -3698,9 +3698,9 @@ namespace mirtk {
         {
             RealImage stack = image.GetRegion(0,0,0,t,image.GetX(),image.GetY(),image.GetZ(),t+1);
             RealPixel *pi, *pb;
-            pi = stack.GetPointerToVoxels();
-            pb = bias.GetPointerToVoxels();
-            for (int i = 0; i<stack.GetNumberOfVoxels();i++)
+            pi = stack.Data();
+            pb = bias.Data();
+            for (int i = 0; i<stack.NumberOfVoxels();i++)
             {
                 if(*pi!=-1)
                     *pi /=exp(-(*pb));
@@ -4237,9 +4237,9 @@ namespace mirtk {
     
     void ReconstructionDWI::MaskVolume()
     {
-        RealPixel *pr = _reconstructed.GetPointerToVoxels();
-        RealPixel *pm = _mask.GetPointerToVoxels();
-        for (int i = 0; i < _reconstructed.GetNumberOfVoxels(); i++) {
+        RealPixel *pr = _reconstructed.Data();
+        RealPixel *pm = _mask.Data();
+        for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
             if (*pm == 0)
                 *pr = -1;
             pm++;
@@ -4249,13 +4249,13 @@ namespace mirtk {
     
     void ReconstructionDWI::MaskImage(RealImage& image, double padding)
     {
-        if(image.GetNumberOfVoxels()!=_mask.GetNumberOfVoxels()) {
+        if(image.NumberOfVoxels()!=_mask.NumberOfVoxels()) {
             cerr<<"Cannot mask the image - different dimensions"<<endl;
             exit(1);
         }
-        RealPixel *pr = image.GetPointerToVoxels();
-        RealPixel *pm = _mask.GetPointerToVoxels();
-        for (int i = 0; i < image.GetNumberOfVoxels(); i++) {
+        RealPixel *pr = image.Data();
+        RealPixel *pm = _mask.Data();
+        for (int i = 0; i < image.NumberOfVoxels(); i++) {
             if (*pm == 0)
                 *pr = padding;
             pm++;
@@ -4272,8 +4272,8 @@ namespace mirtk {
         // Get lower and upper bound
         img.GetMinMax(&min_val, &max_val);
         
-        n   = img.GetNumberOfVoxels();
-        ptr = img.GetPointerToVoxels();
+        n   = img.NumberOfVoxels();
+        ptr = img.Data();
         for (i = 0; i < n; i++)
             if ( ptr[i] > 0 )
                 ptr[i] = double(ptr[i]) / double(max_val) * max;
@@ -6968,9 +6968,9 @@ namespace mirtk {
                     //read current scale factor
                     double scale = reconstructor->_scale[inputIndex];
                     
-                    RealPixel *pi = slice.GetPointerToVoxels();
-                    RealPixel *pb = b.GetPointerToVoxels();
-                    for(int i = 0; i<slice.GetNumberOfVoxels(); i++) {
+                    RealPixel *pi = slice.Data();
+                    RealPixel *pb = b.Data();
+                    for(int i = 0; i<slice.NumberOfVoxels(); i++) {
                         if((*pi>-1)&&(scale>0))
                             *pb -= log(scale);
                         pb++;
@@ -7113,9 +7113,9 @@ namespace mirtk {
             RealImage m = bias;
             m=0;
             RealPixel *pm, *pb;
-            pm = m.GetPointerToVoxels();
-            pb = bias.GetPointerToVoxels();
-            for (int i = 0; i<m.GetNumberOfVoxels();i++) {
+            pm = m.Data();
+            pb = bias.Data();
+            for (int i = 0; i<m.NumberOfVoxels();i++) {
                 if(*pb!=0)
                     *pm =1;
                 pm++;

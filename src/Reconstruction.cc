@@ -17,8 +17,12 @@
  * limitations under the License.
  */
 
+// SVRTK
 #include "svrtk/Reconstruction.h"
 #include "svrtk/Profiling.h"
+
+// Boost
+#include <boost/format.hpp>
 
 
 using namespace std;
@@ -1044,8 +1048,6 @@ namespace mirtk {
 
         void operator()(const blocked_range<size_t> &r) const {
             for (size_t i = r.begin(); i != r.end(); ++i) {
-                char buffer[256];
-
                 if (!reconstructor->_template_flag) {
                     //do not perform registration for template
                     if (i == templateNumber)
@@ -1114,11 +1116,8 @@ namespace mirtk {
 
                 //save volumetric registrations
                 if (reconstructor->_debug) {
-                    //buffer to create the name
-                    sprintf(buffer, "global-transformation%zu.dof", i);
-                    stack_transformations[i].Write(buffer);
-                    sprintf(buffer, "global-stack%zu.nii.gz", i);
-                    stacks[i].Write(buffer);
+                    stack_transformations[i].Write((boost::format("global-transformation%1%.dof") % i).str().c_str());
+                    stacks[i].Write((boost::format("global-stack%1%.nii.gz") % i).str().c_str());
                 }
             }
         }
@@ -1407,7 +1406,6 @@ namespace mirtk {
     // match stack intensities with respect to the average
     void Reconstruction::MatchStackIntensities(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together) {
         //Calculate the averages of intensities for all stacks
-        char buffer[256];
         Array<double> stack_average;
 
         //remember the set average value
@@ -1493,10 +1491,8 @@ namespace mirtk {
         }
 
         if (_debug) {
-            for (int ind = 0; ind < stacks.size(); ind++) {
-                sprintf(buffer, "rescaled-stack%i.nii.gz", ind);
-                stacks[ind].Write(buffer);
-            }
+            for (int ind = 0; ind < stacks.size(); ind++)
+                stacks[ind].Write((boost::format("rescaled-stack%1%.nii.gz") % ind).str().c_str());
         }
 
         if (_verbose) {
@@ -1615,7 +1611,6 @@ namespace mirtk {
     void Reconstruction::MatchStackIntensitiesWithMasking(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together) {
         SVRTK_START_TIMING();
 
-        char buffer[256];
         Array<double> stack_average;
 
         for (int i = 0; i < stacks.size(); i++)
@@ -1658,14 +1653,13 @@ namespace mirtk {
                                 m(i, j, k) = 0;
                         }
                     }
-            if (_debug) {
-                sprintf(buffer, "mask-for-matching%i.nii.gz", ind);
-                m.Write(buffer);
-            }
+            if (_debug)
+                m.Write((boost::format("mask-for-matching%1%.nii.gz") % ind).str().c_str());
+
             //calculate average for the stack
-            if (num > 0)
-                stack_average[ind] = (sum / num);
-            else {
+            if (num > 0) {
+                stack_average[ind] = sum / num;
+            } else {
                 cerr << "Stack " << ind << " has no overlap with ROI" << endl;
                 exit(1);
             }
@@ -1713,10 +1707,8 @@ namespace mirtk {
         }
 
         if (_debug) {
-            for (int ind = 0; ind < stacks.size(); ind++) {
-                sprintf(buffer, "rescaled-stack%i.nii.gz", ind);
-                stacks[ind].Write(buffer);
-            }
+            for (int ind = 0; ind < stacks.size(); ind++)
+                stacks[ind].Write((boost::format("rescaled-stack%1%.nii.gz") % ind).str().c_str());
         }
 
         if (_verbose) {
@@ -1994,17 +1986,13 @@ namespace mirtk {
         }
 
         void operator()(const blocked_range<size_t> &r) const {
-
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
-
-                char buffer[256];
                 GreyPixel smin, smax;
                 GreyImage target;
                 target = reconstructor->_grey_slices[inputIndex];
                 target.GetMinMax(&smin, &smax);
 
                 if (smax > 1 && (smax - smin) > 1) {
-
                     ParameterList params;
                     Insert(params, "Transformation model", "Rigid");
                     GreyPixel tmin, tmax;
@@ -2016,10 +2004,8 @@ namespace mirtk {
 
                     if (tmin < 0) {
                         Insert(params, "Background value for image 2", -1);
-                    } else {
-                        if (tmin < 1) {
-                            Insert(params, "Background value for image 2", 0);
-                        }
+                    } else if (tmin < 1) {
+                        Insert(params, "Background value for image 2", 0);
                     }
 
                     if (!reconstructor->_ncc_reg) {
@@ -2075,8 +2061,7 @@ namespace mirtk {
                         double ry = reconstructor->_transformations[inputIndex].GetRotationY();
                         double rz = reconstructor->_transformations[inputIndex].GetRotationZ();
 
-                        sprintf(buffer, "%zu %f %f %f %f %f %f", inputIndex, tx, ty, tz, rx, ry, rz);
-                        cout << buffer << endl;
+                        cout << boost::format("%1% %1% %1% %1% %1% %1% %1%") % inputIndex % tx % ty % tz % rx % ry % rz << endl;
                     }
                 }
             }
@@ -2112,7 +2097,6 @@ namespace mirtk {
     void Reconstruction::StructuralExclusion() {
         SVRTK_START_TIMING();
 
-        char buffer[256];
         RealImage source = _reconstructed;
 
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
@@ -2274,7 +2258,6 @@ namespace mirtk {
             ImageAttributes attr = reconstructor->_reconstructed.GetImageAttributes();
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
-                char buffer[256];
                 GreyPixel smin, smax;
                 GreyImage target;
                 GreyImage slice, w, b;
@@ -2740,21 +2723,19 @@ namespace mirtk {
 
     // save slice info in .csv
     void Reconstruction::SaveSliceInfo(int current_iteration = -1) {
-
-        char buffer[256];
+        string file_name;
         ofstream GD_csv_file;
 
         if (current_iteration > 0) {
-            sprintf(buffer, "summary-slice-info-%i.csv", current_iteration);
+            file_name = (boost::format("summary-slice-info-%1%.csv") % current_iteration).str();
         } else {
-            sprintf(buffer, "summary-slice-info.csv");
+            file_name = "summary-slice-info.csv";
         }
 
-        GD_csv_file.open(buffer);
+        GD_csv_file.open(file_name);
         GD_csv_file << "Stack" << "," << "Slice" << "," << "Rx" << "," << "Ry" << "," << "Rz" << "," << "Tx" << "," << "Ty" << "," << "Tz" << "," << "Weight" << "," << "Inside" << "," << "Scale" << endl;
 
         for (int i = 0; i < _slices.size(); i++) {
-
             double rx = _transformations[i].GetRotationX();
             double ry = _transformations[i].GetRotationY();
             double rz = _transformations[i].GetRotationZ();
@@ -2778,8 +2759,6 @@ namespace mirtk {
 
     // perform nonlocal means filtering
     void Reconstruction::NLMFiltering(Array<RealImage>& stacks) {
-
-        char buffer[256];
         RealImage tmp_stack;
         NLDenoising *denoising = new NLDenoising;
 
@@ -2788,8 +2767,7 @@ namespace mirtk {
             tmp_stack = denoising->Run(tmp_stack, 3, 1);
             stacks[i] = tmp_stack;
 
-            sprintf(buffer, "denoised-%i.nii.gz", i);
-            stacks[i].Write(buffer);
+            stacks[i].Write((boost::format("denoised-%1%.nii.gz") % i).str().c_str());
         }
     }
 
@@ -4474,12 +4452,8 @@ namespace mirtk {
         //_confidence4mask = _confidence_map;
 
         if (_debug) {
-            char buffer[256];
-            sprintf(buffer, "confidence-map%i.nii.gz", iter);
-            _confidence_map.Write(buffer);
-
-            sprintf(buffer, "addon%i.nii.gz", iter);
-            addon.Write(buffer);
+            _confidence_map.Write((boost::format("confidence-map%1%.nii.gz") % iter).str().c_str());
+            addon.Write((boost::format("addon%1%.nii.gz") % iter).str().c_str());
         }
 
         if (!_adaptive) {
@@ -4983,11 +4957,8 @@ namespace mirtk {
         gb.Run();
         bias /= m;
 
-        if (_debug) {
-            char buffer[256];
-            sprintf(buffer, "averagebias%i.nii.gz", iter);
-            bias.Write(buffer);
-        }
+        if (_debug)
+            bias.Write((boost::format("averagebias%1%.nii.gz") % iter).str().c_str());
 
         RealPixel *pi, *pb;
         pi = _reconstructed.Data();
@@ -5055,11 +5026,8 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveBiasFields() {
-        char buffer[256];
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            sprintf(buffer, "bias%i.nii.gz", inputIndex);
-            _bias[inputIndex].Write(buffer);
-        }
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            _bias[inputIndex].Write((boost::format("bias%1%.nii.gz") % inputIndex).str().c_str());
     }
 
     //-------------------------------------------------------------------
@@ -5071,33 +5039,24 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveSlices() {
-        char buffer[256];
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            sprintf(buffer, "slice%i.nii.gz", inputIndex);
-            _slices[inputIndex].Write(buffer);
-        }
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            _slices[inputIndex].Write((boost::format("slice%1%.nii.gz") % inputIndex).str().c_str());
     }
 
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveSlicesWithTiming() {
-        char buffer[256];
         cout << "Saving slices with timing: ";
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            sprintf(buffer, "sliceTime%i.nii.gz", _slice_timing[inputIndex]);
-            _slices[inputIndex].Write(buffer);
-        }
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            _slices[inputIndex].Write((boost::format("sliceTime%1%.nii.gz") % _slice_timing[inputIndex]).str().c_str());
     }
 
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveSimulatedSlices() {
         cout << "Saving simulated slices ...";
-        char buffer[256];
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            sprintf(buffer, "simslice%i.nii.gz", inputIndex);
-            _simulated_slices[inputIndex].Write(buffer);
-        }
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            _simulated_slices[inputIndex].Write((boost::format("simslice%1%.nii.gz") % inputIndex).str().c_str());
         cout << "done." << endl;
     }
 
@@ -5105,18 +5064,13 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveWeights() {
-        char buffer[256];
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            sprintf(buffer, "weights%i.nii.gz", inputIndex);
-            _weights[inputIndex].Write(buffer);
-        }
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            _weights[inputIndex].Write((boost::format("weights%1%.nii.gz") % inputIndex).str().c_str());
     }
 
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveRegistrationStep(Array<RealImage>& stacks, int step) {
-
-        char buffer[256];
         ImageAttributes attr = stacks[0].GetImageAttributes();
         int stack;
         int slice;
@@ -5130,20 +5084,17 @@ namespace mirtk {
             }
             stack = counter;
             slice = inputIndex - (threshold - attr._z);
-            sprintf(buffer, "step%04i_travol%04islice%04i.dof", step, stack, slice);
-            _transformations[inputIndex].Write(buffer);
+            _transformations[inputIndex].Write((boost::format("step%04i_travol%04islice%04i.dof") % step % stack % slice).str().c_str());
         }
     }
 
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveTransformationsWithTiming() {
-        char buffer[256];
         cout << "Saving transformations with timing: ";
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             cout << inputIndex << " ";
-            sprintf(buffer, "transformationTime%i.dof", _slice_timing[inputIndex]);
-            _transformations[inputIndex].Write(buffer);
+            _transformations[inputIndex].Write((boost::format("transformationTime%1%.dof") % _slice_timing[inputIndex]).str().c_str());
         }
         cout << " done." << endl;
     }
@@ -5151,12 +5102,10 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveTransformationsWithTiming(int iter) {
-        char buffer[256];
         cout << "Saving transformations with timing: ";
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             cout << inputIndex << " ";
-            sprintf(buffer, "transformationTime%i-%i.dof", iter, _slice_timing[inputIndex]);
-            _transformations[inputIndex].Write(buffer);
+            _transformations[inputIndex].Write((boost::format("transformationTime%1%-%2%.dof") % iter % _slice_timing[inputIndex]).str().c_str());
         }
         cout << " done." << endl;
     }
@@ -5165,11 +5114,8 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveTransformations() {
-        char buffer[256];
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            sprintf(buffer, "transformation%i.dof", inputIndex);
-            _transformations[inputIndex].Write(buffer);
-        }
+        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
+            _transformations[inputIndex].Write((boost::format("transformation%1%.dof") % inputIndex).str().c_str());
     }
 
     //-------------------------------------------------------------------
@@ -5199,9 +5145,7 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveProbabilityMap(int i) {
-        char buffer[256];
-        sprintf(buffer, "probability_map%i.nii", i);
-        _brain_probability.Write(buffer);
+        _brain_probability.Write((boost::format("probability_map%1%.nii") % i).str().c_str());
     }
 
     //-------------------------------------------------------------------
@@ -5455,8 +5399,6 @@ namespace mirtk {
         Array<int> z_internal_slice_order;
 
         // calculate slice order
-        char buffer[256];
-
         GetSliceAcquisitionOrder(stacks, pack_num, order, step, rewinder);
 
         // counters
@@ -5502,11 +5444,8 @@ namespace mirtk {
                 counter3 = counter3 + internalIterations;
 
 
-                for (int i = 0; i < sliceStacks.size(); i++) {
-
-                    //sprintf( buffer, "sliceStacks%i.nii", i );
-                    //sliceStacks[i].Write( buffer );
-                }
+                // for (int i = 0; i < sliceStacks.size(); i++)
+                //     sliceStacks[i].Write((boost::format("sliceStacks%1%.nii") % i).str().c_str());
             }
 
             // updating varialbles for next dynamic
@@ -5811,7 +5750,6 @@ namespace mirtk {
 
     // updated package-to-volume registration
     void Reconstruction::newPackageToVolume(Array<RealImage>& stacks, Array<int> &pack_num, Array<int> multiband_vector, Array<int> order, int step, int rewinder, int iter, int steps) {
-        char buffer[256];
         // copying transformations from previous iterations
         if (_previous_transformations.size() > 0)
             _previous_transformations.clear();
@@ -5906,10 +5844,8 @@ namespace mirtk {
                     s = _reconstructed;
 
                     if (_debug) {
-                        sprintf(buffer, "target%i-%i-%i.nii.gz", iter, i + doffset, j);
-                        t.Write(buffer);
-                        sprintf(buffer, "source%i-%i-%i.nii.gz", iter, i + doffset, j);
-                        s.Write(buffer);
+                        t.Write((boost::format("target%1%-%2%-%3%.nii.gz") % iter % (i + doffset) % j).str().c_str());
+                        s.Write((boost::format("source%1%-%2%-%3%.nii.gz") % iter % (i + doffset) % j).str().c_str());
                     }
 
                     //check whether package is empty (all zeros)
@@ -5947,10 +5883,8 @@ namespace mirtk {
                         internal_transformations[j].PutMatrix(m);
                     }
 
-                    if (_debug) {
-                        sprintf(buffer, "transformation%i-%i-%i.dof", iter, i + doffset, j);
-                        internal_transformations[j].Write(buffer);
-                    }
+                    if (_debug)
+                        internal_transformations[j].Write((boost::format("transformation%1%-%2%-%3%.dof") % iter % (i + doffset) % j).str().c_str());
 
                     // saving transformations
                     iterations = (firstPackage.GetZ() / multiband) / (spack_num[i]);
@@ -6024,14 +5958,12 @@ namespace mirtk {
 
     // split image into N packages
     void Reconstruction::SplitImage(RealImage image, int packages, Array<RealImage>& stacks) {
-
         ImageAttributes attr = image.GetImageAttributes();
 
         //slices in package
         int pkg_z = attr._z / packages;
         double pkg_dz = attr._dz * packages;
 
-        char buffer[256];
         int i, j, k, l;
         double x, y, z, sx, sy, sz, ox, oy, oz;
         for (l = 0; l < packages; l++) {
@@ -6152,15 +6084,10 @@ namespace mirtk {
         }
 
         for (int i = 0; i < stacks.size(); i++) {
-
-            char buffer[256];
-
             Array<RealImage> packages;
-
             SplitImage(stacks[i], pack_num[i], packages);
 
             for (int j = 0; j < packages.size(); j++) {
-
                 GenericRegistrationFilter rigidregistration;
                 ParameterList params;
                 Insert(params, "Transformation model", "Rigid");
@@ -6177,10 +6104,8 @@ namespace mirtk {
 
                 ImageAttributes attr, attr2;
 
-                if (_debug) {
-                    sprintf(buffer, "package-%i-%i.nii.gz", i, j);
-                    packages[j].Write(buffer);
-                }
+                if (_debug)
+                    packages[j].Write((boost::format("package-%1%-%2%.nii.gz") % i % j).str().c_str());
 
                 attr2 = packages[j].GetImageAttributes();
                 //packages are not masked at present
@@ -6234,10 +6159,8 @@ namespace mirtk {
                 _transformations[firstSliceIndex].PutMatrix(m);
 
 
-                if (_debug) {
-                    sprintf(buffer, "transformation-%i-%i.dof", i, j);
-                    _transformations[firstSliceIndex].Write(buffer);
-                }
+                if (_debug)
+                    _transformations[firstSliceIndex].Write((boost::format("transformation-%1%-%2%.dof") % i % j).str().c_str());
 
                 //set the transformation to all slices of the package
                 // cout<<"Slices of the package "<<j<<" of the stack "<<i<<" are: ";
@@ -6582,19 +6505,15 @@ namespace mirtk {
 
     // run stack background filtering (GS based)
     void Reconstruction::BackgroundFiltering(Array<RealImage>& stacks, double fg_sigma, double bg_sigma) {
-
-        char buffer[256];
         GaussianBlurring<RealPixel> gb3(stacks[0].GetXSize() * fg_sigma);
         GaussianBlurring<RealPixel> gb2(stacks[0].GetXSize() * bg_sigma);
         RealImage tmp_slice, tmp_slice_b;
         RealImage global_blurred, stack;
 
         for (int j = 0; j < stacks.size(); j++) {
-
             stack = stacks[j];
 
-            sprintf(buffer, "original-%i.nii.gz", j);
-            stack.Write(buffer);
+            stack.Write((boost::format("original-%1%.nii.gz") % j).str().c_str());
 
             global_blurred = stacks[j];
             gb2.Input(&global_blurred);
@@ -6615,7 +6534,6 @@ namespace mirtk {
 
                 for (int x = 0; x < stacks[j].GetX(); x++) {
                     for (int y = 0; y < stacks[j].GetY(); y++) {
-
                         stack(x, y, i) = tmp_slice_b(x, y, 0) + global_blurred(x, y, i) - tmp_slice(x, y, 0);
                         if (stack(x, y, i) < 0)
                             stack(x, y, i) = 1;
@@ -6625,11 +6543,8 @@ namespace mirtk {
 
             stacks[j] = stack;
 
-            sprintf(buffer, "filtered-%i.nii.gz", j);
-            stack.Write(buffer);
-
+            stack.Write((boost::format("filtered-%1%.nii.gz") % j).str().c_str());
         }
-
     }
 
     //-------------------------------------------------------------------

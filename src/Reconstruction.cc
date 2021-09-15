@@ -2801,28 +2801,21 @@ namespace mirtk {
     public:
         Reconstruction *reconstructor;
 
-        ParallelCoeffInit(Reconstruction *_reconstructor) :
-            reconstructor(_reconstructor) {
-        }
+        ParallelCoeffInit(Reconstruction *_reconstructor) : reconstructor(_reconstructor) {}
 
         void operator()(const blocked_range<size_t> &r) const {
-            for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
-                ImageAttributes attr_g = reconstructor->_grey_reconstructed.GetImageAttributes();
-                RealImage global_reconstructed(attr_g);
+            const RealImage global_reconstructed(reconstructor->_grey_reconstructed.GetImageAttributes());
+            //get resolution of the volume
+            double vx, vy, vz;
+            global_reconstructed.GetPixelSize(&vx, &vy, &vz);
+            //volume is always isotropic
+            const double res = vx;
 
-                ImageAttributes attr_s = reconstructor->_grey_slices[inputIndex].GetImageAttributes();
-                RealImage global_slice(attr_s);
+            for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
+                const RealImage global_slice(reconstructor->_grey_slices[inputIndex].GetImageAttributes());
 
-                //get resolution of the volume
-                double vx, vy, vz;
-                global_reconstructed.GetPixelSize(&vx, &vy, &vz);
-                //volume is always isotropic
-                double res = vx;
-
-                //prepare structures for storage
-                POINT3D p;
-                VOXELCOEFFS empty;
-                SLICECOEFFS slicecoeffs(global_slice.GetX(), Array < VOXELCOEFFS >(global_slice.GetY(), empty));
+                //prepare storage variable
+                SLICECOEFFS slicecoeffs(global_slice.GetX(), Array<VOXELCOEFFS>(global_slice.GetY()));
 
                 // To check whether the slice has an overlap with mask ROI
                 bool slice_inside = false;
@@ -2862,7 +2855,7 @@ namespace mirtk {
                 //calculate discretized PSF
 
                 //isotropic voxel size of PSF - derived from resolution of reconstructed volume
-                double size = res / reconstructor->_quality_factor;
+                const double size = res / reconstructor->_quality_factor;
 
                 //number of voxels in each direction
                 //the ROI is 2*voxel dimension
@@ -2874,7 +2867,6 @@ namespace mirtk {
                 xDim = xDim / 2 * 2 + 1;
                 yDim = yDim / 2 * 2 + 1;
                 zDim = zDim / 2 * 2 + 1;
-                ///end test
 
                 //image corresponding to PSF
                 ImageAttributes attr;
@@ -2887,21 +2879,18 @@ namespace mirtk {
                 RealImage PSF(attr);
 
                 //centre of PSF
-                double cx, cy, cz;
-                cx = 0.5 * (xDim - 1);
-                cy = 0.5 * (yDim - 1);
-                cz = 0.5 * (zDim - 1);
+                double cx = 0.5 * (xDim - 1);
+                double cy = 0.5 * (yDim - 1);
+                double cz = 0.5 * (zDim - 1);
                 PSF.ImageToWorld(cx, cy, cz);
 
-                double x, y, z;
                 double sum = 0;
-                int i, j, k;
-                for (i = 0; i < xDim; i++)
-                    for (j = 0; j < yDim; j++)
-                        for (k = 0; k < zDim; k++) {
-                            x = i;
-                            y = j;
-                            z = k;
+                for (int i = 0; i < xDim; i++)
+                    for (int j = 0; j < yDim; j++)
+                        for (int k = 0; k < zDim; k++) {
+                            double x = i;
+                            double y = j;
+                            double z = k;
                             PSF.ImageToWorld(x, y, z);
                             x -= cx;
                             y -= cy;
@@ -2930,31 +2919,26 @@ namespace mirtk {
                 //create matrix from transformed PSF
                 RealImage tPSF(attr);
                 //calculate centre of tPSF in image coordinates
-                int centre = (dim - 1) / 2;
+                const int centre = (dim - 1) / 2;
 
                 //for each voxel in current slice calculate matrix coefficients
-                int ii, jj, kk;
-                int tx, ty, tz;
-                int nx, ny, nz;
-                int l, m, n;
-                double weight;
-
-
                 bool excluded_slice = false;
                 for (int ff = 0; ff < reconstructor->_force_excluded.size(); ff++) {
-                    if (inputIndex == reconstructor->_force_excluded[ff])
+                    if (inputIndex == reconstructor->_force_excluded[ff]) {
                         excluded_slice = true;
+                        break;
+                    }
                 }
 
-                // check whether the slice was not excluded
+                // Check if the slice is not excluded
                 if (reconstructor->_reg_slice_weight[inputIndex] > 0 && !excluded_slice) {
-                    for (i = 0; i < global_slice.GetX(); i++)
-                        for (j = 0; j < global_slice.GetY(); j++)
+                    for (int i = 0; i < global_slice.GetX(); i++)
+                        for (int j = 0; j < global_slice.GetY(); j++)
                             if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                                 //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
-                                x = i;
-                                y = j;
-                                z = 0;
+                                double x = i;
+                                double y = j;
+                                double z = 0;
                                 global_slice.ImageToWorld(x, y, z);
 
                                 if (!reconstructor->_ffd)
@@ -2963,17 +2947,17 @@ namespace mirtk {
                                     reconstructor->_mffd_transformations[inputIndex].Transform(-1, 1, x, y, z);
 
                                 global_reconstructed.WorldToImage(x, y, z);
-                                tx = round(x);
-                                ty = round(y);
-                                tz = round(z);
+                                int tx = round(x);
+                                int ty = round(y);
+                                int tz = round(z);
 
-                                //Clear the transformed PSF
+                                // Clear the transformed PSF
                                 memset(tPSF.Data(), 0, sizeof(RealPixel) * tPSF.NumberOfVoxels());
 
                                 //for each POINT3D of the PSF
-                                for (ii = 0; ii < xDim; ii++)
-                                    for (jj = 0; jj < yDim; jj++)
-                                        for (kk = 0; kk < zDim; kk++) {
+                                for (int ii = 0; ii < xDim; ii++)
+                                    for (int jj = 0; jj < yDim; jj++)
+                                        for (int kk = 0; kk < zDim; kk++) {
                                             //Calculate the position of the POINT3D of PSF centered over current slice voxel
                                             //This is a bit complicated because slices can be oriented in any direction
 
@@ -2996,7 +2980,7 @@ namespace mirtk {
                                             x /= dx;
                                             y /= dy;
                                             z /= dz;
-                                            //center over current voxel
+                                            //centre over current voxel
                                             x += i;
                                             y += j;
 
@@ -3018,9 +3002,9 @@ namespace mirtk {
                                             //Find the 8 closest volume voxels
 
                                             //lowest corner of the cube
-                                            nx = (int)floor(x);
-                                            ny = (int)floor(y);
-                                            nz = (int)floor(z);
+                                            int nx = (int)floor(x);
+                                            int ny = (int)floor(y);
+                                            int nz = (int)floor(z);
 
                                             //not all neighbours might be in ROI, thus we need to normalize
                                             //(l,m,n) are image coordinates of 8 neighbours in volume space
@@ -3028,37 +3012,38 @@ namespace mirtk {
                                             sum = 0;
                                             //to find wether the current slice voxel has overlap with ROI
                                             bool inside = false;
-                                            for (l = nx; l <= nx + 1; l++)
+                                            for (int l = nx; l <= nx + 1; l++)
                                                 if ((l >= 0) && (l < global_reconstructed.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
+                                                    for (int m = ny; m <= ny + 1; m++)
                                                         if ((m >= 0) && (m < global_reconstructed.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
+                                                            for (int n = nz; n <= nz + 1; n++)
                                                                 if ((n >= 0) && (n < global_reconstructed.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                                    double weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
                                                                     sum += weight;
                                                                     if (reconstructor->_mask(l, m, n) == 1) {
                                                                         inside = true;
                                                                         slice_inside = true;
                                                                     }
                                                                 }
+
                                             //if there were no voxels do nothing
                                             if ((sum <= 0) || (!inside))
                                                 continue;
+
                                             //now calculate the transformed PSF
-                                            for (l = nx; l <= nx + 1; l++)
+                                            for (int l = nx; l <= nx + 1; l++)
                                                 if ((l >= 0) && (l < global_reconstructed.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
+                                                    for (int m = ny; m <= ny + 1; m++)
                                                         if ((m >= 0) && (m < global_reconstructed.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
+                                                            for (int n = nz; n <= nz + 1; n++)
                                                                 if ((n >= 0) && (n < global_reconstructed.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                                    double weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
 
                                                                     //image coordinates in tPSF
                                                                     //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
-                                                                    int aa, bb, cc;
-                                                                    aa = l - tx + centre;
-                                                                    bb = m - ty + centre;
-                                                                    cc = n - tz + centre;
+                                                                    int aa = l - tx + centre;
+                                                                    int bb = m - ty + centre;
+                                                                    int cc = n - tz + centre;
 
                                                                     //resulting value
                                                                     double value = PSF(ii, jj, kk) * weight / sum;
@@ -3072,10 +3057,11 @@ namespace mirtk {
                                         } //end of the loop for PSF points
 
                                 //store tPSF values
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
+                                for (int ii = 0; ii < dim; ii++)
+                                    for (int jj = 0; jj < dim; jj++)
+                                        for (int kk = 0; kk < dim; kk++)
                                             if (tPSF(ii, jj, kk) > 0) {
+                                                POINT3D p;
                                                 p.x = ii + tx - centre;
                                                 p.y = jj + ty - centre;
                                                 p.z = kk + tz - centre;
@@ -3113,37 +3099,35 @@ namespace mirtk {
         _slice_inside.resize(_slices.size());
         _attr_reconstructed = _reconstructed.GetImageAttributes();
 
-
         ParallelCoeffInit coeffinit(this);
         coeffinit();
 
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
         _volume_weights.Initialize(_reconstructed.GetImageAttributes());
-        _volume_weights = 0;
+        memset(_volume_weights.Data(), 0, sizeof(RealPixel) * _volume_weights.NumberOfVoxels());
 
-        int inputIndex, i, j, n, k;
-        POINT3D p;
-        for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-
+        for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             bool excluded = false;
 
             for (int fe = 0; fe < _force_excluded.size(); fe++) {
-                if (inputIndex == _force_excluded[fe])
+                if (inputIndex == _force_excluded[fe]) {
                     excluded = true;
+                    break;
+                }
             }
 
             if (!excluded) {
-                for (i = 0; i < _slices[inputIndex].GetX(); i++)
-                    for (j = 0; j < _slices[inputIndex].GetY(); j++) {
-                        n = _volcoeffs[inputIndex][i][j].size();
-                        for (k = 0; k < n; k++) {
-                            p = _volcoeffs[inputIndex][i][j][k];
+                #pragma omp parallel for
+                for (int i = 0; i < _slices[inputIndex].GetX(); i++)
+                    for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                        for (int k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
+                            POINT3D p = _volcoeffs[inputIndex][i][j][k];
                             _volume_weights(p.x, p.y, p.z) += p.value;
                         }
                     }
             }
-
         }
+
         if (_debug)
             _volume_weights.Write("volume_weights.nii.gz");
 
@@ -3152,13 +3136,11 @@ namespace mirtk {
         const RealPixel *pm = _mask.Data();
         double sum = 0;
         int num = 0;
-            if (*pm == 1) {
-                sum += *ptr;
         for (int i = 0; i < _volume_weights.NumberOfVoxels(); i++) {
+            if (pm[i] == 1) {
+                sum += ptr[i];
                 num++;
             }
-            ptr++;
-            pm++;
         }
         _average_volume_weight = sum / num;
 

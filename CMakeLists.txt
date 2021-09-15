@@ -24,8 +24,15 @@ set(CMAKE_CXX_FLAGS "-std=c++11")
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/config")
 if (NOT COMMAND mirtk_configure_module)
   find_package(MIRTK REQUIRED COMPONENTS CMake)
-endif ()
+endif()
+
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
 
 #set(BASIS_PYTHON_LIBRARY_TARGET svrtk_pythonlib)
 
-mirtk_configure_module()  
+mirtk_configure_module()

@@ -22,6 +22,7 @@
 #include "mirtk/Profiling.h"
 
 #define SVRTK_START_TIMING    MIRTK_START_TIMING
+#define SVRTK_RESET_TIMING    MIRTK_RESET_TIMING
 
 #ifdef  SVRTK_TOOL
 #define SVRTK_END_TIMING      if (debug) MIRTK_END_TIMING

@@ -744,7 +744,7 @@ namespace mirtk {
                     out_global_nrmse += out_nrmse;
                 }
 
-                if (out_global_nrmse != out_global_nrmse)
+                if (!isfinite(out_global_nrmse))
                     out_global_nrmse = 0;
 
             } //end of loop for a slice inputIndex
@@ -776,12 +776,10 @@ namespace mirtk {
         out_ncc = parallelQualityReport.out_global_ncc / _slices.size();
         out_nrmse = parallelQualityReport.out_global_nrmse / _slices.size();
 
-        // Check if it's NaN; the result is false if the value is NaN
-        // ToDo: Implement it in a better way
-        if (out_nrmse != out_nrmse)
+        if (!isfinite(out_nrmse))
             out_nrmse = 0;
 
-        if (out_ncc != out_ncc)
+        if (!isfinite(out_ncc))
             out_ncc = 0;
 
         size_t count_excluded = 0;

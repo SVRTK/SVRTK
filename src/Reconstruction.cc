@@ -868,7 +868,7 @@ namespace mirtk {
     double Reconstruction::VolumeNCC(RealImage& input_stack, RealImage template_stack, const RealImage& mask) {
         template_stack *= mask;
 
-        RigidTransformation *r_init = new RigidTransformation();
+        unique_ptr<RigidTransformation> r_init(new RigidTransformation());
         r_init->PutTranslationX(0.0001);
         r_init->PutTranslationY(0.0001);
         r_init->PutTranslationZ(-0.0001);
@@ -877,15 +877,15 @@ namespace mirtk {
         Insert(params, "Transformation model", "Rigid");
         Insert(params, "Background value for image 1", 0);
 
-        GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+        unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
         registration->Parameter(params);
         registration->Input(&template_stack, &input_stack);
         Transformation *dofout = nullptr;
         registration->Output(&dofout);
-        registration->InitialGuess(r_init);
+        registration->InitialGuess(r_init.get());
         registration->GuessParameter();
         registration->Run();
-        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*>(dofout);
+        unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
 
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
         double source_padding = 0;
@@ -896,9 +896,9 @@ namespace mirtk {
         RealImage& output = template_stack;
         memset(output.Data(), 0, sizeof(RealPixel) * output.NumberOfVoxels());
 
-        ImageTransformation *imagetransformation = new ImageTransformation;
+        unique_ptr<ImageTransformation> imagetransformation(new ImageTransformation);
         imagetransformation->Input(&input_stack);
-        imagetransformation->Transformation(r_dofout);
+        imagetransformation->Transformation(r_dofout.get());
         imagetransformation->Output(&output);
         imagetransformation->TargetPaddingValue(target_padding);
         imagetransformation->SourcePaddingValue(source_padding);
@@ -906,7 +906,6 @@ namespace mirtk {
         imagetransformation->TwoD(twod);
         imagetransformation->Invert(dofin_invert);
         imagetransformation->Run();
-        delete imagetransformation;
 
         input_stack = output * mask;
 
@@ -1053,7 +1052,7 @@ namespace mirtk {
         }
 
         RealImage m_tmp = _mask;
-        RigidTransformation *rigidTransf_m = new RigidTransformation;
+        unique_ptr<RigidTransformation> rigidTransf_m(new RigidTransformation);
         TransformMask(target, m_tmp, *rigidTransf_m);
         target *= m_tmp;
         target.Write("masked.nii.gz");
@@ -1067,9 +1066,8 @@ namespace mirtk {
         ResetOrigin(target, offset);
 
         //register all stacks to the target
-        ParallelStackRegistrations *p_reg = new ParallelStackRegistrations(this, stacks, stack_transformations, templateNumber, target, offset);
+        unique_ptr<ParallelStackRegistrations> p_reg(new ParallelStackRegistrations(this, stacks, stack_transformations, templateNumber, target, offset));
         (*p_reg)();
-        delete p_reg;
 
         InvertStackTransformations(stack_transformations);
 
@@ -1239,9 +1237,8 @@ namespace mirtk {
     // run simulation of slices from the reconstruction volume
     void Reconstruction::SimulateSlices() {
         SVRTK_START_TIMING();
-        ParallelSimulateSlices2 *p_sim = new ParallelSimulateSlices2(this);
+        unique_ptr<ParallelSimulateSlices2> p_sim(new ParallelSimulateSlices2(this));
         (*p_sim)();
-        delete p_sim;
         SVRTK_END_TIMING("SimulateSlices");
     }
 
@@ -1912,7 +1909,7 @@ namespace mirtk {
                         Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
                     }
 
-                    GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+                    unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
                     registration->Parameter(params);
 
                     //put origin to zero
@@ -1939,8 +1936,6 @@ namespace mirtk {
                     m = reconstructor->_transformations[inputIndex].GetMatrix();
                     m = m * mo;
                     reconstructor->_transformations[inputIndex].PutMatrix(m);
-
-                    delete registration;
 
                     // save log outputs
                     if (reconstructor->_reg_log) {
@@ -2015,7 +2010,7 @@ namespace mirtk {
             memset(output.Data(), 0, sizeof(RealPixel) * output.NumberOfVoxels());
 
             // transfrom reconstructed volume to the slice space
-            ImageTransformation *imagetransformation = new ImageTransformation;
+            unique_ptr<ImageTransformation> imagetransformation(new ImageTransformation);
             imagetransformation->Input(&source);
             imagetransformation->Transformation(&(_transformations[inputIndex]));
             imagetransformation->Output(&output);
@@ -2025,7 +2020,6 @@ namespace mirtk {
             imagetransformation->TwoD(twod);
             imagetransformation->Invert(dofin_invert);
             imagetransformation->Run();
-            delete imagetransformation;
 
             // blur the original slice
             RealImage target = _slices[inputIndex];
@@ -2195,7 +2189,7 @@ namespace mirtk {
                     }
 
                     // run registration
-                    GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+                    unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
                     registration->Parameter(params);
                     registration->Input(&target, &reconstructor->_reconstructed);
                     Transformation *dofout = nullptr;
@@ -2207,8 +2201,6 @@ namespace mirtk {
                     // read output transformation
                     MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*>(dofout);
                     reconstructor->_mffd_transformations[inputIndex] = *mffd_dofout;
-
-                    delete registration;
                 }
             }
         }
@@ -2232,13 +2224,11 @@ namespace mirtk {
         _grey_reconstructed = _reconstructed;
 
         if (!_ffd) {
-            ParallelSliceToVolumeRegistration *p_reg = new ParallelSliceToVolumeRegistration(this);
+            unique_ptr<ParallelSliceToVolumeRegistration> p_reg(new ParallelSliceToVolumeRegistration(this));
             (*p_reg)();
-            delete p_reg;
         } else {
-            ParallelSliceToVolumeRegistrationFFD *p_reg = new ParallelSliceToVolumeRegistrationFFD(this);
+            unique_ptr<ParallelSliceToVolumeRegistrationFFD> p_reg(new ParallelSliceToVolumeRegistrationFFD(this));
             (*p_reg)();
-            delete p_reg;
         }
 
         SVRTK_END_TIMING("SliceToVolumeRegistration");
@@ -5583,7 +5573,7 @@ namespace mirtk {
         // Insert(params, "Background value for image 1", -1);
         // Insert(params, "Background value for image 2", -1);
 
-        GenericRegistrationFilter *rigidregistration = new GenericRegistrationFilter();
+        unique_ptr<GenericRegistrationFilter> rigidregistration(new GenericRegistrationFilter());
         rigidregistration->Parameter(params);
 
         Array<int> t_internal_slice_order;
@@ -6500,7 +6490,7 @@ namespace mirtk {
     void Reconstruction::GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations) {
         template_stack *= template_mask;
 
-        RigidTransformation *r_init = new RigidTransformation();
+        unique_ptr<RigidTransformation> r_init(new RigidTransformation());
         r_init->PutTranslationX(0.0001);
         r_init->PutTranslationY(0.0001);
         r_init->PutTranslationZ(-0.0001);
@@ -6518,12 +6508,12 @@ namespace mirtk {
             RealImage input_stack = stacks[i];
             input_stack *= masks[i];
 
-            GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+            unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
             registration->Parameter(params);
             registration->Input(&template_stack, &input_stack);
             Transformation *dofout = nullptr;
             registration->Output(&dofout);
-            registration->InitialGuess(r_init);
+            registration->InitialGuess(r_init.get());
             registration->GuessParameter();
             registration->Run();
             RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*>(dofout);
@@ -6537,7 +6527,7 @@ namespace mirtk {
             RealImage output = template_stack;
             memset(output.Data(), 0, sizeof(RealPixel) * output.NumberOfVoxels());
 
-            ImageTransformation *imagetransformation = new ImageTransformation;
+            unique_ptr<ImageTransformation> imagetransformation(new ImageTransformation);
             imagetransformation->Input(&input_stack);
             imagetransformation->Transformation(r_dofout);
             imagetransformation->Output(&output);
@@ -6547,7 +6537,6 @@ namespace mirtk {
             imagetransformation->TwoD(twod);
             imagetransformation->Invert(dofin_invert);
             imagetransformation->Run();
-            delete imagetransformation;
 
             input_stack = output;
 

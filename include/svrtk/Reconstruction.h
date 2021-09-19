@@ -20,7 +20,7 @@
 #ifndef MIRTK_Reconstruction_H
 #define MIRTK_Reconstruction_H
 
-#include "mirtk/Common.h" 
+#include "mirtk/Common.h"
 #include "mirtk/Options.h"
 
 #include "mirtk/Array.h"
@@ -246,7 +246,21 @@ namespace mirtk {
         // Uniform PDF
         inline double M(double m);
 
-        int _directions[13][3];
+        int _directions[13][3] = {
+            {1, 0, -1},
+            {0, 1, -1},
+            {1, 1, -1},
+            {1, -1, -1},
+            {1, 0, 0},
+            {0, 1, 0},
+            {1, 1, 0},
+            {1, -1, 0},
+            {1, 0, 1},
+            {0, 1, 1},
+            {1, 1, 1},
+            {1, -1, 1},
+            {0, 0, 1}
+        };
 
         // Gestational age (to compute expected brain volume)
         double _GA;
@@ -372,7 +386,7 @@ namespace mirtk {
         void NLMFiltering(Array<RealImage>& stacks);
 
         // NCC stats
-        double VolumeNCC(RealImage& input_stack, RealImage template_stack, RealImage mask);
+        double VolumeNCC(RealImage& input_stack, RealImage template_stack, const RealImage& mask);
         double GlobalNCC(RealImage slice_1, RealImage slice_2, double& count);
 
         // Initialise variables and parameters for EM
@@ -404,7 +418,7 @@ namespace mirtk {
         void Regularization(int iter);
 
         // Edge-preserving regularization with confidence map
-        void AdaptiveRegularization(int iter, RealImage& original);
+        void AdaptiveRegularization(int iter, const RealImage& original);
 
         // Slice to volume registrations
         void SliceToVolumeRegistration();
@@ -416,7 +430,7 @@ namespace mirtk {
         void LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration);
 
         // Correct bias in the reconstructed volume
-        void BiasCorrectVolume(RealImage& original);
+        void BiasCorrectVolume(const RealImage& original);
 
         // Mask the volume
         void MaskVolume();

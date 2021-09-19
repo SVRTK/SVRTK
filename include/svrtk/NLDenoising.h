@@ -1,15 +1,15 @@
 /*=========================================================================
- 
+
  The code was adopted from : https://github.com/djkwon/naonlm3d
  originally developed by Jose V. Manjon, Pierrick Coupe and Dongjin Kwon
- 
+
  based on:
  "Adaptive Non-Local Means Denoising of MR Images
  With Spatially Varying Noise Levels"
- 
+
  Jose V. Manjon, Pierrick Coupe, Luis Marti-Bonmati,
  D. Louis Collins and Montserrat Robles
- 
+
  J Magn Reson Imaging. 2010 Jan;31(1):192-203.
 
  =========================================================================*/
@@ -31,51 +31,36 @@
 
 
 using namespace std;
- 
 
 namespace mirtk {
 
-typedef struct{
-    int rows;
-    int cols;
-    int slices;
-    double *in_image;
-    double *means_image;
-    double *var_image;
-    double *estimate;
-    double *label;
-    double *bias;
-    int ini;
-    int fin;
-    int radioB;
-    int radioS;
-    bool rician;
-    double max_val;
-} myargument;
+    typedef struct {
+        int rows;
+        int cols;
+        int slices;
+        double *in_image;
+        double *means_image;
+        double *var_image;
+        double *estimate;
+        double *label;
+        double *bias;
+        int ini;
+        int fin;
+        int radioB;
+        int radioS;
+        bool rician;
+        double max_val;
+    } myargument;
 
+    class NLDenoising {
+    public:
+        NLDenoising() {}
+        ~NLDenoising() {}
 
+        RealImage Run(const RealImage& image);
+        RealImage Run(const RealImage& image, int input_param_w, int input_param_f);
+    };
 
-
-class NLDenoising
-{
-    
-
-public:
-    
-    NLDenoising();
-    ~NLDenoising();
-    
-    RealImage Run(RealImage input_image);
-    RealImage Run(RealImage input_image, int input_param_w, int input_param_f);
-    
-};
-    
-    
 } // namespace mirtk
 
-
 #endif 
-
-
-
-

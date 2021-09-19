@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-// SVRTK
+ // SVRTK
 #include "svrtk/Reconstruction.h"
 #include "svrtk/Profiling.h"
 
@@ -97,8 +97,7 @@ namespace mirtk {
                 }
 
         //Cut region of interest
-        image = image.GetRegion(min_x, min_y, min_z,
-            max_x, max_y, max_z);
+        image = image.GetRegion(min_x, min_y, min_z, max_x, max_y, max_z);
     }
 
     //-------------------------------------------------------------------
@@ -168,25 +167,6 @@ namespace mirtk {
         _masked_stacks = false;
         _filtered_cmp_flag = false;
         _bg_flag = false;
-
-        int directions[13][3] = {
-            {1, 0, -1},
-            {0, 1, -1},
-            {1, 1, -1},
-            {1, -1, -1},
-            {1, 0, 0},
-            {0, 1, 0},
-            {1, 1, 0},
-            {1, -1, 0},
-            {1, 0, 1},
-            {0, 1, 1},
-            {1, 1, 1},
-            {1, -1, 1},
-            {0, 0, 1}
-        };
-        for (int i = 0; i < 13; i++)
-            for (int j = 0; j < 3; j++)
-                _directions[i][j] = directions[i][j];
     }
 
     //-------------------------------------------------------------------
@@ -200,8 +180,7 @@ namespace mirtk {
         double x0, y0, z0;
         double x, y, z;
         int tx, ty, tz;
-        RealImage mask;
-        mask = stacks[templateNumber];
+        RealImage mask = stacks[templateNumber];
 
         for (tx = 0; tx < mask.GetX(); tx++) {
             for (ty = 0; ty < mask.GetY(); ty++) {
@@ -214,7 +193,6 @@ namespace mirtk {
 
         centroid(mask, x0, y0, z0);
 
-        Matrix m1, m2;
         for (int i = 0; i < stacks.size(); i++) {
             if (i == templateNumber)
                 continue;
@@ -236,9 +214,7 @@ namespace mirtk {
             translation.PutTranslationY(y0 - y);
             translation.PutTranslationZ(z0 - z);
 
-            m1 = stack_transformations[i].GetMatrix();
-            m2 = translation.GetMatrix();
-            stack_transformations[i].PutMatrix(m2 * m1);
+            stack_transformations[i].PutMatrix(translation.GetMatrix() * stack_transformations[i].GetMatrix());
         }
     }
 
@@ -270,69 +246,6 @@ namespace mirtk {
         RealImage average;
         RealImage weights;
 
-        void operator()(const blocked_range<size_t>& r) {
-            for (size_t i = r.begin(); i < r.end(); ++i) {
-
-                GenericLinearInterpolateImageFunction<RealImage> interpolator;
-
-                RealImage s = stacks[i];
-                RigidTransformation t = stack_transformations[i];
-                RealImage image;
-                image.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-                image = image;
-
-                int x, y, z;
-                for (x = 0; x < image.GetX(); x++) {
-                    for (y = 0; y < image.GetY(); y++) {
-                        for (z = 0; z < image.GetZ(); z++) {
-                            image(x, y, z) = 0;
-                        }
-                    }
-                }
-
-                ImageTransformation imagetransformation;
-                imagetransformation.Input(&s);
-                imagetransformation.Transformation(&t);
-                imagetransformation.Output(&image);
-                imagetransformation.TargetPaddingValue(targetPadding);
-                imagetransformation.SourcePaddingValue(sourcePadding);
-                imagetransformation.Interpolator(&interpolator);
-                imagetransformation.Run();
-
-                RealPixel *pa = average.Data();
-                RealPixel *pi = image.Data();
-                RealPixel *pw = weights.Data();
-                for (int p = 0; p < average.NumberOfVoxels(); p++) {
-                    if (*pi != background) {
-                        *pa += *pi;
-                        *pw += 1;
-                    }
-                    pa++;
-                    pi++;
-                    pw++;
-                }
-            }
-        }
-
-        ParallelAverage(ParallelAverage& x, split) :
-            reconstructor(x.reconstructor),
-            stacks(x.stacks),
-            stack_transformations(x.stack_transformations) {
-            average.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            average = 0;
-            weights.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            weights = 0;
-            targetPadding = x.targetPadding;
-            sourcePadding = x.sourcePadding;
-            background = x.background;
-            linear = x.linear;
-        }
-
-        void join(const ParallelAverage& y) {
-            average += y.average;
-            weights += y.weights;
-        }
-
         ParallelAverage(Reconstruction *reconstructor,
             Array<RealImage>& _stacks,
             Array<RigidTransformation>& _stack_transformations,
@@ -344,13 +257,47 @@ namespace mirtk {
             stacks(_stacks),
             stack_transformations(_stack_transformations) {
             average.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            average = 0;
             weights.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            weights = 0;
             targetPadding = _targetPadding;
             sourcePadding = _sourcePadding;
             background = _background;
             linear = _linear;
+        }
+
+        ParallelAverage(ParallelAverage& x, split) : ParallelAverage(x.reconstructor, x.stacks, x.stack_transformations, x.targetPadding, x.sourcePadding, x.background, x.linear) {}
+
+        void operator()(const blocked_range<size_t>& r) {
+            for (size_t i = r.begin(); i < r.end(); ++i) {
+                GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                RealImage s = stacks[i];
+                RigidTransformation t = stack_transformations[i];
+                RealImage image;
+                image.Initialize(reconstructor->_reconstructed.GetImageAttributes());
+
+                ImageTransformation imagetransformation;
+                imagetransformation.Input(&s);
+                imagetransformation.Transformation(&t);
+                imagetransformation.Output(&image);
+                imagetransformation.TargetPaddingValue(targetPadding);
+                imagetransformation.SourcePaddingValue(sourcePadding);
+                imagetransformation.Interpolator(&interpolator);
+                imagetransformation.Run();
+
+                const RealPixel *pi = image.Data();
+                RealPixel *pa = average.Data();
+                RealPixel *pw = weights.Data();
+                for (int p = 0; p < average.NumberOfVoxels(); p++) {
+                    if (pi[p] != background) {
+                        pa[p] += pi[p];
+                        pw[p]++;
+                    }
+                }
+            }
+        }
+
+        void join(const ParallelAverage& y) {
+            average += y.average;
+            weights += y.weights;
         }
 
         void operator()() {
@@ -436,17 +383,14 @@ namespace mirtk {
         }
 
         InvertStackTransformations(stack_transformations);
-        ParallelAverage *p_average = new  ParallelAverage(this,
+        unique_ptr<ParallelAverage> p_average(new ParallelAverage(this,
             stacks,
             stack_transformations,
             -1, 0, 0, // target/source/background
-            true);
+            true));
         (*p_average)();
-        RealImage average = p_average->average;
-        RealImage weights = p_average->weights;
-        delete p_average;
+        const RealImage average = p_average->average / p_average->weights;
 
-        average /= weights;
         InvertStackTransformations(stack_transformations);
 
         SVRTK_END_TIMING("CreateAverage");
@@ -487,8 +431,7 @@ namespace mirtk {
         //resample "enlarged" to resolution "d"
         InterpolationMode interpolation = Interpolation_Linear;
 
-        UniquePtr<InterpolateImageFunction> interpolator;
-        interpolator.reset(InterpolateImageFunction::New(interpolation));
+        unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(interpolation));
 
         RealPixel smin, smax;
         stack.GetMinMax(&smin, &smax);
@@ -566,10 +509,9 @@ namespace mirtk {
         t2template = 0;
 
         RigidTransformation tr;
-
-        ImageTransformation imagetransformation;
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
 
+        ImageTransformation imagetransformation;
         imagetransformation.Input(&templateImage);
         imagetransformation.Transformation(&tr);
         imagetransformation.Output(&t2template);
@@ -587,14 +529,9 @@ namespace mirtk {
 
     // binarise mask
     RealImage Reconstruction::CreateMask(RealImage image) {
-        RealPixel* ptr = image.Data();
-        for (int i = 0; i < image.NumberOfVoxels(); ++i) {
-            if (*ptr > 0.5)
-                *ptr = 1;
-            else
-                *ptr = 0;
-            ptr++;
-        }
+        RealPixel *ptr = image.Data();
+        for (int i = 0; i < image.NumberOfVoxels(); ++i)
+            ptr[i] = ptr[i] > 0.5 ? 1 : 0;
 
         return image;
     }
@@ -609,16 +546,9 @@ namespace mirtk {
         if (smax > 0)
             image /= smax;
 
-        RealPixel* ptr = image.Data();
-
-        for (int i = 0; i < image.NumberOfVoxels(); ++i) {
-
-            if (*ptr > threshold)
-                *ptr = 1;
-            else
-                *ptr = 0;
-            ptr++;
-        }
+        RealPixel *ptr = image.Data();
+        for (int i = 0; i < image.NumberOfVoxels(); ++i)
+            ptr[i] = ptr[i] > threshold ? 1 : 0;
 
         return image;
     }
@@ -630,11 +560,10 @@ namespace mirtk {
         //Create average of the stack using currect stack transformations
         GreyImage average = CreateAverage(stacks, stack_transformations);
 
-        GreyPixel* ptr = average.Data();
+        GreyPixel *ptr = average.Data();
         for (int i = 0; i < average.NumberOfVoxels(); i++) {
-            if (*ptr < 0)
-                *ptr = 0;
-            ptr++;
+            if (ptr[i] < 0)
+                ptr[i] = 0;
         }
 
         //Create mask of the average from the black background
@@ -648,8 +577,6 @@ namespace mirtk {
         MeanShift msh2(mask, 0, 256);
         msh2.SetOutput(&mask);
         msh2.Lcc(1);
-        RealImage m = mask;
-        SetMask(&m, smooth_mask);
     }
 
     //-------------------------------------------------------------------
@@ -674,14 +601,9 @@ namespace mirtk {
                 gb.Run();
 
                 //binarize mask
-                RealPixel* ptr = mask->Data();
-                for (int i = 0; i < mask->NumberOfVoxels(); i++) {
-                    if (*ptr > threshold)
-                        *ptr = 1;
-                    else
-                        *ptr = 0;
-                    ptr++;
-                }
+                RealPixel *ptr = mask->Data();
+                for (int i = 0; i < mask->NumberOfVoxels(); i++)
+                    ptr[i] = ptr[i] > threshold ? 1 : 0;
             }
 
             //resample the mask according to the template volume using identity transformation
@@ -690,8 +612,7 @@ namespace mirtk {
 
             //GenericNearestNeighborExtrapolateImageFunction<RealImage> interpolator;
             InterpolationMode interpolation = Interpolation_NN;
-            UniquePtr<InterpolateImageFunction> interpolator;
-            interpolator.reset(InterpolateImageFunction::New(interpolation));
+            unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(interpolation));
 
             imagetransformation.Input(mask);
             imagetransformation.Transformation(&transformation);
@@ -715,12 +636,12 @@ namespace mirtk {
             for (int j = 0; j < _mask.GetY(); j++) {
                 for (int k = 0; k < _mask.GetZ(); k++) {
                     if (_mask(i, j, k) > 0.1)
-                        vol = vol + 1;
+                        vol++;
                 }
             }
         }
 
-        vol = vol * _reconstructed.GetXSize() * _reconstructed.GetYSize() * _reconstructed.GetZSize() / 1000;
+        vol *= _reconstructed.GetXSize() * _reconstructed.GetYSize() * _reconstructed.GetZSize() / 1000;
 
         cout << "ROI volume : " << vol << " cc " << endl;
 
@@ -736,7 +657,7 @@ namespace mirtk {
         ImageTransformation imagetransformation;
 
         InterpolationMode interpolation = Interpolation_NN;
-        UniquePtr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(interpolation));
+        unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(interpolation));
 
         imagetransformation.Input(&mask);
         imagetransformation.Transformation(&transformation);
@@ -794,8 +715,8 @@ namespace mirtk {
         void operator()(const blocked_range<size_t>& r) {
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
                 double tmp_var = 0;
-                double out_ncc = reconstructor->GlobalNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], tmp_var);
-                out_global_ncc = out_global_ncc + out_ncc;
+                const double out_ncc = reconstructor->GlobalNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], tmp_var);
+                out_global_ncc += out_ncc;
 
                 double s_diff = 0;
                 double s_t = 0;
@@ -819,8 +740,8 @@ namespace mirtk {
                 }
 
                 if (s_n > 0 && s_t > 0) {
-                    double out_nrmse = sqrt(s_diff / s_n) / (s_t / s_n);
-                    out_global_nrmse = out_global_nrmse + out_nrmse;
+                    const double out_nrmse = sqrt(s_diff / s_n) / (s_t / s_n);
+                    out_global_nrmse += out_nrmse;
                 }
 
                 if (out_global_nrmse != out_global_nrmse)
@@ -876,7 +797,6 @@ namespace mirtk {
 
     // compute NCC between two RealImage objects
     double Reconstruction::GlobalNCC(RealImage slice_1, RealImage slice_2, double& count) {
-
         int slice_1_N, slice_2_N;
         double *slice_1_ptr, *slice_2_ptr;
 
@@ -896,24 +816,22 @@ namespace mirtk {
         slice_1_n = 0;
         slice_1_m = 0;
         for (int j = 0; j < slice_1_N; j++) {
-
             if (slice_1_ptr[j] > 0.1 && slice_2_ptr[j] > 0.1) {
-                slice_1_m = slice_1_m + slice_1_ptr[j];
-                slice_1_n = slice_1_n + 1;
+                slice_1_m += slice_1_ptr[j];
+                slice_1_n++;
             }
         }
-        slice_1_m = slice_1_m / slice_1_n;
+        slice_1_m /= slice_1_n;
 
         slice_2_n = 0;
         slice_2_m = 0;
         for (int j = 0; j < slice_2_N; j++) {
             if (slice_1_ptr[j] > 0.1 && slice_2_ptr[j] > 0.1) {
-                slice_2_m = slice_2_m + slice_2_ptr[j];
-                slice_2_n = slice_2_n + 1;
+                slice_2_m += slice_2_ptr[j];
+                slice_2_n++;
             }
         }
-        slice_2_m = slice_2_m / slice_2_n;
-
+        slice_2_m /= slice_2_n;
 
         count = 0;
         for (int j = 0; j < slice_1_N; j++) {
@@ -933,8 +851,8 @@ namespace mirtk {
             for (int j = 0; j < slice_1_N; j++) {
                 if (slice_1_ptr[j] > 0.1 && slice_2_ptr[j] > 0.1) {
                     diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m) * (slice_2_ptr[j] - slice_2_m));
-                    slice_1_sq = slice_1_sq + pow((slice_1_ptr[j] - slice_1_m), 2);
-                    slice_2_sq = slice_2_sq + pow((slice_2_ptr[j] - slice_2_m), 2);
+                    slice_1_sq += pow(slice_1_ptr[j] - slice_1_m, 2);
+                    slice_2_sq += pow(slice_2_ptr[j] - slice_2_m, 2);
                 }
             }
 
@@ -950,8 +868,7 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     // compute inter-slice volume NCC (motion metric)
-    double Reconstruction::VolumeNCC(RealImage& input_stack, RealImage template_stack, RealImage mask) {
-
+    double Reconstruction::VolumeNCC(RealImage& input_stack, RealImage template_stack, const RealImage& mask) {
         template_stack *= mask;
 
         RigidTransformation *r_init = new RigidTransformation();
@@ -998,26 +915,21 @@ namespace mirtk {
 
         double ncc = 0;
         int count = 0;
-
-        RealImage slice_1, slice_2;
-
         for (int z = 0; z < input_stack.GetZ() - 1; z++) {
             int sh = 5;
-            slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 1);
-            slice_2 = input_stack.GetRegion(sh, sh, z + 1, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 2);
+            const RealImage slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 1);
+            const RealImage slice_2 = input_stack.GetRegion(sh, sh, z + 1, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 2);
 
             double slice_count = -1;
-            double slice_ncc = GlobalNCC(slice_1, slice_2, slice_count);
+            const double slice_ncc = GlobalNCC(slice_1, slice_2, slice_count);
 
             if (slice_ncc > 0) {
                 ncc += slice_ncc;
-                count += 1;
+                count++;
             }
         }
 
-        ncc /= count;
-
-        return ncc;
+        return ncc / count;
     }
 
     //-------------------------------------------------------------------
@@ -1146,7 +1058,7 @@ namespace mirtk {
         RealImage m_tmp = _mask;
         RigidTransformation *rigidTransf_m = new RigidTransformation;
         TransformMask(target, m_tmp, *rigidTransf_m);
-        target = target * m_tmp;
+        target *= m_tmp;
         target.Write("masked.nii.gz");
 
         if (_debug) {
@@ -1173,14 +1085,13 @@ namespace mirtk {
     void Reconstruction::RestoreSliceIntensities() {
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             //calculate scaling factor
-            double factor = _stack_factor[_stack_index[inputIndex]];//_average_value;
+            const double factor = _stack_factor[_stack_index[inputIndex]];//_average_value;
 
-            RealPixel *p;
             // read the pointer to current slice
-            p = _slices[inputIndex].Data();
+            RealPixel *p = _slices[inputIndex].Data();
             for (int i = 0; i < _slices[inputIndex].NumberOfVoxels(); i++) {
-                if (*p > 0) *p = *p / factor;
-                p++;
+                if (p[i] > 0)
+                    p[i] /= factor;
             }
         }
     }
@@ -1193,13 +1104,13 @@ namespace mirtk {
 
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             // alias for the current slice
-            RealImage& slice = _slices[inputIndex];
+            const RealImage& slice = _slices[inputIndex];
 
             //alias for the current weight image
-            RealImage& w = _weights[inputIndex];
+            const RealImage& w = _weights[inputIndex];
 
             // alias for the current simulated slice
-            RealImage& sim = _simulated_slices[inputIndex];
+            const RealImage& sim = _simulated_slices[inputIndex];
 
             for (int i = 0; i < slice.GetX(); i++)
                 for (int j = 0; j < slice.GetY(); j++)
@@ -1217,15 +1128,15 @@ namespace mirtk {
         double scale = 1;
 
         if (scaleden > 0)
-            scalenum = scalenum / scaleden;
+            scalenum /= scaleden;
 
         if (_verbose)
             _verbose_log << "scale : " << scale << endl;
 
         RealPixel *ptr = _reconstructed.Data();
         for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
-            if (*ptr > 0) *ptr = *ptr * scale;
-            ptr++;
+            if (ptr[i] > 0)
+                ptr[i] *= scale;
         }
     }
 
@@ -1248,14 +1159,13 @@ namespace mirtk {
                 reconstructor->_simulated_inside[inputIndex] = 0;
                 reconstructor->_slice_inside[inputIndex] = false;
 
-                POINT3D p;
                 for (unsigned int i = 0; i < reconstructor->_slice_attributes[inputIndex]._x; i++)
                     for (unsigned int j = 0; j < reconstructor->_slice_attributes[inputIndex]._y; j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                             double weight = 0;
                             int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             for (unsigned int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                                const POINT3D p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 reconstructor->_simulated_slices[inputIndex](i, j, 0) += p.value * reconstructor->_reconstructed(p.x, p.y, p.z);
                                 weight += p.value;
                                 if (reconstructor->_mask(p.x, p.y, p.z) > 0.1) {
@@ -1278,7 +1188,7 @@ namespace mirtk {
 
     // class for simulation of slices from the current reconstructed 3D volume - v2 (use this one)
     class ParallelSimulateSlices2 {
-        Reconstruction* reconstructor;
+        Reconstruction *reconstructor;
 
     public:
         void operator()(const blocked_range<size_t>& r) {
@@ -1287,22 +1197,23 @@ namespace mirtk {
                 reconstructor->_simulated_slices[inputIndex] = 0;
                 reconstructor->_simulated_weights[inputIndex] = 0;
                 reconstructor->_simulated_inside[inputIndex] = 0;
-                reconstructor->_slice_inside[inputIndex] = false;
-                RealImage sim_slice = reconstructor->_simulated_slices[inputIndex];
-                RealImage sim_weight = reconstructor->_simulated_weights[inputIndex];
+                RealImage& sim_slice = reconstructor->_simulated_slices[inputIndex];
+                RealImage& sim_weight = reconstructor->_simulated_weights[inputIndex];
+                RealImage& sim_inside = reconstructor->_simulated_inside[inputIndex];
 
-                POINT3D p;
+                reconstructor->_slice_inside[inputIndex] = false;
+
                 for (unsigned int i = 0; i < reconstructor->_slice_attributes[inputIndex]._x; i++)
                     for (unsigned int j = 0; j < reconstructor->_slice_attributes[inputIndex]._y; j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                             double weight = 0;
                             int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             for (unsigned int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                                const POINT3D p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 sim_slice(i, j, 0) += p.value * reconstructor->_reconstructed(p.x, p.y, p.z);
                                 weight += p.value;
                                 if (reconstructor->_mask(p.x, p.y, p.z) > 0.1) {
-                                    reconstructor->_simulated_inside[inputIndex](i, j, 0) = 1;
+                                    sim_inside(i, j, 0) = 1;
                                     reconstructor->_slice_inside[inputIndex] = true;
                                 }
                             }
@@ -1318,16 +1229,11 @@ namespace mirtk {
             } //end of loop for a slice inputIndex
         }
 
-        ParallelSimulateSlices2(ParallelSimulateSlices2& x, split) :
-            reconstructor(x.reconstructor) {
-        }
+        void join(const ParallelSimulateSlices2& y) {}
 
-        void join(const ParallelSimulateSlices2& y) {
-        }
+        ParallelSimulateSlices2(ParallelSimulateSlices2& x, split) : reconstructor(x.reconstructor) {}
 
-        ParallelSimulateSlices2(Reconstruction *reconstructor) :
-            reconstructor(reconstructor) {
-        }
+        ParallelSimulateSlices2(Reconstruction *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()() {
             parallel_reduce(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
@@ -1353,7 +1259,6 @@ namespace mirtk {
         unsigned int inputIndex;
         int i, j, k, n;
         RealImage sim;
-        POINT3D p;
         double weight;
 
         int z, current_stack;
@@ -1376,7 +1281,7 @@ namespace mirtk {
                             weight = 0;
                             n = _volcoeffs[inputIndex][i][j].size();
                             for (k = 0; k < n; k++) {
-                                p = _volcoeffs[inputIndex][i][j][k];
+                                const POINT3D p = _volcoeffs[inputIndex][i][j][k];
                                 sim(i, j, 0) += p.value * _reconstructed(p.x, p.y, p.z);
                                 weight += p.value;
                             }
@@ -1473,7 +1378,6 @@ namespace mirtk {
 
         //Rescale stacks
         for (int ind = 0; ind < stacks.size(); ++ind) {
-            RealPixel *ptr;
             double factor;
             if (together) {
                 factor = averageValue / global_average;
@@ -1482,11 +1386,11 @@ namespace mirtk {
                 factor = averageValue / stack_average[ind];
                 _stack_factor[ind] = factor;
             }
-            ptr = stacks[ind].Data();
+
+            RealPixel *ptr = stacks[ind].Data();
             for (int i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
-                if (*ptr > 0)
-                    *ptr *= factor;
-                ptr++;
+                if (ptr[i] > 0)
+                    ptr[i] *= factor;
             }
         }
 
@@ -1687,9 +1591,7 @@ namespace mirtk {
 
         //Rescale stacks
         for (int ind = 0; ind < stacks.size(); ++ind) {
-            RealPixel *ptr;
             double factor;
-
             if (together) {
                 factor = averageValue / global_average;
                 _stack_factor[ind] = (factor);
@@ -1698,11 +1600,10 @@ namespace mirtk {
                 _stack_factor[ind] = (factor);
             }
 
-            ptr = stacks[ind].Data();
+            RealPixel *ptr = stacks[ind].Data();
             for (int i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
-                if (*ptr > 0)
-                    *ptr *= factor;
-                ptr++;
+                if (ptr[i] > 0)
+                    ptr[i] *= factor;
             }
         }
 
@@ -1797,10 +1698,8 @@ namespace mirtk {
                     average_thickness = average_thickness + thickness[i];
 
                     // if non-rigid FFD registartion option was selected
-                    if (_ffd) {
-                        MultiLevelFreeFormTransformation *mffd = new MultiLevelFreeFormTransformation();
-                        _mffd_transformations.push_back(*mffd);
-                    }
+                    if (_ffd)
+                        _mffd_transformations.push_back(MultiLevelFreeFormTransformation());
 
                     if (probability_maps.size() > 0) {
                         RealImage proba = probability_maps[i].GetRegion(0, 0, j, attr._x, attr._y, j + 1);
@@ -2027,8 +1926,7 @@ namespace mirtk {
                     RigidTransformation offset;
                     reconstructor->ResetOrigin(target, offset);
                     Matrix mo = offset.GetMatrix();
-                    Matrix m = reconstructor->_transformations[inputIndex].GetMatrix();
-                    m = m * mo;
+                    Matrix m = reconstructor->_transformations[inputIndex].GetMatrix() * mo;
                     reconstructor->_transformations[inputIndex].PutMatrix(m);
 
                     // run registration
@@ -2120,7 +2018,6 @@ namespace mirtk {
 
         cout << " - excluded : ";
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-
             RealImage output = _slices[inputIndex];
             output = 0;
 
@@ -2539,7 +2436,7 @@ namespace mirtk {
                 Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
                 RigidTransformation *tmp_r_transf = dynamic_cast<RigidTransformation*>(tmp_transf);
                 _transformations[inputIndex] = *tmp_r_transf;
-                
+
                 //undo the offset
                 Matrix mo = _offset_matrices[inputIndex];
                 mo.Invert();
@@ -2711,10 +2608,8 @@ namespace mirtk {
 
             _stack_index.push_back(0);
 
-            if (_ffd) {
-                MultiLevelFreeFormTransformation *mffd = new MultiLevelFreeFormTransformation();
-                _mffd_transformations.push_back(*mffd);
-            }
+            if (_ffd)
+                _mffd_transformations.push_back(MultiLevelFreeFormTransformation());
         }
     }
 
@@ -2752,21 +2647,15 @@ namespace mirtk {
         }
 
         GD_csv_file.close();
-
     }
 
     //-------------------------------------------------------------------
 
     // perform nonlocal means filtering
     void Reconstruction::NLMFiltering(Array<RealImage>& stacks) {
-        RealImage tmp_stack;
-        NLDenoising *denoising = new NLDenoising;
-
+        NLDenoising denoising;
         for (int i = 0; i < stacks.size(); i++) {
-            tmp_stack = stacks[i];
-            tmp_stack = denoising->Run(tmp_stack, 3, 1);
-            stacks[i] = tmp_stack;
-
+            stacks[i] = denoising.Run(stacks[i], 3, 1);
             stacks[i].Write((boost::format("denoised-%1%.nii.gz") % i).str().c_str());
         }
     }
@@ -3099,7 +2988,7 @@ namespace mirtk {
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++)
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
                         for (int k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
-                            POINT3D p = _volcoeffs[inputIndex][i][j][k];
+                            const POINT3D p = _volcoeffs[inputIndex][i][j][k];
                             _volume_weights(p.x, p.y, p.z) += p.value;
                         }
                     }
@@ -3139,7 +3028,6 @@ namespace mirtk {
         int i, j, k, n;
         RealImage slice;
         double scale;
-        POINT3D p;
         Array<int> voxel_num;
         int slice_vox_num;
 
@@ -3184,7 +3072,7 @@ namespace mirtk {
                             //add contribution of current slice voxel to all voxel volumes
                             //to which it contributes
                             for (k = 0; k < n; k++) {
-                                p = _volcoeffs[inputIndex][i][j][k];
+                                const POINT3D p = _volcoeffs[inputIndex][i][j][k];
                                 _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
                             }
                         }
@@ -3256,9 +3144,8 @@ namespace mirtk {
                 RealImage& slice = (reconstructor->_withMB == true) ? reconstructor->_slicesRwithMB[inputIndex] : reconstructor->_slices[inputIndex];
 
                 //prepare structures for storage
-                POINT3D p;
                 VOXELCOEFFS empty;
-                SLICECOEFFS slicecoeffs(slice.GetX(), Array < VOXELCOEFFS >(slice.GetY(), empty));
+                SLICECOEFFS slicecoeffs(slice.GetX(), Array<VOXELCOEFFS>(slice.GetY(), empty));
 
                 //to check whether the slice has an overlap with mask ROI
                 slice_inside = false;
@@ -3516,6 +3403,7 @@ namespace mirtk {
                                 for (jj = 0; jj < dim; jj++)
                                     for (kk = 0; kk < dim; kk++)
                                         if (tPSF(ii, jj, kk) > 0) {
+                                            POINT3D p;
                                             p.x = ii + tx - centre;
                                             p.y = jj + ty - centre;
                                             p.z = kk + tz - centre;
@@ -3556,14 +3444,13 @@ namespace mirtk {
         _volume_weightsSF = 0;
 
         int inputIndex, i, j, n, k;
-        POINT3D p;
         if (_withMB)
             for (inputIndex = begin; inputIndex < end; ++inputIndex) {
                 for (i = 0; i < _slicesRwithMB[inputIndex].GetX(); i++)
                     for (j = 0; j < _slicesRwithMB[inputIndex].GetY(); j++) {
                         n = _volcoeffsSF[inputIndex % _slicePerDyn][i][j].size();
                         for (k = 0; k < n; k++) {
-                            p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
+                            const POINT3D p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
                             _volume_weightsSF(p.x, p.y, p.z) += p.value;
                         }
                     }
@@ -3573,7 +3460,7 @@ namespace mirtk {
                         for (j = 0; j < _slices[inputIndex].GetY(); j++) {
                             n = _volcoeffsSF[inputIndex % _slicePerDyn][i][j].size();
                             for (k = 0; k < n; k++) {
-                                p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
+                                const POINT3D p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
                                 _volume_weightsSF(p.x, p.y, p.z) += p.value;
                             }
                         }
@@ -3584,17 +3471,15 @@ namespace mirtk {
             _volume_weightsSF.Write("volume_weights.nii.gz");
 
         //find average volume weight to modify alpha parameters accordingly
-        RealPixel *ptr = _volume_weightsSF.Data();
-        RealPixel *pm = _mask.Data();
+        const RealPixel *ptr = _volume_weightsSF.Data();
+        const RealPixel *pm = _mask.Data();
         double sum = 0;
         int num = 0;
         for (int i = 0; i < _volume_weightsSF.NumberOfVoxels(); i++) {
-            if (*pm == 1) {
-                sum += *ptr;
+            if (pm[i] == 1) {
+                sum += ptr[i];
                 num++;
             }
-            ptr++;
-            pm++;
         }
         _average_volume_weightSF = sum / num;
 
@@ -3618,7 +3503,6 @@ namespace mirtk {
         RealImage slice;
         double scale;
         int n;
-        POINT3D p;
         Array<int> voxel_num;
         int slice_vox_num = 0;
 
@@ -3685,7 +3569,7 @@ namespace mirtk {
                             //add contribution of current slice voxel to all voxel volumes
                             //to which it contributes
                             for (int k = 0; k < n; k++) {
-                                p = _volcoeffsSF[s][i][j][k];
+                                const POINT3D p = _volcoeffsSF[s][i][j][k];
                                 interpolated(p.x, p.y, p.z) += p.value * slice(i, j, 0);
                             }
                         }
@@ -3757,15 +3641,14 @@ namespace mirtk {
 
         for (int i = 0; i < _slices.size(); ++i) {
             //to update minimum we need to exclude padding value
-            RealPixel *ptr = _slices[i].Data();
+            const RealPixel *ptr = _slices[i].Data();
             for (int ind = 0; ind < _slices[i].NumberOfVoxels(); ind++) {
-                if (*ptr > 0) {
-                    if (*ptr > _max_intensity)
-                        _max_intensity = *ptr;
-                    if (*ptr < _min_intensity)
-                        _min_intensity = *ptr;
+                if (ptr[ind] > 0) {
+                    if (ptr[ind] > _max_intensity)
+                        _max_intensity = ptr[ind];
+                    if (ptr[ind] < _min_intensity)
+                        _min_intensity = ptr[ind];
                 }
-                ptr++;
             }
         }
     }
@@ -3779,20 +3662,12 @@ namespace mirtk {
 
         for (int i = 0; i < _slices.size(); ++i) {
             //Initialise voxel weights and bias values
+            const RealPixel *pi = _slices[i].Data();
             RealPixel *pw = _weights[i].Data();
             RealPixel *pb = _bias[i].Data();
-            RealPixel *pi = _slices[i].Data();
             for (int j = 0; j < _weights[i].NumberOfVoxels(); j++) {
-                if (*pi > -0.01) {
-                    *pw = 1;
-                    *pb = 0;
-                } else {
-                    *pw = 0;
-                    *pb = 0;
-                }
-                pi++;
-                pw++;
-                pb++;
+                pw[j] = pi[j] > -0.01 ? 1 : 0;
+                pb[j] = 0;
             }
 
             //Initialise slice weights
@@ -3826,7 +3701,6 @@ namespace mirtk {
         }
 
         for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-
             RealImage slice, sim;
             slice = _slices[inputIndex];
             //Voxel-wise sigma will be set to stdev of volumetric errors
@@ -4864,13 +4738,18 @@ namespace mirtk {
 
     // class for bias normalisation
     class ParallelNormaliseBias {
-        Reconstruction* reconstructor;
+        Reconstruction *reconstructor;
     public:
         RealImage bias;
 
+        ParallelNormaliseBias(Reconstruction *reconstructor) : reconstructor(reconstructor) {
+            bias.Initialize(reconstructor->_reconstructed.GetImageAttributes());
+        }
+
+        ParallelNormaliseBias(ParallelNormaliseBias& x, split) : ParallelNormaliseBias(x.reconstructor) {}
+
         void operator()(const blocked_range<size_t>& r) {
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-
                 if (reconstructor->_verbose)
                     reconstructor->_verbose_log << inputIndex << " ";
 
@@ -4878,27 +4757,24 @@ namespace mirtk {
                 RealImage b = reconstructor->_bias[inputIndex];
 
                 //read current scale factor
-                double scale = reconstructor->_scale[inputIndex];
+                const double scale = reconstructor->_scale[inputIndex];
 
-                RealPixel *pi = reconstructor->_slices[inputIndex].Data();
+                const RealPixel *pi = reconstructor->_slices[inputIndex].Data();
                 RealPixel *pb = b.Data();
                 for (int i = 0; i < reconstructor->_slices[inputIndex].NumberOfVoxels(); i++) {
-                    if ((*pi > -1) && (scale > 0))
-                        *pb -= log(scale);
-                    pb++;
-                    pi++;
+                    if ((pi[i] > -1) && (scale > 0))
+                        pb[i] -= log(scale);
                 }
 
                 //Distribute slice intensities to the volume
-                POINT3D p;
                 for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
                     for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                             //number of volume voxels with non-zero coefficients for current slice voxel
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                            const int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             //add contribution of current slice voxel to all voxel volumes to which it contributes
                             for (int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                                const POINT3D p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 bias(p.x, p.y, p.z) += p.value * b(i, j, 0);
                             }
                         }
@@ -4906,27 +4782,12 @@ namespace mirtk {
             }
         }
 
-        ParallelNormaliseBias(ParallelNormaliseBias& x, split) :
-            reconstructor(x.reconstructor) {
-            bias.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            bias = 0;
-        }
-
         void join(const ParallelNormaliseBias& y) {
             bias += y.bias;
         }
 
-        ParallelNormaliseBias(Reconstruction *reconstructor) :
-            reconstructor(reconstructor) {
-            bias.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            bias = 0;
-        }
-
-
         void operator()() {
-
             parallel_reduce(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
-
         }
     };
 
@@ -4960,15 +4821,11 @@ namespace mirtk {
         if (_debug)
             bias.Write((boost::format("averagebias%1%.nii.gz") % iter).str().c_str());
 
-        RealPixel *pi, *pb;
-        pi = _reconstructed.Data();
-        pb = bias.Data();
-
+        RealPixel *pi = _reconstructed.Data();
+        RealPixel *pb = bias.Data();
         for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
-            if (*pi != -1)
-                *pi /= exp(-(*pb));
-            pi++;
-            pb++;
+            if (pi[i] != -1)
+                pi[i] /= exp(-(pb[i]));
         }
 
         SVRTK_END_TIMING("NormaliseBias");
@@ -5856,10 +5713,8 @@ namespace mirtk {
                         RigidTransformation offset;
                         ResetOrigin(t, offset);
                         Matrix mo = offset.GetMatrix();
-                        Matrix m = internal_transformations[j].GetMatrix();
-                        m = m * mo;
+                        Matrix m = internal_transformations[j].GetMatrix() * mo;
                         internal_transformations[j].PutMatrix(m);
-
 
                         rigidregistration->Input(&t, &s);
                         Transformation *dofout = nullptr;
@@ -5878,8 +5733,7 @@ namespace mirtk {
                         rigidregistration->Run();
 
                         mo.Invert();
-                        m = internal_transformations[j].GetMatrix();
-                        m = m * mo;
+                        m = internal_transformations[j].GetMatrix() * mo;
                         internal_transformations[j].PutMatrix(m);
                     }
 
@@ -6455,12 +6309,10 @@ namespace mirtk {
     // mask reconstructed volume
     void Reconstruction::MaskVolume() {
         RealPixel *pr = _reconstructed.Data();
-        RealPixel *pm = _mask.Data();
+        const RealPixel *pm = _mask.Data();
         for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
-            if (*pm == 0)
-                *pr = -1;
-            pm++;
-            pr++;
+            if (pm[i] == 0)
+                pr[i] = -1;
         }
     }
 
@@ -6472,14 +6324,12 @@ namespace mirtk {
             cerr << "Cannot mask the image - different dimensions" << endl;
             exit(1);
         }
-        RealPixel *pr = image.Data();
-        RealPixel *pm = _mask.Data();
 
+        RealPixel *pr = image.Data();
+        const RealPixel *pm = _mask.Data();
         for (int i = 0; i < image.NumberOfVoxels(); i++) {
-            if (*pm == 0)
-                *pr = padding;
-            pm++;
-            pr++;
+            if (pm[i] == 0)
+                pr[i] = padding;
         }
     }
 
@@ -6487,17 +6337,16 @@ namespace mirtk {
 
     // rescale input volume
     void Reconstruction::Rescale(RealImage &img, double max) {
-        int i, n;
         RealPixel *ptr, min_val, max_val;
 
         // Get lower and upper bound
         img.GetMinMax(&min_val, &max_val);
 
-        n = img.NumberOfVoxels();
         ptr = img.Data();
-        for (i = 0; i < n; i++)
+        for (int i = 0; i < img.NumberOfVoxels(); i++) {
             if (ptr[i] > 0)
                 ptr[i] = double(ptr[i]) / double(max_val) * max;
+        }
     }
 
     //-------------------------------------------------------------------
@@ -6698,7 +6547,6 @@ namespace mirtk {
 
     // run serial global similarity statists (for the stack selection function)
     void Reconstruction::GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations) {
-
         template_stack *= template_mask;
 
         RigidTransformation *r_init = new RigidTransformation();
@@ -6757,12 +6605,11 @@ namespace mirtk {
             average_ncc = average_ncc + local_ncc;
             average_volume = average_volume + slice_count;
             current_stack_tranformations.push_back(*r_dofout);
-
         }
 
-        average_ncc = average_ncc / stacks.size();
-        average_volume = average_volume / stacks.size();
-        average_volume = average_volume * template_stack.GetXSize() * template_stack.GetYSize() * template_stack.GetZSize() / 1000;
+        average_ncc /= stacks.size();
+        average_volume /= stacks.size();
+        average_volume *= template_stack.GetXSize() * template_stack.GetYSize() * template_stack.GetZSize() / 1000;
     }
 
     //-------------------------------------------------------------------
@@ -6785,8 +6632,8 @@ namespace mirtk {
             double local_ncc = ComputeNCC(slice_1, slice_2, slice_count);
 
             if (local_ncc > 0) {
-                slice_ncc = slice_ncc + local_ncc;
-                slice_num += 1;
+                slice_ncc += local_ncc;
+                slice_num++;
             }
         }
 

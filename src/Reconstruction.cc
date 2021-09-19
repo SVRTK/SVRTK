@@ -463,7 +463,7 @@ namespace mirtk {
         }
 
         //initialize recontructed volume
-        _reconstructed = enlarged;
+        _reconstructed = move(enlarged);
         _template_created = true;
 
         if (_debug)
@@ -493,7 +493,7 @@ namespace mirtk {
         cout << "Constructing volume with anisotropic voxel size " << attr._x << " " << attr._y << " " << attr._z << endl;
 
         //initialize recontructed volume
-        _reconstructed = enlarged;
+        _reconstructed = move(enlarged);
         _template_created = true;
 
         //return resulting resolution of the template image
@@ -522,7 +522,7 @@ namespace mirtk {
         imagetransformation.Interpolator(&interpolator);
         imagetransformation.Run();
 
-        _reconstructed = t2template;
+        _reconstructed = move(t2template);
     }
 
     //-------------------------------------------------------------------
@@ -670,7 +670,7 @@ namespace mirtk {
         imagetransformation.SourcePaddingValue(0);
         imagetransformation.Interpolator(interpolator.get());
         imagetransformation.Run();
-        mask = m;
+        mask = move(m);
     }
 
     //-------------------------------------------------------------------

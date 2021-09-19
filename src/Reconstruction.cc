@@ -505,8 +505,7 @@ namespace mirtk {
     // Set template
     void Reconstruction::SetTemplate(RealImage templateImage) {
         RealImage t2template = _reconstructed;
-
-        t2template = 0;
+        memset(t2template.Data(), 0, sizeof(RealPixel) * t2template.NumberOfVoxels());
 
         RigidTransformation tr;
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
@@ -894,8 +893,8 @@ namespace mirtk {
         bool dofin_invert = false;
         bool twod = false;
 
-        RealImage output = template_stack;
-        output = 0;
+        RealImage& output = template_stack;
+        memset(output.Data(), 0, sizeof(RealPixel) * output.NumberOfVoxels());
 
         ImageTransformation *imagetransformation = new ImageTransformation;
         imagetransformation->Input(&input_stack);
@@ -1192,13 +1191,13 @@ namespace mirtk {
         void operator()(const blocked_range<size_t>& r) {
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
                 //Calculate simulated slice
-                reconstructor->_simulated_slices[inputIndex] = 0;
-                reconstructor->_simulated_weights[inputIndex] = 0;
-                reconstructor->_simulated_inside[inputIndex] = 0;
                 RealImage& sim_slice = reconstructor->_simulated_slices[inputIndex];
                 RealImage& sim_weight = reconstructor->_simulated_weights[inputIndex];
                 RealImage& sim_inside = reconstructor->_simulated_inside[inputIndex];
 
+                memset(sim_slice.Data(), 0, sizeof(RealPixel) * sim_slice.NumberOfVoxels());
+                memset(sim_weight.Data(), 0, sizeof(RealPixel) * sim_weight.NumberOfVoxels());
+                memset(sim_inside.Data(), 0, sizeof(RealPixel) * sim_inside.NumberOfVoxels());
                 reconstructor->_slice_inside[inputIndex] = false;
 
                 for (unsigned int i = 0; i < reconstructor->_slice_attributes[inputIndex]._x; i++)
@@ -1220,10 +1219,6 @@ namespace mirtk {
                                 sim_weight(i, j, 0) = weight;
                             }
                         };
-
-                reconstructor->_simulated_slices[inputIndex] = sim_slice;
-                reconstructor->_simulated_weights[inputIndex] = sim_weight;
-
             } //end of loop for a slice inputIndex
         }
 
@@ -1269,7 +1264,7 @@ namespace mirtk {
 
             //Calculate simulated slice
             sim.Initialize(slice.GetImageAttributes());
-            sim = 0;
+            memset(sim.Data(), 0, sizeof(RealPixel) * sim.NumberOfVoxels());
 
             //do not simulate excluded slice
             if (_slice_weight[inputIndex] > 0.5) {
@@ -2017,7 +2012,7 @@ namespace mirtk {
         cout << " - excluded : ";
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             RealImage output = _slices[inputIndex];
-            output = 0;
+            memset(output.Data(), 0, sizeof(RealPixel) * output.NumberOfVoxels());
 
             // transfrom reconstructed volume to the slice space
             ImageTransformation *imagetransformation = new ImageTransformation;
@@ -3439,7 +3434,7 @@ namespace mirtk {
 
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
         _volume_weightsSF.Initialize(_reconstructed.GetImageAttributes());
-        _volume_weightsSF = 0;
+        memset(_volume_weightsSF.Data(), 0, sizeof(RealPixel) * _volume_weightsSF.NumberOfVoxels());
 
         int inputIndex, i, j, n, k;
         if (_withMB)
@@ -6540,7 +6535,7 @@ namespace mirtk {
             bool twod = false;
 
             RealImage output = template_stack;
-            output = 0;
+            memset(output.Data(), 0, sizeof(RealPixel) * output.NumberOfVoxels());
 
             ImageTransformation *imagetransformation = new ImageTransformation;
             imagetransformation->Input(&input_stack);

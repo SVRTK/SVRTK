@@ -4235,69 +4235,45 @@ namespace mirtk {
 
     // class for SR reconstruction
     class ParallelSuperresolution {
-        Reconstruction* reconstructor;
+        Reconstruction *reconstructor;
     public:
         RealImage confidence_map;
         RealImage addon;
 
-        void operator()(const blocked_range<size_t>& r) {
-            for (size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-
-                //Update reconstructed volume using current slice
-
-                //Distribute error to the volume
-                POINT3D p;
-                for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
-                    for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
-                        if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
-
-                            if (reconstructor->_simulated_slices[inputIndex](i, j, 0) < 0.01)
-                                reconstructor->_slice_dif[inputIndex](i, j, 0) = 0;
-
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                            for (int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-
-                                if (reconstructor->_robust_slices_only) {
-                                    addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex](i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                    confidence_map(p.x, p.y, p.z) += p.value * reconstructor->_slice_weight[inputIndex];
-                                } else {
-                                    addon(p.x, p.y, p.z) += p.value * reconstructor->_slice_dif[inputIndex](i, j, 0) * reconstructor->_weights[inputIndex](i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                    confidence_map(p.x, p.y, p.z) += p.value * reconstructor->_weights[inputIndex](i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                }
-                            }
-                        }
-            } //end of loop for a slice inputIndex
-        }
-
-        ParallelSuperresolution(ParallelSuperresolution& x, split) :
-            reconstructor(x.reconstructor) {
+        ParallelSuperresolution(Reconstruction *reconstructor) : reconstructor(reconstructor) {
             //Clear addon
             addon.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            addon = 0;
 
             //Clear confidence map
             confidence_map.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            confidence_map = 0;
         }
+
+        ParallelSuperresolution(ParallelSuperresolution& x, split) : ParallelSuperresolution(x.reconstructor) {}
 
         void join(const ParallelSuperresolution& y) {
             addon += y.addon;
             confidence_map += y.confidence_map;
         }
 
-        ParallelSuperresolution(Reconstruction *reconstructor) :
-            reconstructor(reconstructor) {
-            //Clear addon
-            addon.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            addon = 0;
+        void operator()(const blocked_range<size_t>& r) {
+            //Update reconstructed volume using current slice
+            for (size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
+                //Distribute error to the volume
+                for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
+                    for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
+                        if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
+                            if (reconstructor->_simulated_slices[inputIndex](i, j, 0) < 0.01)
+                                reconstructor->_slice_dif[inputIndex](i, j, 0) = 0;
 
-            //Clear confidence map
-            confidence_map.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            confidence_map = 0;
+                            #pragma omp simd
+                            for (int k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
+                                const POINT3D p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                                const auto multiplier = reconstructor->_robust_slices_only ? 1 : reconstructor->_weights[inputIndex](i, j, 0);
+                                addon(p.x, p.y, p.z) += multiplier * p.value * reconstructor->_slice_dif[inputIndex](i, j, 0) * reconstructor->_slice_weight[inputIndex];
+                                confidence_map(p.x, p.y, p.z) += multiplier * p.value * reconstructor->_slice_weight[inputIndex];
+                            }
+                        }
+            } //end of loop for a slice inputIndex
         }
 
         void operator()() {
@@ -4312,17 +4288,16 @@ namespace mirtk {
     void Reconstruction::Superresolution(int iter) {
         SVRTK_START_TIMING();
 
-        RealImage addon, original;
-
         // save current reconstruction for edge-preserving smoothing
-        original = _reconstructed;
+        RealImage original = _reconstructed;
 
         SliceDifference();
 
         ParallelSuperresolution parallelSuperresolution(this);
         parallelSuperresolution();
-        addon = parallelSuperresolution.addon;
-        _confidence_map = parallelSuperresolution.confidence_map;
+
+        RealImage& addon = parallelSuperresolution.addon;
+        _confidence_map = move(parallelSuperresolution.confidence_map);
         //_confidence4mask = _confidence_map;
 
         if (_debug) {
@@ -4357,6 +4332,7 @@ namespace mirtk {
 
         //Smooth the reconstructed image with regularisation
         AdaptiveRegularization(iter, original);
+
         //Remove the bias in the reconstructed volume compared to previous iteration
         if (_global_bias_correction)
             BiasCorrectVolume(original);
@@ -4486,16 +4462,16 @@ namespace mirtk {
 
     // class for adaptive regularisation (Part I)
     class ParallelAdaptiveRegularization1 {
-        Reconstruction *reconstructor;
-        Array<RealImage> &b;
-        Array<double> &factor;
-        RealImage &original;
+        const Reconstruction *reconstructor;
+        Array<RealImage>& b;
+        const Array<double>& factor;
+        const RealImage& original;
 
     public:
-        ParallelAdaptiveRegularization1(Reconstruction *_reconstructor,
-            Array<RealImage> &_b,
-            Array<double> &_factor,
-            RealImage &_original) :
+        ParallelAdaptiveRegularization1(const Reconstruction *_reconstructor,
+            Array<RealImage>& _b,
+            const Array<double>& _factor,
+            const RealImage& _original) :
             reconstructor(_reconstructor),
             b(_b),
             factor(_factor),
@@ -4503,22 +4479,19 @@ namespace mirtk {
         }
 
         void operator()(const blocked_range<size_t> &r) const {
-            int dx = reconstructor->_reconstructed.GetX();
-            int dy = reconstructor->_reconstructed.GetY();
-            int dz = reconstructor->_reconstructed.GetZ();
+            const int dx = reconstructor->_reconstructed.GetX();
+            const int dy = reconstructor->_reconstructed.GetY();
+            const int dz = reconstructor->_reconstructed.GetZ();
             for (size_t i = r.begin(); i != r.end(); ++i) {
-
-                int x, y, z, xx, yy, zz;
-                double diff;
-                for (x = 0; x < dx; x++)
-                    for (y = 0; y < dy; y++)
-                        for (z = 0; z < dz; z++) {
-                            xx = x + reconstructor->_directions[i][0];
-                            yy = y + reconstructor->_directions[i][1];
-                            zz = z + reconstructor->_directions[i][2];
+                for (int x = 0; x < dx; x++)
+                    for (int y = 0; y < dy; y++)
+                        for (int z = 0; z < dz; z++) {
+                            const int xx = x + reconstructor->_directions[i][0];
+                            const int yy = y + reconstructor->_directions[i][1];
+                            const int zz = z + reconstructor->_directions[i][2];
                             if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
                                 && (reconstructor->_confidence_map(x, y, z) > 0) && (reconstructor->_confidence_map(xx, yy, zz) > 0)) {
-                                diff = (original(xx, yy, zz) - original(x, y, z)) * sqrt(factor[i]) / reconstructor->_delta;
+                                const double diff = (original(xx, yy, zz) - original(x, y, z)) * sqrt(factor[i]) / reconstructor->_delta;
                                 b[i](x, y, z) = factor[i] / sqrt(1 + diff * diff);
                             } else
                                 b[i](x, y, z) = 0;
@@ -4537,53 +4510,50 @@ namespace mirtk {
     // class for adaptive regularisation (Part II)
     class ParallelAdaptiveRegularization2 {
         Reconstruction *reconstructor;
-        Array<RealImage> &b;
-        Array<double> &factor;
-        RealImage &original;
+        const Array<RealImage>& b;
+        const RealImage& original;
 
     public:
         ParallelAdaptiveRegularization2(Reconstruction *_reconstructor,
-            Array<RealImage> &_b,
-            Array<double> &_factor,
-            RealImage &_original) :
+            const Array<RealImage>& _b,
+            const RealImage& _original) :
             reconstructor(_reconstructor),
             b(_b),
-            factor(_factor),
             original(_original) {
         }
 
         void operator()(const blocked_range<size_t> &r) const {
-            int dx = reconstructor->_reconstructed.GetX();
-            int dy = reconstructor->_reconstructed.GetY();
-            int dz = reconstructor->_reconstructed.GetZ();
+            const int dx = reconstructor->_reconstructed.GetX();
+            const int dy = reconstructor->_reconstructed.GetY();
+            const int dz = reconstructor->_reconstructed.GetZ();
             for (size_t x = r.begin(); x != r.end(); ++x) {
-                int xx, yy, zz;
                 for (int y = 0; y < dy; y++)
                     for (int z = 0; z < dz; z++)
                         if (reconstructor->_confidence_map(x, y, z) > 0) {
                             double val = 0;
                             double sum = 0;
+
+                            // Don't combine the loops, it breaks compiler optimisation (GCC 9)
                             for (int i = 0; i < 13; i++) {
-                                xx = x + reconstructor->_directions[i][0];
-                                yy = y + reconstructor->_directions[i][1];
-                                zz = z + reconstructor->_directions[i][2];
-                                if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                    if (reconstructor->_confidence_map(xx, yy, zz) > 0) {
-                                        val += b[i](x, y, z) * original(xx, yy, zz);
-                                        sum += b[i](x, y, z);
-                                    }
+                                const int xx = x + reconstructor->_directions[i][0];
+                                const int yy = y + reconstructor->_directions[i][1];
+                                const int zz = z + reconstructor->_directions[i][2];
+                                if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
+                                    && reconstructor->_confidence_map(xx, yy, zz) > 0) {
+                                    val += b[i](x, y, z) * original(xx, yy, zz);
+                                    sum += b[i](x, y, z);
+                                }
                             }
 
                             for (int i = 0; i < 13; i++) {
-                                xx = x - reconstructor->_directions[i][0];
-                                yy = y - reconstructor->_directions[i][1];
-                                zz = z - reconstructor->_directions[i][2];
-                                if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                    if (reconstructor->_confidence_map(xx, yy, zz) > 0) {
-                                        val += b[i](x, y, z) * original(xx, yy, zz);
-                                        sum += b[i](x, y, z);
-                                    }
-
+                                const int xx = x - reconstructor->_directions[i][0];
+                                const int yy = y - reconstructor->_directions[i][1];
+                                const int zz = z - reconstructor->_directions[i][2];
+                                if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
+                                    && reconstructor->_confidence_map(xx, yy, zz) > 0) {
+                                    val += b[i](x, y, z) * original(xx, yy, zz);
+                                    sum += b[i](x, y, z);
+                                }
                             }
 
                             val -= sum * original(x, y, z);
@@ -4603,8 +4573,7 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     // run adaptive regularisation of the SR reconstructed volume
-    void Reconstruction::AdaptiveRegularization(int iter, RealImage& original) {
-
+    void Reconstruction::AdaptiveRegularization(int iter, const RealImage& original) {
         Array<double> factor(13, 0);
         for (int i = 0; i < 13; i++) {
             for (int j = 0; j < 3; j++)
@@ -4612,15 +4581,13 @@ namespace mirtk {
             factor[i] = 1 / factor[i];
         }
 
-        Array<RealImage> b;
-        for (int i = 0; i < 13; i++)
-            b.push_back(_reconstructed);
+        Array<RealImage> b(13, _reconstructed);
 
         ParallelAdaptiveRegularization1 parallelAdaptiveRegularization1(this, b, factor, original);
         parallelAdaptiveRegularization1();
 
-        RealImage original2 = _reconstructed;
-        ParallelAdaptiveRegularization2 parallelAdaptiveRegularization2(this, b, factor, original2);
+        const RealImage original2 = _reconstructed;
+        ParallelAdaptiveRegularization2 parallelAdaptiveRegularization2(this, b, original2);
         parallelAdaptiveRegularization2();
 
         if (_alpha * _lambda / (_delta * _delta) > 0.068)
@@ -4631,27 +4598,23 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     // correct bias
-    void Reconstruction::BiasCorrectVolume(RealImage& original) {
+    void Reconstruction::BiasCorrectVolume(const RealImage& original) {
         //remove low-frequancy component in the reconstructed image which might have accured due to overfitting of the biasfield
         RealImage residual = _reconstructed;
         RealImage weights = _mask;
 
         //calculate weighted residual
+        const RealPixel *po = original.Data();
         RealPixel *pr = residual.Data();
-        RealPixel *po = original.Data();
         RealPixel *pw = weights.Data();
+        #pragma omp parallel for
         for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
             //second and term to avoid numerical problems
-            if ((*pw == 1) && (*po > _low_intensity_cutoff * _max_intensity) && (*pr > _low_intensity_cutoff * _max_intensity)) {
-                *pr /= *po;
-                *pr = log(*pr);
+            if ((pw[i] == 1) && (po[i] > _low_intensity_cutoff * _max_intensity) && (pr[i] > _low_intensity_cutoff * _max_intensity)) {
+                pr[i] = log(pr[i] / po[i]);
             } else {
-                *pw = 0;
-                *pr = 0;
+                pw[i] = pr[i] = 0;
             }
-            pr++;
-            po++;
-            pw++;
         }
 
         //blurring needs to be same as for slices
@@ -4668,29 +4631,24 @@ namespace mirtk {
         //calculate the bias field
         pr = residual.Data();
         pw = weights.Data();
-        RealPixel *pm = _mask.Data();
+        const RealPixel *pm = _mask.Data();
         RealPixel *pi = _reconstructed.Data();
+        #pragma omp parallel for
         for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
-
-            if (*pm == 1) {
+            if (pm[i] == 1) {
                 //weighted gaussian smoothing
-                *pr /= *pw;
                 //exponential to recover multiplicative bias field
-                *pr = exp(*pr);
+                pr[i] = exp(pr[i] / pw[i]);
                 //bias correct reconstructed
-                *pi /= *pr;
+                pi[i] /= pr[i];
                 //clamp intensities to allowed range
-                if (*pi < _min_intensity * 0.9)
-                    *pi = _min_intensity * 0.9;
-                if (*pi > _max_intensity * 1.1)
-                    *pi = _max_intensity * 1.1;
+                if (pi[i] < _min_intensity * 0.9)
+                    pi[i] = _min_intensity * 0.9;
+                if (pi[i] > _max_intensity * 1.1)
+                    pi[i] = _max_intensity * 1.1;
             } else {
-                *pr = 0;
+                pr[i] = 0;
             }
-            pr++;
-            pw++;
-            pm++;
-            pi++;
         }
     }
 

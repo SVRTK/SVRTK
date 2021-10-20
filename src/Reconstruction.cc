@@ -2247,11 +2247,8 @@ namespace mirtk {
 
             // read output transformations
             for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-                string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-
-                Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
-                RigidTransformation *tmp_r_transf = dynamic_cast<RigidTransformation*>(tmp_transf);
-                _transformations[inputIndex] = *tmp_r_transf;
+                const string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                _transformations[inputIndex].Read(str_dofout.c_str());
 
                 //undo the offset
                 Matrix m = _transformations[inputIndex].GetMatrix() * _offset_matrices[inputIndex].Invert();
@@ -2307,10 +2304,8 @@ namespace mirtk {
 
             // read output transformations
             for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-                string str_dofout = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
-                Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
-                MultiLevelFreeFormTransformation *tmp_mffd_transf = dynamic_cast<MultiLevelFreeFormTransformation*>(tmp_transf);
-                _mffd_transformations[inputIndex] = *tmp_mffd_transf;
+                const string str_dofout = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
+                _mffd_transformations[inputIndex].Read(str_dofout.c_str());
             }
 
         }
@@ -2387,9 +2382,9 @@ namespace mirtk {
             _slices.push_back(slice);
 
             // load transformations
-            string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
-            Transformation *t = Transformation::New(str_dofin.c_str());
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(t);
+            const string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
+            unique_ptr<Transformation> t(Transformation::New(str_dofin.c_str()));
+            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(t.get());
             _transformations.push_back(*rigidTransf);
 
             RealPixel tmin, tmax;

@@ -2071,100 +2071,56 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
 
-    // class for remote FFD SVR
-    class ParallelRemoteSliceToVolumeRegistrationFFD {
-    public:
-        Reconstruction *reconstructor;
-        int svr_range_start;
-        int svr_range_stop;
-        string str_mirtk_path;
-        string str_current_main_file_path;
-        string str_current_exchange_file_path;
-
-        ParallelRemoteSliceToVolumeRegistrationFFD(Reconstruction *in_reconstructor, int in_svr_range_start, int in_svr_range_stop, string in_str_mirtk_path, string in_str_current_main_file_path, string in_str_current_exchange_file_path) :
-            reconstructor(in_reconstructor),
-            svr_range_start(in_svr_range_start),
-            svr_range_stop(in_svr_range_stop),
-            str_mirtk_path(in_str_mirtk_path),
-            str_current_main_file_path(in_str_current_main_file_path),
-            str_current_exchange_file_path(in_str_current_exchange_file_path) {
-        }
-
-        void operator()(const blocked_range<size_t> &r) const {
-            for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
-                if (reconstructor->_zero_slices[inputIndex] > 0) {
-                    // define registration parameters
-                    string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim, str_ds;
-                    str_target = str_current_exchange_file_path + "/slice-" + to_string(inputIndex) + ".nii.gz";
-                    str_source = str_current_exchange_file_path + "/current-source.nii.gz";
-                    str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
-                    str_reg_model = "-model FFD";
-                    str_dofout = "-dofout " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
-                    if (reconstructor->_ncc_reg) {
-                        str_sim = "-sim NCC -window 5 ";
-                    }
-                    if (reconstructor->_cp_spacing > 0) {
-                        str_ds = "-ds " + to_string(reconstructor->_cp_spacing);
-                    }
-                    str_bg1 = "-bg1 " + to_string(0);
-                    str_bg2 = "-bg2 " + to_string(-1);
-                    str_dofin = "-dofin " + str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
-
-                    // run registration remotely
-                    string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_ds + " " + str_log + " -threads 1";
-                    if (system(register_cmd.c_str()) == -1)
-                        cerr << "The register command couldn't be executed!" << endl;
-                }
-            } // end of inputIndex
-        }
-
-        void operator()() const {
-            parallel_for(blocked_range<size_t>(svr_range_start, svr_range_stop), *this);
-        }
-    };
-
-
-    //-------------------------------------------------------------------
-
     // class for remote rigid SVR
     class ParallelRemoteSliceToVolumeRegistration {
-    public:
         Reconstruction *reconstructor;
         int svr_range_start;
         int svr_range_stop;
         string str_mirtk_path;
         string str_current_main_file_path;
         string str_current_exchange_file_path;
+        bool rigid;
+        string register_cmd;
 
-        ParallelRemoteSliceToVolumeRegistration(Reconstruction *in_reconstructor, int in_svr_range_start, int in_svr_range_stop, string in_str_mirtk_path, string in_str_current_main_file_path, string in_str_current_exchange_file_path) :
-            reconstructor(in_reconstructor),
-            svr_range_start(in_svr_range_start),
-            svr_range_stop(in_svr_range_stop),
-            str_mirtk_path(in_str_mirtk_path),
-            str_current_main_file_path(in_str_current_main_file_path),
-            str_current_exchange_file_path(in_str_current_exchange_file_path) {
+    public:
+        ParallelRemoteSliceToVolumeRegistration(
+            Reconstruction *reconstructor,
+            int svr_range_start,
+            int svr_range_stop,
+            string str_mirtk_path,
+            string str_current_main_file_path,
+            string str_current_exchange_file_path,
+            bool rigid = true) :
+            reconstructor(reconstructor),
+            svr_range_start(svr_range_start),
+            svr_range_stop(svr_range_stop),
+            str_mirtk_path(str_mirtk_path),
+            str_current_main_file_path(str_current_main_file_path),
+            str_current_exchange_file_path(str_current_exchange_file_path),
+            rigid(rigid) {
+            // Preallocate memory area
+            register_cmd.reserve(1500);
+            // Define registration parameters
+            const string file_prefix = str_current_exchange_file_path + (rigid ? "/res-" : "/");
+            register_cmd = str_mirtk_path + "/register ";
+            register_cmd += file_prefix + "slice-%1%.nii.gz ";  // Target
+            register_cmd += str_current_exchange_file_path + "/current-source.nii.gz";  // Source
+            register_cmd += string(" -model ") + (rigid ? "Rigid" : "FFD");
+            register_cmd += " -bg1 0 -bg2 -1";
+            register_cmd += " -dofin " + file_prefix + "transformation-%1%.dof";
+            register_cmd += " -dofout " + file_prefix + "transformation-%1%.dof";
+            if (reconstructor->_ncc_reg)
+                register_cmd += string(" -sim NCC -window ") + (rigid ? "0" : "5");
+            if (!rigid && reconstructor->_cp_spacing > 0)
+                register_cmd += " -ds " + to_string(reconstructor->_cp_spacing);
+            register_cmd += " -threads 1";  // Remove parallelisation of the register command
+            register_cmd += " > " + str_current_exchange_file_path + "/log%1%.txt"; // Log
         }
 
-        void operator()(const blocked_range<size_t> &r) const {
-            for (size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex) {
+        void operator()(const blocked_range<size_t>& r) const {
+            for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 if (reconstructor->_zero_slices[inputIndex] > 0) {
-                    // define registration parameters
-                    string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log, str_sim;
-                    str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
-                    str_source = str_current_exchange_file_path + "/current-source.nii.gz";
-                    str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
-                    str_reg_model = "-model Rigid";
-                    str_dofout = "-dofout " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-                    if (reconstructor->_ncc_reg) {
-                        str_sim = "-sim NCC -window 0 ";
-                    }
-                    str_bg1 = "-bg1 " + to_string(0);
-                    str_bg2 = "-bg2 " + to_string(-1);
-                    str_dofin = "-dofin " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-
-                    // run registration
-                    string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_sim + " " + str_log + " -threads 1";
-                    if (system(register_cmd.c_str()) == -1)
+                    if (system((boost::format(register_cmd) % inputIndex).str().c_str()) == -1)
                         cerr << "The register command couldn't be executed!" << endl;
                 }
             } // end of inputIndex
@@ -2292,7 +2248,7 @@ namespace mirtk {
 
             // run parallel remote FFD SVR in strides
             while (svr_range_start < _slices.size()) {
-                ParallelRemoteSliceToVolumeRegistrationFFD registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                ParallelRemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path, false);
                 registration();
 
                 svr_range_start = svr_range_stop;

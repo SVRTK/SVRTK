@@ -193,7 +193,7 @@ namespace mirtk {
         
         if (_reconstructed5DVelocity[0].GetT() == 1) {
         
-            ImageAttributes attr = _reconstructed5DVelocity[0].GetImageAttributes();
+            ImageAttributes attr = _reconstructed5DVelocity[0].Attributes();
             attr._t = 3;
             
             RealImage output_4D(attr);
@@ -232,7 +232,7 @@ namespace mirtk {
         }
         else {
             
-            ImageAttributes attr = _reconstructed5DVelocity[0].GetImageAttributes();
+            ImageAttributes attr = _reconstructed5DVelocity[0].Attributes();
             RealImage output_sum(attr);
             output_sum = 0;
             

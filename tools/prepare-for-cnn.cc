@@ -350,7 +350,7 @@ int main(int argc, char **argv)
         resampler.Interpolator(interpolator.get());
         resampler.Run();
         
-        ImageAttributes attr = res_stack.GetImageAttributes();
+        ImageAttributes attr = res_stack.Attributes();
         attr._x = grid_dim;
         attr._y = grid_dim;
         attr._z = grid_dim;

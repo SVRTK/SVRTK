@@ -256,8 +256,8 @@ namespace mirtk {
             reconstructor(reconstructor),
             stacks(_stacks),
             stack_transformations(_stack_transformations) {
-            average.Initialize(reconstructor->_reconstructed.GetImageAttributes());
-            weights.Initialize(reconstructor->_reconstructed.GetImageAttributes());
+            average.Initialize(reconstructor->_reconstructed.Attributes());
+            weights.Initialize(reconstructor->_reconstructed.Attributes());
             targetPadding = _targetPadding;
             sourcePadding = _sourcePadding;
             background = _background;
@@ -271,8 +271,7 @@ namespace mirtk {
                 GenericLinearInterpolateImageFunction<RealImage> interpolator;
                 RealImage s = stacks[i];
                 RigidTransformation t = stack_transformations[i];
-                RealImage image;
-                image.Initialize(reconstructor->_reconstructed.GetImageAttributes());
+                RealImage image(reconstructor->_reconstructed.Attributes());
 
                 ImageTransformation imagetransformation;
                 imagetransformation.Input(&s);
@@ -360,10 +359,10 @@ namespace mirtk {
             slice_transformations(_slice_transformations),
             average(_average),
             weights(_weights) {
-            average.Initialize(reconstructor->_reconstructed.GetImageAttributes());
             average = 0;
-            weights.Initialize(reconstructor->_reconstructed.GetImageAttributes());
             weights = 0;
+            average.Initialize(reconstructor->_reconstructed.Attributes());
+            weights.Initialize(reconstructor->_reconstructed.Attributes());
         }
 
         void operator()() const {
@@ -404,7 +403,7 @@ namespace mirtk {
         double dx, dy, dz, d;
 
         //Get image attributes - image size and voxel size
-        ImageAttributes attr = stack.GetImageAttributes();
+        ImageAttributes attr = stack.Attributes();
 
         //enlarge stack in z-direction in case top of the head is cut off
         attr._z += 2;
@@ -469,7 +468,7 @@ namespace mirtk {
         if (_debug)
             _reconstructed.Write("template.nii.gz");
         _grey_reconstructed = _reconstructed;
-        _attr_reconstructed = _reconstructed.GetImageAttributes();
+        _attr_reconstructed = _reconstructed.Attributes();
 
         //return resulting resolution of the template image
         return d;
@@ -482,7 +481,7 @@ namespace mirtk {
         double dx, dy, dz, d;
 
         //Get image attributes - image size and voxel size
-        ImageAttributes attr = stack.GetImageAttributes();
+        ImageAttributes attr = stack.Attributes();
 
         //enlarge stack in z-direction in case top of the head is cut off
         attr._t = 1;
@@ -1260,8 +1259,8 @@ namespace mirtk {
             RealImage& slice = _slices[inputIndex];
 
             //Calculate simulated slice
-            sim.Initialize(slice.GetImageAttributes());
             memset(sim.Data(), 0, sizeof(RealPixel) * sim.NumberOfVoxels());
+            sim.Initialize(slice.Attributes());
 
             //do not simulate excluded slice
             if (_slice_weight[inputIndex] > 0.5) {
@@ -1622,7 +1621,7 @@ namespace mirtk {
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            const ImageAttributes& attr = stacks[i].Attributes();
 
             int package_index = 0;
             int current_package = -1;
@@ -1667,8 +1666,7 @@ namespace mirtk {
 
                     _slices.push_back(slice);
                     _package_index.push_back(current_package);
-                    ImageAttributes attr_s = slice.GetImageAttributes();
-                    _slice_attributes.push_back(attr_s);
+                    _slice_attributes.push_back(slice.Attributes());
 
                     GreyImage grey = slice;
                     _grey_slices.push_back(grey);
@@ -1730,8 +1728,8 @@ namespace mirtk {
         cout << "Number of slices: " << _slices.size() << endl;
 
         for (int i = 0; i < _slices.size(); i++) {
-            _bias[i].Initialize(_slices[i].GetImageAttributes());
-            _weights[i].Initialize(_slices[i].GetImageAttributes());
+            _bias[i].Initialize(_slices[i].Attributes());
+            _weights[i].Initialize(_slices[i].Attributes());
         }
     }
 
@@ -1768,7 +1766,7 @@ namespace mirtk {
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            const ImageAttributes& attr = stacks[i].Attributes();
 
             //attr._z is number of slices in the stack
             for (int j = 0; j < attr._z; j++) {
@@ -2346,8 +2344,8 @@ namespace mirtk {
     void Reconstruction::RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path) {
         SVRTK_START_TIMING();
 
-        ImageAttributes attr_recon = _reconstructed.GetImageAttributes();
-        string str_source = str_current_exchange_file_path + "/current-source.nii.gz";
+        const ImageAttributes& attr_recon = _reconstructed.Attributes();
+        const string str_source = str_current_exchange_file_path + "/current-source.nii.gz";
         _reconstructed.Write(str_source.c_str());
 
         if (!_ffd) {
@@ -2540,7 +2538,7 @@ namespace mirtk {
 
         _template_created = true;
         _grey_reconstructed = _reconstructed;
-        _attr_reconstructed = _reconstructed.GetImageAttributes();
+        _attr_reconstructed = _reconstructed.Attributes();
 
         _have_mask = true;
 
@@ -2572,7 +2570,7 @@ namespace mirtk {
 
             _package_index.push_back(0);
 
-            ImageAttributes attr_s = slice.GetImageAttributes();
+            const ImageAttributes& attr_s = slice.Attributes();
             _slice_attributes.push_back(attr_s);
 
             GreyImage grey = slice;
@@ -2653,8 +2651,8 @@ namespace mirtk {
 
         ParallelCoeffInit(Reconstruction *_reconstructor) : reconstructor(_reconstructor) {}
 
-        void operator()(const blocked_range<size_t> &r) const {
-            const RealImage global_reconstructed(reconstructor->_grey_reconstructed.GetImageAttributes());
+        void operator()(const blocked_range<size_t>& r) const {
+            const RealImage global_reconstructed(reconstructor->_grey_reconstructed.Attributes());
             //get resolution of the volume
             double vx, vy, vz;
             global_reconstructed.GetPixelSize(&vx, &vy, &vz);
@@ -2662,7 +2660,7 @@ namespace mirtk {
             const double res = vx;
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                const RealImage global_slice(reconstructor->_grey_slices[inputIndex].GetImageAttributes());
+                const RealImage global_slice(reconstructor->_grey_slices[inputIndex].Attributes());
 
                 //prepare storage variable
                 SLICECOEFFS slicecoeffs(global_slice.GetX(), Array<VOXELCOEFFS>(global_slice.GetY()));
@@ -2947,14 +2945,14 @@ namespace mirtk {
         //clear indicator of slice having and overlap with volumetric mask
         _slice_inside.clear();
         _slice_inside.resize(_slices.size());
-        _attr_reconstructed = _reconstructed.GetImageAttributes();
+        _attr_reconstructed = _reconstructed.Attributes();
 
         ParallelCoeffInit coeffinit(this);
         coeffinit();
 
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
-        _volume_weights.Initialize(_reconstructed.GetImageAttributes());
         memset(_volume_weights.Data(), 0, sizeof(RealPixel) * _volume_weights.NumberOfVoxels());
+        _volume_weights.Initialize(_reconstructed.Attributes());
 
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             bool excluded = false;
@@ -3423,7 +3421,6 @@ namespace mirtk {
         coeffinit();
 
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
-        _volume_weightsSF.Initialize(_reconstructed.GetImageAttributes());
         memset(_volume_weightsSF.Data(), 0, sizeof(RealPixel) * _volume_weightsSF.NumberOfVoxels());
 
         int inputIndex, i, j, n, k;
@@ -3436,6 +3433,7 @@ namespace mirtk {
                             const POINT3D p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
                             _volume_weightsSF(p.x, p.y, p.z) += p.value;
                         }
+        _volume_weightsSF.Initialize(_reconstructed.Attributes());
                     }
             } else {
                 for (inputIndex = begin; inputIndex < end; ++inputIndex) {
@@ -3504,7 +3502,7 @@ namespace mirtk {
 
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
 
-            attr = stacks[dyn].GetImageAttributes();
+            const ImageAttributes& attr = stacks[dyn].Attributes();
 
             CoeffInitSF(counter, counter + attr._z);
 
@@ -4105,8 +4103,8 @@ namespace mirtk {
                 //prepare weight image for bias field
                 RealImage wb = w;
 
-                RealImage wresidual(slice.GetImageAttributes());
                 wresidual = 0;
+                RealImage wresidual(slice.Attributes());
 
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
@@ -4225,10 +4223,10 @@ namespace mirtk {
 
         ParallelSuperresolution(Reconstruction *reconstructor) : reconstructor(reconstructor) {
             //Clear addon
-            addon.Initialize(reconstructor->_reconstructed.GetImageAttributes());
+            addon.Initialize(reconstructor->_reconstructed.Attributes());
 
             //Clear confidence map
-            confidence_map.Initialize(reconstructor->_reconstructed.GetImageAttributes());
+            confidence_map.Initialize(reconstructor->_reconstructed.Attributes());
         }
 
         ParallelSuperresolution(ParallelSuperresolution& x, split) : ParallelSuperresolution(x.reconstructor) {}
@@ -4684,7 +4682,7 @@ namespace mirtk {
         RealImage bias;
 
         ParallelNormaliseBias(Reconstruction *reconstructor) : reconstructor(reconstructor) {
-            bias.Initialize(reconstructor->_reconstructed.GetImageAttributes());
+            bias.Initialize(reconstructor->_reconstructed.Attributes());
         }
 
         ParallelNormaliseBias(ParallelNormaliseBias& x, split) : ParallelNormaliseBias(x.reconstructor) {}
@@ -4869,15 +4867,15 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveRegistrationStep(Array<RealImage>& stacks, int step) {
-        ImageAttributes attr = stacks[0].GetImageAttributes();
         int stack;
         int slice;
+        ImageAttributes attr = stacks[0].Attributes();
         int threshold = attr._z;
         int counter = 0;
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             if (inputIndex >= threshold) {
                 counter++;
-                attr = stacks[counter].GetImageAttributes();
+                attr = stacks[counter].Attributes();
                 threshold += attr._z;
             }
             stack = counter;
@@ -5002,8 +5000,8 @@ namespace mirtk {
 
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
 
-            attr = stacks[dyn].GetImageAttributes();
             slicesPerPackage = (attr._z / pack_num[dyn]);
+            const ImageAttributes& attr = stacks[dyn].Attributes();
             int z_slice_order[attr._z];
             int t_slice_order[attr._z];
 
@@ -5212,7 +5210,7 @@ namespace mirtk {
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
 
             image = stacks[dyn];
-            attr = image.GetImageAttributes();
+            const ImageAttributes& attr = image.Attributes();
 
             // slice loop
             for (int sl = 0; sl < attr._z; sl++) {
@@ -5280,7 +5278,7 @@ namespace mirtk {
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
 
             image = stacks[dyn];
-            attr = image.GetImageAttributes();
+            const ImageAttributes& attr = image.Attributes();
             RealImage multibanded(attr);
             multiband = multiband_vector[dyn];
             sliceMB = attr._z / multiband;
@@ -5315,7 +5313,7 @@ namespace mirtk {
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
 
             image = stacks[dyn];
-            attr = image.GetImageAttributes();
+            const ImageAttributes& attr = image.Attributes();
             RealImage multibanded(attr);
             multiband = multiband_vector[dyn];
             sliceMB = attr._z / multiband;
@@ -5406,8 +5404,8 @@ namespace mirtk {
 
             // current stack
             image = stacks[dyn];
-            attr = image.GetImageAttributes();
             pkg_z = attr._z / pack_num[dyn];
+            const ImageAttributes& attr = image.Attributes();
 
             // slice loop
             for (int sl = 0; sl < attr._z; sl++) {
@@ -5467,7 +5465,7 @@ namespace mirtk {
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
 
             image = stacks[dyn];
-            attr = image.GetImageAttributes();
+            const ImageAttributes& attr = image.Attributes();
             RealImage multibanded(attr);
             multiband = multiband_vector[dyn];
             sliceMB = attr._z / multiband;
@@ -5487,7 +5485,7 @@ namespace mirtk {
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
 
             image = stacks[dyn];
-            attr = image.GetImageAttributes();
+            const ImageAttributes& attr = image.Attributes();
             RealImage multibanded(attr);
             multiband = multiband_vector[dyn];
             sliceMB = attr._z / multiband;
@@ -5716,7 +5714,7 @@ namespace mirtk {
 
 
             //save overal slice order
-            ImageAttributes attr = stacks[0].GetImageAttributes();
+            const ImageAttributes& attr = stacks[0].Attributes();
             int dyn, num;
             int slices_per_dyn = attr._z / multiband_vector[0];
 
@@ -5753,17 +5751,16 @@ namespace mirtk {
 
     // split image into N packages
     void Reconstruction::SplitImage(RealImage image, int packages, Array<RealImage>& stacks) {
-        ImageAttributes attr = image.GetImageAttributes();
 
         //slices in package
-        int pkg_z = attr._z / packages;
-        double pkg_dz = attr._dz * packages;
 
         int i, j, k, l;
         double x, y, z, sx, sy, sz, ox, oy, oz;
         for (l = 0; l < packages; l++) {
-            attr = image.GetImageAttributes();
             if ((pkg_z * packages + l) < attr._z)
+        const int pkg_z = image.Attributes()._z / packages;
+        const double pkg_dz = image.Attributes()._dz * packages;
+            ImageAttributes attr = image.Attributes();
                 attr._z = pkg_z + 1;
             else
                 attr._z = pkg_z;
@@ -5851,7 +5848,7 @@ namespace mirtk {
     // split image into 2 packages
     void Reconstruction::HalfImage(RealImage image, Array<RealImage>& stacks) {
         RealImage tmp;
-        ImageAttributes attr = image.GetImageAttributes();
+        const ImageAttributes& attr = image.Attributes();
         stacks.clear();
 
         //We would not like single slices - that is reserved for slice-to-volume

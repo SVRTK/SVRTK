@@ -134,13 +134,13 @@ namespace mirtk {
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
                 // calculate simulated slice
-                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_slices[inputIndex] = 0;
                 
-                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_weights[inputIndex] = 0;
                 
-                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_inside[inputIndex] = 0;
                 
                 reconstructor->_slice_inside[inputIndex] = false;
@@ -549,7 +549,7 @@ namespace mirtk {
             
             if (_reconstructed5DVelocity[0].GetT() == 1) {
                 
-                ImageAttributes attr = _reconstructed5DVelocity[0].GetImageAttributes();
+                ImageAttributes attr = _reconstructed5DVelocity[0].Attributes();
                 attr._t = 3;
                 
                 RealImage output_4D(attr);
@@ -927,7 +927,7 @@ namespace mirtk {
                 
                 for (int i = 0; i < stacks.size(); i++) {
                     
-                    ImageAttributes attr = stacks[i].GetImageAttributes();
+                    ImageAttributes attr = stacks[i].Attributes();
                     attr._t = 3;
                     RealImage stack(attr);
                     velocity_volumes.push_back(stack);

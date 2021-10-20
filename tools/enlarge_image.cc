@@ -141,7 +141,7 @@ int main(int argc, char **argv)
     }
 
     
-    ImageAttributes attr = input_volume.GetImageAttributes();
+    ImageAttributes attr = input_volume.Attributes();
     if(percent == 1){
         ex = round(double(input_volume.GetX()*ex)/100.0);
         ey = round(double(input_volume.GetY()*ey)/100.0);

@@ -140,7 +140,7 @@ namespace mirtk {
     {
         double dx, dy, dz, d;
         
-        ImageAttributes attr = stack->GetImageAttributes();
+        ImageAttributes attr = stack->Attributes();
         
         attr._z += 2;
         
@@ -180,7 +180,7 @@ namespace mirtk {
         if (_debug)
             _reconstructed.Write("template.nii.gz");
         
-        _reconstructed_attr = _reconstructed.GetImageAttributes();
+        _reconstructed_attr = _reconstructed.Attributes();
         
         
         if (_multiple_channels_flag && _number_of_channels > 0) {
@@ -581,7 +581,7 @@ namespace mirtk {
             
             RealImage slice = *_slices[inputIndex];
             
-            sim.Initialize( slice.GetImageAttributes() );
+            sim.Initialize( slice.Attributes() );
             sim = 0;
             
             if(_slice_weight[inputIndex]>slice_threshold)
@@ -874,7 +874,7 @@ namespace mirtk {
 
         for (unsigned int i = start_stack_number; i < stop_stack_number; i++) {
             
-            ImageAttributes attr = stacks[i]->GetImageAttributes();
+            ImageAttributes attr = stacks[i]->Attributes();
             
             int selected_slice_number;
 
@@ -956,7 +956,7 @@ namespace mirtk {
                 _slice_weight.push_back(1);
                 
                 
-                ImageAttributes slice_attr = slice.GetImageAttributes();
+                ImageAttributes slice_attr = slice.Attributes();
                 _slice_attr.push_back(slice_attr);
                 
                 _negative_J_values.push_back(0);
@@ -1018,7 +1018,7 @@ namespace mirtk {
 
         for (unsigned int i = start_stack_number; i < stop_stack_number; i++) {
 
-            ImageAttributes attr = stacks[i]->GetImageAttributes();
+            ImageAttributes attr = stacks[i]->Attributes();
 
             int selected_slice_number;
             
@@ -1131,7 +1131,7 @@ namespace mirtk {
                 _slice_weight.push_back(1);
                 
                 
-                ImageAttributes slice_attr = slice.GetImageAttributes();
+                ImageAttributes slice_attr = slice.Attributes();
                 _slice_attr.push_back(slice_attr);
                 
                 _negative_J_values.push_back(0);
@@ -1311,7 +1311,7 @@ namespace mirtk {
 
                 // .....................................................................
                 
-                ImageAttributes attr = org_stack.GetImageAttributes();
+                ImageAttributes attr = org_stack.Attributes();
                 
                 for (int i=0; i<attr._z; i++)
                     package_index.push_back(0);
@@ -1322,7 +1322,7 @@ namespace mirtk {
                 double x, y, z, sx, sy, sz, ox, oy, oz;
                 
                 for (int l = 0; l < nPackages; l++) {
-                    attr = org_stack.GetImageAttributes();
+                    attr = org_stack.Attributes();
                     if ((pkg_z * nPackages + l) < attr._z)
                         attr._z = pkg_z + 1;
                     else
@@ -1552,7 +1552,7 @@ namespace mirtk {
     //            RealImage d_stack = target; //source;
     //            d_stack = 0;
     //
-    //            ImageAttributes attr = d_stack.GetImageAttributes();
+    //            ImageAttributes attr = d_stack.Attributes();
     //            attr._t = 3;
     //
     //            RealImage d_xyz(attr);
@@ -3211,14 +3211,14 @@ namespace mirtk {
         _slice_inside.clear();
         _slice_inside.resize(_slices.size());
         
-        _reconstructed_attr = _reconstructed.GetImageAttributes();
+        _reconstructed_attr = _reconstructed.Attributes();
         
         ParallelCoeffInitFFD *p_cinit = new ParallelCoeffInitFFD(this);
         (*p_cinit)();
 
         delete p_cinit;
 
-        _volume_weights.Initialize( _reconstructed.GetImageAttributes() );
+        _volume_weights.Initialize( _reconstructed.Attributes() );
         _volume_weights = 0;
         
         
@@ -3901,7 +3901,7 @@ namespace mirtk {
 
                 RealImage wb = w;
 
-                RealImage wresidual( slice.GetImageAttributes() );
+                RealImage wresidual( slice.Attributes() );
                 wresidual = 0;
                 
                 for (int i = 0; i < slice.GetX(); i++)
@@ -4148,10 +4148,10 @@ namespace mirtk {
         reconstructor(x.reconstructor)
         {
 
-            addon.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
+            addon.Initialize( reconstructor->_reconstructed.Attributes() );
             addon = 0;
             
-            confidence_map.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
+            confidence_map.Initialize( reconstructor->_reconstructed.Attributes() );
             confidence_map = 0;
             
             if (reconstructor->_multiple_channels_flag) {
@@ -4179,10 +4179,10 @@ namespace mirtk {
         reconstructor(reconstructor)
         {
 
-            addon.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
+            addon.Initialize( reconstructor->_reconstructed.Attributes() );
             addon = 0;
 
-            confidence_map.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
+            confidence_map.Initialize( reconstructor->_reconstructed.Attributes() );
             confidence_map = 0;
             
             if (reconstructor->_multiple_channels_flag) {
@@ -4800,7 +4800,7 @@ namespace mirtk {
         ParallelNormaliseBiasFFD( ParallelNormaliseBiasFFD& x, split ) :
         reconstructor(x.reconstructor)
         {
-            bias.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
+            bias.Initialize( reconstructor->_reconstructed.Attributes() );
             bias = 0;
         }
         
@@ -4811,7 +4811,7 @@ namespace mirtk {
         ParallelNormaliseBiasFFD( ReconstructionFFD *reconstructor ) :
         reconstructor(reconstructor)
         {
-            bias.Initialize( reconstructor->_reconstructed.GetImageAttributes() );
+            bias.Initialize( reconstructor->_reconstructed.Attributes() );
             bias = 0;
         }
         
@@ -4982,7 +4982,7 @@ namespace mirtk {
     void ReconstructionFFD::SplitImage( RealImage image, int packages, Array<RealImage>& stacks )
     {
         
-        ImageAttributes attr = image.GetImageAttributes();
+        ImageAttributes attr = image.Attributes();
         
         int pkg_z = attr._z / packages;
         double pkg_dz = attr._dz*packages;
@@ -4991,7 +4991,7 @@ namespace mirtk {
         int i, j, k, l, t;
         double x, y, z, sx, sy, sz, ox, oy, oz;
         for (l = 0; l < packages; l++) {
-            attr = image.GetImageAttributes();
+            attr = image.Attributes();
             if ((pkg_z * packages + l) < attr._z)
                 attr._z = pkg_z + 1;
             else

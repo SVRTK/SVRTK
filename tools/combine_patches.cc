@@ -162,7 +162,7 @@ int main(int argc, char **argv)
     
     
     RealImage output_volume;
-    output_volume.Initialize(target_volume.GetImageAttributes());
+    output_volume.Initialize(target_volume.Attributes());
     
     
     //-------------------------------------------------------------------

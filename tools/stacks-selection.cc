@@ -848,7 +848,7 @@ int main(int argc, char **argv)
     resampling01.Interpolator(interpolator.get());
     resampling01.Run();
 
-    ImageAttributes attr = common_mask.GetImageAttributes();
+    ImageAttributes attr = common_mask.Attributes();
     common_mask.PutPixelSize(attr._dx*1.25, attr._dy*1.25, attr._dz*1.25);
     
 

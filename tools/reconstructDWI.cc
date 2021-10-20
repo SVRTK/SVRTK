@@ -258,7 +258,7 @@ int main(int argc, char **argv)
         cout<<"Reading stack " << j <<  " ... "<<argv[1]<<endl;
         image4D.Read(argv[1]);
         
-        ImageAttributes attr = image4D.GetImageAttributes();
+        ImageAttributes attr = image4D.Attributes();
         int local_nStacks = attr._t;
         cout<<"Splitting into  ... "<<local_nStacks<<endl;
         

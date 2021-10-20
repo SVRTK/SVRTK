@@ -224,7 +224,7 @@ namespace mirtk {
 
         
         //create image with SH coeffs
-        ImageAttributes attr = signal.GetImageAttributes();
+        ImageAttributes attr = signal.Attributes();
         attr._t = _iSHT.Rows();
         RealImage coeffs(attr);
         
@@ -263,7 +263,7 @@ namespace mirtk {
             exit(1);
         }
         //create image with SH coeffs
-        ImageAttributes attr = coeffs.GetImageAttributes();
+        ImageAttributes attr = coeffs.Attributes();
         attr._t = _SHT.Rows();
         RealImage signal(attr);
         Vector c(coeffs.GetT());

@@ -199,7 +199,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::CreateTemplateCardiac4DFromStaticMask( RealImage mask, double resolution )
     {
         // Get mask attributes - image size and voxel size
-        ImageAttributes attr = mask.GetImageAttributes();
+        ImageAttributes attr = mask.Attributes();
         
         // Set temporal dimension
         attr._t = _reconstructed_cardiac_phases.size();
@@ -228,7 +228,7 @@ namespace mirtk {
 
         
         // Set reconstructed 3D volume for reference by existing functions of irtkReconstruction class
-        ImageAttributes attr4d = volume4D.GetImageAttributes();
+        ImageAttributes attr4d = volume4D.Attributes();
         ImageAttributes attr3d = attr4d;
         attr3d._t = 1;
         RealImage volume3D(attr3d);
@@ -268,7 +268,7 @@ namespace mirtk {
         
         //averages need to be calculated only in ROI
         for (ind = 0; ind < stacks.size(); ind++) {
-            ImageAttributes attr = stacks[ind].GetImageAttributes();
+            ImageAttributes attr = stacks[ind].Attributes();
             attr._t = 1;
             m.Initialize(attr);
             m = 0;
@@ -405,7 +405,7 @@ namespace mirtk {
         //for each stack
         for (unsigned int i = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             
             //attr._z is number of slices in the stack
             for (int j = 0; j < attr._z; j++) {
@@ -966,7 +966,7 @@ namespace mirtk {
         
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
         cout << "Computing 4D volume weights..." << endl;
-        ImageAttributes volAttr = _reconstructed4D.GetImageAttributes();
+        ImageAttributes volAttr = _reconstructed4D.Attributes();
         _volume_weights.Initialize( volAttr );
         _volume_weights = 0;
         
@@ -1260,13 +1260,13 @@ namespace mirtk {
         void operator() (const blocked_range<size_t> &r) const {
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 //Calculate simulated slice
-                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_slices[inputIndex] = 0;
                 
-                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_weights[inputIndex] = 0;
                 
-                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_inside[inputIndex] = 0;
                 
                 reconstructor->_slice_inside[inputIndex] = false;
@@ -1615,10 +1615,10 @@ namespace mirtk {
                             } //end of loop for slice voxels
                     
                     //Calculate simulated slice
-                    reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                    reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                     reconstructor->_simulated_slices[inputIndex] = 0;
                     
-                    reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                    reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                     reconstructor->_simulated_weights[inputIndex] = 0;
                     
                     for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ )
@@ -1696,7 +1696,7 @@ namespace mirtk {
         void operator() (const blocked_range<size_t> &r) const {
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 //initalize
-                reconstructor->_error[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_error[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_error[inputIndex] = 0;
                 
                 //read the current slice
@@ -1807,7 +1807,7 @@ namespace mirtk {
         ParallelNormaliseBiasCardiac4D( ParallelNormaliseBiasCardiac4D& x, split ) :
         reconstructor(x.reconstructor)
         {
-            ImageAttributes attr = reconstructor->_reconstructed4D.GetImageAttributes();
+            ImageAttributes attr = reconstructor->_reconstructed4D.Attributes();
             attr._t = 1;
             bias.Initialize( attr );
             bias = 0;
@@ -1823,7 +1823,7 @@ namespace mirtk {
         ParallelNormaliseBiasCardiac4D( ReconstructionCardiac4D *reconstructor ) :
         reconstructor(reconstructor)
         {
-            ImageAttributes attr = reconstructor->_reconstructed4D.GetImageAttributes();
+            ImageAttributes attr = reconstructor->_reconstructed4D.Attributes();
             attr._t = 1;
             bias.Initialize( attr );
             bias = 0;
@@ -1931,7 +1931,7 @@ namespace mirtk {
         
         void operator() (const blocked_range<size_t> &r) const {
             
-            ImageAttributes attr = reconstructor->_reconstructed4D.GetImageAttributes();
+            ImageAttributes attr = reconstructor->_reconstructed4D.Attributes();
 
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
@@ -2123,7 +2123,7 @@ namespace mirtk {
     void ReconstructionCardiac4D::RemoteSliceToVolumeRegistrationCardiac4D(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path)
     {
         
-        ImageAttributes attr_recon = _reconstructed4D.GetImageAttributes();
+        ImageAttributes attr_recon = _reconstructed4D.Attributes();
         
         if (_debug)
             cout << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
@@ -3001,11 +3001,11 @@ namespace mirtk {
         reconstructor(x.reconstructor)
         {
             //Clear addon
-            addon.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+            addon.Initialize( reconstructor->_reconstructed4D.Attributes() );
             addon = 0;
             
             //Clear confidence map
-            confidence_map.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+            confidence_map.Initialize( reconstructor->_reconstructed4D.Attributes() );
             confidence_map = 0;
         }
         
@@ -3018,11 +3018,11 @@ namespace mirtk {
         reconstructor(reconstructor)
         {
             //Clear addon
-            addon.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+            addon.Initialize( reconstructor->_reconstructed4D.Attributes() );
             addon = 0;
             
             //Clear confidence map
-            confidence_map.Initialize( reconstructor->_reconstructed4D.GetImageAttributes() );
+            confidence_map.Initialize( reconstructor->_reconstructed4D.Attributes() );
             confidence_map = 0;
         }
         
@@ -3130,7 +3130,7 @@ namespace mirtk {
             int dt = reconstructor->_reconstructed4D.GetT();
             for ( size_t i = r.begin(); i != r.end(); ++i ) {
                 //b[i] = reconstructor->_reconstructed;
-                // b[i].Initialize( reconstructor->_reconstructed.GetImageAttributes() );
+                // b[i].Initialize( reconstructor->_reconstructed.Attributes() );
                 
                 int x, y, z, xx, yy, zz, t;
                 double diff;
@@ -3430,7 +3430,7 @@ namespace mirtk {
         Array<RealImage> biasstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             biasstacks.push_back( stack );
         }
@@ -3464,7 +3464,7 @@ namespace mirtk {
         Array<RealImage> biasstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             biasstacks.push_back( stack );
         }
@@ -3515,7 +3515,7 @@ namespace mirtk {
         Array<RealImage> imagestacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             imagestacks.push_back( stack );
         }
@@ -3549,7 +3549,7 @@ namespace mirtk {
         Array<RealImage> imagestacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             imagestacks.push_back( stack );
         }
@@ -3601,7 +3601,7 @@ namespace mirtk {
         Array<RealImage> simstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             simstacks.push_back( stack );
         }
@@ -3633,7 +3633,7 @@ namespace mirtk {
         Array<RealImage> simstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             simstacks.push_back( stack );
         }
@@ -3662,7 +3662,7 @@ namespace mirtk {
         char buffer[256];
         RealImage simstack;
         
-        ImageAttributes attr = stacks[stack_no].GetImageAttributes();
+        ImageAttributes attr = stacks[stack_no].Attributes();
         simstack.Initialize( attr );
         
         for (unsigned int inputIndex = 0; inputIndex < _simulated_slices.size(); ++inputIndex) {
@@ -3708,7 +3708,7 @@ namespace mirtk {
         Array<RealImage> simstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             simstacks.push_back( stack );
         }
@@ -3742,7 +3742,7 @@ namespace mirtk {
         Array<RealImage> simstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             simstacks.push_back( stack );
         }
@@ -3795,7 +3795,7 @@ namespace mirtk {
         Array<RealImage> wstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             imagestacks.push_back( stack );
             wstacks.push_back( stack );
@@ -3851,7 +3851,7 @@ namespace mirtk {
         Array<RealImage> errorstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             errorstacks.push_back( stack );
         }
@@ -3885,7 +3885,7 @@ namespace mirtk {
         Array<RealImage> errorstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             errorstacks.push_back( stack );
         }
@@ -3932,7 +3932,7 @@ namespace mirtk {
         Array<RealImage> weightstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             weightstacks.push_back( stack );
         }
@@ -3966,7 +3966,7 @@ namespace mirtk {
         Array<RealImage> weightstacks;
         
         for (unsigned int i = 0; i < stacks.size(); i++) {
-            ImageAttributes attr = stacks[i].GetImageAttributes();
+            ImageAttributes attr = stacks[i].Attributes();
             stack.Initialize( attr );
             weightstacks.push_back( stack );
         }

@@ -767,7 +767,7 @@ int main(int argc, char **argv) {
             double sliceNcc = 0.0;
             sliceNcc = reconstruction->VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
             double countNcc = -1;
-            double volumeNcc = reconstruction->GlobalNCC(stackToCheck, templateToCheck, countNcc);
+            const double volumeNcc = reconstruction->ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
 
             averageCountNcc = averageCountNcc + countNcc;
             averageSliceNcc = averageSliceNcc + sliceNcc;

@@ -387,7 +387,6 @@ namespace mirtk {
 
         // NCC stats
         double VolumeNCC(RealImage& input_stack, RealImage template_stack, const RealImage& mask);
-        double GlobalNCC(RealImage slice_1, RealImage slice_2, double& count);
 
         // Initialise variables and parameters for EM
         void InitializeEM();
@@ -544,7 +543,7 @@ namespace mirtk {
 
         RealImage ThresholdNormalisedMask(RealImage image, double threshold);
 
-        double ComputeNCC(RealImage slice_1, RealImage slice_2, double& count);
+        double ComputeNCC(const RealImage& slice_1, const RealImage& slice_2, const double threshold = 0.01, double *count = nullptr);
 
         void GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations);
 
@@ -646,9 +645,6 @@ namespace mirtk {
 
         // Run structure-based rejection of outliers
         void StructuralExclusion();
-
-        // Calculare NCC between two images
-        double SliceCC(RealImage slice_1, RealImage slice_2);
 
         // Evaluated reconstruction quality (errors per slices)
         double EvaluateReconQuality(int index);

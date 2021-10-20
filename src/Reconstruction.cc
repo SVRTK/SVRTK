@@ -711,9 +711,8 @@ namespace mirtk {
         double out_global_nrmse;
 
         void operator()(const blocked_range<size_t>& r) {
-            for (size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-                double tmp_var = 0;
-                const double out_ncc = reconstructor->GlobalNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], tmp_var);
+            for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
+                const double out_ncc = reconstructor->ComputeNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], 0.1);
                 out_global_ncc += out_ncc;
 
                 double s_diff = 0;
@@ -791,78 +790,6 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
 
-    // compute NCC between two RealImage objects
-    double Reconstruction::GlobalNCC(RealImage slice_1, RealImage slice_2, double& count) {
-        int slice_1_N, slice_2_N;
-        double *slice_1_ptr, *slice_2_ptr;
-
-        int slice_1_n, slice_2_n;
-        double slice_1_m, slice_2_m;
-        double slice_1_sq, slice_2_sq;
-
-        double tmp_val, diff_sum;
-        double average_CC, CC_slice;
-
-        slice_1_N = slice_1.NumberOfVoxels();
-        slice_2_N = slice_2.NumberOfVoxels();
-
-        slice_1_ptr = slice_1.Data();
-        slice_2_ptr = slice_2.Data();
-
-        slice_1_n = 0;
-        slice_1_m = 0;
-        for (int j = 0; j < slice_1_N; j++) {
-            if (slice_1_ptr[j] > 0.1 && slice_2_ptr[j] > 0.1) {
-                slice_1_m += slice_1_ptr[j];
-                slice_1_n++;
-            }
-        }
-        slice_1_m /= slice_1_n;
-
-        slice_2_n = 0;
-        slice_2_m = 0;
-        for (int j = 0; j < slice_2_N; j++) {
-            if (slice_1_ptr[j] > 0.1 && slice_2_ptr[j] > 0.1) {
-                slice_2_m += slice_2_ptr[j];
-                slice_2_n++;
-            }
-        }
-        slice_2_m /= slice_2_n;
-
-        count = 0;
-        for (int j = 0; j < slice_1_N; j++) {
-            if (slice_1_ptr[j] > 0.1)
-                count++;
-        }
-
-        count *= slice_2.GetXSize() * slice_2.GetYSize() * slice_2.GetZSize();
-
-        if (slice_1_n < 5 || slice_2_n < 5) {
-            CC_slice = -1;
-        } else {
-            diff_sum = 0;
-            slice_1_sq = 0;
-            slice_2_sq = 0;
-
-            for (int j = 0; j < slice_1_N; j++) {
-                if (slice_1_ptr[j] > 0.1 && slice_2_ptr[j] > 0.1) {
-                    diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m) * (slice_2_ptr[j] - slice_2_m));
-                    slice_1_sq += pow(slice_1_ptr[j] - slice_1_m, 2);
-                    slice_2_sq += pow(slice_2_ptr[j] - slice_2_m, 2);
-                }
-            }
-
-            if ((slice_1_sq * slice_2_sq) > 0)
-                CC_slice = diff_sum / sqrt(slice_1_sq * slice_2_sq);
-            else
-                CC_slice = 0;
-        }
-
-        return CC_slice;
-    }
-
-    //-------------------------------------------------------------------
-
     // compute inter-slice volume NCC (motion metric)
     double Reconstruction::VolumeNCC(RealImage& input_stack, RealImage template_stack, const RealImage& mask) {
         template_stack *= mask;
@@ -916,8 +843,7 @@ namespace mirtk {
             const RealImage slice_2 = input_stack.GetRegion(sh, sh, z + 1, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 2);
 
             double slice_count = -1;
-            const double slice_ncc = GlobalNCC(slice_1, slice_2, slice_count);
-
+            const double slice_ncc = ComputeNCC(slice_1, slice_2, 0.1, &slice_count);
             if (slice_ncc > 0) {
                 ncc += slice_ncc;
                 count++;
@@ -2035,7 +1961,9 @@ namespace mirtk {
             output *= slice_mask;
 
             // compute NCC
-            output_ncc = SliceCC(target, output);
+            double output_ncc = ComputeNCC(target, output, 0);
+            if (output_ncc == -1)
+                output_ncc = 1;
             reg_ncc.push_back(output_ncc);
             mean_ncc += output_ncc;
 
@@ -2054,74 +1982,6 @@ namespace mirtk {
         cout << " - mean registration ncc: " << mean_ncc << endl;
 
         SVRTK_END_TIMING("StructuralExclusion");
-    }
-
-
-    //-------------------------------------------------------------------
-
-    // compute NCC between two images (non-zero ROI)
-    double Reconstruction::SliceCC(RealImage slice_1, RealImage slice_2) {
-        int i, j;
-        int slice_1_N, slice_2_N;
-        double *slice_1_ptr, *slice_2_ptr;
-
-        int slice_1_n, slice_2_n;
-        double slice_1_m, slice_2_m;
-        double slice_1_sq, slice_2_sq;
-
-        double tmp_val, diff_sum;
-        double average_CC, CC_slice;
-
-        slice_1_N = slice_1.NumberOfVoxels();
-        slice_2_N = slice_2.NumberOfVoxels();
-
-        slice_1_ptr = slice_1.Data();
-        slice_2_ptr = slice_2.Data();
-
-        slice_1_n = 0;
-        slice_1_m = 0;
-        for (j = 0; j < slice_1_N; j++) {
-
-            if (slice_1_ptr[j] > 0 && slice_2_ptr[j] > 0) {
-                slice_1_m = slice_1_m + slice_1_ptr[j];
-                slice_1_n = slice_1_n + 1;
-            }
-        }
-        slice_1_m = slice_1_m / slice_1_n;
-
-        slice_2_n = 0;
-        slice_2_m = 0;
-        for (j = 0; j < slice_2_N; j++) {
-            if (slice_1_ptr[j] > 0 && slice_2_ptr[j] > 0) {
-                slice_2_m = slice_2_m + slice_2_ptr[j];
-                slice_2_n = slice_2_n + 1;
-            }
-        }
-        slice_2_m = slice_2_m / slice_2_n;
-
-        if (slice_2_n < 2) {
-            CC_slice = 1;
-        } else {
-            diff_sum = 0;
-            slice_1_sq = 0;
-            slice_2_sq = 0;
-
-            for (j = 0; j < slice_1_N; j++) {
-                if (slice_1_ptr[j] > 0 && slice_2_ptr[j] > 0) {
-                    diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m) * (slice_2_ptr[j] - slice_2_m));
-                    slice_1_sq = slice_1_sq + pow((slice_1_ptr[j] - slice_1_m), 2);
-                    slice_2_sq = slice_2_sq + pow((slice_2_ptr[j] - slice_2_m), 2);
-                }
-            }
-
-            if ((slice_1_sq * slice_2_sq) > 0)
-                CC_slice = diff_sum / sqrt(slice_1_sq * slice_2_sq);
-            else
-                CC_slice = 0;
-
-        }
-
-        return CC_slice;
     }
 
     //-------------------------------------------------------------------
@@ -6336,76 +6196,61 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
 
-    // another implementation of NCC betwen images (should be removed or the previous should be replaced)
-    double Reconstruction::ComputeNCC(RealImage slice_1, RealImage slice_2, double& count) {
+    // another implementation of NCC between images (should be removed or the previous should be replaced)
+    double Reconstruction::ComputeNCC(const RealImage& slice_1, const RealImage& slice_2, const double threshold, double *count) {
+        const int slice_1_N = slice_1.NumberOfVoxels();
+        const int slice_2_N = slice_2.NumberOfVoxels();
 
-        int slice_1_N, slice_2_N;
-        double *slice_1_ptr, *slice_2_ptr;
+        const double *slice_1_ptr = slice_1.Data();
+        const double *slice_2_ptr = slice_2.Data();
 
-        int slice_1_n, slice_2_n;
-        double slice_1_m, slice_2_m;
-        double slice_1_sq, slice_2_sq;
-
-        double tmp_val, diff_sum;
-        double average_CC, CC_slice;
-
-        slice_1_N = slice_1.NumberOfVoxels();
-        slice_2_N = slice_2.NumberOfVoxels();
-
-        slice_1_ptr = slice_1.Data();
-        slice_2_ptr = slice_2.Data();
-
-        slice_1_n = 0;
-        slice_1_m = 0;
+        int slice_1_n = 0;
+        double slice_1_m = 0;
         for (int j = 0; j < slice_1_N; j++) {
-            if (slice_1_ptr[j] > 0.01 && slice_2_ptr[j] > 0.01) {
-                slice_1_m = slice_1_m + slice_1_ptr[j];
-                slice_1_n = slice_1_n + 1;
+            if (slice_1_ptr[j] > threshold && slice_2_ptr[j] > threshold) {
+                slice_1_m += slice_1_ptr[j];
+                slice_1_n++;
             }
         }
-        slice_1_m = slice_1_m / slice_1_n;
+        slice_1_m /= slice_1_n;
 
-        slice_2_n = 0;
-        slice_2_m = 0;
+        int slice_2_n = 0;
+        double slice_2_m = 0;
         for (int j = 0; j < slice_2_N; j++) {
-            if (slice_1_ptr[j] > 0.01 && slice_2_ptr[j] > 0.01) {
-                slice_2_m = slice_2_m + slice_2_ptr[j];
-                slice_2_n = slice_2_n + 1;
+            if (slice_1_ptr[j] > threshold && slice_2_ptr[j] > threshold) {
+                slice_2_m += slice_2_ptr[j];
+                slice_2_n++;
             }
         }
-        slice_2_m = slice_2_m / slice_2_n;
+        slice_2_m /= slice_2_n;
 
-
-        count = 0;
-        for (int j = 0; j < slice_1_N; j++) {
-
-            if (slice_1_ptr[j] > 0.01 && slice_2_ptr[j] > 0.01) {
-                count = count + 1;
-            }
+        if (count) {
+            *count = 0;
+            for (int j = 0; j < slice_1_N; j++)
+                if (slice_1_ptr[j] > threshold && slice_2_ptr[j] > threshold)
+                    (*count)++;
         }
 
+        double CC_slice;
         if (slice_1_n < 5 || slice_2_n < 5) {
             CC_slice = -1;
         } else {
-            diff_sum = 0;
-            slice_1_sq = 0;
-            slice_2_sq = 0;
+            double diff_sum = 0;
+            double slice_1_sq = 0;
+            double slice_2_sq = 0;
 
             for (int j = 0; j < slice_1_N; j++) {
-
-                if (slice_1_ptr[j] > 0.01 && slice_2_ptr[j] > 0.01) {
-
-                    diff_sum = diff_sum + ((slice_1_ptr[j] - slice_1_m) * (slice_2_ptr[j] - slice_2_m));
-                    slice_1_sq = slice_1_sq + pow((slice_1_ptr[j] - slice_1_m), 2);
-                    slice_2_sq = slice_2_sq + pow((slice_2_ptr[j] - slice_2_m), 2);
+                if (slice_1_ptr[j] > threshold && slice_2_ptr[j] > threshold) {
+                    diff_sum += (slice_1_ptr[j] - slice_1_m) * (slice_2_ptr[j] - slice_2_m);
+                    slice_1_sq += pow(slice_1_ptr[j] - slice_1_m, 2);
+                    slice_2_sq += pow(slice_2_ptr[j] - slice_2_m, 2);
                 }
             }
 
-            if ((slice_1_sq * slice_2_sq) > 0)
+            if (slice_1_sq * slice_2_sq > 0)
                 CC_slice = diff_sum / sqrt(slice_1_sq * slice_2_sq);
             else
                 CC_slice = 0;
-
         }
 
         return CC_slice;
@@ -6538,9 +6383,9 @@ namespace mirtk {
             input_stack = output;
 
             double slice_count = 0;
-            double local_ncc = ComputeNCC(template_stack, input_stack, slice_count);
-            average_ncc = average_ncc + local_ncc;
-            average_volume = average_volume + slice_count;
+            const double local_ncc = ComputeNCC(template_stack, input_stack, 0.01, &slice_count);
+            average_ncc += local_ncc;
+            average_volume += slice_count;
             current_stack_tranformations.push_back(*r_dofout);
         }
 
@@ -6560,14 +6405,11 @@ namespace mirtk {
         int slice_num = 0;
 
         for (int z = 0; z < input_stack.GetZ() - 1; z++) {
-            RealImage slice_1, slice_2;
-            int sh = 1;
-            slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 1);
-            slice_2 = input_stack.GetRegion(sh, sh, z + 1, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 2);
+            constexpr int sh = 1;
+            const RealImage slice_1 = input_stack.GetRegion(sh, sh, z, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 1);
+            const RealImage slice_2 = input_stack.GetRegion(sh, sh, z + 1, input_stack.GetX() - sh, input_stack.GetY() - sh, z + 2);
 
-            double slice_count = -1;
-            double local_ncc = ComputeNCC(slice_1, slice_2, slice_count);
-
+            const double local_ncc = ComputeNCC(slice_1, slice_2);
             if (local_ncc > 0) {
                 slice_ncc += local_ncc;
                 slice_num++;

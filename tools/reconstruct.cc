@@ -320,8 +320,7 @@ int main(int argc, char **argv) {
     // Read input stacks
     for (i = 0; i < nStacks; i++) {
         cout << "Stack " << i << " : " << stackFiles[i];
-        UniquePtr<ImageReader> imageReader(ImageReader::TryNew(stackFiles[i].c_str()));
-        UniquePtr<RealImage> stack((RealImage*)imageReader->Run());
+        unique_ptr<RealImage> stack(new RealImage(stackFiles[i].c_str()));
 
         // Check if the intensity is not negative and correct if so
         double smin, smax;

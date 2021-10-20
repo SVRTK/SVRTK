@@ -542,7 +542,7 @@ namespace mirtk {
 
         void ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
 
-        RealImage ThreholdNormalisedMask(RealImage image, double threshold);
+        RealImage ThresholdNormalisedMask(RealImage image, double threshold);
 
         double ComputeNCC(RealImage slice_1, RealImage slice_2, double& count);
 

@@ -899,7 +899,7 @@ int main(int argc, char **argv)
     
     
     
-    common_mask = reconstruction->ThreholdNormalisedMask(common_mask, 0.4);
+    common_mask = reconstruction->ThresholdNormalisedMask(common_mask, 0.4);
     
     
     common_mask.Write("average_mask_cnn.nii.gz");

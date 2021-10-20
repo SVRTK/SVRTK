@@ -537,7 +537,7 @@ namespace mirtk {
     //-------------------------------------------------------------------
 
     // normalise and threshold mask
-    RealImage Reconstruction::ThreholdNormalisedMask(RealImage image, double threshold) {
+    RealImage Reconstruction::ThresholdNormalisedMask(RealImage image, double threshold) {
         RealPixel smin, smax;
         image.GetMinMax(&smin, &smax);
 

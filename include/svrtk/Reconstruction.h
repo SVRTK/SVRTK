@@ -25,20 +25,17 @@
 
 #include "mirtk/Array.h"
 #include "mirtk/Point.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GaussianBlurring.h"
 #include "mirtk/Resampling.h"
 #include "mirtk/ResamplingWithPadding.h"
 #include "mirtk/LinearInterpolateImageFunction.hxx"
 #include "mirtk/GaussianBlurringWithPadding.h"
-
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageTransformation.h"
-
 #include "mirtk/MultiLevelFreeFormTransformation.h"
 #include "mirtk/FreeFormTransformation.h"
 #include "mirtk/LinearFreeFormTransformation3D.h"
@@ -49,7 +46,6 @@
 #include <set>
 #include <pthread.h>
 #include <thread>
- //#include <boost/filesystem.hpp>
 
 
 namespace mirtk {
@@ -276,22 +272,14 @@ namespace mirtk {
         double _average_thickness_org;
 
         // Create zero image as a template for reconstructed volume
-        double CreateTemplate(RealImage stack, double resolution = 0);
+        double CreateTemplate(const RealImage& stack, double resolution = 0);
 
-        double CreateTemplateAniso(RealImage stack);
-
-        double CreateLargeTemplate(Array<RealImage>& stacks,
-            Array<RigidTransformation>& stack_transformations,
-            ImageAttributes &templateAttr,
-            double resolution,
-            double smooth_mask,
-            double threshold_mask,
-            double expand = 0);
+        double CreateTemplateAniso(const RealImage& stack);
 
         Array<int> _excluded_entirely;
 
         // Remember volumetric mask and smooth it if necessary
-        void SetMask(RealImage* mask, double sigma, double threshold = 0.5);
+        void SetMask(RealImage *mask, double sigma, double threshold = 0.5);
 
         // Set gestational age (to compute expected brain volume)
         void SetGA(double ga);
@@ -301,35 +289,27 @@ namespace mirtk {
         void SaveSliceInfo(int current_iteration);
 
         // Center stacks
-        void CenterStacks(Array<RealImage>& stacks,
-            Array<RigidTransformation>& stack_transformations,
-            int templateNumber);
+        void CenterStacks(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber);
 
         //Create average image from the stacks and volumetric transformations
-        RealImage CreateAverage(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations);
+        RealImage CreateAverage(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations);
 
         // Transform and resample mask to the space of the image
         void TransformMask(const RealImage& image, RealImage& mask, const RigidTransformation& transformation);
 
         // Rescale image ignoring negative values
-        void Rescale(RealImage &img, double max);
+        void Rescale(RealImage& img, double max);
 
         // Calculate initial registrations
-        void StackRegistrations(Array<RealImage>& stacks,
-            Array<RigidTransformation>& stack_transformations,
-            int templateNumber);
+        void StackRegistrations(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber);
 
         // Create slices from the stacks and slice-dependent transformations from
         // stack transformations
-        void CreateSlicesAndTransformations(Array<RealImage> &stacks,
-            Array<RigidTransformation> &stack_transformations,
-            Array<double> &thickness,
-            const Array<RealImage> &probability_maps);
+        void CreateSlicesAndTransformations(const Array<RealImage> &stacks, const Array<RigidTransformation> &stack_transformations,
+            const Array<double> &thickness, const Array<RealImage> &probability_maps);
 
-        void SetSlicesAndTransformations(Array<RealImage>& slices,
-            Array<RigidTransformation>& slice_transformations,
-            Array<int>& stack_ids,
-            Array<double>& thickness);
+        void SetSlicesAndTransformations(const Array<RealImage>& slices,
+            const Array<RigidTransformation>& slice_transformations, const Array<int>& stack_ids, const Array<double>& thickness);
 
         void ResetSlices(Array<RealImage>& stacks, Array<double>& thickness);
 
@@ -338,7 +318,7 @@ namespace mirtk {
 
         void GetSlices(Array<RealImage>& slices);
 
-        void SetSlices(Array<RealImage>& slices);
+        void SetSlices(const Array<RealImage>& slices);
 
         void SaveProbabilityMap(int i);
 
@@ -347,23 +327,18 @@ namespace mirtk {
 
         // Match stack intensities
         void MatchStackIntensities(Array<RealImage>& stacks,
-            Array<RigidTransformation>& stack_transformations,
-            double averageValue,
-            bool together = false);
+            Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
 
         // Match stack intensities with masking
         void MatchStackIntensitiesWithMasking(Array<RealImage>& stacks,
-            Array<RigidTransformation>& stack_transformations,
-            double averageValue,
-            bool together = false);
+            Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
 
         // If template image has been masked instead of creating the mask in separate
         // file, this function can be used to create mask from the template image
         RealImage CreateMask(RealImage image);
 
-        void CreateMaskFromBlackBackground(Array<RealImage> stacks,
-            Array<RigidTransformation> stack_transformations,
-            double smooth_mask);
+        void CreateMaskFromBlackBackground(const Array<RealImage>& stacks,
+            Array<RigidTransformation> stack_transformations, double smooth_mask);
 
         // Mask all stacks
         void MaskStacks(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations);
@@ -380,7 +355,7 @@ namespace mirtk {
 
         // Reconstruction using weighted Gaussian PSF
         void GaussianReconstruction();
-        void GaussianReconstructionSF(Array<RealImage>& stacks);
+        void GaussianReconstructionSF(const Array<RealImage>& stacks);
 
         // NLM filtering
         void NLMFiltering(Array<RealImage>& stacks);
@@ -438,22 +413,20 @@ namespace mirtk {
         // Save slices
         void SaveSlices();
         void SaveSlicesWithTiming();
-        void SlicesInfo(const char* filename,
-            Array<string> &stack_filenames);
+        void SlicesInfo(const char *filename, const Array<string>& stack_filenames);
 
         // Save simulated slices
         void SaveSimulatedSlices();
 
         // Save weights
         void SaveWeights();
-        void SaveRegistrationStep(Array<RealImage>& stacks, int step);
+        void SaveRegistrationStep(const Array<RealImage>& stacks, const int step);
 
         // Save transformations
         void SaveTransformations();
-        void SaveTransformationsWithTiming();
-        void SaveTransformationsWithTiming(int iter);
-        void GetTransformations(Array<RigidTransformation> &transformations);
-        void SetTransformations(Array<RigidTransformation> &transformations);
+        void SaveTransformationsWithTiming(const int iter = -1);
+        void GetTransformations(Array<RigidTransformation>& transformations);
+        void SetTransformations(const Array<RigidTransformation>& transformations);
 
         // Save confidence map
         void SaveConfidenceMap();
@@ -467,13 +440,13 @@ namespace mirtk {
         // Return reconstructed volume
         inline RealImage GetReconstructed();
 
-        void SetReconstructed(RealImage &reconstructed);
+        void SetReconstructed(const RealImage& reconstructed);
 
         // Return resampled mask
         inline RealImage GetMask();
 
         // Remember volumetric mask
-        inline void PutMask(RealImage mask);
+        inline void PutMask(const RealImage& mask);
 
         // Set smoothing parameters
         inline void SetSmoothingParameters(double delta, double lambda);
@@ -494,7 +467,7 @@ namespace mirtk {
         inline void SetLowIntensityCutoff(double cutoff);
 
         // Set slices which need to be excluded by default
-        inline void SetForceExcludedSlices(Array<int>& force_excluded);
+        inline void SetForceExcludedSlices(const Array<int>& force_excluded);
 
         inline void Set3DRecon();
         inline void Set1DRecon();
@@ -509,7 +482,7 @@ namespace mirtk {
         inline void SetBlurring(bool flag_blurring);
         inline void SetStrucrural(bool flag_structural);
         inline void SetNThreads(int N);
-        inline void SetNPackages(Array<int> N);
+        inline void SetNPackages(const Array<int>& N);
         inline void SetRegLog(bool flag_reg_log);
 
         // Utility
@@ -545,18 +518,20 @@ namespace mirtk {
 
         double ComputeNCC(const RealImage& slice_1, const RealImage& slice_2, const double threshold = 0.01, double *count = nullptr);
 
-        void GlobalStackStats(RealImage template_stack, RealImage template_mask, Array<RealImage> stacks, Array<RealImage> masks, double& average_ncc, double& average_volume, Array<RigidTransformation>& current_stack_tranformations);
+        void GlobalStackStats(RealImage template_stack, const RealImage& template_mask, const Array<RealImage>& stacks,
+            const Array<RealImage>& masks, double& average_ncc, double& average_volume,
+            Array<RigidTransformation>& current_stack_tranformations);
 
-        void StackStats(RealImage input_stack, RealImage mask, double& mask_volume, double& slice_ncc);
+        void StackStats(RealImage input_stack, const RealImage& mask, double& mask_volume, double& slice_ncc);
 
-        void RunParallelGlobalStackStats(Array<RealImage> stacks, Array<RealImage> masks, Array<double> &all_global_ncc_array, Array<double> &all_global_volume_array);
+        void RunParallelGlobalStackStats(const Array<RealImage>& stacks, const Array<RealImage>& masks,
+            Array<double>& all_global_ncc_array, Array<double>& all_global_volume_array);
 
-        // Write included/excluded/outside slices
+        // evaluation based on the number of excluded slices
         void Evaluate(int iter);
-        void EvaluateWithTiming(int iter);
 
-        // Read Transformations
-        void ReadTransformation(char* folder);
+        // Read transformations
+        void ReadTransformation(const char *folder);
 
         //To recover original scaling
         // Restore slice intensities to their original values
@@ -570,78 +545,56 @@ namespace mirtk {
         void SimulateSlices();
 
         // Puts origin of the image into origin of world coordinates
-        void ResetOrigin(GreyImage &image, RigidTransformation& transformation);
-
-        // Puts origin of the image into origin of world coordinates
-        void ResetOrigin(RealImage &image, RigidTransformation& transformation);
+        void ResetOrigin(GreyImage& image, RigidTransformation& transformation);
+        void ResetOrigin(RealImage& image, RigidTransformation& transformation);
 
         // Packages to volume registrations
-        void PackageToVolume(Array<RealImage>& stacks,
-            Array<int> &pack_num,
-            Array<RigidTransformation> stack_transformations);
+        void PackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num,
+            const Array<RigidTransformation>& stack_transformations);
 
         // Calculate Slice acquisition order
-        void GetSliceAcquisitionOrder(Array<RealImage>& stacks,
-            Array<int> &pack_num, Array<int> order, int step, int rewinder);
+        void GetSliceAcquisitionOrder(const Array<RealImage>& stacks,
+            const Array<int>& pack_num, const Array<int>& order, const int step, const int rewinder);
 
         // Split image in a flexible manner
-        void flexibleSplitImage(Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
-            Array<int> &pack_num, Array<int> sliceNums, Array<int> order, int step, int rewinder);
+        void flexibleSplitImage(const Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
+            const Array<int>& pack_num, const Array<int>& sliceNums, const Array<int>& order, const int step, const int rewinder);
 
         // Create Multiband replica for flexibleSplitImage
-        void flexibleSplitImagewithMB(Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
-            Array<int> &pack_num, Array<int> sliceNums, Array<int> multiband, Array<int> order, int step, int rewinder);
+        void flexibleSplitImagewithMB(const Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
+            const Array<int>& pack_num, const Array<int>& sliceNums, const Array<int>& multiband,
+            const Array<int>& order, const int step, const int rewinder);
 
         // Split images into packages
-        void splitPackages(Array<RealImage>& stacks, Array<int> &pack_num,
-            Array<RealImage>& packageStacks, Array<int> order, int step, int rewinder);
+        void splitPackages(const Array<RealImage>& stacks, const Array<int>& pack_num,
+            Array<RealImage>& packageStacks, const Array<int>& order, const int step, const int rewinder);
 
         // Create Multiband replica for splitPackages
-        void splitPackageswithMB(Array<RealImage>& stacks, Array<int> &pack_num,
-            Array<RealImage>& packageStacks, Array<int> multiband, Array<int> order,
-            int step, int rewinder);
+        void splitPackageswithMB(const Array<RealImage>& stacks, const Array<int>& pack_num, Array<RealImage>& packageStacks,
+            const Array<int>& multiband_vector, const Array<int>& order, const int step, const int rewinder);
 
         // Performs package registration
-        void newPackageToVolume(Array<RealImage>& stacks, Array<int> &pack_num,
-            Array<int> multiband, Array<int> order, int step,
-            int rewinder, int iter, int steps);
-
-        // Perform subpackage registration for flexibleSplitImage
-        void ChunkToVolume(Array<RealImage>& stacks, Array<int> &pack_num,
-            Array<int> sliceNums, Array<int> multiband, Array<int> order,
-            int step, int rewinder, int iter, int steps);
-
-        // Calculate number of iterations needed for subpacking stages
-        int giveMeDepth(Array<RealImage>& stacks, Array<int> &pack_num,
-            Array<int> multiband);
-
-        // Calculate subpacking needed for tree like structure
-        Array<int> giveMeSplittingArray(Array<RealImage>& stacks, Array<int> &pack_num,
-            Array<int> multiband, int iterations, bool last);
-
-        void WriteSliceOrder();
-
-        // Calculate relative change of displacement field across different iterations
-        double calculateResidual(int padding);
+        void newPackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num, const Array<int>& multiband,
+            const Array<int>& order, const int step, const int rewinder, const int iter, const int steps);
 
         // Filter backgound
-        void BackgroundFiltering(Array<RealImage>& stacks, double fg_sigma, double bg_sigma);
+        void BackgroundFiltering(Array<RealImage>& stacks, const double fg_sigma, const double bg_sigma);
 
         // Splits stacks into packages
-        void SplitImage(RealImage image, int packages, Array<RealImage>& stacks);
+        void SplitImage(const RealImage& image, const int packages, Array<RealImage>& stacks);
 
         // Splits stacks into packages and each package into even and odd slices
-        void SplitImageEvenOdd(RealImage image, int packages, Array<RealImage>& stacks);
+        void SplitImageEvenOdd(const RealImage& image, const int packages, Array<RealImage>& stacks);
 
         // Splits image into top and bottom half roi according to z coordinate
-        void HalfImage(RealImage image, Array<RealImage>& stacks);
+        void HalfImage(const RealImage& image, Array<RealImage>& stacks);
 
         // Splits stacks into packages and each package into even and odd slices and top and bottom roi
-        void SplitImageEvenOddHalf(RealImage image, int packages, Array<RealImage>& stacks, int iter = 1);
+        void SplitImageEvenOddHalf(const RealImage& image, const int packages, Array<RealImage>& stacks, const int iter = 1);
 
         // Crop image according to the given mask
-        void CropImage(RealImage& image, RealImage& mask);
-        void CropImageIgnoreZ(RealImage& image, RealImage& mask);
+        void CropImage(RealImage& image, const RealImage& mask);
+        void CropImageIgnoreZ(RealImage& image, const RealImage& mask);
 
         // Run structure-based rejection of outliers
         void StructuralExclusion();
@@ -650,10 +603,10 @@ namespace mirtk {
         double EvaluateReconQuality(int index);
 
         // Initialisation with stack transformations
-        void InitialiseWithStackTransformations(Array<RigidTransformation> stack_transformations);
+        void InitialiseWithStackTransformations(const Array<RigidTransformation>& stack_transformations);
 
         // transformation to the reconstructed image space
-        void Transform2Reconstructed(int inputIndex, int& i, int& j, int& k, int mode);
+        void Transform2Reconstructed(const int inputIndex, int& i, int& j, int& k, const int mode);
 
         friend class ParallelGlobalSimilarityStats;
         friend class ParallelQualityReport;
@@ -699,7 +652,7 @@ namespace mirtk {
         return _mask;
     }
 
-    inline void Reconstruction::PutMask(RealImage mask) {
+    inline void Reconstruction::PutMask(const RealImage& mask) {
         _mask = mask;
     }
 
@@ -775,7 +728,7 @@ namespace mirtk {
         _GA = ga;
     }
 
-    inline void Reconstruction::SetNPackages(Array<int> N) {
+    inline void Reconstruction::SetNPackages(const Array<int>& N) {
         _n_packages = N;
     }
 
@@ -818,7 +771,7 @@ namespace mirtk {
             cout << "delta = " << _delta << " lambda = " << lambda << " alpha = " << _alpha << endl;
     }
 
-    inline void Reconstruction::SetForceExcludedSlices(Array<int>& force_excluded) {
+    inline void Reconstruction::SetForceExcludedSlices(const Array<int>& force_excluded) {
         _force_excluded = force_excluded;
     }
 

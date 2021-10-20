@@ -718,7 +718,6 @@ int main(int argc, char **argv) {
 
     // Exclude low quality / similarity stacks (should be transferred to a separate function)
     if (excludeWrongStacks) {
-
         bestSelectedStacks = stacks.size();
         cout << "Selecting stacks : " << " " << endl;
 
@@ -754,9 +753,9 @@ int main(int argc, char **argv) {
             double countNcc = -1;
             const double volumeNcc = reconstruction->ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
 
-            averageCountNcc = averageCountNcc + countNcc;
-            averageSliceNcc = averageSliceNcc + sliceNcc;
-            averageVolumeNcc = averageVolumeNcc + volumeNcc;
+            averageCountNcc += countNcc;
+            averageSliceNcc += sliceNcc;
+            averageVolumeNcc += volumeNcc;
 
             allNccArray.push_back(volumeNcc);
             allIndicesArray.push_back(i);
@@ -769,23 +768,23 @@ int main(int argc, char **argv) {
             }
         }
 
-        averageCountNcc = ((averageCountNcc / stacks.size()));
-        averageSliceNcc = ((averageSliceNcc / stacks.size()));
-        averageVolumeNcc = ((averageVolumeNcc / stacks.size()));
+        averageCountNcc /= stacks.size();
+        averageSliceNcc /= stacks.size();
+        averageVolumeNcc /= stacks.size();
 
         double stdCountNcc = 0;
         double stdSliceNcc = 0;
         double stdVolumeNcc = 0;
 
         for (i = 0; i < stacks.size(); i++) {
-            stdCountNcc = stdCountNcc + pow((allCountArray[i] - averageCountNcc), 2);
-            stdSliceNcc = stdSliceNcc + pow((allSliceNccArray[i] - averageSliceNcc), 2);
-            stdVolumeNcc = averageVolumeNcc + pow((allNccArray[i] - averageVolumeNcc), 2);
+            stdCountNcc += pow(allCountArray[i] - averageCountNcc, 2);
+            stdSliceNcc += pow(allSliceNccArray[i] - averageSliceNcc, 2);
+            stdVolumeNcc = averageVolumeNcc + pow(allNccArray[i] - averageVolumeNcc, 2);
         }
 
-        stdSliceNcc = stdSliceNcc / stacks.size();
-        stdVolumeNcc = stdVolumeNcc / stacks.size();
-        stdCountNcc = stdCountNcc / stacks.size();
+        stdSliceNcc /= stacks.size();
+        stdVolumeNcc /= stacks.size();
+        stdCountNcc /= stacks.size();
 
         cout << " - average values : volume ncc = " << averageVolumeNcc << " +/- " << stdVolumeNcc << " ; slice ncc = " << averageSliceNcc << " +/- " << stdSliceNcc << " ; volume [mm^3] = " << averageCountNcc << "+/- " << stdCountNcc << endl;
 
@@ -874,22 +873,18 @@ int main(int argc, char **argv) {
     int currentIteration = 0;
 
     if (fullRemoteRecon && packages.size() < 1) {
-
         // Run reconstruction remotely ("reconstruct-round" function) - can be removed
         for (int iter = 0; iter < iterations; iter++) {
             currentIteration = iter;
-            string reconstructCmd = strMirtkPath + "/reconstruct-round " + " " + strMirtkPath + " " + strCurrentMainFilePath + " " + strCurrentExchangeFilePath + " " + to_string(currentIteration) + " " + to_string(reconstruction->_number_of_slices_org) + " " + to_string(reconstruction->_average_thickness_org) + " " + strFlags;
+            const string reconstructCmd = strMirtkPath + "/reconstruct-round " + " " + strMirtkPath + " " + strCurrentMainFilePath + " " + strCurrentExchangeFilePath + " " + to_string(currentIteration) + " " + to_string(reconstruction->_number_of_slices_org) + " " + to_string(reconstruction->_average_thickness_org) + " " + strFlags;
             if (system(reconstructCmd.c_str()) == -1) {
                 cerr << "The reconstruct command couldn't be executed!" << endl;
                 return 1;
             }
         }
-
     } else {
-
         // Interleaved registration-reconstruction iterations
         for (int iter = 0; iter < iterations; iter++) {
-
             cout << "------------------------------------------------------" << endl;
             cout << "Iteration : " << iter << endl;
 
@@ -960,7 +955,7 @@ int main(int argc, char **argv) {
                 reconstruction->EStep();
 
             // Set number of reconstruction iterations
-            if (iter == (iterations - 1))
+            if (iter == iterations - 1)
                 recIterations = srIterations * 3;
             else
                 recIterations = srIterations;

@@ -543,8 +543,8 @@ int main(int argc, char **argv) {
                     newThickness.push_back(thickness[i]);
             } else {
                 for (int t = 0; t < stacks[i].GetT(); t++) {
-                    RealImage stack = stacks[i].GetRegion(0, 0, 0, t, stacks[i].GetX(), stacks[i].GetY(), stacks[i].GetZ(), (t + 1));
-                    newStacks.push_back(stack);
+                    RealImage stack = stacks[i].GetRegion(0, 0, 0, t, stacks[i].GetX(), stacks[i].GetY(), stacks[i].GetZ(), t + 1);
+                    newStacks.push_back(move(stack));
                     if (!stackTransformations.empty())
                         newStackTransformations.push_back(stackTransformations[i]);
                     if (!packages.empty())
@@ -705,17 +705,13 @@ int main(int argc, char **argv) {
         selectedStacks.push_back(stacks[i]);
         selectedStackTransformations.push_back(stackTransformations[i]);
         if (i == templateNumber)
-            newTemplateNumber = templateNumber - (i - nNewStacks);
+            newTemplateNumber = nNewStacks;
         nNewStacks++;
     }
-    stacks.clear();
-    stackTransformations.clear();
     nStacks = nNewStacks;
     templateNumber = newTemplateNumber;
-    for (i = 0; i < nStacks; i++) {
-        stacks.push_back(selectedStacks[i]);
-        stackTransformations.push_back(selectedStackTransformations[i]);
-    }
+    stacks = move(selectedStacks);
+    stackTransformations = move(selectedStackTransformations);
 
     // Perform volumetric registration again
     if (!noGlobalFlag)
@@ -738,7 +734,6 @@ int main(int argc, char **argv) {
         Array<int> allIndicesArray;
         Array<double> allCountArray;
         Array<double> sortedNccArray;
-        Array<int> sortedIndicesArray;
         Array<double> selectedNccArray;
         Array<int> selectedIndicesArray;
         double maxNcc = -1.0;
@@ -756,16 +751,7 @@ int main(int argc, char **argv) {
             Matrix m = stackTransformations[i].GetMatrix();
             stackToCheck.PutAffineMatrix(m, true);
 
-            double tx, ty, tz, rx, ry, rz;
-            tx = stackTransformations[i].GetTranslationX();
-            ty = stackTransformations[i].GetTranslationY();
-            tz = stackTransformations[i].GetTranslationZ();
-            rx = stackTransformations[i].GetRotationX();
-            ry = stackTransformations[i].GetRotationY();
-            rz = stackTransformations[i].GetRotationZ();
-
-            double sliceNcc = 0.0;
-            sliceNcc = reconstruction->VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
+            const double sliceNcc = reconstruction->VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
             double countNcc = -1;
             const double volumeNcc = reconstruction->ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
 
@@ -805,10 +791,7 @@ int main(int argc, char **argv) {
         cout << " - average values : volume ncc = " << averageVolumeNcc << " +/- " << stdVolumeNcc << " ; slice ncc = " << averageSliceNcc << " +/- " << stdSliceNcc << " ; volume [mm^3] = " << averageCountNcc << "+/- " << stdCountNcc << endl;
 
         sortedNccArray = allNccArray;
-        sortedIndicesArray = allIndicesArray;
-
-        sort(sortedNccArray.begin(), sortedNccArray.end());
-        reverse(sortedNccArray.begin(), sortedNccArray.end());
+        sort(sortedNccArray.begin(), sortedNccArray.end(), greater<double>());
 
         cout << " - selected : " << endl;
         int totalSelected = 0;

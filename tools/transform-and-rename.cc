@@ -10,7 +10,7 @@
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
 
-#include "mirtk/ReconstructionFFD.h"
+#include "svrtk/ReconstructionFFD.h"
 
 using namespace mirtk; 
 using namespace std;

@@ -10,7 +10,7 @@
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
 
-#include "mirtk/ReconstructionFFD.h"
+#include "svrtk/ReconstructionFFD.h"
 
 using namespace mirtk;
 using namespace std;
@@ -44,11 +44,11 @@ double SliceCC(RealImage slice_1, RealImage slice_2)
     int min_count = 20;
     
     
-    slice_1_N = slice_1.GetNumberOfVoxels();
-    slice_2_N = slice_2.GetNumberOfVoxels();
+    slice_1_N = slice_1.NumberOfVoxels();
+    slice_2_N = slice_2.NumberOfVoxels();
     
-    slice_1_ptr = slice_1.GetPointerToVoxels();
-    slice_2_ptr = slice_2.GetPointerToVoxels();
+    slice_1_ptr = slice_1.Data();
+    slice_2_ptr = slice_2.Data();
     
     slice_1_n = 0;
     slice_1_m = 0;

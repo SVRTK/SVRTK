@@ -33,7 +33,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 
 
 using namespace mirtk;
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
     
     
     RealImage output_volume;
-    output_volume.Initialize(target_volume.GetImageAttributes());
+    output_volume.Initialize(target_volume.Attributes());
     
     
     //-------------------------------------------------------------------

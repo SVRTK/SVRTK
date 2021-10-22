@@ -19,7 +19,7 @@
 #ifndef MIRTK_ReconstructionCardiac4D_H
 #define MIRTK_ReconstructionCardiac4D_H
  
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 
 
 namespace mirtk {
@@ -363,7 +363,7 @@ namespace mirtk {
         
         _reconstructed4D = reconstructed4D;
         
-        ImageAttributes attr = reconstructed4D.GetImageAttributes();
+        ImageAttributes attr = reconstructed4D.Attributes();
         attr._t = 1;
         RealImage volume3D(attr);
         

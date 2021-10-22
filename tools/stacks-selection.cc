@@ -34,7 +34,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 
 #include <iostream>
 #include <chrono>
@@ -848,7 +848,7 @@ int main(int argc, char **argv)
     resampling01.Interpolator(interpolator.get());
     resampling01.Run();
 
-    ImageAttributes attr = common_mask.GetImageAttributes();
+    ImageAttributes attr = common_mask.Attributes();
     common_mask.PutPixelSize(attr._dx*1.25, attr._dy*1.25, attr._dz*1.25);
     
 
@@ -899,7 +899,7 @@ int main(int argc, char **argv)
     
     
     
-    common_mask = reconstruction->ThreholdNormalisedMask(common_mask, 0.4);
+    common_mask = reconstruction->ThresholdNormalisedMask(common_mask, 0.4);
     
     
     common_mask.Write("average_mask_cnn.nii.gz");

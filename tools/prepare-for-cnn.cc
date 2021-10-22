@@ -50,17 +50,17 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: mirtk prepare-for-cnn [folder for the output resampled files: string (e.g., res-files)] \ " << endl;
-    cout << "\t " << "[folder for the original renamed files: string (e.g., stack-files)] \ " << endl;
-    cout << "\t " << "[output .csv file for CNN segmentation: string (e.g., segmentation_run_files.csv)] \ " << endl;
-    cout << "\t " << "[output .csv file with the original file names: string (e.g., stack_info.csv)] \ " << endl;
-    cout << "\t " << "[output resampling grid size: int (e.g., 128)] \ " << endl;
-    cout << "\t " << "[number of input stacks followed by the file names: [N] [stack_1] ... [stack_N]]\ " << endl;
-    cout << "\t " << "[number of labels for CNN segmentation: int (e.g., 2)] \ " << endl;
-    cout << "\t " << "[label creation mode: use empty (0) OR existing (1) mask files: int (e.g., 1)] \ " << endl;
-    cout << "\t " << "[input label mask file names corresponding to the input stacks (if mode=1 was selected): \ " << endl;
-    cout << "\t " << "[label_1_for_stack_1] [label_1_for_stack_N]... \ " << endl;
-    cout << "\t " << "... [label_2_for_stack_1] ... [label_2_for_stack_N]] " << endl;
+    cout << "Usage: mirtk prepare-for-cnn [folder for the output resampled files: string (e.g., res-files)]" << endl;
+    cout << "\t " << "[folder for the original renamed files: string (e.g., stack-files)]" << endl;
+    cout << "\t " << "[output .csv file for CNN segmentation: string (e.g., segmentation_run_files.csv)]" << endl;
+    cout << "\t " << "[output .csv file with the original file names: string (e.g., stack_info.csv)]" << endl;
+    cout << "\t " << "[output resampling grid size: int (e.g., 128)]" << endl;
+    cout << "\t " << "[number of input stacks followed by the file names: [N] [stack_1] ... [stack_N]]" << endl;
+    cout << "\t " << "[number of labels for CNN segmentation: int (e.g., 2)]" << endl;
+    cout << "\t " << "[label creation mode: use empty (0) OR existing (1) mask files: int (e.g., 1)]" << endl;
+    cout << "\t " << "[input label mask file names corresponding to the input stacks (if mode=1 was selected):" << endl;
+    cout << "\t " << "[label_1_for_stack_1] [label_1_for_stack_N]..." << endl;
+    cout << "\t " << "... [label_2_for_stack_1] ... [label_2_for_stack_N]]" << endl;
     
     exit(0);
 }
@@ -350,7 +350,7 @@ int main(int argc, char **argv)
         resampler.Interpolator(interpolator.get());
         resampler.Run();
         
-        ImageAttributes attr = res_stack.GetImageAttributes();
+        ImageAttributes attr = res_stack.Attributes();
         attr._x = grid_dim;
         attr._y = grid_dim;
         attr._z = grid_dim;

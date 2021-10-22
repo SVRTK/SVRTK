@@ -32,7 +32,7 @@
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
 
-#include "mirtk/ReconstructionFFD.h"
+#include "svrtk/ReconstructionFFD.h"
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
@@ -888,7 +888,7 @@ int main(int argc, char **argv)
     string str_current_exchange_file_path;
     
     string str_recon_path(current_mirtk_path);
-    size_t pos = str_recon_path.find_last_of("\/");
+    size_t pos = str_recon_path.find_last_of("/");
     str_mirtk_path = str_recon_path.substr (0, pos);
     
     system("pwd > pwd.txt ");

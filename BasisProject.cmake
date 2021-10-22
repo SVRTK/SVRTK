@@ -58,6 +58,7 @@ basis_project (
   # dependencies
   DEPENDS
     MIRTK{Common,Numerics,Image,IO,Transformation,Registration}
+    Boost{filesystem,program_options}
   #<dependency>
   OPTIONAL_DEPENDS
     Python{Interp}

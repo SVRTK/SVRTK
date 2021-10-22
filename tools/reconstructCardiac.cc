@@ -32,7 +32,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/ReconstructionCardiac4D.h"
+#include "svrtk/ReconstructionCardiac4D.h"
 #include <string>
 
 
@@ -838,7 +838,7 @@ int main(int argc, char **argv)
     string str_current_exchange_file_path;
     
     string str_recon_path(current_mirtk_path);
-    size_t pos = str_recon_path.find_last_of("\/");
+    size_t pos = str_recon_path.find_last_of("/");
     str_mirtk_path = str_recon_path.substr (0, pos);
     
     system("pwd > pwd.txt ");
@@ -1080,7 +1080,7 @@ int main(int argc, char **argv)
     //volumetric registration if input stacks are single time frame
     if (stack_registration)
     {
-        ImageAttributes attr = stacks[templateNumber].GetImageAttributes();
+        ImageAttributes attr = stacks[templateNumber].Attributes();
         if (attr._t > 1)
         cout << "Skipping stack-stack registration; target stack has more than one time frame." << endl;
         else
@@ -1216,7 +1216,7 @@ int main(int argc, char **argv)
     // Calculate Cardiac Phase of Each Slice
     if ( cardPhase.size() == 0 ) {  // no cardiac phases specified
         if ( numCardPhase != 1 ) {    // reconstructing cine volume
-            ImageAttributes attr = stacks[templateNumber].GetImageAttributes();
+            ImageAttributes attr = stacks[templateNumber].Attributes();
             if (attr._t > 1) {
                 cerr<<"Cardiac 4D reconstruction requires cardiac phase for each slice."<<endl;
                 exit(1);

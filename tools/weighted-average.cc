@@ -33,7 +33,7 @@
 #include "mirtk/ImageReader.h"
 
 
-#include "mirtk/Reconstruction.h"
+#include "svrtk/Reconstruction.h"
 
 #include <iostream>
 #include <chrono>
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
     //cout << "Output st.dev : " << stdev_fname << endl;
     
     
-    ImageAttributes attr = target.GetImageAttributes();
+    ImageAttributes attr = target.Attributes();
     
     RealImage output_average_stack;
     output_average_stack.Initialize(attr);

@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-#include "mirtk/MeanShift.h"
+#include "svrtk/MeanShift.h"
  
 
 using namespace std;
@@ -45,8 +45,8 @@ MeanShift::~MeanShift() {
 
 RealImage MeanShift::ReturnMask() {
     RealImage mask = _image;
-    RealPixel *ptr = mask.GetPointerToVoxels();
-    int n = _image.GetNumberOfVoxels();
+    RealPixel *ptr = mask.Data();
+    int n = _image.NumberOfVoxels();
     for (int i = 0; i < n; i++) {
         if (*ptr != _padding)
             *ptr = 1;
@@ -71,8 +71,8 @@ double MeanShift::BinToValue(int bin) {
 
 double MeanShift::GenerateDensity(double cut_off) {
     int i, j;
-    GreyPixel *ptr = _image.GetPointerToVoxels();
-    int n = _image.GetNumberOfVoxels();
+    GreyPixel *ptr = _image.Data();
+    int n = _image.NumberOfVoxels();
     int voxels = 0;
 
     _image.GetMinMax(&_imin, &_imax);
@@ -144,14 +144,14 @@ void MeanShift::AddPoint(int x, int y, int z, int label) {
 double MeanShift::msh(double y, double h) {
     double points, sum, y0;
     GreyPixel* ptr;
-    int n = _image.GetNumberOfVoxels();
+    int n = _image.NumberOfVoxels();
 
     //cout<<"msh: position = "<<y<<", bandwidth = "<<h<<endl;
 
     if (h <= _bin_width) return y;
 
     do {
-        ptr = _image.GetPointerToVoxels();
+        ptr = _image.Data();
         sum = 0;
         points = 0;
 
@@ -332,8 +332,8 @@ int MeanShift::Lcc(int label, bool add_second) {
     _map = _image;
     //_image.Write("image.nii.gz");
 
-    GreyPixel* ptr = _map.GetPointerToVoxels();
-    int n = _image.GetNumberOfVoxels();
+    GreyPixel* ptr = _map.Data();
+    int n = _image.NumberOfVoxels();
     for (i = 0; i < n; i++) {
         *ptr = 0;
         ptr++;
@@ -357,8 +357,8 @@ int MeanShift::Lcc(int label, bool add_second) {
                 }
             }
 
-    ptr = _map.GetPointerToVoxels();
-    n = _image.GetNumberOfVoxels();
+    ptr = _map.Data();
+    n = _image.NumberOfVoxels();
     for (i = 0; i < n; i++) {
         *ptr = 0;
         ptr++;
@@ -387,8 +387,8 @@ int MeanShift::LccS(int label, double treshold) {
     _map = _image;
     //_image.Write("image.nii.gz");
 
-    GreyPixel* ptr = _map.GetPointerToVoxels();
-    int n = _image.GetNumberOfVoxels();
+    GreyPixel* ptr = _map.Data();
+    int n = _image.NumberOfVoxels();
     for (i = 0; i < n; i++) {
         *ptr = 0;
         ptr++;
@@ -413,8 +413,8 @@ int MeanShift::LccS(int label, double treshold) {
                 }
             }
 
-    ptr = _map.GetPointerToVoxels();
-    n = _image.GetNumberOfVoxels();
+    ptr = _map.Data();
+    n = _image.NumberOfVoxels();
     for (i = 0; i < n; i++) {
         *ptr = 0;
         ptr++;
@@ -456,8 +456,8 @@ void MeanShift::RegionGrowing() {
     cout << "Removing background" << endl;
     _map = _image;
 
-    GreyPixel* ptr = _map.GetPointerToVoxels();
-    int n = _image.GetNumberOfVoxels();
+    GreyPixel* ptr = _map.Data();
+    int n = _image.NumberOfVoxels();
 
     for (i = 0; i < n; i++) {
         *ptr = 1;
@@ -496,8 +496,8 @@ void MeanShift::RemoveBackground() {
     cout << "Removing background" << endl;
     _map = _image;
 
-    GreyPixel* ptr = _map.GetPointerToVoxels();
-    int n = _image.GetNumberOfVoxels();
+    GreyPixel* ptr = _map.Data();
+    int n = _image.NumberOfVoxels();
 
     for (i = 0; i < n; i++) {
         *ptr = 1;
@@ -543,7 +543,7 @@ void MeanShift::RemoveBackground() {
 
     cout << "recalculating ... ";
 
-    ptr = _map.GetPointerToVoxels();
+    ptr = _map.Data();
     for (i = 0; i < n; i++) {
         *ptr = 1;
         ptr++;
@@ -582,7 +582,7 @@ void MeanShift::RemoveBackground() {
 
     cout << "final recalculation ...";
 
-    ptr = _map.GetPointerToVoxels();
+    ptr = _map.Data();
     for (i = 0; i < n; i++) {
         *ptr = 1;
         ptr++;
@@ -615,8 +615,8 @@ void MeanShift::RemoveBackground() {
     delete _brain;
     cout << "done." << endl;
 
-    ptr = _map.GetPointerToVoxels();
-    GreyPixel *ptr_b = _image.GetPointerToVoxels();
+    ptr = _map.Data();
+    GreyPixel *ptr_b = _image.Data();
     for (i = 0; i < n; i++) {
         if (*ptr == 0) *ptr_b = _padding;
         ptr++;
@@ -659,8 +659,8 @@ void MeanShift::FindWMGMmeans() {
       cout<<"WM mean = "<<_wm<<endl;
 
       GreyImage gmwm(_image);
-      GreyPixel *ptr=gmwm.GetPointerToVoxels();
-      int n=gmwm.GetNumberOfVoxels();
+      GreyPixel *ptr=gmwm.Data();
+      int n=gmwm.NumberOfVoxels();
       for(int i=0;i<n;i++)
       {
         if(*ptr>_padding)

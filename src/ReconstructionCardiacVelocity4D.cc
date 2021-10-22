@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "mirtk/ReconstructionCardiacVelocity4D.h"
+#include "svrtk/ReconstructionCardiacVelocity4D.h"
 #include "mirtk/Resampling.h"
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
@@ -134,13 +134,13 @@ namespace mirtk {
             for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
                 
                 // calculate simulated slice
-                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_slices[inputIndex] = 0;
                 
-                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_weights[inputIndex] = 0;
                 
-                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].GetImageAttributes() );
+                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
                 reconstructor->_simulated_inside[inputIndex] = 0;
                 
                 reconstructor->_slice_inside[inputIndex] = false;
@@ -549,7 +549,7 @@ namespace mirtk {
             
             if (_reconstructed5DVelocity[0].GetT() == 1) {
                 
-                ImageAttributes attr = _reconstructed5DVelocity[0].GetImageAttributes();
+                ImageAttributes attr = _reconstructed5DVelocity[0].Attributes();
                 attr._t = 3;
                 
                 RealImage output_4D(attr);
@@ -927,7 +927,7 @@ namespace mirtk {
                 
                 for (int i = 0; i < stacks.size(); i++) {
                     
-                    ImageAttributes attr = stacks[i].GetImageAttributes();
+                    ImageAttributes attr = stacks[i].Attributes();
                     attr._t = 3;
                     RealImage stack(attr);
                     velocity_volumes.push_back(stack);
@@ -1100,9 +1100,9 @@ namespace mirtk {
         
         for (unsigned int i = 0; i < _slices.size(); i++) {
             //to update minimum we need to exclude padding value
-            RealPixel *ptr = _slices[i].GetPointerToVoxels();
+            RealPixel *ptr = _slices[i].Data();
             
-            for (int ind = 0; ind < _slices[i].GetNumberOfVoxels(); ind++) {
+            for (int ind = 0; ind < _slices[i].NumberOfVoxels(); ind++) {
                 if (*ptr > -10) {
                     
                     double tmp = abs(*ptr);
@@ -1133,11 +1133,11 @@ namespace mirtk {
         
         for (unsigned int i = 0; i < _slices.size(); i++) {
             //Initialise voxel weights and bias values
-            RealPixel *pw = _weights[i].GetPointerToVoxels();
-            RealPixel *pb = _bias[i].GetPointerToVoxels();
-            RealPixel *pi = _slices[i].GetPointerToVoxels();
+            RealPixel *pw = _weights[i].Data();
+            RealPixel *pb = _bias[i].Data();
+            RealPixel *pi = _slices[i].Data();
             
-            for (int j = 0; j < _weights[i].GetNumberOfVoxels(); j++) {
+            for (int j = 0; j < _weights[i].NumberOfVoxels(); j++) {
                 if (*pi > -10) {
                     *pw = 1;
                     *pb = 0;

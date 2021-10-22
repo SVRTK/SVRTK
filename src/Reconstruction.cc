@@ -2638,14 +2638,12 @@ namespace mirtk {
             }
 
             if (!excluded) {
-                #pragma omp parallel for
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++)
-                    for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    for (int j = 0; j < _slices[inputIndex].GetY(); j++)
                         for (int k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
                             const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
                             _volume_weights(p.x, p.y, p.z) += p.value;
                         }
-                    }
             }
         }
 
@@ -3070,7 +3068,6 @@ namespace mirtk {
 
         const Array<RealImage>& slices = _withMB ? _slicesRwithMB : _slices;
 
-        #pragma omp parallel for
         for (int inputIndex = begin; inputIndex < end; inputIndex++)
             for (int i = 0; i < slices[inputIndex].GetX(); i++)
                 for (int j = 0; j < slices[inputIndex].GetY(); j++)

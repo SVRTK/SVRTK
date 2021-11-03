@@ -69,9 +69,9 @@ using namespace boost::program_options;
 void PrintUsage(const options_description& opts) {
     // Print positional arguments
     cout << "Usage: reconstruct [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
-    cout << "  [reconstructed]            Name for the reconstructed volume (Nifti or Analyze format)" << endl;
+    cout << "  [reconstructed]            Name for the reconstructed volume (Nifti format)" << endl;
     cout << "  [N]                        Number of stacks" << endl;
-    cout << "  [stack_1] .. [stack_N]     The input stacks (Nifti or Analyze format)" << endl << endl;
+    cout << "  [stack_1] .. [stack_N]     The input stacks (Nifti format)" << endl << endl;
     // Print optional arguments
     cout << opts << endl;
 }
@@ -97,16 +97,8 @@ int main(int argc, char **argv) {
     // Initialise profiling
     SVRTK_START_TIMING();
 
-    // General utility variables
-    int i, j, x, y, z;
-
-    // Names for output info files
-    string infoFilename = "slice_info.tsv";
-    string logId;
+    // Variable for flags
     string strFlags;
-
-
-    // Main variables:
 
     // Name for output volume
     string outputName;
@@ -148,9 +140,7 @@ int main(int argc, char **argv) {
     // Variables for forced exclusion of slices
     vector<int> forceExcluded;
 
-
     // Default values for reconstruction variables:
-
     int templateNumber = 0;
     int iterations = 3;
     int srIterations = 7;
@@ -167,9 +157,7 @@ int main(int argc, char **argv) {
     bool globalBiasCorrection = false;
     double lowIntensityCutoff = 0.01;
 
-
     // Flags for reconstruction options:
-
     // Flag whether the template (-template option)
     bool useTemplate = false;
 
@@ -234,9 +222,9 @@ int main(int argc, char **argv) {
     // Define required options
     options_description reqOpts;
     reqOpts.add_options()
-        ("reconstructed", value<string>(&outputName)->required(), "Name for the reconstructed volume. Nifti or Analyze format.")
+        ("reconstructed", value<string>(&outputName)->required(), "Name for the reconstructed volume (Nifti format)")
         ("N", value<int>(&nStacks)->required(), "Number of stacks")
-        ("stack", value<vector<string>>(&stackFiles)->multitoken()->required(), "The input stacks. Nifti or Analyze format.");
+        ("stack", value<vector<string>>(&stackFiles)->multitoken()->required(), "The input stacks (Nifti format)");
 
     // Define positional options
     positional_options_description posOpts;
@@ -245,18 +233,18 @@ int main(int argc, char **argv) {
     // Define optional options
     options_description opts("Options");
     opts.add_options()
-        ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK. Only rough alignment with correct orienation and some overlap is needed. Use \'id\' for an identity transformation for at leastone stack. The first stack with \'id\' transformationwill be resampled as template.")
+        ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK. Only rough alignment with correct orientation and some overlap is needed. Use \'id\' for an identity transformation for at leastone stack. The first stack with \'id\' transformationwill be resampled as template.")
         ("template", value<string>(), "Use template for initialisation of registration loop. [Default: average of stack registration]")
         ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: twice voxel size in z direction]")
         ("default_thickness", value<double>(), "Default thickness for all stacks. [Default: twice voxel size in z direction]")
-        ("mask", value<string>(), "Binary mask to define the region od interest. [Default: whole image]")
+        ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
         ("packages", value<vector<int>>(&packages)->multitoken(), "Give number of packages used during acquisition for each stack. The stacks will be split into packages during registration iteration 1 and then into odd and even slices within each package during registration iteration 2. The method will then continue with slice to volume approach. [Default: slice to volume registration only]")
         ("template_number", value<int>(&templateNumber), "Number of the template stack [Default: 0]")
         ("iterations", value<int>(&iterations), "Number of registration-reconstruction iterations [Default: 3]")
         ("sr_iterations", value<int>(&srIterations), "Number of SR reconstruction iterations [Default: 7,...,7,7*3]")
         ("sigma", value<double>(&sigma), "Stdev for bias field [Default: 20mm]")
         ("resolution", value<double>(&resolution), "Isotropic resolution of the volume [Default: 0.75mm]")
-        ("multires", value<int>(&levels), "Multiresolution smooting with given number of levels [Default: 3]")
+        ("multires", value<int>(&levels), "Multiresolution smoothing with given number of levels [Default: 3]")
         ("average", value<double>(&averageValue), "Average intensity value for stacks [Default: 700]")
         ("delta", value<double>(&delta), "Parameter to define what is an edge [Default: 150]")
         ("lambda", value<double>(&lambda), "Smoothing parameter [Default: 0.02]")
@@ -271,8 +259,7 @@ int main(int argc, char **argv) {
         ("no_global", bool_switch(&noGlobalFlag), "No global stack registration")
         ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
         ("ncc", bool_switch(&nccRegFlag), "Use global NCC similarity for SVR steps [Default: NMI]")
-        ("nmi_bins", value<int>(), "Number of NMI bins for registration [Default: 16]")
-        ("structural", bool_switch(&structural), "Use structrural exclusion of slices at the last iteration")
+        ("structural", bool_switch(&structural), "Use structural exclusion of slices at the last iteration")
         ("exclude_slices_only", bool_switch(&robustSlicesOnly), "Robust statistics for exclusion of slices only")
         ("remove_black_background", bool_switch(&removeBlackBackground), "Create mask from black background")
         ("transformations", value<string>(&folder), "Use existing slice-to-volume transformations to initialize the reconstruction")
@@ -318,7 +305,7 @@ int main(int argc, char **argv) {
     cout << "Number of stacks : " << nStacks << endl;
 
     // Read input stacks
-    for (i = 0; i < nStacks; i++) {
+    for (int i = 0; i < nStacks; i++) {
         cout << "Stack " << i << " : " << stackFiles[i];
         unique_ptr<RealImage> stack(new RealImage(stackFiles[i].c_str()));
 
@@ -338,7 +325,7 @@ int main(int argc, char **argv) {
         cout << "  voxel : " << dx << " - " << dy << " - " << dz << " - " << dt << "  ;";
         cout << "  range : [" << smin << "; " << smax << "]" << endl;
 
-        stacks.push_back(*stack);
+        stacks.push_back(move(*stack));
     }
 
     // Default template stack
@@ -346,7 +333,7 @@ int main(int argc, char **argv) {
 
     // Input stack transformations to the template space
     if (!dofinPaths.empty()) {
-        for (i = 0; i < nStacks; i++) {
+        for (size_t i = 0; i < stacks.size(); i++) {
             cout << "Transformation " << i << " : " << dofinPaths[i] << endl;
             Transformation *t = Transformation::New(dofinPaths[i].c_str());
             RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(t);
@@ -359,7 +346,7 @@ int main(int argc, char **argv) {
     // Slice thickness per stack
     if (!thickness.empty()) {
         cout << "Slice thickness : ";
-        for (i = 0; i < nStacks; i++)
+        for (size_t i = 0; i < stacks.size(); i++)
             cout << thickness[i] << " ";
         cout << endl;
     }
@@ -367,7 +354,7 @@ int main(int argc, char **argv) {
     // Number of packages for each stack
     if (!packages.empty()) {
         cout << "Package number : ";
-        for (i = 0; i < nStacks; i++)
+        for (size_t i = 0; i < stacks.size(); i++)
             cout << packages[i] << " ";
         cout << endl;
         reconstruction->SetNPackages(packages);
@@ -407,7 +394,7 @@ int main(int argc, char **argv) {
     if (vm.count("default_thickness")) {
         double defaultThickness = vm["default_thickness"].as<double>();
         cout << "Slice thickness (default for all stacks): ";
-        for (i = 0; i < nStacks; i++) {
+        for (size_t i = 0; i < stacks.size(); i++) {
             thickness.push_back(defaultThickness);
             cout << thickness[i] << " ";
         }
@@ -465,7 +452,7 @@ int main(int argc, char **argv) {
     // Force removal of certain slices
     if (!forceExcluded.empty()) {
         cout << forceExcluded.size() << " force excluded slices: ";
-        for (i = 0; i < forceExcluded.size(); i++)
+        for (size_t i = 0; i < forceExcluded.size(); i++)
             cout << forceExcluded[i] << " ";
         cout << endl;
     }
@@ -510,13 +497,13 @@ int main(int argc, char **argv) {
 
     // Set thickess to the exact dz value if specified
     if (flagNoOverlapThickness && thickness.size() < 1) {
-        for (i = 0; i < stacks.size(); i++)
+        for (size_t i = 0; i < stacks.size(); i++)
             thickness.push_back(stacks[i].GetZSize());
     }
 
     // Check if stacks have multiple dynamics and spit them if it is the case
     bool has4DStacks = false;
-    for (i = 0; i < stacks.size(); i++) {
+    for (size_t i = 0; i < stacks.size(); i++) {
         if (stacks[i].GetT() > 1) {
             has4DStacks = true;
             break;
@@ -531,7 +518,7 @@ int main(int argc, char **argv) {
         Array<RigidTransformation> newStackTransformations;
         Array<RealImage> newStacks;
 
-        for (i = 0; i < stacks.size(); i++) {
+        for (size_t i = 0; i < stacks.size(); i++) {
             if (stacks[i].GetT() == 1) {
                 newStacks.push_back(stacks[i]);
                 if (!stackTransformations.empty())
@@ -554,13 +541,12 @@ int main(int argc, char **argv) {
             }
         }
 
-        nStacks = newStacks.size();
         stacks = move(newStacks);
         thickness = move(newThickness);
         packages = move(newPackages);
         stackTransformations = move(newStackTransformations);
 
-        cout << "New number of stacks : " << nStacks << endl;
+        cout << "New number of stacks : " << stacks.size() << endl;
     }
 
     // Read path to MIRTK executables for remote registration
@@ -575,18 +561,18 @@ int main(int argc, char **argv) {
 
     // Rescale stack if specified
     if (rescaleStacks) {
-        for (i = 0; i < nStacks; i++)
+        for (size_t i = 0; i < stacks.size(); i++)
             reconstruction->Rescale(stacks[i], 1000);
     }
 
     // If transformations were not defined by user, set them to identity
-    for (i = 0; i < nStacks; i++)
-        stackTransformations.push_back(*rigidTransformation);
+    if (dofinPaths.empty())
+        stackTransformations = Array<RigidTransformation>(stacks.size());
 
     // Initialise 2*slice thickness if not given by user
     if (thickness.size() == 0) {
         cout << "Slice thickness : ";
-        for (i = 0; i < nStacks; i++) {
+        for (size_t i = 0; i < stacks.size(); i++) {
             double dx, dy, dz;
             stacks[i].GetPixelSize(&dx, &dy, &dz);
             thickness.push_back(thinFlag ? dz * 1.5 : dz * 2);
@@ -675,9 +661,9 @@ int main(int argc, char **argv) {
         average.Write("average1.nii.gz");
 
     // Mask is transformed to the all other stacks and they are cropped
-    for (i = 0; i < nStacks; i++) {
+    for (size_t i = 0; i < stacks.size(); i++) {
         // Template stack has been cropped already
-        if ((i == templateNumber))
+        if (i == templateNumber)
             continue;
         // Transform the mask
         RealImage m = reconstruction->GetMask();
@@ -696,7 +682,7 @@ int main(int argc, char **argv) {
     Array<RigidTransformation> selectedStackTransformations;
     int nNewStacks = 0;
     int newTemplateNumber = 0;
-    for (i = 0; i < nStacks; i++) {
+    for (size_t i = 0; i < stacks.size(); i++) {
         if (stacks[i].GetX() == 1) {
             cerr << "stack " << i << " has no intersection with ROI" << endl;
             continue;
@@ -707,7 +693,6 @@ int main(int argc, char **argv) {
             newTemplateNumber = nNewStacks;
         nNewStacks++;
     }
-    nStacks = nNewStacks;
     templateNumber = newTemplateNumber;
     stacks = move(selectedStacks);
     stackTransformations = move(selectedStackTransformations);
@@ -744,7 +729,7 @@ int main(int argc, char **argv) {
         Array<int> newPackages;
         Array<RigidTransformation> newStackTransformations;
 
-        for (i = 0; i < stacks.size(); i++) {
+        for (size_t i = 0; i < stacks.size(); i++) {
             RealImage stackToCheck = stacks[i];
             Matrix m = stackTransformations[i].GetMatrix();
             stackToCheck.PutAffineMatrix(m, true);
@@ -776,7 +761,7 @@ int main(int argc, char **argv) {
         double stdSliceNcc = 0;
         double stdVolumeNcc = 0;
 
-        for (i = 0; i < stacks.size(); i++) {
+        for (size_t i = 0; i < stacks.size(); i++) {
             stdCountNcc += pow(allCountArray[i] - averageCountNcc, 2);
             stdSliceNcc += pow(allSliceNccArray[i] - averageSliceNcc, 2);
             stdVolumeNcc = averageVolumeNcc + pow(allNccArray[i] - averageVolumeNcc, 2);
@@ -794,7 +779,7 @@ int main(int argc, char **argv) {
         cout << " - selected : " << endl;
         int totalSelected = 0;
         for (int j = 0; j < sortedNccArray.size(); j++) {
-            for (i = 0; i < stacks.size(); i++) {
+            for (size_t i = 0; i < stacks.size(); i++) {
                 if (totalSelected < bestSelectedStacks) {
                     if (sortedNccArray[j] == allNccArray[i] && allCountArray[i] > 0.65 * averageCountNcc && allNccArray[i] > (averageVolumeNcc - 2 * stdVolumeNcc)) {
                         selectedNccArray.push_back(allNccArray[i]);
@@ -814,7 +799,6 @@ int main(int argc, char **argv) {
             }
         }
 
-        nStacks = newStacks.size();
         stacks = move(newStacks);
         thickness = move(newThickness);
         packages = move(newPackages);
@@ -857,7 +841,7 @@ int main(int argc, char **argv) {
 
     // If given read slice-to-volume registrations
     if (!folder.empty())
-        reconstruction->ReadTransformation((char*)folder.c_str());
+        reconstruction->ReadTransformations((char*)folder.c_str());
 
     // Initialise data structures for EM
     reconstruction->InitializeEM();
@@ -920,7 +904,7 @@ int main(int argc, char **argv) {
                 reconstruction->SetSmoothingParameters(delta, lastIterLambda);
             else {
                 double l = lambda;
-                for (i = 0; i < levels; i++) {
+                for (int i = 0; i < levels; i++) {
                     if (iter == iterations * (levels - i - 1) / levels)
                         reconstruction->SetSmoothingParameters(delta, l);
                     l *= 2;
@@ -961,7 +945,7 @@ int main(int argc, char **argv) {
                 recIterations = srIterations;
 
             // SR reconstruction loop
-            for (i = 0; i < recIterations; i++) {
+            for (int i = 0; i < recIterations; i++) {
                 if (debug) {
                     cout << "------------------------------------------------------" << endl;
                     cout << "Reconstruction iteration : " << i << endl;
@@ -1046,7 +1030,7 @@ int main(int argc, char **argv) {
             reconstruction->SaveWeights();
             reconstruction->SaveBiasFields();
             reconstruction->SimulateStacks(stacks);
-            for (unsigned int i = 0; i < stacks.size(); i++)
+            for (size_t i = 0; i < stacks.size(); i++)
                 stacks[i].Write((boost::format("simulated%1%.nii.gz") % i).str().c_str());
         }
 

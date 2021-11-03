@@ -3718,7 +3718,7 @@ namespace svrtk {
     }
     
     
-    void ReconstructionDWI::ReadTransformation(char* folder)
+    void ReconstructionDWI::ReadTransformations(char* folder)
     {
         int n = _slices.size();
         char name[256];

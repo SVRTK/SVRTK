@@ -140,14 +140,14 @@ namespace svrtk {
         inline RealImage GetVolumeWeights();
         
         // Get Slice-Location transformations
-        void ReadSliceTransformation(char* slice_transformations_folder);
-        
         ///Set stacks to be excluded
         inline void SetForceExcludedStacks( Array<int>& force_excluded_stacks );
         
         ///Set slice-locations to be excluded
         inline void SetForceExcludedLocs( Array<int>& force_excluded_locs );
         
+        void ReadSliceTransformation(const char *folder);
+
         // Set Slice R-R Intervals
         void SetSliceRRInterval( Array<double> rr );
         void SetSliceRRInterval( double rr );
@@ -264,12 +264,9 @@ namespace svrtk {
         /// Edge-Preserving Regularization with Confidence Map
         void AdaptiveRegularizationCardiac4D(int iter, RealImage& original);
         
-        /// Read Transformations
-        void ReadTransformation( char* folder );
-        
         /// Read Reference Transformations
-        void ReadRefTransformation( char* folder );
-        
+        void ReadRefTransformations(const char *folder);
+
         /// Calculate Entropy
         double CalculateEntropy();
         

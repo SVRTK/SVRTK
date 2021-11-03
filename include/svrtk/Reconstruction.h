@@ -263,6 +263,8 @@ namespace svrtk {
         // Gestational age (to compute expected brain volume)
         double _GA;
 
+        // Read Transformations common function
+        void ReadTransformations(const char *folder, size_t file_count, Array<RigidTransformation>& transformations);
 
     public:
         // Constructor
@@ -533,7 +535,7 @@ namespace svrtk {
         void Evaluate(int iter);
 
         // Read transformations
-        void ReadTransformation(const char *folder);
+        void ReadTransformations(const char *folder);
 
         //To recover original scaling
         // Restore slice intensities to their original values

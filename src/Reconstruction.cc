@@ -4285,24 +4285,20 @@ namespace svrtk {
         SVRTK_END_TIMING("NormaliseBias");
     }
 
-
     //-------------------------------------------------------------------
 
-    void Reconstruction::ReadTransformation(const char *folder) {
-        const int n = _slices.size();
-
-        if (n == 0) {
+    void Reconstruction::ReadTransformations(const char *folder, size_t file_count, Array<RigidTransformation>& transformations) {
+        if (_slices.size() == 0) {
             cerr << "Please create slices before reading transformations!" << endl;
             exit(1);
         }
-        cout << "Reading transformations:" << endl;
 
-        _transformations.clear();
-        for (int i = 0; i < n; i++) {
+        transformations.clear();
+        for (size_t i = 0; i < file_count; i++) {
             const string path = (boost::format("%1%/transformation%2%.dof") % (folder ? folder : ".") % i).str();
             unique_ptr<Transformation> transformation(Transformation::New(path.c_str()));
             RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(transformation.get());
-            _transformations.push_back(*rigidTransf);
+            transformations.push_back(*rigidTransf);
             cout << path << endl;
         }
     }
@@ -4318,6 +4314,9 @@ namespace svrtk {
 
     void Reconstruction::SetTransformations(const Array<RigidTransformation>& transformations) {
         _transformations = transformations;
+    void Reconstruction::ReadTransformations(const char *folder) {
+        cout << "Reading transformations:" << endl;
+        ReadTransformations(folder, _slices.size(), _transformations);
     }
 
     //-------------------------------------------------------------------

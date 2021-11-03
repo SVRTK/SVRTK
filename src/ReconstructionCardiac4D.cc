@@ -125,51 +125,17 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Get Slice-Location Transformations
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ReadSliceTransformation(char* slice_transformations_folder)
-    {
-        if (_slices.size()==0)
-        {
-            cerr << "Please create slices before reading transformations!" << endl;
-            exit(1);
-        }
-        
-        int nLoc = _loc_index.back() + 1;
-        
-        char name[256];
-        char path[256];
+    void ReconstructionCardiac4D::ReadSliceTransformation(const char *folder) {
+        cout << "Reading slice transformations from: " << folder << endl;
         Array<RigidTransformation> loc_transformations;
-        Transformation *transformation;
-        RigidTransformation *rigidTransf;
-        
-        // Read transformations from file
-        cout << "Reading transformations:" << endl;
-        for (int iLoc = 0; iLoc < nLoc; iLoc++) {
-            if (slice_transformations_folder != NULL) {
-                sprintf(name, "/transformation%05i.dof", iLoc);
-                strcpy(path, slice_transformations_folder);
-                strcat(path, name);
-            }
-            else {
-                sprintf(path, "transformation%03i.dof", iLoc);
-            }
-            transformation = Transformation::New(path);
-            rigidTransf = dynamic_cast<RigidTransformation*>(transformation);
-            loc_transformations.push_back(*rigidTransf);
-            delete transformation;
-            cout << path << endl;
-        }
-        
+        ReadTransformations(folder, _loc_index.back() + 1, loc_transformations);
+
         // Assign transformations to single-frame images
         _transformations.clear();
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        {
-            _transformations.push_back(loc_transformations[_loc_index[inputIndex]]);
-        }
-        cout << "ReadSliceTransformations complete." << endl;
-        
+        for (size_t i = 0; i < _slices.size(); i++)
+            _transformations.push_back(loc_transformations[_loc_index[i]]);
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Set Reconstructed Cardiac Phases
     // -----------------------------------------------------------------------------
@@ -3284,85 +3250,19 @@ namespace svrtk {
                                                                                  factor,
                                                                                  original2 );
         parallelAdaptiveRegularization2();
-        
-        if (_alpha * _lambda / (_delta * _delta) > 0.068) {
-            cerr
-            << "Warning: regularization might not have smoothing effect! Ensure that alpha*lambda/delta^2 is below 0.068."
-            << endl;
-        }
+
+        if (_alpha * _lambda / (_delta * _delta) > 0.068)
+            cerr << "Warning: regularization might not have smoothing effect! Ensure that alpha*lambda/delta^2 is below 0.068." << endl;
     }
-    
-    
+
     // -----------------------------------------------------------------------------
-    // ReadTransformation
+    // ReadRefTransformations
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ReadTransformation(char* folder)
-    {
-        int n = _slices.size();
-        char name[256];
-        char path[256];
-        Transformation *transformation;
-        RigidTransformation *rigidTransf;
-        
-        if (n == 0) {
-            cerr << "Please create slices before reading transformations!" << endl;
-            exit(1);
-        }
-        cout << "Reading transformations from: " << folder << endl;
-        
-        _transformations.clear();
-        for (int i = 0; i < n; i++) {
-            if (folder != NULL) {
-                sprintf(name, "/transformation%05i.dof", i);
-                strcpy(path, folder);
-                strcat(path, name);
-            }
-            else {
-                sprintf(path, "transformation%05i.dof", i);
-            }
-            transformation = Transformation::New(path);
-            rigidTransf = dynamic_cast<RigidTransformation*>(transformation);
-            _transformations.push_back(*rigidTransf);
-            delete transformation;
-        }
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // ReadRefTransformation
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ReadRefTransformation(char* folder)
-    {
-        int n = _slices.size();
-        char name[256];
-        char path[256];
-        Transformation *transformation;
-        RigidTransformation *rigidTransf;
-        
-        if (n == 0) {
-            cerr << "Please create slices before reading transformations!" << endl;
-            exit(1);
-        }
+    void ReconstructionCardiac4D::ReadRefTransformations(const char *folder) {
         cout << "Reading reference transformations from: " << folder << endl;
-        
-        _ref_transformations.clear();
-        for (int i = 0; i < n; i++) {
-            if (folder != NULL) {
-                sprintf(name, "/transformation%05i.dof", i);
-                strcpy(path, folder);
-                strcat(path, name);
-            }
-            else {
-                sprintf(path, "transformation%05i.dof", i);
-            }
-            transformation = Transformation::New(path);
-            rigidTransf = dynamic_cast<RigidTransformation*>(transformation);
-            _ref_transformations.push_back(*rigidTransf);
-            delete transformation;
-        }
+        ReadTransformations(folder, _slices.size(), _ref_transformations);
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Entropy
     // -----------------------------------------------------------------------------

@@ -405,7 +405,7 @@ namespace svrtk {
         
         void Evaluate( int iter );
         
-        void ReadTransformation( char* folder );
+        void ReadTransformations( char* folder );
         
         void RestoreSliceIntensities();
 

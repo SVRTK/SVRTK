@@ -912,7 +912,7 @@ int main(int argc, char **argv)
     
     //if given, read transformations
     if (folder!=NULL)
-        reconstruction.ReadTransformation(folder);  // image-frame to volume registrations
+        reconstruction.ReadTransformations(folder);  // image-frame to volume registrations
     else {
         if (slice_transformations_folder!=NULL)     // slice-location to volume registrations
             reconstruction.ReadSliceTransformation(slice_transformations_folder);
@@ -920,8 +920,8 @@ int main(int argc, char **argv)
     }
     
     //if given, read reference transformations
-    if ((have_ref_transformations)&(ref_transformations_folder!=NULL))
-        reconstruction.ReadRefTransformation(ref_transformations_folder);
+    if (have_ref_transformations && ref_transformations_folder != NULL)
+        reconstruction.ReadRefTransformations(ref_transformations_folder);
     else
         have_ref_transformations = false;
     if (!have_ref_transformations)

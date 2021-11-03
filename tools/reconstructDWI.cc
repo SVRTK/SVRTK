@@ -1135,7 +1135,7 @@ int main(int argc, char **argv)
     
     //if given read slice-to-volume registrations
     if (folder!=NULL)
-        reconstruction.ReadTransformation(folder);
+        reconstruction.ReadTransformations(folder);
 
     
     //Initialise data structures for EM

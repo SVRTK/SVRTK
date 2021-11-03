@@ -33,6 +33,7 @@ set(HEADERS
   ../svrtk/MeanShift.h
   ../svrtk/NLDenoising.h
   ../svrtk/SphericalHarmonics.h
+  ../svrtk/Parallel.h
 )
 
 set(SOURCES

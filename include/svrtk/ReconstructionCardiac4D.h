@@ -25,6 +25,20 @@ using namespace mirtk;
 
 namespace svrtk {
 
+    // Forward declarations
+    namespace Parallel {
+        class CoeffInitCardiac4D;
+        class RemoteSliceToVolumeRegistrationCardiac4D;
+        class SliceToVolumeRegistrationCardiac4D;
+        class SimulateSlicesCardiac4D;
+        class SimulateStacksCardiac4D;
+        class NormaliseBiasCardiac4D;
+        class SuperresolutionCardiac4D;
+        class AdaptiveRegularization1Cardiac4D;
+        class AdaptiveRegularization2Cardiac4D;
+        class CalculateError;
+        class CalculateCorrectedSlices;
+    }
 
     class ReconstructionCardiac4D : public Reconstruction
     {
@@ -312,17 +326,17 @@ namespace svrtk {
         void SlicesInfoCardiac4D( const char* filename, Array<string> &stack_filenames );
         
         // Access to Parallel Processing Classes
-        friend class ParallelCoeffInitCardiac4D;
-        friend class ParallelRemoteSliceToVolumeRegistrationCardiac4D;
-        friend class ParallelSliceToVolumeRegistrationCardiac4D;
-        friend class ParallelSimulateSlicesCardiac4D;
-        friend class ParallelSimulateStacksCardiac4D;
-        friend class ParallelNormaliseBiasCardiac4D;
-        friend class ParallelSuperresolutionCardiac4D;
-        friend class ParallelAdaptiveRegularization1Cardiac4D;
-        friend class ParallelAdaptiveRegularization2Cardiac4D;
-        friend class ParallelCalculateError;
-        friend class ParallelCalculateCorrectedSlices;
+        friend class Parallel::CoeffInitCardiac4D;
+        friend class Parallel::RemoteSliceToVolumeRegistrationCardiac4D;
+        friend class Parallel::SliceToVolumeRegistrationCardiac4D;
+        friend class Parallel::SimulateSlicesCardiac4D;
+        friend class Parallel::SimulateStacksCardiac4D;
+        friend class Parallel::NormaliseBiasCardiac4D;
+        friend class Parallel::SuperresolutionCardiac4D;
+        friend class Parallel::AdaptiveRegularization1Cardiac4D;
+        friend class Parallel::AdaptiveRegularization2Cardiac4D;
+        friend class Parallel::CalculateError;
+        friend class Parallel::CalculateCorrectedSlices;
         
     };  // end of ReconstructionCardiac4D class definition
     

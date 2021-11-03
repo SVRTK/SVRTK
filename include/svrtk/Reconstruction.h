@@ -52,6 +52,28 @@ using namespace mirtk;
 
 namespace svrtk {
 
+    // Forward declarations
+    namespace Parallel {
+        class GlobalSimilarityStats;
+        class QualityReport;
+        class StackRegistrations;
+        class SliceToVolumeRegistration;
+        class SliceToVolumeRegistrationFFD;
+        class RemoteSliceToVolumeRegistration;
+        class CoeffInit;
+        class CoeffInitSF;
+        class Superresolution;
+        class MStep;
+        class EStep;
+        class Bias;
+        class Scale;
+        class NormaliseBias;
+        class SimulateSlices;
+        class Average;
+        class AdaptiveRegularization1;
+        class AdaptiveRegularization2;
+    }
+
     struct POINT3D {
         short x;
         short y;
@@ -612,27 +634,24 @@ namespace svrtk {
         // transformation to the reconstructed image space
         void Transform2Reconstructed(const int inputIndex, int& i, int& j, int& k, const int mode);
 
-        friend class ParallelGlobalSimilarityStats;
-        friend class ParallelQualityReport;
-        friend class ParallelStackRegistrations;
-        friend class ParallelSliceToVolumeRegistration;
-        friend class ParallelSliceToVolumeRegistrationFFD;
-        friend class ParallelRemoteSliceToVolumeRegistration;
-        friend class ParallelRemoteSliceToVolumeRegistrationFFD;
-        friend class ParallelSimulateSlices2;
-        friend class ParallelCoeffInit;
-        friend class ParallelCoeffInitSF;
-        friend class ParallelSuperresolution;
-        friend class ParallelMStep;
-        friend class ParallelEStep;
-        friend class ParallelBias;
-        friend class ParallelScale;
-        friend class ParallelNormaliseBias;
-        friend class ParallelSimulateSlices;
-        friend class ParallelAverage;
-        friend class ParallelSliceAverage;
-        friend class ParallelAdaptiveRegularization1;
-        friend class ParallelAdaptiveRegularization2;
+        friend class Parallel::GlobalSimilarityStats;
+        friend class Parallel::QualityReport;
+        friend class Parallel::StackRegistrations;
+        friend class Parallel::SliceToVolumeRegistration;
+        friend class Parallel::SliceToVolumeRegistrationFFD;
+        friend class Parallel::RemoteSliceToVolumeRegistration;
+        friend class Parallel::CoeffInit;
+        friend class Parallel::CoeffInitSF;
+        friend class Parallel::Superresolution;
+        friend class Parallel::MStep;
+        friend class Parallel::EStep;
+        friend class Parallel::Bias;
+        friend class Parallel::Scale;
+        friend class Parallel::NormaliseBias;
+        friend class Parallel::SimulateSlices;
+        friend class Parallel::Average;
+        friend class Parallel::AdaptiveRegularization1;
+        friend class Parallel::AdaptiveRegularization2;
 
     };  // end of Reconstruction class definition
 

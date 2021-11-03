@@ -586,336 +586,7 @@ namespace svrtk {
             return ( 1 + cos( ( fabs( angdiff ) - PI * ( 1 - alpha ) ) / alpha ) ) / 2;
         return 1;
     }
-    
-    // -----------------------------------------------------------------------------
-    // ParallelCoeffInitCardiac4D
-    // -----------------------------------------------------------------------------
-    class ParallelCoeffInitCardiac4D {
-    public:
-        ReconstructionCardiac4D *reconstructor;
-        
-        ParallelCoeffInitCardiac4D(ReconstructionCardiac4D *_reconstructor) :
-        reconstructor(_reconstructor) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                
-                bool slice_inside;
-                
-                //current slice
-                //RealImage slice;
-                
-                //get resolution of the volume
-                double vx, vy, vz;
-                reconstructor->_reconstructed4D.GetPixelSize(&vx, &vy, &vz);
-                //volume is always isotropic
-                double res = vx;
-                //read the slice
-                RealImage& slice = reconstructor->_slices[inputIndex];
-                
-                //prepare structures for storage
-                POINT3D p;
-                VOXELCOEFFS empty;
-                SLICECOEFFS slicecoeffs(slice.GetX(), Array < VOXELCOEFFS > (slice.GetY(), empty));
-                
-                //to check whether the slice has an overlap with mask ROI
-                slice_inside = false;
-                
-                if (reconstructor->_slice_excluded[inputIndex] == 0) {
-                    
-                    //start of a loop for a slice inputIndex
-                    cout << inputIndex << " ";
-                    cout.flush();
-                    
-                    //PSF will be calculated in slice space in higher resolution
-                    
-                    //get slice voxel size to define PSF
-                    double dx, dy, dz;
-                    slice.GetPixelSize(&dx, &dy, &dz);
-                    
-                    //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
-                    
-                    double sigmax, sigmay, sigmaz;
-                    if(reconstructor->_recon_type == _3D)
-                    {
-                        sigmax = 1.2 * dx / 2.3548;
-                        sigmay = 1.2 * dy / 2.3548;
-                        sigmaz = 1 * dz / 2.3548;
-                    }
-                    
-                    if(reconstructor->_no_sr)
-                    {
-                        sigmax = 0.5 * dx / 2.3548; // 1.2
-                        sigmay = 0.5 * dy / 2.3548; // 1.2
-                        sigmaz = 0.5 * dz / 2.3548;   // 1
-                    }
-                    
-                    
-                    if(reconstructor->_recon_type == _1D)
-                    {
-                        sigmax = 0.5 * dx / 2.3548;
-                        sigmay = 0.5 * dy / 2.3548;
-                        sigmaz = dz / 2.3548;
-                    }
-                    
-                    if(reconstructor->_recon_type == _interpolate)
-                    {
-                        sigmax = 0.5 * dx / 2.3548; // dx
-                        sigmay = 0.5 * dx / 2.3548; // dx
-                        sigmaz = 0.5 * dx / 2.3548; // dx
-                    }
-                    
-                    //calculate discretized PSF
-                    
-                    //isotropic voxel size of PSF - derived from resolution of reconstructed volume
-                    double size = res / reconstructor->_quality_factor;
-                    
-                    //number of voxels in each direction
-                    //the ROI is 2*voxel dimension
-                    
-                    int xDim = round(2 * dx / size);
-                    int yDim = round(2 * dy / size);
-                    int zDim = round(2 * dz / size);
-                    ///test to make dimension alwways odd
-                    xDim = xDim/2*2+1;
-                    yDim = yDim/2*2+1;
-                    zDim = zDim/2*2+1;
-                    ///end test
-                    
-                    //image corresponding to PSF
-                    ImageAttributes attr;
-                    attr._x = xDim;
-                    attr._y = yDim;
-                    attr._z = zDim;
-                    attr._dx = size;
-                    attr._dy = size;
-                    attr._dz = size;
-                    RealImage PSF(attr);
-                    
-                    //centre of PSF
-                    double cx, cy, cz;
-                    cx = 0.5 * (xDim - 1);
-                    cy = 0.5 * (yDim - 1);
-                    cz = 0.5 * (zDim - 1);
-                    PSF.ImageToWorld(cx, cy, cz);
-                    
-                    double x, y, z;
-                    double sum = 0;
-                    int i, j, k;
-                    for (i = 0; i < xDim; i++)
-                        for (j = 0; j < yDim; j++)
-                            for (k = 0; k < zDim; k++) {
-                                x = i;
-                                y = j;
-                                z = k;
-                                PSF.ImageToWorld(x, y, z);
-                                x -= cx;
-                                y -= cy;
-                                z -= cz;
-                                //continuous PSF does not need to be normalized as discrete will be
-                                PSF(i, j, k) = exp(
-                                                   -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
-                                                   - z * z / (2 * sigmaz * sigmaz));
-                                sum += PSF(i, j, k);
-                            }
-                    PSF /= sum;
-                    
-                    if (reconstructor->_debug)
-                        if (inputIndex == 0)
-                            PSF.Write("PSF.nii.gz");
-                    
-                    //prepare storage for PSF transformed and resampled to the space of reconstructed volume
-                    //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
-                    //Note conversion from PSF image coordinates to tPSF image coordinates *size/res
-                    int dim = (floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2))
-                    * 2 + 1 + 2;
-                    //prepare image attributes. Voxel dimension will be taken from the reconstructed volume
-                    attr._x = dim;
-                    attr._y = dim;
-                    attr._z = dim;
-                    attr._dx = res;
-                    attr._dy = res;
-                    attr._dz = res;
-                    //create matrix from transformed PSF
-                    RealImage tPSF(attr);
-                    //calculate centre of tPSF in image coordinates
-                    int centre = (dim - 1) / 2;
-                    
-                    //for each voxel in current slice calculate matrix coefficients
-                    int ii, jj, kk;
-                    int tx, ty, tz;
-                    int nx, ny, nz;
-                    int l, m, n;
-                    double weight;
-                    for (i = 0; i < slice.GetX(); i++)
-                        for (j = 0; j < slice.GetY(); j++)
-                            if (slice(i, j, 0) != -1) {
-                                //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
-                                x = i;
-                                y = j;
-                                z = 0;
-                                slice.ImageToWorld(x, y, z);
-                                reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                                reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                                tx = round(x);
-                                ty = round(y);
-                                tz = round(z);
-                                
-                                //Clear the transformed PSF
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
-                                            tPSF(ii, jj, kk) = 0;
-                                
-                                //for each POINT3D of the PSF
-                                for (ii = 0; ii < xDim; ii++)
-                                    for (jj = 0; jj < yDim; jj++)
-                                        for (kk = 0; kk < zDim; kk++) {
-                                            //Calculate the position of the POINT3D of
-                                            //PSF centered over current slice voxel
-                                            //This is a bit complicated because slices
-                                            //can be oriented in any direction
-                                            
-                                            //PSF image coordinates
-                                            x = ii;
-                                            y = jj;
-                                            z = kk;
-                                            //change to PSF world coordinates - now real sizes in mm
-                                            PSF.ImageToWorld(x, y, z);
-                                            //centre around the centrepoint of the PSF
-                                            x -= cx;
-                                            y -= cy;
-                                            z -= cz;
-                                            
-                                            //Need to convert (x,y,z) to slice image
-                                            //coordinates because slices can have
-                                            //transformations included in them (they are
-                                            //nifti)  and those are not reflected in
-                                            //PSF. In slice image coordinates we are
-                                            //sure that z is through-plane
-                                            
-                                            //adjust according to voxel size
-                                            x /= dx;
-                                            y /= dy;
-                                            z /= dz;
-                                            //center over current voxel
-                                            x += i;
-                                            y += j;
-                                            
-                                            //convert from slice image coordinates to world coordinates
-                                            slice.ImageToWorld(x, y, z);
-                                            
-                                            //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
-                                            //Transform to space of reconstructed volume
-                                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                                            //Change to image coordinates
-                                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                                            
-                                            //determine coefficients of volume voxels for position x,y,z
-                                            //using linear interpolation
-                                            
-                                            //Find the 8 closest volume voxels
-                                            
-                                            //lowest corner of the cube
-                                            nx = (int) floor(x);
-                                            ny = (int) floor(y);
-                                            nz = (int) floor(z);
-                                            
-                                            //not all neighbours might be in ROI, thus we need to normalize
-                                            //(l,m,n) are image coordinates of 8 neighbours in volume space
-                                            //for each we check whether it is in volume
-                                            sum = 0;
-                                            //to find wether the current slice voxel has overlap with ROI
-                                            bool inside = false;
-                                            for (l = nx; l <= nx + 1; l++)
-                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
-                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
-                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                                                    sum += weight;
-                                                                    if (reconstructor->_mask(l, m, n) == 1) {
-                                                                        inside = true;
-                                                                        slice_inside = true;
-                                                                    }
-                                                                }
-                                            //if there were no voxels do nothing
-                                            if ((sum <= 0) || (!inside))
-                                                continue;
-                                            //now calculate the transformed PSF
-                                            for (l = nx; l <= nx + 1; l++)
-                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
-                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
-                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                                                    
-                                                                    //image coordinates in tPSF
-                                                                    //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
-                                                                    int aa, bb, cc;
-                                                                    aa = l - tx + centre;
-                                                                    bb = m - ty + centre;
-                                                                    cc = n - tz + centre;
-                                                                    
-                                                                    //resulting value
-                                                                    double value = PSF(ii, jj, kk) * weight / sum;
-                                                                    
-                                                                    //Check that we are in tPSF
-                                                                    if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
-                                                                        || (cc >= dim)) {
-                                                                        cerr << "Error while trying to populate tPSF. " << aa << " " << bb
-                                                                        << " " << cc << endl;
-                                                                        cerr << l << " " << m << " " << n << endl;
-                                                                        cerr << tx << " " << ty << " " << tz << endl;
-                                                                        cerr << centre << endl;
-                                                                        tPSF.Write("tPSF.nii.gz");
-                                                                        exit(1);
-                                                                    }
-                                                                    else
-                                                                        //update transformed PSF
-                                                                        tPSF(aa, bb, cc) += value;
-                                                                }
-                                            
-                                        } //end of the loop for PSF points
-                                
-                                //store tPSF values
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
-                                            if (tPSF(ii, jj, kk) > 0) {
-                                                p.x = ii + tx - centre;
-                                                p.y = jj + ty - centre;
-                                                p.z = kk + tz - centre;
-                                                p.value = tPSF(ii, jj, kk);
-                                                slicecoeffs[i][j].push_back(p);
-                                            }
-                                
-                            } //end of loop for slice voxels
-                    
-                }  // if(_slice_excluded[inputIndex]==0)
-                
-                reconstructor->_volcoeffs[inputIndex] = slicecoeffs;
-                reconstructor->_slice_inside[inputIndex] = slice_inside;
-                
-            }  //end of loop through the slices
-            
-        }
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
-                         *this );
-            //init.terminate();
-        }
-        
-    };
-    
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Transformation Matrix Between Slices and Voxels
     // -----------------------------------------------------------------------------
@@ -935,7 +606,7 @@ namespace svrtk {
         
         cout << "Initialising matrix coefficients...";
         cout.flush();
-        ParallelCoeffInitCardiac4D coeffinit(this);
+        Parallel::CoeffInitCardiac4D coeffinit(this);
         coeffinit();
         cout << " ... done." << endl;
         
@@ -1161,52 +832,6 @@ namespace svrtk {
     
     
     // -----------------------------------------------------------------------------
-    // Parallel Class to Calculate Corrected Slices
-    // -----------------------------------------------------------------------------
-    class ParallelCalculateCorrectedSlices {
-        ReconstructionCardiac4D *reconstructor;
-        
-    public:
-        ParallelCalculateCorrectedSlices( ReconstructionCardiac4D *_reconstructor ) :
-        reconstructor(_reconstructor) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                
-                //read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
-                
-                //alias the current bias image
-                RealImage& b = reconstructor->_bias[inputIndex];
-                
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-                
-                //calculate corrected voxels
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i,j,0) != -1) {
-                            //bias correct and scale the voxel
-                            slice(i,j,0) *= exp(-b(i, j, 0)) * scale;
-                        }
-                
-                reconstructor->_corrected_slices[inputIndex] = slice;
-                
-            } //end of loop for a slice inputIndex
-        }
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
-                         *this );
-            //init.terminate();
-        }
-        
-    };
-    
-    
-    // -----------------------------------------------------------------------------
     // Calculate Corrected Slices
     // -----------------------------------------------------------------------------
     void ReconstructionCardiac4D::CalculateCorrectedSlices()
@@ -1214,73 +839,12 @@ namespace svrtk {
         if (_debug)
             cout<<"Calculating corrected slices..."<<endl;
         
-        ParallelCalculateCorrectedSlices parallelCalculateCorrectedSlices( this );
+        Parallel::CalculateCorrectedSlices parallelCalculateCorrectedSlices(this);
         parallelCalculateCorrectedSlices();
         
         if (_debug)
             cout<<"\t...calculating corrected slices done."<<endl;
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Simulate Slices
-    // -----------------------------------------------------------------------------
-    class ParallelSimulateSlicesCardiac4D {
-        ReconstructionCardiac4D *reconstructor;
-        
-    public:
-        ParallelSimulateSlicesCardiac4D( ReconstructionCardiac4D *_reconstructor ) :
-        reconstructor(_reconstructor) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                //Calculate simulated slice
-                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                reconstructor->_simulated_slices[inputIndex] = 0;
-                
-                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                reconstructor->_simulated_weights[inputIndex] = 0;
-                
-                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                reconstructor->_simulated_inside[inputIndex] = 0;
-                
-                reconstructor->_slice_inside[inputIndex] = false;
-                
-                POINT3D p;
-                for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ )
-                    for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ )
-                        if ( reconstructor->_slices[inputIndex](i, j, 0) != -1 ) {
-                            double weight = 0;
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                            for ( int k = 0; k < n; k++ ) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                                for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
-                                    reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                                    weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                                }
-                                if (reconstructor->_mask(p.x, p.y, p.z) == 1) {
-                                    reconstructor->_simulated_inside[inputIndex](i, j, 0) = 1;
-                                    reconstructor->_slice_inside[inputIndex] = true;
-                                }
-                            }
-                            if( weight > 0 ) {
-                                reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
-                                reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
-                            }
-                        }
-                
-            }
-        }
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
-                         *this );
-            //init.terminate();
-        }
-        
-    };
     
     
     // -----------------------------------------------------------------------------
@@ -1291,344 +855,12 @@ namespace svrtk {
         if (_debug)
             cout<<"Simulating Slices..."<<endl;
         
-        ParallelSimulateSlicesCardiac4D parallelSimulateSlices( this );
+        Parallel::SimulateSlicesCardiac4D parallelSimulateSlices(this);
         parallelSimulateSlices();
         
         if (_debug)
             cout<<"\t...Simulating Slices done."<<endl;
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // ParallelSimulateStacksCardiac4D
-    // -----------------------------------------------------------------------------
-    class ParallelSimulateStacksCardiac4D {
-    public:
-        ReconstructionCardiac4D *reconstructor;
-        
-        ParallelSimulateStacksCardiac4D(ReconstructionCardiac4D *_reconstructor) :
-        reconstructor(_reconstructor) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                
-                if (reconstructor->_slice_excluded[inputIndex] != 1) {
-                    
-                    cout << inputIndex << " ";
-                    cout.flush();
-                    
-                    //get resolution of the volume
-                    double vx, vy, vz;
-                    reconstructor->_reconstructed4D.GetPixelSize(&vx, &vy, &vz);
-                    //volume is always isotropic
-                    double res = vx;
-                    //read the slice
-                    RealImage& slice = reconstructor->_slices[inputIndex];
-                    
-                    //prepare structures for storage
-                    POINT3D p;
-                    VOXELCOEFFS empty;
-                    SLICECOEFFS slicecoeffs(slice.GetX(), Array < VOXELCOEFFS > (slice.GetY(), empty));
-                    
-                    //PSF will be calculated in slice space in higher resolution
-                    
-                    //get slice voxel size to define PSF
-                    double dx, dy, dz;
-                    slice.GetPixelSize(&dx, &dy, &dz);
-                    
-                    //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
-                    
-                    double sigmax, sigmay, sigmaz;
-                    if(reconstructor->_recon_type == _3D)
-                    {
-                        sigmax = 1.2 * dx / 2.3548;
-                        sigmay = 1.2 * dy / 2.3548;
-                        sigmaz = dz / 2.3548;
-                    }
-                    
-                    if(reconstructor->_recon_type == _1D)
-                    {
-                        sigmax = 0.5 * dx / 2.3548;
-                        sigmay = 0.5 * dy / 2.3548;
-                        sigmaz = dz / 2.3548;
-                    }
-                    
-                    if(reconstructor->_recon_type == _interpolate)
-                    {
-                        sigmax = 0.5 * dx / 2.3548;
-                        sigmay = 0.5 * dx / 2.3548;
-                        sigmaz = 0.5 * dx / 2.3548;
-                    }
-                    
-                    //calculate discretized PSF
-                    
-                    //isotropic voxel size of PSF - derived from resolution of reconstructed volume
-                    double size = res / reconstructor->_quality_factor;
-                    
-                    //number of voxels in each direction
-                    //the ROI is 2*voxel dimension
-                    
-                    int xDim = round(2 * dx / size);
-                    int yDim = round(2 * dy / size);
-                    int zDim = round(2 * dz / size);
-                    ///test to make dimension alwways odd
-                    xDim = xDim/2*2+1;
-                    yDim = yDim/2*2+1;
-                    zDim = zDim/2*2+1;
-                    ///end test
-                    
-                    //image corresponding to PSF
-                    ImageAttributes attr;
-                    attr._x = xDim;
-                    attr._y = yDim;
-                    attr._z = zDim;
-                    attr._dx = size;
-                    attr._dy = size;
-                    attr._dz = size;
-                    RealImage PSF(attr);
-                    
-                    //centre of PSF
-                    double cx, cy, cz;
-                    cx = 0.5 * (xDim - 1);
-                    cy = 0.5 * (yDim - 1);
-                    cz = 0.5 * (zDim - 1);
-                    PSF.ImageToWorld(cx, cy, cz);
-                    
-                    double x, y, z;
-                    double sum = 0;
-                    int i, j, k;
-                    for (i = 0; i < xDim; i++)
-                        for (j = 0; j < yDim; j++)
-                            for (k = 0; k < zDim; k++) {
-                                x = i;
-                                y = j;
-                                z = k;
-                                PSF.ImageToWorld(x, y, z);
-                                x -= cx;
-                                y -= cy;
-                                z -= cz;
-                                //continuous PSF does not need to be normalized as discrete will be
-                                PSF(i, j, k) = exp(
-                                                   -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
-                                                   - z * z / (2 * sigmaz * sigmaz));
-                                sum += PSF(i, j, k);
-                            }
-                    PSF /= sum;
-                    
-                    if (reconstructor->_debug)
-                        if (inputIndex == 0)
-                            PSF.Write("PSF.nii.gz");
-                    
-                    //prepare storage for PSF transformed and resampled to the space of reconstructed volume
-                    //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
-                    //Note conversion from PSF image coordinates to tPSF image coordinates *size/res
-                    int dim = (floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2))
-                    * 2 + 1 + 2;
-                    //prepare image attributes. Voxel dimension will be taken from the reconstructed volume
-                    attr._x = dim;
-                    attr._y = dim;
-                    attr._z = dim;
-                    attr._dx = res;
-                    attr._dy = res;
-                    attr._dz = res;
-                    //create matrix from transformed PSF
-                    RealImage tPSF(attr);
-                    //calculate centre of tPSF in image coordinates
-                    int centre = (dim - 1) / 2;
-                    
-                    //for each voxel in current slice calculate matrix coefficients
-                    int ii, jj, kk;
-                    int tx, ty, tz;
-                    int nx, ny, nz;
-                    int l, m, n;
-                    double weight;
-                    for (i = 0; i < slice.GetX(); i++)
-                        for (j = 0; j < slice.GetY(); j++)
-                            if (slice(i, j, 0) != -1) {
-                                //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
-                                x = i;
-                                y = j;
-                                z = 0;
-                                slice.ImageToWorld(x, y, z);
-                                reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                                reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                                tx = round(x);
-                                ty = round(y);
-                                tz = round(z);
-                                
-                                //Clear the transformed PSF
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
-                                            tPSF(ii, jj, kk) = 0;
-                                
-                                //for each POINT3D of the PSF
-                                for (ii = 0; ii < xDim; ii++)
-                                    for (jj = 0; jj < yDim; jj++)
-                                        for (kk = 0; kk < zDim; kk++) {
-                                            //Calculate the position of the POINT3D of
-                                            //PSF centered over current slice voxel
-                                            //This is a bit complicated because slices
-                                            //can be oriented in any direction
-                                            
-                                            //PSF image coordinates
-                                            x = ii;
-                                            y = jj;
-                                            z = kk;
-                                            //change to PSF world coordinates - now real sizes in mm
-                                            PSF.ImageToWorld(x, y, z);
-                                            //centre around the centrepoint of the PSF
-                                            x -= cx;
-                                            y -= cy;
-                                            z -= cz;
-                                            
-                                            //Need to convert (x,y,z) to slice image
-                                            //coordinates because slices can have
-                                            //transformations included in them (they are
-                                            //nifti)  and those are not reflected in
-                                            //PSF. In slice image coordinates we are
-                                            //sure that z is through-plane
-                                            
-                                            //adjust according to voxel size
-                                            x /= dx;
-                                            y /= dy;
-                                            z /= dz;
-                                            //center over current voxel
-                                            x += i;
-                                            y += j;
-                                            
-                                            //convert from slice image coordinates to world coordinates
-                                            slice.ImageToWorld(x, y, z);
-                                            
-                                            //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
-                                            //Transform to space of reconstructed volume
-                                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                                            //Change to image coordinates
-                                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                                            
-                                            //determine coefficients of volume voxels for position x,y,z
-                                            //using linear interpolation
-                                            
-                                            //Find the 8 closest volume voxels
-                                            
-                                            //lowest corner of the cube
-                                            nx = (int) floor(x);
-                                            ny = (int) floor(y);
-                                            nz = (int) floor(z);
-                                            
-                                            //not all neighbours might be in ROI, thus we need to normalize
-                                            //(l,m,n) are image coordinates of 8 neighbours in volume space
-                                            //for each we check whether it is in volume
-                                            sum = 0;
-                                            //to find wether the current slice voxel has overlap with ROI
-                                            bool inside = false;
-                                            for (l = nx; l <= nx + 1; l++)
-                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
-                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
-                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                                                    sum += weight;
-                                                                    if (reconstructor->_mask(l, m, n) == 1) {
-                                                                        inside = true;
-                                                                    }
-                                                                }
-                                            //if there were no voxels do nothing
-                                            if ((sum <= 0) || (!inside))
-                                                continue;
-                                            //now calculate the transformed PSF
-                                            for (l = nx; l <= nx + 1; l++)
-                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
-                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
-                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                                                    
-                                                                    //image coordinates in tPSF
-                                                                    //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
-                                                                    int aa, bb, cc;
-                                                                    aa = l - tx + centre;
-                                                                    bb = m - ty + centre;
-                                                                    cc = n - tz + centre;
-                                                                    
-                                                                    //resulting value
-                                                                    double value = PSF(ii, jj, kk) * weight / sum;
-                                                                    
-                                                                    //Check that we are in tPSF
-                                                                    if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
-                                                                        || (cc >= dim)) {
-                                                                        cerr << "Error while trying to populate tPSF. " << aa << " " << bb
-                                                                        << " " << cc << endl;
-                                                                        cerr << l << " " << m << " " << n << endl;
-                                                                        cerr << tx << " " << ty << " " << tz << endl;
-                                                                        cerr << centre << endl;
-                                                                        tPSF.Write("tPSF.nii.gz");
-                                                                        exit(1);
-                                                                    }
-                                                                    else
-                                                                        //update transformed PSF
-                                                                        tPSF(aa, bb, cc) += value;
-                                                                }
-                                            
-                                        } //end of the loop for PSF points
-                                
-                                //store tPSF values
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
-                                            if (tPSF(ii, jj, kk) > 0) {
-                                                p.x = ii + tx - centre;
-                                                p.y = jj + ty - centre;
-                                                p.z = kk + tz - centre;
-                                                p.value = tPSF(ii, jj, kk);
-                                                slicecoeffs[i][j].push_back(p);
-                                            }
-                                
-                            } //end of loop for slice voxels
-                    
-                    //Calculate simulated slice
-                    reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                    reconstructor->_simulated_slices[inputIndex] = 0;
-                    
-                    reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                    reconstructor->_simulated_weights[inputIndex] = 0;
-                    
-                    for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ )
-                        for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ )
-                            if ( reconstructor->_slices[inputIndex](i, j, 0) != -1 ) {
-                                double weight = 0;
-                                int n = slicecoeffs[i][j].size();
-                                for ( int k = 0; k < n; k++ ) {
-                                    p = slicecoeffs[i][j][k];
-                                    for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
-                                        reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                                        weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                                    }
-                                }
-                                if( weight > 0 ) {
-                                    reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
-                                    reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
-                                }
-                            }
-                    
-                }  // if(_slice_excluded[inputIndex]==0)
-                
-            }  //end of loop through the slices
-            
-        }  //void operator() (const blocked_range<size_t> &r) const {
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
-                         *this );
-            //init.terminate();
-        }
-        
-    };
     
     
     // -----------------------------------------------------------------------------
@@ -1650,63 +882,12 @@ namespace svrtk {
         //Simulate images
         cout << "Simulating...";
         cout.flush();
-        ParallelSimulateStacksCardiac4D simulatestacks(this);
+        Parallel::SimulateStacksCardiac4D simulatestacks(this);
         simulatestacks();
         cout << " ... done." << endl;
         
     }
     
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Class to Calculate Error
-    // -----------------------------------------------------------------------------
-    class ParallelCalculateError {
-        ReconstructionCardiac4D *reconstructor;
-        
-    public:
-        ParallelCalculateError( ReconstructionCardiac4D *_reconstructor ) :
-        reconstructor(_reconstructor) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                //initalize
-                reconstructor->_error[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                reconstructor->_error[inputIndex] = 0;
-                
-                //read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
-                
-                //alias the current bias image
-                RealImage& b = reconstructor->_bias[inputIndex];
-                
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-                
-                //calculate error
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i,j,0) != -1)
-                            if ( reconstructor->_simulated_weights[inputIndex](i,j,0) > 0 ) {
-                                //bias correct and scale the voxel
-                                slice(i,j,0) *= exp(-b(i, j, 0)) * scale;
-                                //subtract simulated voxel
-                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
-                                //assign as error
-                                reconstructor->_error[inputIndex](i,j,0) = slice(i,j,0);
-                            }
-            } //end of loop for a slice inputIndex
-        }
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
-                         *this );
-            //init.terminate();
-        }
-        
-    };
     
     
     // -----------------------------------------------------------------------------
@@ -1717,103 +898,12 @@ namespace svrtk {
         if (_debug)
             cout<<"Calculating error..."<<endl;
         
-        ParallelCalculateError parallelCalculateError( this );
+        Parallel::CalculateError parallelCalculateError(this);
         parallelCalculateError();
         
         if (_debug)
             cout<<"\t...calculating error done."<<endl;
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Processing Class for Normalise Bias
-    // -----------------------------------------------------------------------------
-    class ParallelNormaliseBiasCardiac4D{
-        ReconstructionCardiac4D* reconstructor;
-        
-    public:
-        RealImage bias;
-        RealImage volweight3d;
-        
-        void operator()( const blocked_range<size_t>& r ) {
-            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-                
-                if(reconstructor->_debug) {
-                    cout<<inputIndex<<" ";
-                }
-                
-                // alias the current slice
-                RealImage& slice = reconstructor->_slices[inputIndex];
-                
-                //read the current bias image
-                RealImage b = reconstructor->_bias[inputIndex];
-                
-                //read current scale factor
-                double scale = reconstructor->_scale[inputIndex];
-                
-                RealPixel *pi = slice.Data();
-                RealPixel *pb = b.Data();
-                for(int i = 0; i<slice.NumberOfVoxels(); i++) {
-                    if((*pi>-1)&&(scale>0))
-                        *pb -= log(scale);
-                    pb++;
-                    pi++;
-                }
-                
-                //Distribute slice intensities to the volume
-                POINT3D p;
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) != -1) {
-                            //number of volume voxels with non-zero coefficients for current slice voxel
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                            //add contribution of current slice voxel to all voxel volumes
-                            //to which it contributes
-                            for (int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                                bias(p.x, p.y, p.z) += p.value * b(i, j, 0);
-                                volweight3d(p.x,p.y,p.z) += p.value;
-                            }
-                        }
-                //end of loop for a slice inputIndex
-            }
-        }
-        
-        ParallelNormaliseBiasCardiac4D( ParallelNormaliseBiasCardiac4D& x, split ) :
-        reconstructor(x.reconstructor)
-        {
-            ImageAttributes attr = reconstructor->_reconstructed4D.Attributes();
-            attr._t = 1;
-            bias.Initialize( attr );
-            bias = 0;
-            volweight3d.Initialize( attr );
-            volweight3d = 0;
-        }
-        
-        void join( const ParallelNormaliseBiasCardiac4D& y ) {
-            bias += y.bias;
-            volweight3d += y.volweight3d;
-        }
-        
-        ParallelNormaliseBiasCardiac4D( ReconstructionCardiac4D *reconstructor ) :
-        reconstructor(reconstructor)
-        {
-            ImageAttributes attr = reconstructor->_reconstructed4D.Attributes();
-            attr._t = 1;
-            bias.Initialize( attr );
-            bias = 0;
-            volweight3d.Initialize( attr );
-            volweight3d = 0;
-        }
-        
-        // execute
-        void operator() () {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()),
-                            *this );
-            //init.terminate();
-        }
-    };
     
     
     // -----------------------------------------------------------------------------
@@ -1824,7 +914,7 @@ namespace svrtk {
         if(_debug)
             cout << "Normalise Bias ... ";
         
-        ParallelNormaliseBiasCardiac4D parallelNormaliseBias(this);
+        Parallel::NormaliseBiasCardiac4D parallelNormaliseBias(this);
         parallelNormaliseBias();
         RealImage bias = parallelNormaliseBias.bias;
         RealImage volweight3d = parallelNormaliseBias.volweight3d;
@@ -1892,120 +982,7 @@ namespace svrtk {
         // if (_debug)
         //   cout << "\b\b." << endl;
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Slice-to-Volume Registration Class
-    // -----------------------------------------------------------------------------
-    class ParallelSliceToVolumeRegistrationCardiac4D {
-    public:
-        ReconstructionCardiac4D *reconstructor;
-        
-        ParallelSliceToVolumeRegistrationCardiac4D(ReconstructionCardiac4D *_reconstructor) :
-        reconstructor(_reconstructor) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            
-            ImageAttributes attr = reconstructor->_reconstructed4D.Attributes();
 
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                
-                if (reconstructor->_slice_excluded[inputIndex] == 0) {
-                    
-                    GreyPixel smin, smax;
-                    GreyImage target;
-                    RealImage slice, w, b, t;
-                    
-                    
-                    ResamplingWithPadding<RealPixel> resampling(attr._dx,attr._dx,attr._dx,-1);
-                    Reconstruction dummy_reconstruction;
-                    
-                    GenericLinearInterpolateImageFunction<RealImage> interpolator;
-                    
-                    // TARGET
-                    // get current slice
-                    t = reconstructor->_slices[inputIndex];
-                    // resample to spatial resolution of reconstructed volume
-                    resampling.Input(&reconstructor->_slices[inputIndex]);
-                    resampling.Output(&t);
-                    resampling.Interpolator(&interpolator);
-                    resampling.Run();
-                    target=t;
-                    
-                    target = reconstructor->_slices[inputIndex];
-
-                    // get pixel value min and max
-                    target.GetMinMax(&smin, &smax);
-                    
-                    // SOURCE
-                    if (smax > 0 && (smax-smin) > 1) {
-                        
-                        ParameterList params;
-                        Insert(params, "Transformation model", "Rigid");
-                        Insert(params, "Image (dis-)similarity measure", "NMI");
-                        if (reconstructor->_nmi_bins>0)
-                            Insert(params, "No. of bins", reconstructor->_nmi_bins);
-                        
-                        // Insert(params, "Image interpolation mode", "Linear");
-
-                        Insert(params, "Background value for image 1", 0); // -1
-                        Insert(params, "Background value for image 2", -1);
-
-//                        Insert(params, "Image (dis-)similarity measure", "NCC");
-//                        Insert(params, "Image interpolation mode", "Linear");
-//                        string type = "sigma";
-//                        string units = "mm";
-//                        double width = 0;
-//                        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
-                        
-                        GenericRegistrationFilter *registration = new GenericRegistrationFilter();
-                        registration->Parameter(params);
-
-                        // put origin to zero
-                        RigidTransformation offset;
-                        dummy_reconstruction.ResetOrigin(target,offset);
-                        Matrix mo = offset.GetMatrix();
-                        Matrix m = reconstructor->_transformations[inputIndex].GetMatrix();
-                        m=m*mo;
-                        reconstructor->_transformations[inputIndex].PutMatrix(m);
-                        
-                        // TODO: extract nearest cardiac phase from reconstructed 4D to use as source
-                        GreyImage source = reconstructor->_reconstructed4D.GetRegion( 0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex]+1 );
-                        
-                        registration->Input(&target, &source);
-                        Transformation *dofout = nullptr;
-                        registration->Output(&dofout);
-                        
-                        RigidTransformation tmp_dofin = reconstructor->_transformations[inputIndex];
-                        registration->InitialGuess(&tmp_dofin);
-                        
-                        registration->GuessParameter();
-                        registration->Run();
-                        
-                        RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
-                        reconstructor->_transformations[inputIndex] = *rigidTransf;
-                        
-                        //undo the offset
-                        mo.Invert();
-                        m = reconstructor->_transformations[inputIndex].GetMatrix();
-                        m=m*mo;
-                        reconstructor->_transformations[inputIndex].PutMatrix(m);
-                    }
-                }
-            }
-        }
-        
-        // execute
-        void operator() () const {
-            
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
-                         *this );
-            
-        }
-        
-    };
-    
-    
     // -----------------------------------------------------------------------------
     // Slice-to-Volume Registration
     // -----------------------------------------------------------------------------
@@ -2014,84 +991,10 @@ namespace svrtk {
         
         if (_debug)
             cout << "SliceToVolumeRegistrationCardiac4D" << endl;
-        ParallelSliceToVolumeRegistrationCardiac4D registration(this);
+        Parallel::SliceToVolumeRegistrationCardiac4D registration(this);
         registration();
     }
-    
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Remote Slice-to-Volume Registration Class
-    // -----------------------------------------------------------------------------
-    
-    class ParallelRemoteSliceToVolumeRegistrationCardiac4D {
-        
-    public:
-        
-        ReconstructionCardiac4D *reconstructor;
-        int svr_range_start;
-        int svr_range_stop;
-        string str_mirtk_path;
-        string str_current_main_file_path;
-        string str_current_exchange_file_path;
-        
-        ParallelRemoteSliceToVolumeRegistrationCardiac4D ( ReconstructionCardiac4D *in_reconstructor, int in_svr_range_start, int in_svr_range_stop, string in_str_mirtk_path, string in_str_current_main_file_path, string in_str_current_exchange_file_path ) :
-        reconstructor(in_reconstructor),
-        svr_range_start(in_svr_range_start),
-        svr_range_stop(in_svr_range_stop),
-        str_mirtk_path(in_str_mirtk_path),
-        str_current_main_file_path(in_str_current_main_file_path),
-        str_current_exchange_file_path(in_str_current_exchange_file_path) { }
-        
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-                
-                if (reconstructor->_zero_slices[inputIndex] > 0) {
-                
-                    std::thread::id this_id = std::this_thread::get_id();
-    //                cout << inputIndex  << " - " << this_id << " - " << endl;     //
-                    
-                    
-                    string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log;
-                    
-                    
-                    str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
-                    str_source = str_current_exchange_file_path + "/current-source-" + to_string(reconstructor->_slice_svr_card_index[inputIndex]) + ".nii.gz";
-                    str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
-                    
-                    
-                    str_reg_model = "-model Rigid";
-                    
-                    str_dofout = "-dofout " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-                    
-                    str_bg1 = "-bg1 " + to_string(0);
-                    
-                    str_bg2 = "-bg2 " + to_string(-1);
-                    
-                    str_dofin = "-dofin " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-                    
-                    string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_log;
 
-                    int tmp_log = system(register_cmd.c_str());
-
-                }
-                
-            } // end of inputIndex
-            
-        }
-        
-        // execute
-        void operator() () const {
-            parallel_for( blocked_range<size_t>(svr_range_start, svr_range_stop), *this );
-        }
-        
-    };
-    
-    
-    
-    
     // -----------------------------------------------------------------------------
     // Remote Slice-to-Volume Registration
     // -----------------------------------------------------------------------------
@@ -2166,11 +1069,9 @@ namespace svrtk {
         int stride = 32;
         int svr_range_start = 0;
         int svr_range_stop = svr_range_start + stride;
-        
-        while ( svr_range_start < _slices.size() )
-        {
-        
-            ParallelRemoteSliceToVolumeRegistrationCardiac4D registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+
+        while (svr_range_start < _slices.size()) {
+            Parallel::RemoteSliceToVolumeRegistrationCardiac4D registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
             registration();
             
             svr_range_start = svr_range_stop;
@@ -2911,106 +1812,7 @@ namespace svrtk {
         }
         return volume;
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Super-Resolution Class
-    // -----------------------------------------------------------------------------
-    class ParallelSuperresolutionCardiac4D {
-        ReconstructionCardiac4D* reconstructor;
-    public:
-        RealImage confidence_map;
-        RealImage addon;
-        
-        void operator()( const blocked_range<size_t>& r ) {
-            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-                // read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
-                
-                //read the current weight image
-                RealImage& w = reconstructor->_weights[inputIndex];
-                
-                //read the current bias image
-                RealImage& b = reconstructor->_bias[inputIndex];
-                
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-                
-                //Update reconstructed volume using current slice
-                
-                //Distribute error to the volume
-                POINT3D p;
-                for ( int i = 0; i < slice.GetX(); i++)
-                    for ( int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) != -1) {
-                            //bias correct and scale the slice
-                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                            
-                            if ( reconstructor->_simulated_slices[inputIndex](i,j,0) > 0 )
-                                slice(i,j,0) -= reconstructor->_simulated_slices[inputIndex](i,j,0);
-                            else
-                                slice(i,j,0) = 0;
-                            
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                            for (int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                                for (int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++) {
-                                    if(reconstructor->_robust_slices_only)
-                                    {
-                                        addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                        confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
-                                        
-                                    }
-                                    else
-                                    {
-                                        addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                        confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                    }
-                                }
-                            }
-                        }
-            } //end of loop for a slice inputIndex
-        }
-        
-        ParallelSuperresolutionCardiac4D( ParallelSuperresolutionCardiac4D& x, split ) :
-        reconstructor(x.reconstructor)
-        {
-            //Clear addon
-            addon.Initialize( reconstructor->_reconstructed4D.Attributes() );
-            addon = 0;
-            
-            //Clear confidence map
-            confidence_map.Initialize( reconstructor->_reconstructed4D.Attributes() );
-            confidence_map = 0;
-        }
-        
-        void join( const ParallelSuperresolutionCardiac4D& y ) {
-            addon += y.addon;
-            confidence_map += y.confidence_map;
-        }
-        
-        ParallelSuperresolutionCardiac4D( ReconstructionCardiac4D *reconstructor ) :
-        reconstructor(reconstructor)
-        {
-            //Clear addon
-            addon.Initialize( reconstructor->_reconstructed4D.Attributes() );
-            addon = 0;
-            
-            //Clear confidence map
-            confidence_map.Initialize( reconstructor->_reconstructed4D.Attributes() );
-            confidence_map = 0;
-        }
-        
-        // execute
-        void operator() () {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()),
-                            *this );
-            //init.terminate();
-        }
-    };
-    
-    
+
     // -----------------------------------------------------------------------------
     // Super-Resolution of 4D Volume
     // -----------------------------------------------------------------------------
@@ -3025,8 +1827,8 @@ namespace svrtk {
         
         //Remember current reconstruction for edge-preserving smoothing
         original = _reconstructed4D;
-        
-        ParallelSuperresolutionCardiac4D parallelSuperresolution(this);
+
+        Parallel::SuperresolutionCardiac4D parallelSuperresolution(this);
         parallelSuperresolution();
         
         addon = parallelSuperresolution.addon;
@@ -3077,147 +1879,7 @@ namespace svrtk {
          BiasCorrectVolume(original);
          */
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Adaptive Regularization Class 1: calculate smoothing factor, b
-    // -----------------------------------------------------------------------------
-    class ParallelAdaptiveRegularization1Cardiac4D {
-        ReconstructionCardiac4D *reconstructor;
-        Array<RealImage> &b;
-        Array<double> &factor;
-        RealImage &original;
-        
-    public:
-        ParallelAdaptiveRegularization1Cardiac4D( ReconstructionCardiac4D *_reconstructor,
-                                                 Array<RealImage> &_b,
-                                                 Array<double> &_factor,
-                                                 RealImage &_original) :
-        reconstructor(_reconstructor),
-        b(_b),
-        factor(_factor),
-        original(_original) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            int dx = reconstructor->_reconstructed4D.GetX();
-            int dy = reconstructor->_reconstructed4D.GetY();
-            int dz = reconstructor->_reconstructed4D.GetZ();
-            int dt = reconstructor->_reconstructed4D.GetT();
-            for ( size_t i = r.begin(); i != r.end(); ++i ) {
-                //b[i] = reconstructor->_reconstructed;
-                // b[i].Initialize( reconstructor->_reconstructed.Attributes() );
-                
-                int x, y, z, xx, yy, zz, t;
-                double diff;
-                for (x = 0; x < dx; x++)
-                    for (y = 0; y < dy; y++)
-                        for (z = 0; z < dz; z++) {
-                            xx = x + reconstructor->_directions[i][0];
-                            yy = y + reconstructor->_directions[i][1];
-                            zz = z + reconstructor->_directions[i][2];
-                            for (t = 0; t < dt; t++) {
-                                if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
-                                    && (reconstructor->_confidence_map(x, y, z, t) > 0) && (reconstructor->_confidence_map(xx, yy, zz, t) > 0)) {
-                                    diff = (original(xx, yy, zz, t) - original(x, y, z, t)) * sqrt(factor[i]) / reconstructor->_delta;
-                                    b[i](x, y, z, t) = factor[i] / sqrt(1 + diff * diff);
-                                    
-                                }
-                                else
-                                    b[i](x, y, z, t) = 0;
-                            }
-                        }
-            }
-        }
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, 13),
-                         *this );
-            //init.terminate();
-        }
-        
-    };
-    
-    
-    // -----------------------------------------------------------------------------
-    // Parallel Adaptive Regularization Class 2: compute regularisation update
-    // -----------------------------------------------------------------------------
-    class ParallelAdaptiveRegularization2Cardiac4D {
-        ReconstructionCardiac4D *reconstructor;
-        Array<RealImage> &b;
-        Array<double> &factor;
-        RealImage &original;
-        
-    public:
-        ParallelAdaptiveRegularization2Cardiac4D( ReconstructionCardiac4D *_reconstructor,
-                                                 Array<RealImage> &_b,
-                                                 Array<double> &_factor,
-                                                 RealImage &_original) :
-        reconstructor(_reconstructor),
-        b(_b),
-        factor(_factor),
-        original(_original) { }
-        
-        void operator() (const blocked_range<size_t> &r) const {
-            int dx = reconstructor->_reconstructed4D.GetX();
-            int dy = reconstructor->_reconstructed4D.GetY();
-            int dz = reconstructor->_reconstructed4D.GetZ();
-            int dt = reconstructor->_reconstructed4D.GetT();
-            for ( size_t x = r.begin(); x != r.end(); ++x ) {
-                int xx, yy, zz;
-                for (int y = 0; y < dy; y++)
-                    for (int z = 0; z < dz; z++)
-                        for (int t = 0; t < dt; t++) {
-                            if(reconstructor->_confidence_map(x,y,z,t)>0)
-                            {
-                                double val = 0;
-                                double sum = 0;
-                                for (int i = 0; i < 13; i++)
-                                {
-                                    xx = x + reconstructor->_directions[i][0];
-                                    yy = y + reconstructor->_directions[i][1];
-                                    zz = z + reconstructor->_directions[i][2];
-                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                        if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
-                                        {
-                                            val += b[i](x, y, z, t) * original(xx, yy, zz, t);
-                                            sum += b[i](x, y, z, t);
-                                        }
-                                }
-                                
-                                for (int i = 0; i < 13; i++) {
-                                    xx = x - reconstructor->_directions[i][0];
-                                    yy = y - reconstructor->_directions[i][1];
-                                    zz = z - reconstructor->_directions[i][2];
-                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                        if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
-                                        {
-                                            val += b[i](x, y, z, t) * original(xx, yy, zz, t);
-                                            sum += b[i](x, y, z, t);
-                                        }
-                                }
-                                
-                                val -= sum * original(x, y, z, t);
-                                val = original(x, y, z, t)
-                                + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
-                                reconstructor->_reconstructed4D(x, y, z, t) = val;
-                            }
-                        }
-            }
-        }
-        
-        // execute
-        void operator() () const {
-            //task_scheduler_init init(tbb_no_threads);
-            parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed4D.GetX()),
-                         *this );
-            //init.terminate();
-        }
-        
-    };
-    
-    
+
     // -----------------------------------------------------------------------------
     // Adaptive Regularization
     // -----------------------------------------------------------------------------
@@ -3233,22 +1895,14 @@ namespace svrtk {
                 factor[i] += fabs(double(_directions[i][j]));
             factor[i] = 1 / factor[i];
         }
-        
-        Array<RealImage> b;//(13);
-        for (int i = 0; i < 13; i++)
-            b.push_back( _reconstructed4D );
-        
-        ParallelAdaptiveRegularization1Cardiac4D parallelAdaptiveRegularization1( this,
-                                                                                 b,
-                                                                                 factor,
-                                                                                 original );
+
+        Array<RealImage> b(13, _reconstructed4D);
+
+        Parallel::AdaptiveRegularization1Cardiac4D parallelAdaptiveRegularization1(this, b, factor, original);
         parallelAdaptiveRegularization1();
         
         RealImage original2 = _reconstructed4D;
-        ParallelAdaptiveRegularization2Cardiac4D parallelAdaptiveRegularization2( this,
-                                                                                 b,
-                                                                                 factor,
-                                                                                 original2 );
+        Parallel::AdaptiveRegularization2Cardiac4D parallelAdaptiveRegularization2(this, b, factor, original2);
         parallelAdaptiveRegularization2();
 
         if (_alpha * _lambda / (_delta * _delta) > 0.068)

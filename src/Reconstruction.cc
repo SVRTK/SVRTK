@@ -26,8 +26,9 @@
 
 
 using namespace std;
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
     // Extract specific image ROI
     void bbox(RealImage& stack, RigidTransformation& transformation, double& min_x, double& min_y, double& min_z, double& max_x, double& max_y, double& max_z) {
@@ -5750,4 +5751,4 @@ namespace mirtk {
 
     //-------------------------------------------------------------------
 
-} // namespace mirtk
+} // namespace svrtk

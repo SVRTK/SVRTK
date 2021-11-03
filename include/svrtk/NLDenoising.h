@@ -18,9 +18,11 @@
 #ifndef _MIRTK_NLDenoising_H
 #define _MIRTK_NLDenoising_H
 
+// MIRTK
 #include "mirtk/BaseImage.h"
 #include "mirtk/GenericImage.h"
 
+// C++ Standard
 #include <stdio.h>
 #include <vector>
 #include <pthread.h>
@@ -29,10 +31,10 @@
 #include <math.h>
 #include <float.h>
 
-
 using namespace std;
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
     typedef struct {
         int rows;
@@ -61,6 +63,5 @@ namespace mirtk {
         RealImage Run(const RealImage& image, int input_param_w, int input_param_f);
     };
 
-} // namespace mirtk
-
 #endif 
+} // namespace svrtk

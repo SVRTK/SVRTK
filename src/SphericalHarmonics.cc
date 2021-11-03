@@ -18,10 +18,10 @@
 
 #include "svrtk/SphericalHarmonics.h"
 
-
 using namespace std;
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
     
     SphericalHarmonics::SphericalHarmonics() {
@@ -290,5 +290,5 @@ namespace mirtk {
 
 
 
-} // namespace mirtk
+} // namespace svrtk
 

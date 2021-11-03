@@ -19,12 +19,16 @@
 #ifndef MIRTK_ReconstructionCardiacVelocity4D_H
 #define MIRTK_ReconstructionCardiacVelocity4D_H
 
-#include "svrtk/ReconstructionCardiac4D.h"
+// MIRTK
 #include "mirtk/Arith.h" 
 #include "mirtk/Math.h"
 
+// SVRTK
+#include "svrtk/ReconstructionCardiac4D.h"
 
-namespace mirtk {
+using namespace mirtk;
+
+namespace svrtk {
     
 
     class ReconstructionCardiacVelocity4D : public ReconstructionCardiac4D
@@ -261,13 +265,7 @@ namespace mirtk {
         
         cout << ".............................................." << endl;
         cout << ".............................................." << endl;
-        
-
     }
     
-    
-} // namespace mirtk
-
-
 #endif // MIRTK_Reconstruction_H
-
+} // namespace svrtk

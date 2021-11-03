@@ -2,18 +2,19 @@
  * ....
  */  
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h" 
-
 #include "mirtk/IOConfig.h"
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
 
+// SVRTK
 #include "svrtk/ReconstructionFFD.h"
 
-using namespace mirtk; 
 using namespace std;
+using namespace mirtk;
+using namespace svrtk;
 
 // =============================================================================
 // Auxiliary functions
@@ -26,9 +27,6 @@ void usage()
     cout << "Usage: .... \n" << endl;
     exit(0);
 }
-
-
-
 
 // -----------------------------------------------------------------------------
 

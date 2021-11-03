@@ -18,11 +18,11 @@
  */
 
 #include "svrtk/MeanShift.h"
- 
 
 using namespace std;
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
 MeanShift::MeanShift(GreyImage& image, int padding, int nBins) {
     _image = image;
@@ -676,5 +676,5 @@ void MeanShift::FindWMGMmeans() {
 }
 
 
-} // namespace mirtk
+} // namespace svrtk
 

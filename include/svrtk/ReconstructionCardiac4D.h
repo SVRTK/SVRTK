@@ -21,9 +21,10 @@
  
 #include "svrtk/Reconstruction.h"
 
+using namespace mirtk;
 
-namespace mirtk {
-    
+namespace svrtk {
+
 
     class ReconstructionCardiac4D : public Reconstruction
     {
@@ -405,9 +406,8 @@ namespace mirtk {
     }
     
 
-    
-} // namespace mirtk
 
 
 #endif // MIRTK_ReconstructionCardiac4D_H
 
+} // namespace svrtk

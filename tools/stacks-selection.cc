@@ -18,14 +18,13 @@
  * limitations under the License.
  */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
@@ -33,9 +32,10 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
-
+// SVRTK
 #include "svrtk/Reconstruction.h"
 
+// C++ Standard
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -50,10 +50,9 @@
 #include <pthread.h>
 #include <string>
 
-
-
-using namespace mirtk;
 using namespace std;
+using namespace mirtk;
+using namespace svrtk;
 
 // =============================================================================
 //

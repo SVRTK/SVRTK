@@ -18,11 +18,10 @@
  
 #include "svrtk/ReconstructionDWI.h"
 
-
 using namespace std;
+using namespace mirtk;
 
-
-namespace mirtk {
+namespace svrtk {
 
     //-------------------------------------------------------------------
     
@@ -7312,7 +7311,7 @@ namespace mirtk {
     
     
     
-} // namespace mirtk
+} // namespace svrtk
 
 
 

@@ -20,22 +20,25 @@
 #ifndef _MIRTK_MeanShift_H
 #define _MIRTK_MeanShift_H
 
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
 #include "mirtk/Array.h"
 #include "mirtk/Point.h"
 #include "mirtk/BaseImage.h"
 #include "mirtk/GenericImage.h"
-
 #include "mirtk/Dilation.h"
 #include "mirtk/Erosion.h"
 #include "mirtk/GaussianBlurring.h"
+
+// C++ Standard
 #include <algorithm>
 #include <queue>
 
-using namespace std; 
+using namespace std;
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
     class MeanShift {
         
@@ -85,7 +88,5 @@ namespace mirtk {
         RealImage ReturnMask();
     };
 
-} // namespace mirtk
-
 #endif  // MIRTK_MeanShift_H 
-
+} // namespace svrtk

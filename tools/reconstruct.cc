@@ -55,9 +55,9 @@
 #include <pthread.h>
 #include <string>
 
-
 using namespace std;
 using namespace mirtk;
+using namespace svrtk;
 using namespace boost::program_options;
 
 // =============================================================================

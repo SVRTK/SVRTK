@@ -19,43 +19,38 @@
 #ifndef MIRTK_Reconstruction_H
 #define MIRTK_Reconstruction_H
 
+// MIRTK
 #include "mirtk/Common.h" 
 #include "mirtk/Options.h"
-
 #include "mirtk/Array.h"
 #include "mirtk/Point.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GaussianBlurring.h"
 #include "mirtk/Resampling.h"
 #include "mirtk/ResamplingWithPadding.h"
 #include "mirtk/LinearInterpolateImageFunction.hxx"
 #include "mirtk/GaussianBlurringWithPadding.h"
-
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageTransformation.h"
-
 #include "mirtk/MultiLevelFreeFormTransformation.h"
 #include "mirtk/FreeFormTransformation.h"
 #include "mirtk/LinearFreeFormTransformation3D.h"
 
-
-
+// SVRTK
 #include "svrtk/SphericalHarmonics.h"
-
 #include "svrtk/MeanShift.h"
 
+// C++ Standard
 #include <set>
-
 #include <pthread.h>
 #include <thread>
-//#include <boost/filesystem.hpp>
 
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
     
     
     struct POINT3D
@@ -704,16 +699,5 @@ namespace mirtk {
         _SH_coeffs=sh;
     }
 
-    
-    
-    
-    
-    
-    
-} // namespace mirtk
-
-
 #endif // MIRTK_Reconstruction_H
-
-
-
+} // namespace svrtk

@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-
 #include "svrtk/ReconstructionFFD.h"
 
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
     
     //-------------------------------------------------------------------
     
@@ -5720,4 +5720,4 @@ namespace mirtk {
     
     //-------------------------------------------------------------------
     
-} // namespace mirtk
+} // namespace svrtk

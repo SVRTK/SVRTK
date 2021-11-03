@@ -20,7 +20,7 @@
 using namespace std;
 
 
-namespace mirtk {
+namespace svrtk {
 
     // Returns the modified Bessel function I0(x) for any real x.
     double bessi0(double x) {
@@ -670,4 +670,4 @@ namespace mirtk {
         return Run(image, 3, 1);
     }
 
-} // namespace mirtk
+} // namespace svrtk

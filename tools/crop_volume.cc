@@ -16,27 +16,27 @@
  * limitations under the License.
  */
 
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
-
 #include "mirtk/GenericImage.h" 
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
-
-#include "svrtk/ReconstructionFFD.h"
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
-using namespace mirtk;
+// SVRTK
+#include "svrtk/ReconstructionFFD.h"
+
 using namespace std;
+using namespace mirtk;
+using namespace svrtk;
  
 // =============================================================================
 // Auxiliary functions

@@ -19,26 +19,25 @@
 #ifndef _MIRTK_SphericalHarmonics_H
 #define _MIRTK_SphericalHarmonics_H
 
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/Array.h"
 #include "mirtk/Point.h"
-
 #include "mirtk/BaseImage.h"
 #include "mirtk/GenericImage.h"
 
+// C++ Standard
 #include <algorithm>
 #include <queue>
 
 using namespace std;
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
     class SphericalHarmonics {
-        
     public:
-
         SphericalHarmonics();
         ~SphericalHarmonics();
         
@@ -99,8 +98,5 @@ namespace mirtk {
         return l * (l+1) /2 + m;
     }
 
-
-} // namespace mirtk
-
 #endif  // MIRTK_SphericalHarmonics_H
-
+} // namespace svrtk

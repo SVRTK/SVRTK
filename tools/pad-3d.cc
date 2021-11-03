@@ -16,15 +16,12 @@
 * limitations under the License.
 */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h" 
-
 #include "mirtk/IOConfig.h"
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
-
-
 #include "mirtk/Resampling.h"
 #include "mirtk/ResamplingWithPadding.h"
 #include "mirtk/LinearInterpolateImageFunction.hxx"
@@ -37,9 +34,8 @@
 #include "mirtk/FreeFormTransformation.h"
 #include "mirtk/LinearFreeFormTransformation3D.h"
 
-
-using namespace mirtk; 
 using namespace std;
+using namespace mirtk; 
 
 // =============================================================================
 // Auxiliary functions

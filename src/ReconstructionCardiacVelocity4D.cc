@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "svrtk/ReconstructionCardiacVelocity4D.h"
+// MIRTK
 #include "mirtk/Resampling.h"
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
@@ -24,13 +24,17 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageTransformation.h"
 #include "mirtk/LinearInterpolateImageFunction.hxx"
+
+// SVRTK
+#include "svrtk/ReconstructionCardiacVelocity4D.h"
+
+// C++ Standard
 #include <math.h>
 
-
 using namespace std;
+using namespace mirtk;
 
-
-namespace mirtk {
+namespace svrtk {
     
     // -----------------------------------------------------------------------------
     // Constructor
@@ -1663,7 +1667,7 @@ namespace mirtk {
 
     
     
-} // namespace mirtk
+} // namespace svrtk
 
 
 

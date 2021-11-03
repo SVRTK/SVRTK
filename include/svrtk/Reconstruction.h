@@ -20,9 +20,9 @@
 #ifndef MIRTK_Reconstruction_H
 #define MIRTK_Reconstruction_H
 
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/Array.h"
 #include "mirtk/Point.h"
 #include "mirtk/GenericImage.h"
@@ -40,15 +40,18 @@
 #include "mirtk/FreeFormTransformation.h"
 #include "mirtk/LinearFreeFormTransformation3D.h"
 
+// SVRTK
 #include "svrtk/MeanShift.h"
 #include "svrtk/NLDenoising.h"
 
+// C++ Standard
 #include <set>
 #include <pthread.h>
 #include <thread>
 
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
     struct POINT3D {
         short x;
@@ -819,7 +822,7 @@ namespace mirtk {
         _cp_spacing = cp_spacing;
     }
 
-} // namespace mirtk
 
 
 #endif // MIRTK_Reconstruction_H
+} // namespace svrtk

@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h" 
 #include "mirtk/IOConfig.h"
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
 
-
-using namespace mirtk; 
 using namespace std;
+using namespace mirtk;
 
 // =============================================================================
 // Auxiliary functions

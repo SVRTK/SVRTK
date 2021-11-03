@@ -401,7 +401,7 @@ namespace svrtk {
         
         inline double GetAverageVolumeWeight();
         
-        inline double SetIntensityMatchingGD();
+        inline void SetIntensityMatchingGD();
         
         void Evaluate( int iter );
         
@@ -657,7 +657,7 @@ namespace svrtk {
         return _average_volume_weight;
     }
     
-    inline double ReconstructionDWI::SetIntensityMatchingGD()
+    inline void ReconstructionDWI::SetIntensityMatchingGD()
     {
         _intensity_matching_GD = true;
     }

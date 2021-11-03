@@ -2497,44 +2497,34 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     // evaluation based on the number of excluded slices
-    void Reconstruction::Evaluate(int iter) {
-        cout << "Iteration " << iter << ": " << endl;
+    void Reconstruction::Evaluate(int iter, ostream& outstr) {
+        outstr << "Iteration " << iter << ": " << endl;
+        
+        size_t included_count = 0, excluded_count = 0, outside_count = 0;
+        string included, excluded, outside;
 
-        cout << "Included slices: ";
-        int sum = 0;
         for (size_t i = 0; i < _slices.size(); i++) {
-            if (_slice_weight[i] >= 0.5 && _slice_inside[i]) {
-                cout << i << " ";
-                sum++;
-            }
-        }
-        cout << endl << "Total: " << sum << endl;
-
-        cout << "Excluded slices: ";
-        sum = 0;
-        for (size_t i = 0; i < _slices.size(); i++) {
-            if (_slice_weight[i] < 0.5 && _slice_inside[i]) {
-                cout << i << " ";
-                sum++;
-            }
-        }
-        cout << endl << "Total: " << sum << endl;
-
-        cout << "Outside slices: ";
-        sum = 0;
-        for (size_t i = 0; i < _slices.size(); i++) {
-            if (!_slice_inside[i]) {
-                cout << i << " ";
-                sum++;
-            }
-        }
-        cout << endl << "Total: " << sum << endl;
-    }
-
+            if (_slice_inside[i]) {
+                if (_slice_weight[i] >= 0.5) {
+                    included += " " + to_string(i);
+                    included_count++;
+                } else {
+                    excluded += " " + to_string(i);
+                    excluded_count++;
                 }
+            } else {
+                outside += " " + to_string(i);
+                outside_count++;
             }
         }
 
+        outstr << "Included slices:" << included << "\n";
+        outstr << "Total: " << included_count << "\n";
+        outstr << "Excluded slices:" << excluded << "\n";
+        outstr << "Total: " << excluded_count << "\n";
+        outstr << "Outside slices:" << outside << "\n";
+        outstr << "Total: " << outside_count << endl;
+    }
 
     //-------------------------------------------------------------------
 

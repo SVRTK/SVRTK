@@ -1192,16 +1192,7 @@ int main(int argc, char **argv)
             reconstruction->MaskVolume();
 
             // //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            
-            if ( ! no_log ) {
-                cout.rdbuf (fileEv.rdbuf());
-            }
-            reconstruction->Evaluate(iter);
-            if ( ! no_log ) {
-                cout.rdbuf (strm_buffer);
-            }
-            
-            
+            reconstruction->Evaluate(iter, fileEv);
         }
         
         //Save reconstructed image

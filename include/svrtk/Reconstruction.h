@@ -463,7 +463,7 @@ namespace svrtk {
             Array<double>& all_global_ncc_array, Array<double>& all_global_volume_array);
 
         // evaluation based on the number of excluded slices
-        void Evaluate(int iter);
+        void Evaluate(int iter, ostream& outstr = cout);
 
         // Read transformations
         void ReadTransformations(const char *folder);

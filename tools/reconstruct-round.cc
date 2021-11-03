@@ -907,17 +907,9 @@ int main(int argc, char **argv)
         }
         
 
-        if (debug) {
-            //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            if ( ! no_log ) {
-                cout.rdbuf (fileEv.rdbuf());
-            }
-            reconstruction->Evaluate(iter);
-                    // cout<<endl;
-            if ( ! no_log ) {
-                cout.rdbuf (strm_buffer);
-            }
-        }
+        //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
+        if (debug)
+            reconstruction->Evaluate(iter, fileEv);
         
 //        reconstruction->SaveSliceInfo(iter);
     

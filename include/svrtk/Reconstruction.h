@@ -84,8 +84,7 @@ namespace svrtk {
     enum RECON_TYPE { _3D, _1D, _interpolate };
 
     typedef Array<POINT3D> VOXELCOEFFS;
-    typedef Array<Array<VOXELCOEFFS> > SLICECOEFFS;
-
+    typedef Array<Array<VOXELCOEFFS>> SLICECOEFFS;
 
     class Reconstruction {
     protected:
@@ -209,7 +208,7 @@ namespace svrtk {
         double _max_intensity;
         double _min_intensity;
 
-        //Gradient descent and regulatization parameters
+        //Gradient descent and regularisation parameters
         // Step for gradient descent
         double _alpha;
         // Determine what is en edge in edge-preserving smoothing
@@ -281,6 +280,9 @@ namespace svrtk {
 
         // Read Transformations common function
         void ReadTransformations(const char *folder, size_t file_count, Array<RigidTransformation>& transformations);
+
+        // Scale volume common function
+        void ScaleVolume(RealImage& reconstructed);
 
     public:
         // Constructor

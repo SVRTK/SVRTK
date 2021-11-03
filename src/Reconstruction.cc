@@ -694,8 +694,8 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
-    // scale the output reconstructed volume
-    void Reconstruction::ScaleVolume() {
+    // scale the reconstructed volume
+    void Reconstruction::ScaleVolume(RealImage& reconstructed) {
         double scalenum = 0, scaleden = 0;
 
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
@@ -724,13 +724,13 @@ namespace svrtk {
         double scale = 1;
 
         if (scaleden > 0)
-            scalenum /= scaleden;
+            scale = scalenum / scaleden;
 
         if (_verbose)
             _verbose_log << "scale : " << scale << endl;
 
-        RealPixel *ptr = _reconstructed.Data();
-        for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
+        RealPixel *ptr = reconstructed.Data();
+        for (int i = 0; i < reconstructed.NumberOfVoxels(); i++) {
             if (ptr[i] > 0)
                 ptr[i] *= scale;
         }
@@ -738,6 +738,9 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
+    void Reconstruction::ScaleVolume() {
+        ScaleVolume(_reconstructed);
+    }
 
     //-------------------------------------------------------------------
 

@@ -14,9 +14,7 @@
 
  =========================================================================*/
 
-
-#ifndef _MIRTK_NLDenoising_H
-#define _MIRTK_NLDenoising_H
+#pragma once
 
 // MIRTK
 #include "mirtk/BaseImage.h"
@@ -63,5 +61,4 @@ namespace svrtk {
         RealImage Run(const RealImage& image, int input_param_w, int input_param_f);
     };
 
-#endif 
 } // namespace svrtk

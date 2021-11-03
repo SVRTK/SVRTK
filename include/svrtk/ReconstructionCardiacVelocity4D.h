@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-#ifndef MIRTK_ReconstructionCardiacVelocity4D_H
-#define MIRTK_ReconstructionCardiacVelocity4D_H
+#pragma once
 
 // MIRTK
 #include "mirtk/Arith.h" 
@@ -267,5 +266,4 @@ namespace svrtk {
         cout << ".............................................." << endl;
     }
     
-#endif // MIRTK_Reconstruction_H
 } // namespace svrtk

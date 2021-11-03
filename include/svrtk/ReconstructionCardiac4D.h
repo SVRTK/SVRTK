@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-#ifndef MIRTK_ReconstructionCardiac4D_H
-#define MIRTK_ReconstructionCardiac4D_H
- 
+#pragma once
+
+// SVRTK
 #include "svrtk/Reconstruction.h"
 
 using namespace mirtk;
@@ -408,6 +408,5 @@ namespace svrtk {
 
 
 
-#endif // MIRTK_ReconstructionCardiac4D_H
 
 } // namespace svrtk

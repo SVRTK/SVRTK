@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-#ifndef MIRTK_Reconstruction_H
-#define MIRTK_Reconstruction_H
+#pragma once
 
 // MIRTK
 #include "mirtk/Common.h"
@@ -786,5 +785,4 @@ namespace svrtk {
         
     }
     
-#endif // MIRTK_Reconstruction_H
 } // namespace svrtk

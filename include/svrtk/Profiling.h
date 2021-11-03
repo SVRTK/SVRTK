@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-#ifndef SVRTK_Profiling_H
-#define SVRTK_Profiling_H
+#pragma once
 
 #include "mirtk/Profiling.h"
 
@@ -29,5 +28,3 @@
 #else
 #define SVRTK_END_TIMING      if (_debug) MIRTK_END_TIMING
 #endif
-
-#endif  // SVRTK_Profiling_H

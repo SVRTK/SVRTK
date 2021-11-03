@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-#ifndef _MIRTK_SphericalHarmonics_H
-#define _MIRTK_SphericalHarmonics_H
+#pragma once
 
 // MIRTK
 #include "mirtk/Common.h"
@@ -98,5 +97,4 @@ namespace svrtk {
         return l * (l+1) /2 + m;
     }
 
-#endif  // MIRTK_SphericalHarmonics_H
 } // namespace svrtk

@@ -17,8 +17,7 @@
  * limitations under the License.
  */
 
-#ifndef _MIRTK_MeanShift_H
-#define _MIRTK_MeanShift_H
+#pragma once
 
 // MIRTK
 #include "mirtk/Common.h"
@@ -88,5 +87,4 @@ namespace svrtk {
         RealImage ReturnMask();
     };
 
-#endif  // MIRTK_MeanShift_H 
 } // namespace svrtk

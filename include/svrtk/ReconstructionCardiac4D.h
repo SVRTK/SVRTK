@@ -145,21 +145,8 @@ namespace svrtk {
         
         // Destructor
         ~ReconstructionCardiac4D();
-        
-        // Get/Set Reconstructed 4D Volume
-        inline RealImage GetReconstructedCardiac4D();
-        inline void SetReconstructedCardiac4D(RealImage &reconstructed4D);
-        
-        // Get Volume Weights
-        inline RealImage GetVolumeWeights();
-        
+
         // Get Slice-Location transformations
-        ///Set stacks to be excluded
-        inline void SetForceExcludedStacks( Array<int>& force_excluded_stacks );
-        
-        ///Set slice-locations to be excluded
-        inline void SetForceExcludedLocs( Array<int>& force_excluded_locs );
-        
         void ReadSliceTransformation(const char *folder);
 
         // Set Slice R-R Intervals
@@ -214,9 +201,7 @@ namespace svrtk {
         
         // Calculate Slice Temporal Weights
         void CalculateSliceTemporalWeights();
-        inline void SetTemporalWeightGaussian();
-        inline void SetTemporalWeightSinc();
-        
+
         // Calculate Transformation Matrix Between Slices and Voxels
         void CoeffInitCardiac4D();
         
@@ -337,87 +322,53 @@ namespace svrtk {
         friend class Parallel::AdaptiveRegularization2Cardiac4D;
         friend class Parallel::CalculateError;
         friend class Parallel::CalculateCorrectedSlices;
-        
+
+        ////////////////////////////////////////////////////////////////////////////////
+        // Inline/template definitions
+        ////////////////////////////////////////////////////////////////////////////////
+
+        inline void SetTemporalWeightGaussian() {
+            _is_temporalpsf_gauss = true;
+            cout << "Temporal PSF = Gaussian()" << endl;
+        }
+
+        inline void SetTemporalWeightSinc() {
+            _is_temporalpsf_gauss = false;
+            cout << "Temporal PSF = sinc() * Tukey_window()" << endl;
+        }
+
+        inline const RealImage& GetReconstructedCardiac4D() {
+            return _reconstructed4D;
+        }
+
+        inline void SetReconstructedCardiac4D(const RealImage& reconstructed4D) {
+            _reconstructed4D = reconstructed4D;
+
+            ImageAttributes attr = reconstructed4D.Attributes();
+            attr._t = 1;
+
+            _reconstructed = RealImage(attr);
+
+            _mask = RealImage(attr);
+            _mask = 1;
+
+            _template_created = true;
+        }
+
+        inline const RealImage& GetVolumeWeights() {
+            return _volume_weights;
+        }
+
+        ///Set stacks to be excluded
+        inline void SetForceExcludedStacks(const Array<int>& force_excluded_stacks) {
+            _force_excluded_stacks = force_excluded_stacks;
+        }
+
+        // Set slice-locations to be excluded
+        inline void SetForceExcludedLocs(const Array<int>& force_excluded_locs) {
+            _force_excluded_locs = force_excluded_locs;
+        }
+
     };  // end of ReconstructionCardiac4D class definition
-    
-    
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // Inline/template definitions
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    
-    // -----------------------------------------------------------------------------
-    // Set Temporal Weighting
-    // -----------------------------------------------------------------------------
-    inline void ReconstructionCardiac4D::SetTemporalWeightGaussian()
-    {
-        _is_temporalpsf_gauss = true;
-        cout << "Temporal PSF = Gaussian()" << endl;
-    }
-    
-    inline void ReconstructionCardiac4D::SetTemporalWeightSinc()
-    {
-        _is_temporalpsf_gauss = false;
-        cout << "Temporal PSF = sinc() * Tukey_window()" << endl;
-    }
-    
-    // -----------------------------------------------------------------------------
-    // Get/Set Reconstructed 4D Volume
-    // -----------------------------------------------------------------------------
-    inline RealImage ReconstructionCardiac4D::GetReconstructedCardiac4D()
-    {
-        return _reconstructed4D;
-    }
-    
-    inline void ReconstructionCardiac4D::SetReconstructedCardiac4D(RealImage &reconstructed4D)
-    {
-        
-        _reconstructed4D = reconstructed4D;
-        
-        ImageAttributes attr = reconstructed4D.Attributes();
-        attr._t = 1;
-        RealImage volume3D(attr);
-        
-        _reconstructed = volume3D;
-        _reconstructed = 0;
-        
-        _mask = volume3D;
-        _mask = 1;
-        
-        _template_created = true;
-        
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Get Volume Weights
-    // -----------------------------------------------------------------------------
-    inline RealImage ReconstructionCardiac4D::GetVolumeWeights()
-    {
-        return _volume_weights;
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Force Exclusion of Stacks
-    // -----------------------------------------------------------------------------
-    inline void ReconstructionCardiac4D::SetForceExcludedStacks(Array<int>& force_excluded_stacks)
-    {
-        _force_excluded_stacks = force_excluded_stacks;
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Force Exclusion of Stacks
-    // -----------------------------------------------------------------------------
-    inline void ReconstructionCardiac4D::SetForceExcludedLocs(Array<int>& force_excluded_locs)
-    {
-        _force_excluded_locs = force_excluded_locs;
-    }
-    
-
-
-
 
 } // namespace svrtk

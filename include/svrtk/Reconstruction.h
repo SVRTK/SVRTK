@@ -260,12 +260,6 @@ namespace svrtk {
 
         bool _withMB;
 
-        //Probability density functions
-        // Zero-mean Gaussian PDF
-        inline double G(double x, double s);
-        // Uniform PDF
-        inline double M(double m);
-
         int _directions[13][3] = {
             {1, 0, -1},
             {0, 1, -1},
@@ -307,9 +301,6 @@ namespace svrtk {
         // Remember volumetric mask and smooth it if necessary
         void SetMask(RealImage *mask, double sigma, double threshold = 0.5);
 
-        // Set gestational age (to compute expected brain volume)
-        void SetGA(double ga);
-
         void SliceDifference();
 
         void SaveSliceInfo(int current_iteration);
@@ -342,10 +333,6 @@ namespace svrtk {
         // Update slices if stacks have changed
         void UpdateSlices(Array<RealImage>& stacks, Array<double>& thickness);
 
-        void GetSlices(Array<RealImage>& slices);
-
-        void SetSlices(const Array<RealImage>& slices);
-
         void SaveProbabilityMap(int i);
 
         // Invert all stack transformation
@@ -353,11 +340,11 @@ namespace svrtk {
 
         // Match stack intensities
         void MatchStackIntensities(Array<RealImage>& stacks,
-            Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
+            const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
 
         // Match stack intensities with masking
         void MatchStackIntensitiesWithMasking(Array<RealImage>& stacks,
-            Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
+            const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
 
         // If template image has been masked instead of creating the mask in separate
         // file, this function can be used to create mask from the template image
@@ -451,92 +438,12 @@ namespace svrtk {
         // Save transformations
         void SaveTransformations();
         void SaveTransformationsWithTiming(const int iter = -1);
-        void GetTransformations(Array<RigidTransformation>& transformations);
-        void SetTransformations(const Array<RigidTransformation>& transformations);
 
         // Save confidence map
         void SaveConfidenceMap();
 
         // Save bias field
         void SaveBiasFields();
-
-        // Remember stdev for bias field
-        inline void SetSigma(double sigma);
-
-        // Return reconstructed volume
-        inline RealImage GetReconstructed();
-
-        void SetReconstructed(const RealImage& reconstructed);
-
-        // Return resampled mask
-        inline RealImage GetMask();
-
-        // Remember volumetric mask
-        inline void PutMask(const RealImage& mask);
-
-        // Set smoothing parameters
-        inline void SetSmoothingParameters(double delta, double lambda);
-
-        // Use faster lower quality reconstruction
-        inline void SpeedupOn();
-
-        // Use slower better quality reconstruction
-        inline void SpeedupOff();
-
-        // Switch on global bias correction
-        inline void GlobalBiasCorrectionOn();
-
-        // Switch off global bias correction
-        inline void GlobalBiasCorrectionOff();
-
-        // Set lower threshold for low intensity cutoff during bias estimation
-        inline void SetLowIntensityCutoff(double cutoff);
-
-        // Set slices which need to be excluded by default
-        inline void SetForceExcludedSlices(const Array<int>& force_excluded);
-
-        inline void Set3DRecon();
-        inline void Set1DRecon();
-        inline void SetInterpolationRecon();
-        inline void SetSlicesPerDyn(int slices);
-        inline void SetMultiband(bool withMB);
-
-        inline int GetNumberOfTransformations();
-        inline RigidTransformation GetTransformation(int n);
-
-        inline void SetNMIBins(int nmi_bins);
-        inline void SetBlurring(bool flag_blurring);
-        inline void SetStrucrural(bool flag_structural);
-        inline void SetNThreads(int N);
-        inline void SetNPackages(const Array<int>& N);
-        inline void SetRegLog(bool flag_reg_log);
-
-        // Utility
-        // Whether to save intermediate results
-        inline void DebugOn();
-        inline void DebugOff();
-
-        // Whether to print out results
-        inline void VerboseOn(const string& log_file_name = "");
-        inline void VerboseOff();
-
-        inline void UseAdaptiveRegularisation();
-
-        inline void ExcludeWholeSlicesOnly();
-
-        inline void SetFFD(bool flag_ffd);
-
-        inline void SetNCC(bool flag_ncc);
-
-        inline void SetBG(bool flag);
-
-        inline void SetCP(int cp_spacing);
-
-        inline void SetTemplateFlag(bool template_flag);
-
-        inline void SetSR(bool flag_sr);
-
-        inline void SetMaskedStacks();
 
         void ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
 
@@ -653,195 +560,226 @@ namespace svrtk {
         friend class Parallel::AdaptiveRegularization1;
         friend class Parallel::AdaptiveRegularization2;
 
+        ////////////////////////////////////////////////////////////////////////////////
+        // Inline/template definitions
+        ////////////////////////////////////////////////////////////////////////////////
+
+        // Zero-mean Gaussian PDF
+        inline double G(double x, double s) {
+            return _step * exp(-x * x / (2 * s)) / (sqrt(6.28 * s));
+        }
+
+        // Uniform PDF
+        inline double M(double m) {
+            return m * _step;
+        }
+
+        inline const RealImage& GetReconstructed() {
+            return _reconstructed;
+        }
+
+        inline void SetReconstructed(const RealImage& reconstructed) {
+            _reconstructed = reconstructed;
+            _template_created = true;
+        }
+
+        inline const RealImage& GetMask() {
+            return _mask;
+        }
+
+        inline void PutMask(const RealImage& mask) {
+            _mask = mask;
+        }
+
+        inline void SetFFD(bool flag_ffd) {
+            _ffd = flag_ffd;
+        }
+
+        inline void SetNCC(bool flag_ncc) {
+            _ncc_reg = flag_ncc;
+        }
+
+        inline void SetRegLog(bool flag_reg_log) {
+            _reg_log = flag_reg_log;
+        }
+
+        inline void SetSR(bool flag_sr) {
+            _no_sr = flag_sr;
+        }
+
+        inline void SetTemplateFlag(bool template_flag) {
+            _template_flag = true;
+        }
+
+        // Whether to save intermediate results
+        inline void DebugOn() {
+            _debug = true;
+        }
+
+        inline void DebugOff() {
+            _debug = false;
+        }
+
+        // Whether to print out results
+        inline void VerboseOn(const string& log_file_name = "") {
+            VerboseOff();
+
+            if (!log_file_name.empty()) {
+                _verbose_log_stream_buf.open(log_file_name, ofstream::out | ofstream::trunc);
+                _verbose_log.rdbuf(_verbose_log_stream_buf.rdbuf());
+            }
+
+            _verbose = true;
+        }
+
+        inline void VerboseOff() {
+            if (_verbose_log_stream_buf.is_open()) {
+                _verbose_log_stream_buf.close();
+                _verbose_log.rdbuf(cout.rdbuf());
+            }
+
+            _verbose = false;
+        }
+
+        inline ostream& GetVerboseLog() {
+            return _verbose_log;
+        }
+
+        inline void SetBlurring(bool flag_blurring) {
+            _blurring = flag_blurring;
+        }
+
+        inline void SetStructural(bool flag_structural) {
+            _structural = flag_structural;
+        }
+
+        inline void UseAdaptiveRegularisation() {
+            _adaptive = true;
+        }
+
+        inline void SetMaskedStacks() {
+            _masked_stacks = true;
+        }
+
+        inline void SetSigma(double sigma) {
+            _sigma_bias = sigma;
+        }
+
+        // Set gestational age (to compute expected brain volume)
+        inline void SetGA(double ga) {
+            _GA = ga;
+        }
+
+        inline void SetNPackages(const Array<int>& N) {
+            _n_packages = N;
+        }
+
+        // Use faster lower quality reconstruction
+        inline void SpeedupOn() {
+            _quality_factor = 1;
+        }
+
+        // Use slower better quality reconstruction
+        inline void SpeedupOff() {
+            _quality_factor = 2;
+        }
+
+        inline void GlobalBiasCorrectionOn() {
+            _global_bias_correction = true;
+        }
+
+        inline void GlobalBiasCorrectionOff() {
+            _global_bias_correction = false;
+        }
+
+        // Set lower threshold for low intensity cutoff during bias estimation
+        inline void SetLowIntensityCutoff(double cutoff) {
+            if (cutoff > 1) cutoff = 1;
+            else if (cutoff < 0) cutoff = 0;
+            _low_intensity_cutoff = cutoff;
+        }
+
+        inline void ExcludeWholeSlicesOnly() {
+            _robust_slices_only = true;
+            cout << "Exclude only whole slices." << endl;
+        }
+
+        inline void SetSmoothingParameters(double delta, double lambda) {
+            _delta = delta;
+            _lambda = lambda * delta * delta;
+            _alpha = 0.05 / lambda;
+            if (_alpha > 1)
+                _alpha = 1;
+
+            if (_verbose)
+                _verbose_log << "delta = " << _delta << " lambda = " << lambda << " alpha = " << _alpha << endl;
+        }
+
+        // Set slices which need to be excluded by default
+        inline void SetForceExcludedSlices(const Array<int>& force_excluded) {
+            _force_excluded = force_excluded;
+        }
+
+        inline void SetNMIBins(int nmi_bins) {
+            _nmi_bins = nmi_bins;
+        }
+
+        inline void Set3DRecon() {
+            _recon_type = _3D;
+        }
+
+        inline void Set1DRecon() {
+            _recon_type = _1D;
+        }
+
+        inline void SetInterpolationRecon() {
+            _recon_type = _interpolate;
+        }
+
+        inline void SetSlicesPerDyn(int slices) {
+            _slicePerDyn = slices;
+        }
+
+        inline void SetMultiband(bool withMB) {
+            _withMB = withMB;
+        }
+
+        inline int GetNumberOfTransformations() {
+            return _transformations.size();
+        }
+
+        inline RigidTransformation GetTransformation(int n) {
+            if (_transformations.size() <= n) {
+                cerr << "GetTransformation: too large n = " << n << endl;
+                exit(1);
+            }
+            return _transformations[n];
+        }
+
+        inline void SetBG(bool flag_bg) {
+            _bg_flag = flag_bg;
+        }
+
+        inline void SetCP(int cp_spacing) {
+            _cp_spacing = cp_spacing;
+        }
+
+        inline void GetTransformations(Array<RigidTransformation>& transformations) {
+            transformations = _transformations;
+        }
+
+        inline void SetTransformations(const Array<RigidTransformation>& transformations) {
+            _transformations = transformations;
+        }
+
+        inline void GetSlices(Array<RealImage>& slices) {
+            slices = _slices;
+        }
+
+        inline void SetSlices(const Array<RealImage>& slices) {
+            _slices = slices;
+        }
+
     };  // end of Reconstruction class definition
-
-    //-------------------------------------------------------------------------------
-    // Inline/template definitions
-    //-------------------------------------------------------------------------------
-
-    inline double Reconstruction::G(double x, double s) {
-        return _step * exp(-x * x / (2 * s)) / (sqrt(6.28 * s));
-    }
-
-    inline double Reconstruction::M(double m) {
-        return m * _step;
-    }
-
-    inline RealImage Reconstruction::GetReconstructed() {
-        return _reconstructed;
-    }
-
-    inline RealImage Reconstruction::GetMask() {
-        return _mask;
-    }
-
-    inline void Reconstruction::PutMask(const RealImage& mask) {
-        _mask = mask;
-    }
-
-    inline void Reconstruction::SetFFD(bool flag_ffd) {
-        _ffd = flag_ffd;
-    }
-
-    inline void Reconstruction::SetNCC(bool flag_ncc) {
-        _ncc_reg = flag_ncc;
-    }
-
-    inline void Reconstruction::SetRegLog(bool flag_reg_log) {
-        _reg_log = flag_reg_log;
-    }
-
-    inline void Reconstruction::SetSR(bool flag_sr) {
-        _no_sr = flag_sr;
-    }
-
-    inline void Reconstruction::SetTemplateFlag(bool template_flag) {
-        _template_flag = true;
-    }
-
-    inline void Reconstruction::DebugOn() {
-        _debug = true;
-    }
-
-    inline void Reconstruction::DebugOff() {
-        _debug = false;
-    }
-
-    inline void Reconstruction::VerboseOn(const string& log_file_name) {
-        VerboseOff();
-
-        if (!log_file_name.empty()) {
-            _verbose_log_stream_buf.open(log_file_name, ofstream::out | ofstream::trunc);
-            _verbose_log.rdbuf(_verbose_log_stream_buf.rdbuf());
-        }
-
-        _verbose = true;
-    }
-
-    inline void Reconstruction::VerboseOff() {
-        if (_verbose_log_stream_buf.is_open()) {
-            _verbose_log_stream_buf.close();
-            _verbose_log.rdbuf(cout.rdbuf());
-        }
-
-        _verbose = false;
-    }
-
-    inline void Reconstruction::SetBlurring(bool flag_blurring) {
-        _blurring = flag_blurring;
-    }
-
-    inline void Reconstruction::SetStrucrural(bool flag_structural) {
-        _structural = flag_structural;
-    }
-
-    inline void Reconstruction::UseAdaptiveRegularisation() {
-        _adaptive = true;
-    }
-
-    inline void Reconstruction::SetMaskedStacks() {
-        _masked_stacks = true;
-    }
-
-    inline void Reconstruction::SetSigma(double sigma) {
-        _sigma_bias = sigma;
-    }
-
-    inline void Reconstruction::SetGA(double ga) {
-        _GA = ga;
-    }
-
-    inline void Reconstruction::SetNPackages(const Array<int>& N) {
-        _n_packages = N;
-    }
-
-    inline void Reconstruction::SpeedupOn() {
-        _quality_factor = 1;
-    }
-
-    inline void Reconstruction::SpeedupOff() {
-        _quality_factor = 2;
-    }
-
-    inline void Reconstruction::GlobalBiasCorrectionOn() {
-        _global_bias_correction = true;
-    }
-
-    inline void Reconstruction::GlobalBiasCorrectionOff() {
-        _global_bias_correction = false;
-    }
-
-    inline void Reconstruction::SetLowIntensityCutoff(double cutoff) {
-        if (cutoff > 1) cutoff = 1;
-        else if (cutoff < 0) cutoff = 0;
-        _low_intensity_cutoff = cutoff;
-    }
-
-    inline void Reconstruction::ExcludeWholeSlicesOnly() {
-        _robust_slices_only = true;
-        cout << "Exclude only whole slices." << endl;
-    }
-
-
-    inline void Reconstruction::SetSmoothingParameters(double delta, double lambda) {
-        _delta = delta;
-        _lambda = lambda * delta * delta;
-        _alpha = 0.05 / lambda;
-        if (_alpha > 1)
-            _alpha = 1;
-
-        if (_verbose)
-            cout << "delta = " << _delta << " lambda = " << lambda << " alpha = " << _alpha << endl;
-    }
-
-    inline void Reconstruction::SetForceExcludedSlices(const Array<int>& force_excluded) {
-        _force_excluded = force_excluded;
-    }
-
-    inline void Reconstruction::SetNMIBins(int nmi_bins) {
-        _nmi_bins = nmi_bins;
-    }
-
-    inline void Reconstruction::Set3DRecon() {
-        _recon_type = _3D;
-    }
-
-    inline void Reconstruction::Set1DRecon() {
-        _recon_type = _1D;
-    }
-
-    inline void Reconstruction::SetInterpolationRecon() {
-        _recon_type = _interpolate;
-    }
-
-    inline void Reconstruction::SetSlicesPerDyn(int slices) {
-        _slicePerDyn = slices;
-    }
-
-    inline void Reconstruction::SetMultiband(bool withMB) {
-        _withMB = withMB;
-    }
-
-    inline int Reconstruction::GetNumberOfTransformations() {
-        return _transformations.size();
-    }
-
-    inline RigidTransformation Reconstruction::GetTransformation(int n) {
-        if (_transformations.size() <= n) {
-            cerr << "Reconstruction::GetTransformation: too large n = " << n << endl;
-            exit(1);
-        }
-        return _transformations[n];
-    }
-
-    inline void Reconstruction::SetBG(bool flag_bg) {
-        _bg_flag = flag_bg;
-    }
-
-    inline void Reconstruction::SetCP(int cp_spacing) {
-        _cp_spacing = cp_spacing;
-    }
-
-
 
 } // namespace svrtk

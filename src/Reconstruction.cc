@@ -2592,15 +2592,6 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
-    void Reconstruction::SetReconstructed(const RealImage& reconstructed) {
-        _reconstructed = reconstructed;
-        _template_created = true;
-    }
-
-    //-------------------------------------------------------------------
-
-    void Reconstruction::SetTransformations(const Array<RigidTransformation>& transformations) {
-        _transformations = transformations;
     void Reconstruction::ReadTransformations(const char *folder) {
         cout << "Reading transformations:" << endl;
         ReadTransformations(folder, _slices.size(), _transformations);
@@ -2688,24 +2679,6 @@ namespace svrtk {
     void Reconstruction::SaveTransformations() {
         for (size_t i = 0; i < _transformations.size(); i++)
             _transformations[i].Write((boost::format("transformation%1%.dof") % i).str().c_str());
-    }
-
-    //-------------------------------------------------------------------
-
-    void Reconstruction::GetTransformations(Array<RigidTransformation>& transformations) {
-        transformations = _transformations;
-    }
-
-    //-------------------------------------------------------------------
-
-    void Reconstruction::GetSlices(Array<RealImage>& slices) {
-        slices = _slices;
-    }
-
-    //-------------------------------------------------------------------
-
-    void Reconstruction::SetSlices(const Array<RealImage>& slices) {
-        _slices = slices;
     }
 
     //-------------------------------------------------------------------

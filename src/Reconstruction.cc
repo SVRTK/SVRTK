@@ -28,22 +28,21 @@ using namespace mirtk;
 namespace svrtk {
 
     // Extract specific image ROI
-    void bbox(RealImage& stack, RigidTransformation& transformation, double& min_x, double& min_y, double& min_z, double& max_x, double& max_y, double& max_z) {
+    static void bbox(RealImage& stack, RigidTransformation& transformation, double& min_x, double& min_y, double& min_z, double& max_x, double& max_y, double& max_z) {
         min_x = DBL_MAX;
         min_y = DBL_MAX;
         min_z = DBL_MAX;
         max_x = -DBL_MAX;
         max_y = -DBL_MAX;
         max_z = -DBL_MAX;
-        double x, y, z;
         // WARNING: do not search to increment by stack.GetZ()-1,
         // otherwise you would end up with a 0 increment for slices...
         for (int i = 0; i <= stack.GetX(); i += stack.GetX())
             for (int j = 0; j <= stack.GetY(); j += stack.GetY())
                 for (int k = 0; k <= stack.GetZ(); k += stack.GetZ()) {
-                    x = i;
-                    y = j;
-                    z = k;
+                    double x = i;
+                    double y = j;
+                    double z = k;
 
                     stack.ImageToWorld(x, y, z);
                     transformation.Transform(x, y, z);
@@ -61,20 +60,18 @@ namespace svrtk {
                     if (z > max_z)
                         max_z = z;
                 }
-
     }
 
     //-------------------------------------------------------------------
 
     // Crop to non zero ROI
-    void bboxCrop(RealImage& image) {
-        int min_x, min_y, min_z, max_x, max_y, max_z;
-        min_x = image.GetX() - 1;
-        min_y = image.GetY() - 1;
-        min_z = image.GetZ() - 1;
-        max_x = 0;
-        max_y = 0;
-        max_z = 0;
+    static void bboxCrop(RealImage& image) {
+        int min_x = image.GetX() - 1;
+        int min_y = image.GetY() - 1;
+        int min_z = image.GetZ() - 1;
+        int max_x = 0;
+        int max_y = 0;
+        int max_z = 0;
         for (int i = 0; i < image.GetX(); i++)
             for (int j = 0; j < image.GetY(); j++)
                 for (int k = 0; k < image.GetZ(); k++) {
@@ -101,16 +98,15 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     // Find centroid
-    void centroid(RealImage& image, double& x, double& y, double& z) {
+    static void centroid(RealImage& image, double& x, double& y, double& z) {
         double sum_x = 0;
         double sum_y = 0;
         double sum_z = 0;
         double norm = 0;
-        double v;
         for (int i = 0; i < image.GetX(); i++)
             for (int j = 0; j < image.GetY(); j++)
                 for (int k = 0; k < image.GetZ(); k++) {
-                    v = image.Get(i, j, k);
+                    double v = image.Get(i, j, k);
                     if (v <= 0)
                         continue;
                     sum_x += v * i;
@@ -270,7 +266,7 @@ namespace svrtk {
         } else
             d = resolution;
 
-        cout << "Reconstructed volume voxel size : " << d << " mm " << endl;
+        cout << "Reconstructed volume voxel size : " << d << " mm" << endl;
 
         //resample "enlarged" to resolution "d"
         InterpolationMode interpolation = Interpolation_Linear;
@@ -306,7 +302,7 @@ namespace svrtk {
             }
         }
 
-        //initialize recontructed volume
+        //initialise reconstructed volume
         _reconstructed = move(enlarged);
         _template_created = true;
 
@@ -645,13 +641,8 @@ namespace svrtk {
 
         InvertStackTransformations(stack_transformations);
 
-        RealImage target;
         // check whether to use the global template or the selected stack
-        if (!_template_flag) {
-            target = stacks[templateNumber];
-        } else {
-            target = _reconstructed;
-        }
+        RealImage target = _template_flag ? _reconstructed : stacks[templateNumber];
 
         RealImage m_tmp = _mask;
         TransformMask(target, m_tmp, RigidTransformation());
@@ -802,9 +793,10 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     // match stack intensities with respect to the average
-    void Reconstruction::MatchStackIntensities(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together) {
+    void Reconstruction::MatchStackIntensities(Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations, double averageValue, bool together) {
         //Calculate the averages of intensities for all stacks
-        Array<double> stack_average(stacks.size());
+        Array<double> stack_average;
+        stack_average.reserve(stacks.size());
 
         //remember the set average value
         _average_value = averageValue;
@@ -835,9 +827,9 @@ namespace svrtk {
                         }
                     }
             //calculate average for the stack
-            if (num > 0)
-                stack_average[ind] = sum / num;
-            else {
+            if (num > 0) {
+                stack_average.push_back(sum / num);
+            } else {
                 cerr << "Stack " << ind << " has no overlap with ROI" << endl;
                 exit(1);
             }
@@ -858,12 +850,12 @@ namespace svrtk {
             _verbose_log << "The new average value is " << averageValue << endl;
         }
 
-        _stack_factor = Array<double>(stacks.size(), 1);
-
         //Rescale stacks
-        for (int ind = 0; ind < stacks.size(); ++ind) {
-            double factor = averageValue / (together ? global_average : stack_average[ind]);
-            _stack_factor[ind] = factor;
+        _stack_factor.clear();
+        _stack_factor.reserve(stacks.size());
+        for (int ind = 0; ind < stacks.size(); ind++) {
+            const double factor = averageValue / (together ? global_average : stack_average[ind]);
+            _stack_factor.push_back(factor);
 
             RealPixel *ptr = stacks[ind].Data();
             for (int i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
@@ -879,7 +871,7 @@ namespace svrtk {
 
         if (_verbose) {
             _verbose_log << "Slice intensity factors are ";
-            for (int ind = 0; ind < stack_average.size(); ind++)
+            for (int ind = 0; ind < _stack_factor.size(); ind++)
                 _verbose_log << _stack_factor[ind] << " ";
             _verbose_log << endl;
             _verbose_log << "The new average value is " << averageValue << endl;
@@ -981,17 +973,17 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     // match stack intensities with respect to the masked ROI
-    void Reconstruction::MatchStackIntensitiesWithMasking(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, double averageValue, bool together) {
+    void Reconstruction::MatchStackIntensitiesWithMasking(Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations, double averageValue, bool together) {
         SVRTK_START_TIMING();
 
-        Array<double> stack_average(stacks.size());
+        Array<double> stack_average;
+        stack_average.reserve(stacks.size());
 
         //remember the set average value
         _average_value = averageValue;
 
         //Calculate the averages of intensities for all stacks in the mask ROI
-
-        for (int ind = 0; ind < stacks.size(); ++ind) {
+        for (int ind = 0; ind < stacks.size(); ind++) {
             double sum = 0, num = 0;
             RealImage m;
 
@@ -1013,9 +1005,9 @@ namespace svrtk {
                         _mask.WorldToImage(x, y, z);
                         x = round(x);
                         y = round(y);
-                        z = round(z); _stack_factor.clear();
+                        z = round(z);
                         //if the voxel is inside mask ROI include it
-                        if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0) && (z < _mask.GetZ())) {
+                        if (x >= 0 && x < _mask.GetX() && y >= 0 && y < _mask.GetY() && z >= 0 && z < _mask.GetZ()) {
                             if (_mask(x, y, z) == 1) {
                                 if (_debug)
                                     m(i, j, k) = 1;
@@ -1030,14 +1022,12 @@ namespace svrtk {
 
             //calculate average for the stack
             if (num > 0) {
-                stack_average[ind] = sum / num;
+                stack_average.push_back(sum / num);
             } else {
                 cerr << "Stack " << ind << " has no overlap with ROI" << endl;
                 exit(1);
             }
         }
-
-        _stack_factor = Array<double>(stacks.size(), 1);
 
         double global_average = 0;
         if (together) {
@@ -1055,9 +1045,11 @@ namespace svrtk {
         }
 
         //Rescale stacks
-        for (int ind = 0; ind < stacks.size(); ++ind) {
+        _stack_factor.clear();
+        _stack_factor.reserve(stacks.size());
+        for (int ind = 0; ind < stacks.size(); ind++) {
             double factor = averageValue / (together ? global_average : stack_average[ind]);
-            _stack_factor[ind] = factor;
+            _stack_factor.push_back(factor);
 
             RealPixel *ptr = stacks[ind].Data();
             for (int i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
@@ -1067,13 +1059,13 @@ namespace svrtk {
         }
 
         if (_debug) {
-            for (int ind = 0; ind < stacks.size(); ind++)
+            for (size_t ind = 0; ind < stacks.size(); ind++)
                 stacks[ind].Write((boost::format("rescaled-stack%1%.nii.gz") % ind).str().c_str());
         }
 
         if (_verbose) {
             _verbose_log << "Slice intensity factors are ";
-            for (int ind = 0; ind < stack_average.size(); ind++)
+            for (size_t ind = 0; ind < stack_average.size(); ind++)
                 _verbose_log << _stack_factor[ind] << " ";
             _verbose_log << endl;
             _verbose_log << "The new average value is " << averageValue << endl;
@@ -1150,7 +1142,7 @@ namespace svrtk {
                     //initialize slice transformation with the stack transformation
                     _transformations.push_back(stack_transformations[i]);
 
-                    average_thickness = average_thickness + thickness[i];
+                    average_thickness += thickness[i];
 
                     // if non-rigid FFD registartion option was selected
                     if (_ffd)
@@ -1696,12 +1688,10 @@ namespace svrtk {
     void Reconstruction::CoeffInit() {
         SVRTK_START_TIMING();
 
-        //clear slice-volume matrix from previous iteration
-        _volcoeffs.clear();
+        //resize slice-volume matrix from previous iteration
         _volcoeffs.resize(_slices.size());
 
-        //clear indicator of slice having and overlap with volumetric mask
-        _slice_inside.clear();
+        //resize indicator of slice having and overlap with volumetric mask
         _slice_inside.resize(_slices.size());
         _attr_reconstructed = _reconstructed.Attributes();
 
@@ -1724,7 +1714,7 @@ namespace svrtk {
             if (!excluded) {
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++)
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++)
-                        for (int k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
+                        for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
                             const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
                             _volume_weights(p.x, p.y, p.z) += p.value;
                         }
@@ -1753,7 +1743,6 @@ namespace svrtk {
         SVRTK_END_TIMING("CoeffInit");
     }
 
-
     //-------------------------------------------------------------------
 
     // run gaussian reconstruction based on SVR & coeffinit outputs
@@ -1771,7 +1760,7 @@ namespace svrtk {
             //alias the current bias image
             const RealImage& b = _bias[inputIndex];
             //read current scale factor
-            double scale = _scale[inputIndex];
+            const double scale = _scale[inputIndex];
 
             int slice_vox_num = 0;
 
@@ -1847,12 +1836,10 @@ namespace svrtk {
 
     // another version of CoeffInit
     void Reconstruction::CoeffInitSF(int begin, int end) {
-        //clear slice-volume matrix from previous iteration
-        _volcoeffsSF.clear();
+        //resize slice-volume matrix from previous iteration
         _volcoeffsSF.resize(_slicePerDyn);
 
-        //clear indicator of slice having and overlap with volumetric mask
-        _slice_insideSF.clear();
+        //resize indicator of slice having and overlap with volumetric mask
         _slice_insideSF.resize(_slicePerDyn);
 
         Parallel::CoeffInitSF coeffinit(this, begin, end);
@@ -2023,7 +2010,7 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
-    // initiliase / reset EM values
+    // initialise / reset EM values
     void Reconstruction::InitializeEMValues() {
         SVRTK_START_TIMING();
 
@@ -2045,10 +2032,9 @@ namespace svrtk {
         }
 
         //Force exclusion of slices predefined by user
-        for (size_t i = 0; i < _force_excluded.size(); i++) {
+        for (size_t i = 0; i < _force_excluded.size(); i++)
             if (_force_excluded[i] > 0 && _force_excluded[i] < _slices.size())
                 _slice_weight[_force_excluded[i]] = 0;
-        }
 
         SVRTK_END_TIMING("InitializeEMValues");
     }
@@ -2093,7 +2079,7 @@ namespace svrtk {
                 _slice_weight[_force_excluded[i]] = 0;
         }
 
-        //initialize sigma for voxelwise robust statistics
+        //initialize sigma for voxel-wise robust statistics
         _sigma = sigma / num;
 
         //initialize sigma for slice-wise robust statistics
@@ -2106,8 +2092,7 @@ namespace svrtk {
         _m = 1 / (2.1 * _max_intensity - 1.9 * _min_intensity);
 
         if (_verbose)
-            _verbose_log << "Initializing robust statistics: " << "sigma=" << sqrt(_sigma) << " " << "m=" << _m
-            << " " << "mix=" << _mix << " " << "mix_s=" << _mix_s << endl;
+            _verbose_log << "Initializing robust statistics: sigma=" << sqrt(_sigma) << " m=" << _m << " mix=" << _mix << " mix_s=" << _mix_s << endl;
     }
 
     //-------------------------------------------------------------------
@@ -2133,15 +2118,15 @@ namespace svrtk {
             if (_scale[inputIndex] < 0.2 || _scale[inputIndex] > 5)
                 slice_potential[inputIndex] = -1;
 
-        //Calulation of slice-wise robust statistics parameters.
+        //Calculation of slice-wise robust statistics parameters.
         //This is theoretically M-step,
         //but we want to use latest estimate of slice potentials
         //to update the parameters
 
         if (_verbose) {
-            _verbose_log << endl << "Slice potentials: ";
+            _verbose_log << endl << "Slice potentials:";
             for (size_t inputIndex = 0; inputIndex < slice_potential.size(); inputIndex++)
-                _verbose_log << slice_potential[inputIndex] << " ";
+                _verbose_log << " " << slice_potential[inputIndex];
             _verbose_log << endl;
         }
 
@@ -2191,7 +2176,7 @@ namespace svrtk {
         }
 
         //sigma_s2
-        if ((sum2 > 0) && (den2 > 0)) {
+        if (sum2 > 0 && den2 > 0) {
             //do not allow too small sigma
             _sigma_s2 = max(sum2 / den2, _step * _step / 6.28);
         } else {
@@ -2262,9 +2247,9 @@ namespace svrtk {
             _verbose_log << "means: " << _mean_s << " " << _mean_s2 << "  ";
             _verbose_log << "sigmas: " << sqrt(_sigma_s) << " " << sqrt(_sigma_s2) << "  ";
             _verbose_log << "proportions: " << _mix_s << " " << 1 - _mix_s << endl;
-            _verbose_log << "Slice weights: ";
+            _verbose_log << "Slice weights:";
             for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-                _verbose_log << _slice_weight[inputIndex] << " ";
+                _verbose_log << " " << _slice_weight[inputIndex];
             _verbose_log << endl;
         }
     }
@@ -2280,9 +2265,9 @@ namespace svrtk {
 
         if (_verbose) {
             _verbose_log << setprecision(3);
-            _verbose_log << "Slice scale = ";
+            _verbose_log << "Slice scale =";
             for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-                _verbose_log << _scale[inputIndex] << " ";
+                _verbose_log << " " << _scale[inputIndex];
             _verbose_log << endl;
         }
 
@@ -2298,7 +2283,6 @@ namespace svrtk {
         parallelBias();
         SVRTK_END_TIMING("Bias");
     }
-
 
     //-------------------------------------------------------------------
 
@@ -2404,11 +2388,8 @@ namespace svrtk {
         //Calculate m
         _m = 1 / (max - min);
 
-        if (_verbose) {
-            _verbose_log << "Voxel-wise robust statistics parameters: ";
-            _verbose_log << "sigma = " << sqrt(_sigma) << " mix = " << _mix << " ";
-            _verbose_log << " m = " << _m << endl;
-        }
+        if (_verbose)
+            _verbose_log << "Voxel-wise robust statistics parameters: sigma=" << sqrt(_sigma) << " mix=" << _mix << " m=" << _m << endl;
     }
 
     //-------------------------------------------------------------------
@@ -2434,7 +2415,6 @@ namespace svrtk {
         if (_alpha * _lambda / (_delta * _delta) > 0.068)
             cerr << "Warning: regularization might not have smoothing effect! Ensure that alpha*lambda/delta^2 is below 0.068." << endl;
     }
-
 
     //-------------------------------------------------------------------
 
@@ -2492,7 +2472,6 @@ namespace svrtk {
             }
         }
     }
-
 
     //-------------------------------------------------------------------
 
@@ -2621,7 +2600,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveSimulatedSlices() {
-        cout << "Saving simulated slices ...";
+        cout << "Saving simulated slices ... ";
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             _simulated_slices[inputIndex].Write((boost::format("simslice%1%.nii.gz") % inputIndex).str().c_str());
         cout << "done." << endl;
@@ -2657,7 +2636,7 @@ namespace svrtk {
 
     void Reconstruction::SaveTransformationsWithTiming(const int iter) {
         cout << "Saving transformations with timing: ";
-        for (size_t i = 0; i < _slices.size(); i++) {
+        for (size_t i = 0; i < _transformations.size(); i++) {
             cout << i << " ";
             if (iter < 0)
                 _transformations[i].Write((boost::format("transformationTime%1%.dof") % _slice_timing[i]).str().c_str());

@@ -190,7 +190,7 @@ namespace svrtk::Parallel {
             Reconstruction *reconstructor,
             const Array<RealImage>& stacks,
             Array<RigidTransformation>& stack_transformations,
-            int _templateNumber,
+            int templateNumber,
             RealImage& target,
             RigidTransformation& offset) :
             reconstructor(reconstructor),

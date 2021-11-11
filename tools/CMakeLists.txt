@@ -26,6 +26,21 @@
 
 
 mirtk_add_executable(
+  resample-to-iso-grid
+  SOURCES
+    resample-to-iso-grid.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
   centre_volume
   SOURCES
     centre_volume.cc

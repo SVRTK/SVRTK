@@ -2324,6 +2324,7 @@ namespace svrtk {
         }
 
         if (!_adaptive) {
+            #pragma omp parallel for
             for (int i = 0; i < addon.GetX(); i++)
                 for (int j = 0; j < addon.GetY(); j++)
                     for (int k = 0; k < addon.GetZ(); k++)
@@ -2339,6 +2340,7 @@ namespace svrtk {
         _reconstructed += addon * _alpha; //_average_volume_weight;
 
         //bound the intensities
+        #pragma omp parallel for
         for (int i = 0; i < _reconstructed.GetX(); i++)
             for (int j = 0; j < _reconstructed.GetY(); j++)
                 for (int k = 0; k < _reconstructed.GetZ(); k++) {

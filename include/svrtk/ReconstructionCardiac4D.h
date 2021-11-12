@@ -111,13 +111,7 @@ namespace svrtk {
         
         // Slice Excluded
         Array<bool> _slice_excluded;
-        
-        // Initialise Slice Temporal Weights
-        void InitSliceTemporalWeights();
-        
-        // Calculate Angular Difference
-        double CalculateAngularDifference( double cardphase0, double cardphase );
-        
+
         // Temporal Weighting Tukey Window Edge Percent
         // applies to sinc temporal weighting only
         double _wintukeypct = 0.3;
@@ -126,48 +120,41 @@ namespace svrtk {
         // use Gaussian weighting if false
         bool _is_temporalpsf_gauss;
         
-        // Sinc Function
-        double sinc( double x );
-        
-        // Tukey Window Function
-        double wintukey( double angdiff, double alpha );
-        
-        // Calculate Temporal Weight
-        double CalculateTemporalWeight( double cardphase0, double cardphase, double dt, double rr, double alpha );
-        
-        
-    public:
-        
 
+        // Angular difference between output cardiac phase (cardphase0) and slice cardiac phase (cardphase)
+        inline double CalculateAngularDifference(double cardphase0, double cardphase) {
+            const double angdiff = (cardphase - cardphase0) - (2 * PI) * floor((cardphase - cardphase0) / (2 * PI));
+            return angdiff <= PI ? angdiff : -(2 * PI - angdiff);
+        }
+
+        // Sinc Function
+        inline double sinc(double x) {
+            return x == 0 ? 1 : sin(x) / x;
+        }
+
+        // Tukey Window Function
+        inline double wintukey(double angdiff, double alpha) {
+            // angdiff = angular difference (-PI to +PI)
+            // alpha   = amount of window with tapered cosine edges (0 to 1)
+            if (fabs(angdiff) > PI * (1 - alpha))
+                return (1 + cos((fabs(angdiff) - PI * (1 - alpha)) / alpha)) / 2;
+            return 1;
+        }
+
+    public:
         // Constructor
-        ReconstructionCardiac4D();
-        
+        ReconstructionCardiac4D() : Reconstruction() {
+            _recon_type = _3D;
+            _no_sr = false;
+            _no_ts = false;
+        }
+
         // Destructor
-        ~ReconstructionCardiac4D();
+        ~ReconstructionCardiac4D() {}
 
         // Get Slice-Location transformations
         void ReadSliceTransformation(const char *folder);
 
-        // Set Slice R-R Intervals
-        void SetSliceRRInterval( Array<double> rr );
-        void SetSliceRRInterval( double rr );
-        
-        // Set Loc R-R Intervals
-        void SetLocRRInterval( Array<double> rr );
-        
-        // Set Slice Cardiac Phases
-        void SetSliceCardiacPhase( Array<double> cardiacphases );
-        void SetSliceCardiacPhase();
-        
-        // Set Reconstructed R-R Interval
-        void SetReconstructedRRInterval( double rrinterval );
-        
-        // Set Reconstructed Temporal Resolution
-        void SetReconstructedTemporalResolution( double temporalresolution );
-        
-        // Set Reconstructed Cardiac Phases
-        void SetReconstructedCardiacPhase( vector<double> cardiacphases );
-        
         // Set Reconstructed Volume Spatial Resolution
         double GetReconstructedResolutionFromTemplateStack( RealImage stack );
         
@@ -180,23 +167,12 @@ namespace svrtk {
                                                double averageValue,
                                                bool together=false);
         
-        //Set stack factors
-        void InitStackFactor(Array<RealImage>& stacks);
-        
         // Create slices from the stacks and
         // slice-dependent transformations from stack transformations
         void CreateSlicesAndTransformationsCardiac4D( Array<RealImage>& stacks,
                                                      Array<RigidTransformation>& stack_transformations,
                                                      Array<double>& thickness,
                                                      const Array<RealImage> &probability_maps=Array<RealImage>() );
-        
-        void ResetSlicesAndTransformationsCardiac4D();
-        
-        /// Init Corrected Slices
-        void InitCorrectedSlices();
-        
-        /// Init Error
-        void InitError();
         
         // Calculate Slice Temporal Weights
         void CalculateSliceTemporalWeights();
@@ -206,10 +182,7 @@ namespace svrtk {
         
         // PSF-Weighted Reconstruction
         void GaussianReconstructionCardiac4D();
-        
-        ///Scale volume to match the slice intensities
-        void ScaleVolumeCardiac4D();
-        
+
         // Calculate Corrected Slices
         void CalculateCorrectedSlices();
         
@@ -237,7 +210,7 @@ namespace svrtk {
         double CalculateWeightedDisplacement(RigidTransformation drift);
         
         // Calculate Target Registration Error (TRE)
-        void InitTRE();
+        inline void InitTRE() { _slice_tre = Array<double>(_slices.size(), -1); }
         double CalculateTRE();
         double CalculateTRE(RigidTransformation drift);
         
@@ -248,8 +221,8 @@ namespace svrtk {
         void ScaleTransformations(double scale);
         
         // Apply Static Mask to Reconstructed 4D Volume
-        void StaticMaskReconstructedVolume4D();
-        
+        inline void StaticMaskReconstructedVolume4D() { StaticMaskVolume4D(_reconstructed4D, -1); }
+
         // Apply Static Mask 4D Volume
         RealImage StaticMaskVolume4D(RealImage volume, double padding);
         
@@ -357,16 +330,95 @@ namespace svrtk {
             return _volume_weights;
         }
 
-        ///Set stacks to be excluded
         inline void SetForceExcludedStacks(const Array<int>& force_excluded_stacks) {
             _force_excluded_stacks = force_excluded_stacks;
         }
 
-        // Set slice-locations to be excluded
         inline void SetForceExcludedLocs(const Array<int>& force_excluded_locs) {
             _force_excluded_locs = force_excluded_locs;
         }
 
+        inline void SetSliceRRInterval(const Array<double>& rr) {
+            _slice_rr = rr;
+        }
+
+        inline void SetSliceRRInterval(double rr) {
+            _slice_rr = Array<double>(_slices.size(), rr);
+        }
+
+        inline void SetLocRRInterval(const Array<double>& rr) {
+            Array<double> slice_rr;
+            for (size_t i = 0; i < _slices.size(); i++)
+                slice_rr.push_back(rr[_loc_index[i]]);
+            _slice_rr = move(slice_rr);
+        }
+
+        inline void SetSliceCardiacPhase(const Array<double>& cardiacphases) {
+            _slice_cardphase = cardiacphases;
+        }
+
+        inline void SetSliceCardiacPhase() {
+            _slice_cardphase = Array<double>(_slices.size());
+        }
+
+        inline void SetReconstructedCardiacPhase(const Array<double>& cardiacphases) {
+            _reconstructed_cardiac_phases = cardiacphases;
+        }
+
+        inline void SetReconstructedRRInterval(double rrinterval) {
+            _reconstructed_rr_interval = rrinterval;
+            if (_verbose)
+                _verbose_log << "Reconstructed R-R interval = " << _reconstructed_rr_interval << " s." << endl;
+        }
+
+        inline void SetReconstructedTemporalResolution(double temporalresolution) {
+            _reconstructed_temporal_resolution = temporalresolution;
+            if (_verbose)
+                _verbose_log << "Reconstructed temporal resolution = " << _reconstructed_temporal_resolution << " s." << endl;
+        }
+
+        inline void InitStackFactor(const Array<RealImage>& stacks) {
+            _stack_factor = Array<double>(stacks.size(), 1);
+        }
+
+        void ResetSlicesAndTransformationsCardiac4D() {
+            _slice_time.clear();
+            _slice_dt.clear();
+            _slices.clear();
+            _simulated_slices.clear();
+            _simulated_weights.clear();
+            _simulated_inside.clear();
+            _stack_index.clear();
+            _loc_index.clear();
+            _stack_loc_index.clear();
+            _stack_dyn_index.clear();
+            _transformations.clear();
+            _slice_excluded.clear();
+            _probability_maps.clear();
+        }
+
+        inline void InitCorrectedSlices() {
+            _corrected_slices = _slices;
+        }
+
+        inline void InitError() {
+            _error = _slices;
+        }
+
+        inline void InitSliceTemporalWeights() {
+            _slice_temporal_weight.clear();
+            _slice_temporal_weight.resize(_reconstructed_cardiac_phases.size());
+            for (size_t i = 0; i < _reconstructed_cardiac_phases.size(); i++)
+                _slice_temporal_weight[i].resize(_slices.size());
+        }
+
+        // Scale volume to match the slice intensities
+        inline void ScaleVolumeCardiac4D() {
+            if (_verbose)
+                _verbose_log << "Scaling volume: ";
+
+            ScaleVolume(_reconstructed4D);
+        }
     };  // end of ReconstructionCardiac4D class definition
 
 } // namespace svrtk

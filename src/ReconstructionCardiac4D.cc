@@ -39,71 +39,8 @@
 using namespace std;
 using namespace mirtk;
 
-namespace svrtk {
+namespace svrtk {    
 
-    // -----------------------------------------------------------------------------
-    // Constructor
-    // -----------------------------------------------------------------------------
-    ReconstructionCardiac4D::ReconstructionCardiac4D():Reconstruction()
-    {
-        _recon_type = _3D;
-        _no_sr = false;
-        _no_ts = false;
-    }
-    
-    // -----------------------------------------------------------------------------
-    // Destructor
-    // -----------------------------------------------------------------------------
-    ReconstructionCardiac4D::~ReconstructionCardiac4D() { }
-    
-    // -----------------------------------------------------------------------------
-    // Set Slice R-R Intervals
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SetSliceRRInterval( Array<double> rr )
-    {
-        _slice_rr = rr;
-    }
-    
-    void ReconstructionCardiac4D::SetSliceRRInterval( double rr )
-    {
-        Array<double> slice_rr;
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        {
-            slice_rr.push_back(rr);
-        }
-        _slice_rr = slice_rr;
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Set Slice R-R Intervals
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SetLocRRInterval( Array<double> rr )
-    {
-        Array<double> slice_rr;
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        {
-            slice_rr.push_back(rr[_loc_index[inputIndex]]);
-        }
-        _slice_rr = slice_rr;
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Set Slice Cardiac Phases
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SetSliceCardiacPhase( Array<double> cardiacphases )
-    {
-        _slice_cardphase = cardiacphases;
-    }
-    
-    void ReconstructionCardiac4D::SetSliceCardiacPhase()
-    {
-        _slice_cardphase.clear();
-        for (unsigned int i=0; i<_slices.size(); i++)
-            _slice_cardphase.push_back( 0 );
-    }
-    
     // -----------------------------------------------------------------------------
     // Determine Reconstructed Spatial Resolution
     // -----------------------------------------------------------------------------
@@ -136,37 +73,6 @@ namespace svrtk {
             _transformations.push_back(loc_transformations[_loc_index[i]]);
     }
 
-    // -----------------------------------------------------------------------------
-    // Set Reconstructed Cardiac Phases
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SetReconstructedCardiacPhase( Array<double> cardiacphases )
-    {
-        _reconstructed_cardiac_phases = cardiacphases;
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Set Reconstructed R-R Interval
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SetReconstructedRRInterval( double rrinterval )
-    {
-        _reconstructed_rr_interval = rrinterval;
-        if (_debug)
-            cout<<"Reconstructed R-R interval = "<<_reconstructed_rr_interval<<" s."<<endl;
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Set Reconstructed Cardiac Phases
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SetReconstructedTemporalResolution( double temporalresolution )
-    {
-        _reconstructed_temporal_resolution = temporalresolution;
-        if (_debug)
-            cout<<"Reconstructed temporal resolution = "<<_reconstructed_temporal_resolution<<" s."<<endl;
-    }
-    
-    
     // -----------------------------------------------------------------------------
     // Initialise Reconstructed Volume from Static Mask
     // -----------------------------------------------------------------------------
@@ -344,24 +250,10 @@ namespace svrtk {
             cout << endl;
             cout << "The new average value is " << averageValue << endl;
         }
-        
-        cout<<setprecision(3);
-        
+
+        cout << setprecision(3);
     }
-    
-    // -----------------------------------------------------------------------------
-    // Initialise Stack Factor
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::InitStackFactor(Array<RealImage> &stacks)
-    {
-        _stack_factor.clear();
-        for(unsigned int stackIndex=0; stackIndex<stacks.size(); stackIndex++)
-            _stack_factor.push_back(1);
-    }
-    
-    
-    
-    
+
     // -----------------------------------------------------------------------------
     // Create Slices and Associated Transformations
     // -----------------------------------------------------------------------------
@@ -425,76 +317,18 @@ namespace svrtk {
         }
         cout << "Number of images: " << _slices.size() << endl;
         //set excluded slices
-        for (unsigned int i = 0; i < _force_excluded.size(); i++)
-            _slice_excluded[_force_excluded[i]] = 1;
-        for (unsigned int i = 0; i < _force_excluded_stacks.size(); i++)
-            for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-                if (_force_excluded_stacks[i]==_stack_index[inputIndex])
-                    _slice_excluded[inputIndex] = 1;
-        for (unsigned int i = 0; i < _force_excluded_locs.size(); i++)
-            for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-                if (_force_excluded_locs[i]==_loc_index[inputIndex])
-                    _slice_excluded[inputIndex] = 1;
+        for (size_t i = 0; i < _force_excluded.size(); i++)
+            _slice_excluded[_force_excluded[i]] = true;
+        for (size_t i = 0; i < _force_excluded_stacks.size(); i++)
+            for (size_t j = 0; j < _slices.size(); j++)
+                if (_force_excluded_stacks[i] == _stack_index[j])
+                    _slice_excluded[j] = true;
+        for (size_t i = 0; i < _force_excluded_locs.size(); i++)
+            for (size_t j = 0; j < _slices.size(); j++)
+                if (_force_excluded_locs[i] == _loc_index[j])
+                    _slice_excluded[j] = true;
     }
-    
-    // -----------------------------------------------------------------------------
-    // Reset Slices and Associated Transformations
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ResetSlicesAndTransformationsCardiac4D()
-    {
-        _slice_time.clear();
-        _slice_dt.clear();
-        _slices.clear();
-        _simulated_slices.clear();
-        _simulated_weights.clear();
-        _simulated_inside.clear();
-        _stack_index.clear();
-        _loc_index.clear();
-        _stack_loc_index.clear();
-        _stack_dyn_index.clear();
-        _transformations.clear();
-        _slice_excluded.clear();
-        _probability_maps.clear();
-        
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // InitCorrectedSlices
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::InitCorrectedSlices()
-    {
-        _corrected_slices.clear();
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-            _corrected_slices.push_back(_slices[inputIndex]);
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // InitError
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::InitError()
-    {
-        _error.clear();
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-            _error.push_back(_slices[inputIndex]);
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Initialise Slice Temporal Weights
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::InitSliceTemporalWeights()
-    {
-        _slice_temporal_weight.clear();
-        _slice_temporal_weight.resize(_reconstructed_cardiac_phases.size());
-        for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++)
-        {
-            _slice_temporal_weight[outputIndex].resize(_slices.size());
-        }
-    }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Slice Temporal Weights
     // -----------------------------------------------------------------------------
@@ -522,21 +356,7 @@ namespace svrtk {
 
         
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Calculate Angular Difference
-    // -----------------------------------------------------------------------------
-    // Angular difference between output cardiac phase (cardphase0) and slice cardiac phase (cardphase)
-    double ReconstructionCardiac4D::CalculateAngularDifference( double cardphase0, double cardphase )
-    {
-        double angdiff;
-        angdiff = ( cardphase - cardphase0 ) - ( 2 * PI ) * floor( ( cardphase - cardphase0 ) / ( 2 * PI ) );
-        angdiff = ( angdiff <= PI ) ? angdiff : - ( 2 * PI - angdiff);
-        return angdiff;
-    }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Temporal Weight
     // -----------------------------------------------------------------------------
@@ -562,29 +382,6 @@ namespace svrtk {
         }
         
         return temporalweight;
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Sinc Function
-    // -----------------------------------------------------------------------------
-    double ReconstructionCardiac4D::sinc(double x)
-    {
-        if (x == 0)
-            return 1;
-        return sin(x)/x;
-    }
-    
-    // -----------------------------------------------------------------------------
-    // Tukey Window Function
-    // -----------------------------------------------------------------------------
-    double ReconstructionCardiac4D::wintukey( double angdiff, double alpha )
-    {
-        // angdiff = angular difference (-PI to +PI)
-        // alpha   = amount of window with tapered cosine edges (0 to 1)
-        if ( fabs( angdiff ) > PI * ( 1 - alpha ) )
-            return ( 1 + cos( ( fabs( angdiff ) - PI * ( 1 - alpha ) ) / alpha ) ) / 2;
-        return 1;
     }
 
     // -----------------------------------------------------------------------------
@@ -779,17 +576,7 @@ namespace svrtk {
                 cout<<" "<<_small_slices[i];
             cout<<endl;
         }
-    }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Scale Volume
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ScaleVolumeCardiac4D() {
-        if (_verbose)
-            _verbose_log << "Scaling volume: ";
 
-        ScaleVolume(_reconstructed4D);
     }
 
     // -----------------------------------------------------------------------------
@@ -1305,18 +1092,8 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Calculate Target Registration Error
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::InitTRE()
-    {
-        _slice_tre.clear();
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            _slice_tre.push_back(-1);
-        }
-    }
-    
-    
-    double ReconstructionCardiac4D::CalculateTRE()
-    {
-        
+
+    double ReconstructionCardiac4D::CalculateTRE() {
         if (_debug)
             cout << "CalculateTRE" << endl;
         
@@ -1726,35 +1503,10 @@ namespace svrtk {
         }
         
         //Put origin back
-        for(i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m=mo*m*imo;
-            _transformations[i].PutMatrix(m);
-        }
-        
+        for (size_t i = 0; i < _transformations.size(); i++)
+            _transformations[i].PutMatrix(mo * _transformations[i].GetMatrix() * imo);
     }
-    
-    
-    // -----------------------------------------------------------------------------
-    // Mask Reconstructed Volume
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::StaticMaskReconstructedVolume4D()
-    {
-        for ( int i = 0; i < _mask.GetX(); i++) {
-            for ( int j = 0; j < _mask.GetY(); j++) {
-                for ( int k = 0; k < _mask.GetZ(); k++) {
-                    if ( _mask(i,j,k) == 0 ) {
-                        for ( int t = 0; t < _reconstructed4D.GetT(); t++) {
-                            _reconstructed4D(i,j,k,t) = -1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Apply Static Mask to 4D Volume
     // -----------------------------------------------------------------------------

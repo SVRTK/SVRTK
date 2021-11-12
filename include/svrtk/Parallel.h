@@ -76,7 +76,7 @@ namespace svrtk::Parallel {
         Average(Average& x, split) : Average(x.reconstructor, x.stacks, x.stack_transformations, x.targetPadding, x.sourcePadding, x.background, x.linear) {}
 
         void operator()(const blocked_range<size_t>& r) {
-            for (size_t i = r.begin(); i < r.end(); ++i) {
+            for (size_t i = r.begin(); i < r.end(); i++) {
                 GenericLinearInterpolateImageFunction<RealImage> interpolator;
                 RealImage image(reconstructor->_reconstructed.Attributes());
 
@@ -182,8 +182,8 @@ namespace svrtk::Parallel {
         const Array<RealImage>& stacks;
         Array<RigidTransformation>& stack_transformations;
         int templateNumber;
-        RealImage& target;
-        RigidTransformation& offset;
+        const RealImage& target;
+        const RigidTransformation& offset;
 
     public:
         StackRegistrations(
@@ -191,8 +191,8 @@ namespace svrtk::Parallel {
             const Array<RealImage>& stacks,
             Array<RigidTransformation>& stack_transformations,
             int templateNumber,
-            RealImage& target,
-            RigidTransformation& offset) :
+            const RealImage& target,
+            const RigidTransformation& offset) :
             reconstructor(reconstructor),
             stacks(stacks),
             stack_transformations(stack_transformations),
@@ -201,7 +201,7 @@ namespace svrtk::Parallel {
             offset(offset) {}
 
         void operator()(const blocked_range<size_t>& r) const {
-            for (size_t i = r.begin(); i != r.end(); ++i) {
+            for (size_t i = r.begin(); i != r.end(); i++) {
                 if (!reconstructor->_template_flag) {
                     //do not perform registration for template
                     if (i == templateNumber)
@@ -209,8 +209,8 @@ namespace svrtk::Parallel {
                 }
 
                 ResamplingWithPadding<RealPixel> resampling2(1.5, 1.5, 1.5, 0);
-                GenericLinearInterpolateImageFunction<RealImage> interpolator2;
-                resampling2.Interpolator(&interpolator2);
+                GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                resampling2.Interpolator(&interpolator);
 
                 RealImage r_source(stacks[i].Attributes());
                 resampling2.Input(&stacks[i]);
@@ -222,9 +222,8 @@ namespace svrtk::Parallel {
                 resampling2.Output(&r_target);
                 resampling2.Run();
 
-                Matrix mo = offset.GetMatrix();
-                Matrix m = stack_transformations[i].GetMatrix() * mo;
-                stack_transformations[i].PutMatrix(m);
+                const Matrix& mo = offset.GetMatrix();
+                stack_transformations[i].PutMatrix(stack_transformations[i].GetMatrix() * mo);
 
                 ParameterList params;
                 Insert(params, "Transformation model", "Rigid");
@@ -257,8 +256,7 @@ namespace svrtk::Parallel {
                 RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
                 stack_transformations[i] = *rigidTransf;
 
-                m = stack_transformations[i].GetMatrix() * mo.Invert();
-                stack_transformations[i].PutMatrix(m);
+                stack_transformations[i].PutMatrix(stack_transformations[i].GetMatrix() * mo.Inverse());
 
                 //save volumetric registrations
                 if (reconstructor->_debug) {
@@ -333,7 +331,7 @@ namespace svrtk::Parallel {
     public:
         SimulateSlicesCardiac4D(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
+        void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 //Calculate simulated slice
                 reconstructor->_simulated_slices[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
@@ -365,7 +363,7 @@ namespace svrtk::Parallel {
             }
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };
@@ -382,8 +380,7 @@ namespace svrtk::Parallel {
         void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 GreyPixel smin, smax;
-                GreyImage target;
-                target = reconstructor->_grey_slices[inputIndex];
+                GreyImage target = reconstructor->_grey_slices[inputIndex];
                 target.GetMinMax(&smin, &smax);
 
                 if (smax > 1 && (smax - smin) > 1) {
@@ -465,48 +462,35 @@ namespace svrtk::Parallel {
     //-------------------------------------------------------------------
 
     class SliceToVolumeRegistrationCardiac4D {
-    public:
         ReconstructionCardiac4D *reconstructor;
 
-        SliceToVolumeRegistrationCardiac4D(ReconstructionCardiac4D *_reconstructor) :
-            reconstructor(_reconstructor) {}
+    public:
+        SliceToVolumeRegistrationCardiac4D(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
-
-            ImageAttributes attr = reconstructor->_reconstructed4D.Attributes();
+        void operator()(const blocked_range<size_t>& r) const {
+            const ImageAttributes& attr = reconstructor->_reconstructed4D.Attributes();
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-
                 if (!reconstructor->_slice_excluded[inputIndex]) {
-
-                    GreyPixel smin, smax;
-                    GreyImage target;
-                    RealImage slice, w, b, t;
-
-
-                    ResamplingWithPadding<RealPixel> resampling(attr._dx, attr._dx, attr._dx, -1);
-                    Reconstruction dummy_reconstruction;
-
-                    GenericLinearInterpolateImageFunction<RealImage> interpolator;
-
-                    // TARGET
-                    // get current slice
-                    t = reconstructor->_slices[inputIndex];
-                    // resample to spatial resolution of reconstructed volume
-                    resampling.Input(&reconstructor->_slices[inputIndex]);
-                    resampling.Output(&t);
-                    resampling.Interpolator(&interpolator);
-                    resampling.Run();
-                    target = t;
-
-                    target = reconstructor->_slices[inputIndex];
+                    // ResamplingWithPadding<RealPixel> resampling(attr._dx, attr._dx, attr._dx, -1);
+                    // GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                    // // TARGET
+                    // // get current slice
+                    // RealImage t(reconstructor->_slices[inputIndex].Attributes());
+                    // // resample to spatial resolution of reconstructed volume
+                    // resampling.Input(&reconstructor->_slices[inputIndex]);
+                    // resampling.Output(&t);
+                    // resampling.Interpolator(&interpolator);
+                    // resampling.Run();
+                    // GreyImage target = t;
 
                     // get pixel value min and max
+                    GreyPixel smin, smax;
+                    GreyImage target = reconstructor->_slices[inputIndex];
                     target.GetMinMax(&smin, &smax);
 
                     // SOURCE
                     if (smax > 0 && (smax - smin) > 1) {
-
                         ParameterList params;
                         Insert(params, "Transformation model", "Rigid");
                         Insert(params, "Image (dis-)similarity measure", "NMI");
@@ -525,44 +509,34 @@ namespace svrtk::Parallel {
                         // double width = 0;
                         // Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
 
-                        GenericRegistrationFilter *registration = new GenericRegistrationFilter();
+                        unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
                         registration->Parameter(params);
 
                         // put origin to zero
                         RigidTransformation offset;
-                        dummy_reconstruction.ResetOrigin(target, offset);
-                        Matrix mo = offset.GetMatrix();
-                        Matrix m = reconstructor->_transformations[inputIndex].GetMatrix();
-                        m = m * mo;
-                        reconstructor->_transformations[inputIndex].PutMatrix(m);
+                        Reconstruction::ResetOrigin(target, offset);
+                        const Matrix& mo = offset.GetMatrix();
+                        reconstructor->_transformations[inputIndex].PutMatrix(reconstructor->_transformations[inputIndex].GetMatrix() * mo);
 
-                        // TODO: extract nearest cardiac phase from reconstructed 4D to use as source
+                        // TODO: extract the nearest cardiac phase from reconstructed 4D to use as source
                         GreyImage source = reconstructor->_reconstructed4D.GetRegion(0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex] + 1);
-
                         registration->Input(&target, &source);
                         Transformation *dofout = nullptr;
                         registration->Output(&dofout);
-
-                        RigidTransformation tmp_dofin = reconstructor->_transformations[inputIndex];
-                        registration->InitialGuess(&tmp_dofin);
-
+                        registration->InitialGuess(&reconstructor->_transformations[inputIndex]);
                         registration->GuessParameter();
                         registration->Run();
-
-                        RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+                        RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
                         reconstructor->_transformations[inputIndex] = *rigidTransf;
 
                         //undo the offset
-                        mo.Invert();
-                        m = reconstructor->_transformations[inputIndex].GetMatrix();
-                        m = m * mo;
-                        reconstructor->_transformations[inputIndex].PutMatrix(m);
+                        reconstructor->_transformations[inputIndex].PutMatrix(reconstructor->_transformations[inputIndex].GetMatrix() * mo.Inverse());
                     }
                 }
             }
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };
@@ -634,9 +608,7 @@ namespace svrtk::Parallel {
         }
 
         void operator()() const {
-            task_scheduler_init init(8);
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
-            init.terminate();
         }
     };
 
@@ -931,7 +903,7 @@ namespace svrtk::Parallel {
                             for (int ii = 0; ii < xDim; ii++)
                                 for (int jj = 0; jj < yDim; jj++)
                                     for (int kk = 0; kk < zDim; kk++) {
-                                        //Calculate the position of the POINT3D of PSF centered over current slice voxel
+                                        //Calculate the position of the POINT3D of PSF centred over current slice voxel
                                         //This is a bit complicated because slices can be oriented in any direction
 
                                         //PSF image coordinates
@@ -946,7 +918,7 @@ namespace svrtk::Parallel {
                                         z -= cz;
 
                                         //Need to convert (x,y,z) to slice image coordinates because slices can have
-                                        //transformations included in them (they are nifti)  and those are not reflected in
+                                        //transformations included in them (they are nifti) and those are not reflected in
                                         //PSF. In slice image coordinates we are sure that z is through-plane
 
                                         //adjust according to voxel size
@@ -1230,7 +1202,7 @@ namespace svrtk::Parallel {
                                         //Need to convert (x,y,z) to slice image
                                         //coordinates because slices can have
                                         //transformations included in them (they are
-                                        //nifti)  and those are not reflected in
+                                        //nifti) and those are not reflected in
                                         //PSF. In slice image coordinates we are
                                         //sure that z is through-plane
 
@@ -1355,7 +1327,7 @@ namespace svrtk::Parallel {
     public:
         CoeffInitCardiac4D(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
+        void operator()(const blocked_range<size_t>& r) const {
             //get resolution of the volume
             double vx, vy, vz;
             reconstructor->_reconstructed4D.GetPixelSize(&vx, &vy, &vz);
@@ -1634,7 +1606,7 @@ namespace svrtk::Parallel {
             }  //end of loop through the slices
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };
@@ -1647,7 +1619,7 @@ namespace svrtk::Parallel {
     public:
         SimulateStacksCardiac4D(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
+        void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 if (!reconstructor->_slice_excluded[inputIndex]) {
                     reconstructor->GetVerboseLog() << inputIndex << " ";
@@ -1944,7 +1916,7 @@ namespace svrtk::Parallel {
             }  //end of loop through the slices
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };
@@ -1970,19 +1942,13 @@ namespace svrtk::Parallel {
                 //read current weight image
                 memset(reconstructor->_weights[inputIndex].Data(), 0, sizeof(RealPixel) * reconstructor->_weights[inputIndex].NumberOfVoxels());
 
-                //alias the current bias image
-                const RealImage& b = reconstructor->_bias[inputIndex];
-
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-
                 double num = 0;
                 //Calculate error, voxel weights, and slice potential
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) > -0.01) {
                             //bias correct and scale the slice
-                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * reconstructor->_scale[inputIndex];
 
                             //number of volumetric voxels to which
                             // current slice voxel contributes
@@ -2079,17 +2045,11 @@ namespace svrtk::Parallel {
                 // read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
 
-                //alias the current weight image
-                const RealImage& w = reconstructor->_weights[inputIndex];
-
                 //alias the current bias image
                 RealImage& b = reconstructor->_bias[inputIndex];
 
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-
                 //prepare weight image for bias field
-                RealImage wb = w;
+                RealImage wb = reconstructor->_weights[inputIndex];
 
                 RealImage wresidual(slice.Attributes());
 
@@ -2099,7 +2059,7 @@ namespace svrtk::Parallel {
                             if (reconstructor->_simulated_weights[inputIndex](i, j, 0) > 0.99) {
                                 //bias-correct and scale current slice
                                 const double eb = exp(-b(i, j, 0));
-                                slice(i, j, 0) *= eb * scale;
+                                slice(i, j, 0) *= eb * reconstructor->_scale[inputIndex];
 
                                 //calculate weight image
                                 wb(i, j, 0) *= slice(i, j, 0);
@@ -2229,42 +2189,26 @@ namespace svrtk::Parallel {
                 // read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
 
-                //read the current weight image
-                RealImage& w = reconstructor->_weights[inputIndex];
-
-                //read the current bias image
-                RealImage& b = reconstructor->_bias[inputIndex];
-
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-
                 //Update reconstructed volume using current slice
-
                 //Distribute error to the volume
-                POINT3D p;
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) != -1) {
                             //bias correct and scale the slice
-                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * reconstructor->_scale[inputIndex];
 
                             if (reconstructor->_simulated_slices[inputIndex](i, j, 0) > 0)
                                 slice(i, j, 0) -= reconstructor->_simulated_slices[inputIndex](i, j, 0);
                             else
                                 slice(i, j, 0) = 0;
 
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                            for (int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                            #pragma omp simd
+                            for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
+                                const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 for (int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++) {
-                                    if (reconstructor->_robust_slices_only) {
-                                        addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                        confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_slice_weight[inputIndex];
-
-                                    } else {
-                                        addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                        confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                    }
+                                    const auto multiplier = reconstructor->_robust_slices_only ? 1 : reconstructor->_weights[inputIndex](i, j, 0);
+                                    addon(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * multiplier * reconstructor->_slice_weight[inputIndex];
+                                    confidence_map(p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * multiplier * reconstructor->_slice_weight[inputIndex];
                                 }
                             }
                         }
@@ -2276,7 +2220,7 @@ namespace svrtk::Parallel {
             confidence_map += y.confidence_map;
         }
 
-        void operator() () {
+        void operator()() {
             parallel_reduce(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };
@@ -2309,15 +2253,12 @@ namespace svrtk::Parallel {
                 // read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
 
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-
                 //calculate error
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) > -0.01) {
                             //bias correct and scale the slice
-                            slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * scale;
+                            slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * reconstructor->_scale[inputIndex];
 
                             //otherwise the error has no meaning - it is equal to slice intensity
                             if (reconstructor->_simulated_weights[inputIndex](i, j, 0) > 0.99) {
@@ -2380,7 +2321,7 @@ namespace svrtk::Parallel {
             const int dx = reconstructor->_reconstructed.GetX();
             const int dy = reconstructor->_reconstructed.GetY();
             const int dz = reconstructor->_reconstructed.GetZ();
-            for (size_t i = r.begin(); i != r.end(); ++i) {
+            for (size_t i = r.begin(); i != r.end(); i++) {
                 for (int x = 0; x < dx; x++)
                     for (int y = 0; y < dy; y++)
                         for (int z = 0; z < dz; z++) {
@@ -2455,7 +2396,6 @@ namespace svrtk::Parallel {
 
                             val -= sum * original(x, y, z);
                             val = original(x, y, z) + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
-
                             reconstructor->_reconstructed(x, y, z) = val;
                         }
             }
@@ -2476,38 +2416,32 @@ namespace svrtk::Parallel {
 
     public:
         AdaptiveRegularization1Cardiac4D(
-            const ReconstructionCardiac4D *_reconstructor,
-            Array<RealImage>& _b,
-            const Array<double>& _factor,
-            const RealImage& _original) :
-            reconstructor(_reconstructor),
-            b(_b),
-            factor(_factor),
-            original(_original) {}
+            const ReconstructionCardiac4D *reconstructor,
+            Array<RealImage>& b,
+            const Array<double>& factor,
+            const RealImage& original) :
+            reconstructor(reconstructor),
+            b(b),
+            factor(factor),
+            original(original) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
-            int dx = reconstructor->_reconstructed4D.GetX();
-            int dy = reconstructor->_reconstructed4D.GetY();
-            int dz = reconstructor->_reconstructed4D.GetZ();
-            int dt = reconstructor->_reconstructed4D.GetT();
-            for (size_t i = r.begin(); i != r.end(); ++i) {
-                //b[i] = reconstructor->_reconstructed;
-                // b[i].Initialize( reconstructor->_reconstructed.Attributes() );
-
-                int x, y, z, xx, yy, zz, t;
-                double diff;
-                for (x = 0; x < dx; x++)
-                    for (y = 0; y < dy; y++)
-                        for (z = 0; z < dz; z++) {
-                            xx = x + reconstructor->_directions[i][0];
-                            yy = y + reconstructor->_directions[i][1];
-                            zz = z + reconstructor->_directions[i][2];
-                            for (t = 0; t < dt; t++) {
+        void operator()(const blocked_range<size_t>& r) const {
+            const int dx = reconstructor->_reconstructed4D.GetX();
+            const int dy = reconstructor->_reconstructed4D.GetY();
+            const int dz = reconstructor->_reconstructed4D.GetZ();
+            const int dt = reconstructor->_reconstructed4D.GetT();
+            for (size_t i = r.begin(); i != r.end(); i++) {
+                for (int x = 0; x < dx; x++)
+                    for (int y = 0; y < dy; y++)
+                        for (int z = 0; z < dz; z++) {
+                            const int xx = x + reconstructor->_directions[i][0];
+                            const int yy = y + reconstructor->_directions[i][1];
+                            const int zz = z + reconstructor->_directions[i][2];
+                            for (int t = 0; t < dt; t++) {
                                 if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
                                     && (reconstructor->_confidence_map(x, y, z, t) > 0) && (reconstructor->_confidence_map(xx, yy, zz, t) > 0)) {
-                                    diff = (original(xx, yy, zz, t) - original(x, y, z, t)) * sqrt(factor[i]) / reconstructor->_delta;
+                                    const double diff = (original(xx, yy, zz, t) - original(x, y, z, t)) * sqrt(factor[i]) / reconstructor->_delta;
                                     b[i](x, y, z, t) = factor[i] / sqrt(1 + diff * diff);
-
                                 } else
                                     b[i](x, y, z, t) = 0;
                             }
@@ -2515,7 +2449,7 @@ namespace svrtk::Parallel {
             }
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, 13), *this);
         }
     };
@@ -2524,27 +2458,24 @@ namespace svrtk::Parallel {
 
     class AdaptiveRegularization2Cardiac4D {
         ReconstructionCardiac4D *reconstructor;
-        Array<RealImage> &b;
-        Array<double> &factor;
-        RealImage &original;
+        const Array<RealImage>& b;
+        const RealImage& original;
 
     public:
-        AdaptiveRegularization2Cardiac4D(ReconstructionCardiac4D *_reconstructor,
-            Array<RealImage> &_b,
-            Array<double> &_factor,
-            RealImage &_original) :
-            reconstructor(_reconstructor),
-            b(_b),
-            factor(_factor),
-            original(_original) {}
+        AdaptiveRegularization2Cardiac4D(
+            ReconstructionCardiac4D *reconstructor,
+            const Array<RealImage>& b,
+            const RealImage& original) :
+            reconstructor(reconstructor),
+            b(b),
+            original(original) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
-            int dx = reconstructor->_reconstructed4D.GetX();
-            int dy = reconstructor->_reconstructed4D.GetY();
-            int dz = reconstructor->_reconstructed4D.GetZ();
-            int dt = reconstructor->_reconstructed4D.GetT();
+        void operator()(const blocked_range<size_t>& r) const {
+            const int dx = reconstructor->_reconstructed4D.GetX();
+            const int dy = reconstructor->_reconstructed4D.GetY();
+            const int dz = reconstructor->_reconstructed4D.GetZ();
+            const int dt = reconstructor->_reconstructed4D.GetT();
             for (size_t x = r.begin(); x != r.end(); ++x) {
-                int xx, yy, zz;
                 for (int y = 0; y < dy; y++)
                     for (int z = 0; z < dz; z++)
                         for (int t = 0; t < dt; t++) {
@@ -2552,40 +2483,38 @@ namespace svrtk::Parallel {
                                 double val = 0;
                                 double sum = 0;
                                 for (int i = 0; i < 13; i++) {
-                                    xx = x + reconstructor->_directions[i][0];
-                                    yy = y + reconstructor->_directions[i][1];
-                                    zz = z + reconstructor->_directions[i][2];
-                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                        if (reconstructor->_confidence_map(xx, yy, zz, t) > 0) {
-                                            val += b[i](x, y, z, t) * original(xx, yy, zz, t);
-                                            sum += b[i](x, y, z, t);
-                                        }
+                                    const int xx = x + reconstructor->_directions[i][0];
+                                    const int yy = y + reconstructor->_directions[i][1];
+                                    const int zz = z + reconstructor->_directions[i][2];
+                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
+                                        && (reconstructor->_confidence_map(xx, yy, zz, t) > 0)) {
+                                        val += b[i](x, y, z, t) * original(xx, yy, zz, t);
+                                        sum += b[i](x, y, z, t);
+                                    }
                                 }
 
                                 for (int i = 0; i < 13; i++) {
-                                    xx = x - reconstructor->_directions[i][0];
-                                    yy = y - reconstructor->_directions[i][1];
-                                    zz = z - reconstructor->_directions[i][2];
-                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                        if (reconstructor->_confidence_map(xx, yy, zz, t) > 0) {
+                                    const int xx = x - reconstructor->_directions[i][0];
+                                    const int yy = y - reconstructor->_directions[i][1];
+                                    const int zz = z - reconstructor->_directions[i][2];
+                                    if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
+                                        && (reconstructor->_confidence_map(xx, yy, zz, t) > 0)) {
                                             val += b[i](x, y, z, t) * original(xx, yy, zz, t);
                                             sum += b[i](x, y, z, t);
                                         }
                                 }
 
                                 val -= sum * original(x, y, z, t);
-                                val = original(x, y, z, t)
-                                    + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
+                                val = original(x, y, z, t) + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
                                 reconstructor->_reconstructed4D(x, y, z, t) = val;
                             }
                         }
             }
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_reconstructed4D.GetX()), *this);
         }
-
     };
 
     //-------------------------------------------------------------------
@@ -2648,7 +2577,7 @@ namespace svrtk::Parallel {
     //-------------------------------------------------------------------
 
     class NormaliseBiasCardiac4D {
-        ReconstructionCardiac4D* reconstructor;
+        ReconstructionCardiac4D *reconstructor;
 
     public:
         RealImage bias;
@@ -2665,39 +2594,35 @@ namespace svrtk::Parallel {
 
         void operator()(const blocked_range<size_t>& r) {
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
-
                 if (reconstructor->_verbose)
                     reconstructor->_verbose_log << inputIndex << " ";
 
                 // alias the current slice
-                RealImage& slice = reconstructor->_slices[inputIndex];
+                const RealImage& slice = reconstructor->_slices[inputIndex];
 
                 //read the current bias image
                 RealImage b = reconstructor->_bias[inputIndex];
 
                 //read current scale factor
-                double scale = reconstructor->_scale[inputIndex];
+                const double scale = reconstructor->_scale[inputIndex];
 
-                RealPixel *pi = slice.Data();
+                const RealPixel *pi = slice.Data();
                 RealPixel *pb = b.Data();
                 for (int i = 0; i < slice.NumberOfVoxels(); i++) {
-                    if ((*pi > -1) && (scale > 0))
-                        *pb -= log(scale);
-                    pb++;
-                    pi++;
+                    if (pi[i] > -1 && scale > 0)
+                        pb[i] -= log(scale);
                 }
 
                 //Distribute slice intensities to the volume
-                POINT3D p;
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) != -1) {
                             //number of volume voxels with non-zero coefficients for current slice voxel
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                            const size_t n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             //add contribution of current slice voxel to all voxel volumes
                             //to which it contributes
-                            for (int k = 0; k < n; k++) {
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                            for (size_t k = 0; k < n; k++) {
+                                const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 bias(p.x, p.y, p.z) += p.value * b(i, j, 0);
                                 volweight3d(p.x, p.y, p.z) += p.value;
                             }
@@ -2711,7 +2636,7 @@ namespace svrtk::Parallel {
             volweight3d += y.volweight3d;
         }
 
-        void operator() () {
+        void operator()() {
             parallel_reduce(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };
@@ -2746,10 +2671,10 @@ namespace svrtk::Parallel {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 double average_ncc = 0;
                 double average_volume = 0;
-                Array<RigidTransformation> current_stack_tranformations;
+                Array<RigidTransformation> current_stack_transformations;
 
                 cout << " - " << inputIndex << endl;
-                reconstructor->GlobalStackStats(stacks[inputIndex], masks[inputIndex], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
+                reconstructor->GlobalStackStats(stacks[inputIndex], masks[inputIndex], stacks, masks, average_ncc, average_volume, current_stack_transformations);
                 cout << " + " << inputIndex << endl;
 
                 all_global_ncc_array[inputIndex] = average_ncc;
@@ -2768,31 +2693,25 @@ namespace svrtk::Parallel {
         ReconstructionCardiac4D *reconstructor;
 
     public:
-        CalculateCorrectedSlices(ReconstructionCardiac4D *_reconstructor) : reconstructor(_reconstructor) {}
+        CalculateCorrectedSlices(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
+        void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 //read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
-
-                //alias the current bias image
-                const RealImage& b = reconstructor->_bias[inputIndex];
-
-                //identify scale factor
-                const double scale = reconstructor->_scale[inputIndex];
 
                 //calculate corrected voxels
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) != -1)
                             //bias correct and scale the voxel
-                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                            slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * reconstructor->_scale[inputIndex];
 
                 reconstructor->_corrected_slices[inputIndex] = move(slice);
             } //end of loop for a slice inputIndex
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };
@@ -2805,7 +2724,7 @@ namespace svrtk::Parallel {
     public:
         CalculateError(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
-        void operator() (const blocked_range<size_t>& r) const {
+        void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 //initialise
                 reconstructor->_error[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
@@ -2813,19 +2732,13 @@ namespace svrtk::Parallel {
                 //read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
 
-                //alias the current bias image
-                RealImage& b = reconstructor->_bias[inputIndex];
-
-                //identify scale factor
-                double scale = reconstructor->_scale[inputIndex];
-
                 //calculate error
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
                         if (slice(i, j, 0) != -1)
                             if (reconstructor->_simulated_weights[inputIndex](i, j, 0) > 0) {
                                 //bias correct and scale the voxel
-                                slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                                slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * reconstructor->_scale[inputIndex];
                                 //subtract simulated voxel
                                 slice(i, j, 0) -= reconstructor->_simulated_slices[inputIndex](i, j, 0);
                                 //assign as error
@@ -2834,7 +2747,7 @@ namespace svrtk::Parallel {
             } //end of loop for a slice inputIndex
         }
 
-        void operator() () const {
+        void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
     };

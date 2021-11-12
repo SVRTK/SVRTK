@@ -268,34 +268,31 @@ namespace svrtk {
 
         cout << "Reconstructed volume voxel size : " << d << " mm" << endl;
 
-        //resample "enlarged" to resolution "d"
-        InterpolationMode interpolation = Interpolation_Linear;
-
-        unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(interpolation));
-
         RealPixel smin, smax;
         stack.GetMinMax(&smin, &smax);
-        enlarged = stack;
+        enlarged.Initialize(stack.Attributes());
 
         // interpolate the input stack to the given resolution
         if (smin < -0.1) {
-            ResamplingWithPadding<RealPixel> resampler(d, d, d, -1);
             GenericLinearInterpolateImageFunction<RealImage> interpolator;
+            ResamplingWithPadding<RealPixel> resampler(d, d, d, -1);
             resampler.Input(&stack);
             resampler.Output(&enlarged);
             resampler.Interpolator(&interpolator);
             resampler.Run();
         } else {
             if (smin < 0.1) {
-                ResamplingWithPadding<RealPixel> resampler(d, d, d, 0);
                 GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                ResamplingWithPadding<RealPixel> resampler(d, d, d, 0);
                 resampler.Input(&stack);
                 resampler.Output(&enlarged);
                 resampler.Interpolator(&interpolator);
                 resampler.Run();
             } else {
+                //resample "enlarged" to resolution "d"
+                unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(Interpolation_Linear));
                 Resampling<RealPixel> resampler(d, d, d);
-                resampler.Input(&enlarged);
+                resampler.Input(&stack);
                 resampler.Output(&enlarged);
                 resampler.Interpolator(interpolator.get());
                 resampler.Run();
@@ -319,8 +316,6 @@ namespace svrtk {
 
     // Create anisotropic template
     double Reconstruction::CreateTemplateAniso(const RealImage& stack) {
-        double dx, dy, dz, d;
-
         //Get image attributes - image size and voxel size
         ImageAttributes attr = stack.Attributes();
 
@@ -369,7 +364,7 @@ namespace svrtk {
     // binarise mask
     RealImage Reconstruction::CreateMask(RealImage image) {
         RealPixel *ptr = image.Data();
-        for (int i = 0; i < image.NumberOfVoxels(); ++i)
+        for (int i = 0; i < image.NumberOfVoxels(); i++)
             ptr[i] = ptr[i] > 0.5 ? 1 : 0;
 
         return image;
@@ -386,7 +381,7 @@ namespace svrtk {
             image /= smax;
 
         RealPixel *ptr = image.Data();
-        for (int i = 0; i < image.NumberOfVoxels(); ++i)
+        for (int i = 0; i < image.NumberOfVoxels(); i++)
             ptr[i] = ptr[i] > threshold ? 1 : 0;
 
         return image;
@@ -408,7 +403,7 @@ namespace svrtk {
         //Create mask of the average from the black background
         MeanShift msh(average, 0, 256);
         msh.GenerateDensity();
-        msh.SetTreshold();
+        msh.SetThreshold();
         msh.RemoveBackground();
         GreyImage mask = msh.ReturnMask();
 
@@ -1393,7 +1388,7 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
-    // run SVR 
+    // run SVR
     void Reconstruction::SliceToVolumeRegistration() {
         SVRTK_START_TIMING();
 
@@ -1416,7 +1411,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     // run remote SVR
-    void Reconstruction::RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path) {
+    void Reconstruction::RemoteSliceToVolumeRegistration(int iter, const string& str_mirtk_path, const string& str_current_exchange_file_path) {
         SVRTK_START_TIMING();
 
         const ImageAttributes& attr_recon = _reconstructed.Attributes();
@@ -1447,7 +1442,7 @@ namespace svrtk {
                     target.GetMinMax(&tmin, &tmax);
                     _zero_slices[inputIndex] = tmax > 1 && (tmax - tmin) > 1 ? 1 : -1;
 
-                    string str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
+                    const string str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
                     target.Write(str_target.c_str());
 
                     _offset_matrices.push_back(offset.GetMatrix());
@@ -1457,10 +1452,10 @@ namespace svrtk {
             // save slice transformations
             for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
                 RigidTransformation r_transform = _transformations[inputIndex];
-                Matrix m = r_transform.GetMatrix() * _offset_matrices[inputIndex];
+                const Matrix m = r_transform.GetMatrix() * _offset_matrices[inputIndex];
                 r_transform.PutMatrix(m);
 
-                string str_dofin = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+                const string str_dofin = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
                 r_transform.Write(str_dofin.c_str());
             }
 
@@ -1470,7 +1465,7 @@ namespace svrtk {
 
             // run remote SVR in strides
             while (svr_range_start < _slices.size()) {
-                Parallel::RemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                Parallel::RemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_exchange_file_path);
                 registration();
 
                 svr_range_start = svr_range_stop;
@@ -1483,8 +1478,7 @@ namespace svrtk {
                 _transformations[inputIndex].Read(str_dofout.c_str());
 
                 //undo the offset
-                Matrix m = _transformations[inputIndex].GetMatrix() * _offset_matrices[inputIndex].Invert();
-                _transformations[inputIndex].PutMatrix(m);
+                _transformations[inputIndex].PutMatrix(_transformations[inputIndex].GetMatrix() * _offset_matrices[inputIndex].Inverse());
             }
         } else {
             // FFD SVR
@@ -1518,7 +1512,7 @@ namespace svrtk {
 
             // run parallel remote FFD SVR in strides
             while (svr_range_start < _slices.size()) {
-                Parallel::RemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path, false);
+                Parallel::RemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_exchange_file_path, false);
                 registration();
 
                 svr_range_start = svr_range_stop;
@@ -1701,6 +1695,7 @@ namespace svrtk {
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
         _volume_weights.Initialize(_reconstructed.Attributes());
 
+        // Do not parallelise: It would cause data inconsistencies
         for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             bool excluded = false;
 
@@ -1712,6 +1707,7 @@ namespace svrtk {
             }
 
             if (!excluded) {
+                // Do not parallelise: It would cause data inconsistencies
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++)
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++)
                         for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
@@ -1804,7 +1800,7 @@ namespace svrtk {
         }
 
         //normalize the volume by proportion of contributing slice voxels
-        //for each volume voxe
+        //for each volume voxel
         _reconstructed /= _volume_weights;
 
         _reconstructed.Write("init.nii.gz");
@@ -1850,6 +1846,7 @@ namespace svrtk {
 
         const Array<RealImage>& slices = _withMB ? _slicesRwithMB : _slices;
 
+        // Do not parallelise: It would cause data inconsistencies
         for (int inputIndex = begin; inputIndex < end; inputIndex++)
             for (int i = 0; i < slices[inputIndex].GetX(); i++)
                 for (int j = 0; j < slices[inputIndex].GetY(); j++)
@@ -2478,7 +2475,7 @@ namespace svrtk {
     // evaluation based on the number of excluded slices
     void Reconstruction::Evaluate(int iter, ostream& outstr) {
         outstr << "Iteration " << iter << ": " << endl;
-        
+
         size_t included_count = 0, excluded_count = 0, outside_count = 0;
         string included, excluded, outside;
 
@@ -2807,10 +2804,7 @@ namespace svrtk {
 
         // counters
         int counter1 = 0, counter2 = 0, counter3 = 0;
-
         int startIterations = 0;
-        int endIterations = 0;
-        int sum = 0;
 
         // dynamic loop
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
@@ -2824,13 +2818,14 @@ namespace svrtk {
                 z_internal_slice_order.push_back(_z_slice_order[counter1 + sl]);
 
             // fake packages
+            int sum = 0;
             while (sum < attr._z) {
                 sum += sliceNums[counter2];
                 counter2++;
             }
-            endIterations = counter2;
 
             // fake package loop
+            const int endIterations = counter2;
             for (int iter = startIterations; iter < endIterations; iter++) {
                 const int internalIterations = sliceNums[iter];
                 RealImage stack(attr);
@@ -2849,10 +2844,9 @@ namespace svrtk {
                 //     sliceStacks[i].Write((boost::format("sliceStacks%1%.nii") % i).str().c_str());
             }
 
-            // updating varialbles for next dynamic
+            // updating variables for next dynamic
             counter1 += attr._z;
             counter3 = 0;
-            sum = 0;
             startIterations = endIterations;
         }
     }
@@ -2878,8 +2872,8 @@ namespace svrtk {
             int sum = 0;
 
             for (int m = 0; m < multiband; m++) {
-                RealImage chunck = image.GetRegion(0, 0, m * sliceMB, attr._x, attr._y, (m + 1) * sliceMB);
-                chuncks.push_back(move(chunck));
+                RealImage chunk = image.GetRegion(0, 0, m * sliceMB, attr._x, attr._y, (m + 1) * sliceMB);
+                chuncks.push_back(move(chunk));
                 pack_num_chucks.push_back(pack_num[dyn]);
             }
 
@@ -2923,9 +2917,7 @@ namespace svrtk {
             counter4 += multiband * stepFactor;
 
             // reordering chuncks_separated
-            counter1 = 0;
-            counter2 = 0;
-            counter3 = 0;
+            counter1 = counter2 = counter3 = 0;
             while (counter1 < chuncks_separated.size()) {
                 chuncks_separated_reordered.push_back(chuncks_separated[counter2]);
                 counter2 += stepFactor;
@@ -2934,9 +2926,8 @@ namespace svrtk {
                 counter1++;
             }
 
-            // riassembling multiband packs
-            counter1 = 0;
-            counter2 = 0;
+            // reassembling multiband packs
+            counter1 = counter2 = 0;
             while (counter1 < chuncks_separated_reordered.size()) {
                 for (int m = 0; m < multiband; m++) {
                     const RealImage& toAdd = chuncks_separated_reordered[counter1];
@@ -3025,8 +3016,8 @@ namespace svrtk {
             const int sliceMB = attr._z / multiband;
 
             for (int m = 0; m < multiband; m++) {
-                RealImage chunck = image.GetRegion(0, 0, m * sliceMB, attr._x, attr._y, (m + 1) * sliceMB);
-                chuncks.push_back(move(chunck));
+                RealImage chunk = image.GetRegion(0, 0, m * sliceMB, attr._x, attr._y, (m + 1) * sliceMB);
+                chuncks.push_back(move(chunk));
                 pack_numAll.push_back(pack_num[dyn]);
             }
         }
@@ -3039,16 +3030,13 @@ namespace svrtk {
         for (int dyn = 0; dyn < stacks.size(); dyn++) {
             Array<RealImage> chuncks_separated, chuncks_separated_reordered;
             const RealImage& image = stacks[dyn];
-            const ImageAttributes& attr = image.Attributes();
-            RealImage multibanded(attr);
+            RealImage multibanded(image.Attributes());
             const int multiband = multiband_vector[dyn];
-            const int sliceMB = attr._z / multiband;
 
             // getting data from this dynamic
             const int stepFactor = pack_num[dyn];
-            for (int iter = 0; iter < multiband * stepFactor; iter++) {
+            for (int iter = 0; iter < multiband * stepFactor; iter++)
                 chuncks_separated.push_back(chunksAll[iter + counter4]);
-            }
             counter4 += multiband * stepFactor;
 
             // reordering chuncks_separated
@@ -3066,7 +3054,7 @@ namespace svrtk {
                 counter1++;
             }
 
-            // riassembling multiband slices
+            // reassembling multiband slices
             counter1 = 0;
             counter2 = 0;
             while (counter1 < chuncks_separated_reordered.size()) {
@@ -3076,7 +3064,6 @@ namespace svrtk {
                         for (int j = 0; j < toAdd.GetY(); j++)
                             for (int i = 0; i < toAdd.GetX(); i++)
                                 multibanded.Put(i, j, counter2, toAdd(i, j, k));
-
                         counter2++;
                     }
                     counter1++;
@@ -3166,9 +3153,8 @@ namespace svrtk {
                     if (tmax > 0) {
                         RigidTransformation offset;
                         ResetOrigin(t, offset);
-                        Matrix mo = offset.GetMatrix();
-                        Matrix m = internal_transformations[j].GetMatrix() * mo;
-                        internal_transformations[j].PutMatrix(m);
+                        const Matrix& mo = offset.GetMatrix();
+                        internal_transformations[j].PutMatrix(internal_transformations[j].GetMatrix() * mo);
 
                         rigidregistration.Input(&t, &s);
                         Transformation *dofout = nullptr;
@@ -3180,8 +3166,7 @@ namespace svrtk {
                         RigidTransformation *rigid_dofout = dynamic_cast<RigidTransformation*>(dofout);
                         internal_transformations[j] = *rigid_dofout;
 
-                        m = internal_transformations[j].GetMatrix() * mo.Invert();
-                        internal_transformations[j].PutMatrix(m);
+                        internal_transformations[j].PutMatrix(internal_transformations[j].GetMatrix() * mo.Inverse());
                     }
 
                     if (_debug)
@@ -3220,12 +3205,11 @@ namespace svrtk {
 
             //save overal slice order
             const ImageAttributes& attr = stacks[0].Attributes();
-            int dyn, num;
-            int slices_per_dyn = attr._z / multiband_vector[0];
+            const int slices_per_dyn = attr._z / multiband_vector[0];
 
             //slice order should repeat for each dynamic - only take first dynamic
             _slice_timing.clear();
-            for (dyn = 0; dyn < stacks.size(); dyn++)
+            for (size_t dyn = 0; dyn < stacks.size(); dyn++)
                 for (int i = 0; i < attr._z; i++) {
                     _slice_timing.push_back(dyn * slices_per_dyn + _t_slice_order[i]);
                     cout << "slice timing = " << _slice_timing[i] << endl;
@@ -3397,9 +3381,8 @@ namespace svrtk {
                 //put origin in target to zero
                 RigidTransformation offset;
                 ResetOrigin(target, offset);
-                Matrix mo = offset.GetMatrix();
-                Matrix m = _transformations[firstSliceIndex].GetMatrix() * mo;
-                _transformations[firstSliceIndex].PutMatrix(m);
+                const Matrix& mo = offset.GetMatrix();
+                _transformations[firstSliceIndex].PutMatrix(_transformations[firstSliceIndex].GetMatrix() * mo);
 
                 rigidregistration.Input(&target, &source);
                 Transformation *dofout = nullptr;
@@ -3412,8 +3395,7 @@ namespace svrtk {
                 _transformations[firstSliceIndex] = *rigidTransf;
 
                 //undo the offset
-                m = _transformations[firstSliceIndex].GetMatrix() * mo.Invert();
-                _transformations[firstSliceIndex].PutMatrix(m);
+                _transformations[firstSliceIndex].PutMatrix(_transformations[firstSliceIndex].GetMatrix() * mo.Inverse());
 
                 if (_debug)
                     _transformations[firstSliceIndex].Write((boost::format("transformation-%1%-%2%.dof") % i % j).str().c_str());
@@ -3455,19 +3437,10 @@ namespace svrtk {
 
     // Crops the image according to the mask
     void Reconstruction::CropImage(RealImage& image, const RealImage& mask) {
-        //ROI boundaries
-        //Original ROI
-        int x1 = 0;
-        int y1 = 0;
-        int z1 = 0;
-        int x2 = image.GetX();
-        int y2 = image.GetY();
-        int z2 = image.GetZ();
-
+        int i, j, k;
         //upper boundary for z coordinate
-        int i, j, k, sum = 0;
         for (k = image.GetZ() - 1; k >= 0; k--) {
-            sum = 0;
+            int sum = 0;
             for (j = image.GetY() - 1; j >= 0; j--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3475,12 +3448,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        z2 = k;
+        int z2 = k;
 
         //lower boundary for z coordinate
-        sum = 0;
         for (k = 0; k <= image.GetZ() - 1; k++) {
-            sum = 0;
+            int sum = 0;
             for (j = image.GetY() - 1; j >= 0; j--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3488,12 +3460,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        z1 = k;
+        int z1 = k;
 
         //upper boundary for y coordinate
-        sum = 0;
         for (j = image.GetY() - 1; j >= 0; j--) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3501,12 +3472,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        y2 = j;
+        int y2 = j;
 
         //lower boundary for y coordinate
-        sum = 0;
         for (j = 0; j <= image.GetY() - 1; j++) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3514,12 +3484,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        y1 = j;
+        int y1 = j;
 
         //upper boundary for x coordinate
-        sum = 0;
         for (i = image.GetX() - 1; i >= 0; i--) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (j = image.GetY() - 1; j >= 0; j--)
                     if (mask.Get(i, j, k) > 0)
@@ -3527,12 +3496,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        x2 = i;
+        int x2 = i;
 
         //lower boundary for x coordinate
-        sum = 0;
         for (i = 0; i <= image.GetX() - 1; i++) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (j = image.GetY() - 1; j >= 0; j--)
                     if (mask.Get(i, j, k) > 0)
@@ -3540,7 +3508,7 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        x1 = i;
+        int x1 = i;
 
         // if no intersection with mask, force exclude
         if ((x2 <= x1) || (y2 <= y1) || (z2 <= z1))
@@ -3554,11 +3522,11 @@ namespace svrtk {
 
     // GF 190416, useful for handling different slice orders
     void Reconstruction::CropImageIgnoreZ(RealImage& image, const RealImage& mask) {
+        int i, j, k;
         //Crops the image according to the mask
         // Filling slices out of mask with zeros
-        int i, j, k, sum = 0;
         for (k = image.GetZ() - 1; k >= 0; k--) {
-            sum = 0;
+            int sum = 0;
             for (j = image.GetY() - 1; j >= 0; j--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3571,9 +3539,8 @@ namespace svrtk {
         int z2 = k;
 
         //lower boundary for z coordinate
-        sum = 0;
         for (k = 0; k <= image.GetZ() - 1; k++) {
-            sum = 0;
+            int sum = 0;
             for (j = image.GetY() - 1; j >= 0; j--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3584,29 +3551,24 @@ namespace svrtk {
         int z1 = k;
 
         // Filling upper part
-        for (int k = z2; k < image.GetZ(); k++)
-            for (int j = 0; j < image.GetY(); j++)
-                for (int i = 0; i < image.GetX(); i++)
+        for (k = z2; k < image.GetZ(); k++)
+            for (j = 0; j < image.GetY(); j++)
+                for (i = 0; i < image.GetX(); i++)
                     image.Put(i, j, k, 0);
 
         // Filling lower part
-        for (int k = 0; k < z1; k++)
-            for (int j = 0; j < image.GetY(); j++)
-                for (int i = 0; i < image.GetX(); i++)
+        for (k = 0; k < z1; k++)
+            for (j = 0; j < image.GetY(); j++)
+                for (i = 0; i < image.GetX(); i++)
                     image.Put(i, j, k, 0);
 
         //Original ROI
-        int x1 = 0;
-        int y1 = 0;
         z1 = 0;
-        int x2 = image.GetX();
-        int y2 = image.GetY();
         z2 = image.GetZ() - 1;
 
         //upper boundary for y coordinate
-        sum = 0;
         for (j = image.GetY() - 1; j >= 0; j--) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3614,12 +3576,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        y2 = j;
+        int y2 = j;
 
         //lower boundary for y coordinate
-        sum = 0;
         for (j = 0; j <= image.GetY() - 1; j++) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (i = image.GetX() - 1; i >= 0; i--)
                     if (mask.Get(i, j, k) > 0)
@@ -3627,12 +3588,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        y1 = j;
+        int y1 = j;
 
         //upper boundary for x coordinate
-        sum = 0;
         for (i = image.GetX() - 1; i >= 0; i--) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (j = image.GetY() - 1; j >= 0; j--)
                     if (mask.Get(i, j, k) > 0)
@@ -3640,12 +3600,11 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        x2 = i;
+        int x2 = i;
 
         //lower boundary for x coordinate
-        sum = 0;
         for (i = 0; i <= image.GetX() - 1; i++) {
-            sum = 0;
+            int sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (j = image.GetY() - 1; j >= 0; j--)
                     if (mask.Get(i, j, k) > 0)
@@ -3653,7 +3612,7 @@ namespace svrtk {
             if (sum > 0)
                 break;
         }
-        x1 = i;
+        int x1 = i;
 
         // if no intersection with mask, force exclude
         if ((x2 <= x1) || (y2 <= y1) || (z2 <= z1))

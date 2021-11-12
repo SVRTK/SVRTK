@@ -411,7 +411,7 @@ namespace svrtk {
 
         // Slice to volume registrations
         void SliceToVolumeRegistration();
-        void RemoteSliceToVolumeRegistration(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path);
+        void RemoteSliceToVolumeRegistration(int iter, const string& str_mirtk_path, const string& str_current_exchange_file_path);
 
         // remote recon functions
         void SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration);
@@ -480,8 +480,8 @@ namespace svrtk {
         void SimulateSlices();
 
         // Puts origin of the image into origin of world coordinates
-        void ResetOrigin(GreyImage& image, RigidTransformation& transformation);
-        void ResetOrigin(RealImage& image, RigidTransformation& transformation);
+        static void ResetOrigin(GreyImage& image, RigidTransformation& transformation);
+        static void ResetOrigin(RealImage& image, RigidTransformation& transformation);
 
         // Packages to volume registrations
         void PackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num,
@@ -610,7 +610,7 @@ namespace svrtk {
         }
 
         inline void SetTemplateFlag(bool template_flag) {
-            _template_flag = true;
+            _template_flag = template_flag;
         }
 
         // Whether to save intermediate results

@@ -872,7 +872,7 @@ int main(int argc, char **argv) {
             // If only SVR option is used - skip 1st SR only averaging
             if (svrOnly) {
                 if (remoteFlag)
-                    reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentMainFilePath, strCurrentExchangeFilePath);
+                    reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
                 else
                     reconstruction->SliceToVolumeRegistration();
             } else if (iter > 0) {
@@ -882,7 +882,7 @@ int main(int argc, char **argv) {
                 } else {
                     // Run
                     if (remoteFlag)
-                        reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentMainFilePath, strCurrentExchangeFilePath);
+                        reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
                     else
                         reconstruction->SliceToVolumeRegistration();
                 }

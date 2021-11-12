@@ -1041,7 +1041,7 @@ int main(int argc, char **argv)
         if (svr_only || template_flag) {
             cout<< "SliceToVolumeRegistration" << endl;
             if (remote_flag) {
-                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_exchange_file_path);
             } else {
                 reconstruction->SliceToVolumeRegistration();
             }
@@ -1059,7 +1059,7 @@ int main(int argc, char **argv)
                     }
                     else {
                         if (remote_flag) {
-                            reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                            reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_exchange_file_path);
                         } else {
                             reconstruction->SliceToVolumeRegistration();
                         }

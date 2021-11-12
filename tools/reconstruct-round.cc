@@ -596,7 +596,7 @@ int main(int argc, char **argv)
             
             cout.rdbuf (file.rdbuf());
             if (remote_flag) {
-                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_exchange_file_path);
             } else {
                 reconstruction->SliceToVolumeRegistration();
             }
@@ -617,7 +617,7 @@ int main(int argc, char **argv)
 
                     cout.rdbuf (file.rdbuf());
                     if (remote_flag) {
-                        reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                        reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_exchange_file_path);
                     } else {
                         reconstruction->SliceToVolumeRegistration();
                     }

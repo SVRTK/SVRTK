@@ -665,7 +665,7 @@ int main(int argc, char **argv) {
         if (iter > 0) {
             reconstruction.GetVerboseLog() << "\n\nIteration " << iter << ":\n" << endl;
             if (remoteFlag) {
-                reconstruction.RemoteSliceToVolumeRegistrationCardiac4D(iter, strMirtkPath, strCurrentMainFilePath, strCurrentExchangeFilePath);
+                reconstruction.RemoteSliceToVolumeRegistrationCardiac4D(iter, strMirtkPath, strCurrentExchangeFilePath);
             } else {
                 reconstruction.SliceToVolumeRegistrationCardiac4D();
             }
@@ -779,7 +779,7 @@ int main(int argc, char **argv) {
             //Save intermediate reconstructed volume
             if (debug) {
                 reconstructed = reconstruction.GetReconstructedCardiac4D();
-                reconstructed = reconstruction.StaticMaskVolume4D(reconstructed, -1);
+                reconstruction.StaticMaskVolume4D(reconstructed, -1);
                 reconstructed.Write((boost::format("super_mc%02isr%02i.nii.gz") % iter % i).str().c_str());
             }
 
@@ -821,7 +821,7 @@ int main(int argc, char **argv) {
 
         //Save reconstructed image
         reconstructed = reconstruction.GetReconstructedCardiac4D();
-        reconstructed = reconstruction.StaticMaskVolume4D(reconstructed, -1);
+        reconstruction.StaticMaskVolume4D(reconstructed, -1);
         reconstructed.Write((boost::format("reconstructed_mc%02i.nii.gz") % iter).str().c_str());
 
         //Save Calculated Entropy
@@ -835,7 +835,7 @@ int main(int argc, char **argv) {
         if (haveRefVol) {
             // Get Current Reconstructed Volume
             reconstructed = reconstruction.GetReconstructedCardiac4D();
-            reconstructed = reconstruction.StaticMaskVolume4D(reconstructed, -1);
+            reconstruction.StaticMaskVolume4D(reconstructed, -1);
 
             // Invert to get recon to ref transformation
             if (regReconToRef) {

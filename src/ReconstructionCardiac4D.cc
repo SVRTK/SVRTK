@@ -1032,7 +1032,7 @@ namespace svrtk {
         int svr_range_stop = svr_range_start + stride;
 
         while (svr_range_start < _slices.size()) {
-            Parallel::RemoteSliceToVolumeRegistrationCardiac4D registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+            Parallel::RemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_exchange_file_path, true, _slice_svr_card_index);
             registration();
             
             svr_range_start = svr_range_stop;

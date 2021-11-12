@@ -614,15 +614,14 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for remote rigid SVR
     class RemoteSliceToVolumeRegistration {
         Reconstruction *reconstructor;
         int svr_range_start;
         int svr_range_stop;
-        string str_mirtk_path;
-        string str_current_main_file_path;
-        string str_current_exchange_file_path;
-        bool rigid;
+        const string& str_mirtk_path;
+        const string& str_current_exchange_file_path;
+        bool rigid, is4d;
+        const Array<int>& source_indexes;
         string register_cmd;
 
     public:
@@ -630,24 +629,25 @@ namespace svrtk::Parallel {
             Reconstruction *reconstructor,
             int svr_range_start,
             int svr_range_stop,
-            string str_mirtk_path,
-            string str_current_main_file_path,
-            string str_current_exchange_file_path,
-            bool rigid = true) :
+            const string& str_mirtk_path,
+            const string& str_current_exchange_file_path,
+            bool rigid = true,
+            const Array<int>& source_indexes = {}) :
             reconstructor(reconstructor),
             svr_range_start(svr_range_start),
             svr_range_stop(svr_range_stop),
             str_mirtk_path(str_mirtk_path),
-            str_current_main_file_path(str_current_main_file_path),
             str_current_exchange_file_path(str_current_exchange_file_path),
-            rigid(rigid) {
+            rigid(rigid),
+            source_indexes(source_indexes),
+            is4d(!source_indexes.empty()) {
             // Preallocate memory area
             register_cmd.reserve(1500);
             // Define registration parameters
             const string file_prefix = str_current_exchange_file_path + (rigid ? "/res-" : "/");
             register_cmd = str_mirtk_path + "/register ";
             register_cmd += file_prefix + "slice-%1%.nii.gz ";  // Target
-            register_cmd += str_current_exchange_file_path + "/current-source.nii.gz";  // Source
+            register_cmd += str_current_exchange_file_path + "/current-source" + (is4d ? "-%2%" : "") + ".nii.gz";  // Source
             register_cmd += string(" -model ") + (rigid ? "Rigid" : "FFD");
             register_cmd += " -bg1 0 -bg2 -1";
             register_cmd += " -dofin " + file_prefix + "transformation-%1%.dof";
@@ -663,74 +663,16 @@ namespace svrtk::Parallel {
         void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 if (reconstructor->_zero_slices[inputIndex] > 0) {
-                    if (system((boost::format(register_cmd) % inputIndex).str().c_str()) == -1)
+                    auto register_cmd_formatter = boost::format(register_cmd) % inputIndex;
+                    if (is4d)
+                        register_cmd_formatter % source_indexes[inputIndex];
+                    if (system(register_cmd_formatter.str().c_str()) == -1)
                         cerr << "The register command couldn't be executed!" << endl;
                 }
             } // end of inputIndex
         }
 
         void operator()() const {
-            parallel_for(blocked_range<size_t>(svr_range_start, svr_range_stop), *this);
-        }
-    };
-
-    //-------------------------------------------------------------------
-
-    class RemoteSliceToVolumeRegistrationCardiac4D {
-    public:
-        ReconstructionCardiac4D *reconstructor;
-        int svr_range_start;
-        int svr_range_stop;
-        string str_mirtk_path;
-        string str_current_main_file_path;
-        string str_current_exchange_file_path;
-
-        RemoteSliceToVolumeRegistrationCardiac4D(ReconstructionCardiac4D *in_reconstructor, int in_svr_range_start, int in_svr_range_stop, const string& in_str_mirtk_path, const string& in_str_current_main_file_path, const string& in_str_current_exchange_file_path) :
-            reconstructor(in_reconstructor),
-            svr_range_start(in_svr_range_start),
-            svr_range_stop(in_svr_range_stop),
-            str_mirtk_path(in_str_mirtk_path),
-            str_current_main_file_path(in_str_current_main_file_path),
-            str_current_exchange_file_path(in_str_current_exchange_file_path) {}
-
-        void operator() (const blocked_range<size_t>& r) const {
-
-            for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-
-                if (reconstructor->_zero_slices[inputIndex] > 0) {
-
-                    std::thread::id this_id = std::this_thread::get_id();
-                    //                cout << inputIndex  << " - " << this_id << " - " << endl;     //
-
-
-                    string str_target, str_source, str_reg_model, str_ds_setting, str_dofin, str_dofout, str_bg1, str_bg2, str_log;
-
-
-                    str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
-                    str_source = str_current_exchange_file_path + "/current-source-" + to_string(reconstructor->_slice_svr_card_index[inputIndex]) + ".nii.gz";
-                    str_log = " > " + str_current_exchange_file_path + "/log" + to_string(inputIndex) + ".txt";
-
-
-                    str_reg_model = "-model Rigid";
-
-                    str_dofout = "-dofout " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-
-                    str_bg1 = "-bg1 " + to_string(0);
-
-                    str_bg2 = "-bg2 " + to_string(-1);
-
-                    str_dofin = "-dofin " + str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-
-                    string register_cmd = str_mirtk_path + "/register " + str_target + " " + str_source + " " + str_reg_model + " " + str_bg1 + " " + str_bg2 + " " + str_dofin + " " + str_dofout + " " + str_log;
-
-                    int tmp_log = system(register_cmd.c_str());
-
-                }
-            } // end of inputIndex
-        }
-
-        // execute
-        void operator() () const {
             parallel_for(blocked_range<size_t>(svr_range_start, svr_range_stop), *this);
         }
     };

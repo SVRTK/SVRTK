@@ -28,7 +28,6 @@ namespace svrtk {
     // Forward declarations
     namespace Parallel {
         class CoeffInitCardiac4D;
-        class RemoteSliceToVolumeRegistrationCardiac4D;
         class SliceToVolumeRegistrationCardiac4D;
         class SimulateSlicesCardiac4D;
         class SimulateStacksCardiac4D;
@@ -312,7 +311,6 @@ namespace svrtk {
         
         // Access to Parallel Processing Classes
         friend class Parallel::CoeffInitCardiac4D;
-        friend class Parallel::RemoteSliceToVolumeRegistrationCardiac4D;
         friend class Parallel::SliceToVolumeRegistrationCardiac4D;
         friend class Parallel::SimulateSlicesCardiac4D;
         friend class Parallel::SimulateStacksCardiac4D;

@@ -112,9 +112,6 @@ int main(int argc, char **argv) {
     Array<double> thickness;
     ///number of stacks
     int nStacks;
-    /// number of packages for each stack
-    Array<int> packages;
-    Array<int> orders;
     // Location R-R Intervals;
     Array<double> rrLocs;
     // Slice R-R Intervals
@@ -170,7 +167,6 @@ int main(int argc, char **argv) {
     bool robustStatistics = true;
     bool robustSlicesOnly = false;
 
-    Array<int> multibands;
     RealImage average;
 
     string infoFilename = "info.tsv";
@@ -422,7 +418,7 @@ int main(int argc, char **argv) {
     //---------------------------------------------------------------------------------------------
 
     // check that conflicting transformation folders haven't been given
-    if (!folder.empty() & !sliceTransformationsFolder.empty()) {
+    if (!folder.empty() && !sliceTransformationsFolder.empty()) {
         cerr << "Can not use both -transformations and -slice_transformations arguments." << endl;
         return 1;
     }
@@ -430,24 +426,6 @@ int main(int argc, char **argv) {
     if (rescaleStacks) {
         for (size_t i = 0; i < stacks.size(); i++)
             reconstruction.Rescale(stacks[i], 1000);
-    }
-
-    // set packages to 1 if not given by user
-    if (packages.empty()) {
-        packages = Array<int>(stacks.size(), 1);
-        cout << "All packages set to 1" << endl;
-    }
-
-    // set multiband to 1 if not given by user
-    if (multibands.empty()) {
-        multibands = Array<int>(stacks.size(), 1);
-        cout << "Multiband set to 1 for all stacks" << endl;
-    }
-
-    // set ascending if not given by user
-    if (orders.empty()) {
-        orders = Array<int>(stacks.size(), 1);
-        cout << "Slice order set to ascending for all stacks" << endl;
     }
 
     //If transformations were not defined by user, set them to identity
@@ -561,8 +539,6 @@ int main(int argc, char **argv) {
     cout << setprecision(3);
     cerr << setprecision(3);
 
-    reconstruction.GetVerboseLog() << " *** " << endl;
-
     //volumetric registration if input stacks are single time frame
     if (stackRegistration) {
         const ImageAttributes& attr = stacks[templateNumber].Attributes();
@@ -578,8 +554,6 @@ int main(int argc, char **argv) {
             }
         }
     }
-
-    reconstruction.GetVerboseLog() << " *** \n" << endl;
 
     average = reconstruction.CreateAverage(stacks, stackTransformations);
     if (debug)
@@ -830,12 +804,10 @@ int main(int argc, char **argv) {
                     reconstruction.SaveError(stacks, iter, i + 1);
                 }
 
-                if (robustStatistics)
+                if (robustStatistics) {
                     reconstruction.MStep(i + 1);
-
-                //E-step
-                if (robustStatistics)
                     reconstruction.EStep();
+                }
 
                 //Save intermediate weights
                 if (debug)

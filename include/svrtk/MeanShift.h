@@ -40,8 +40,7 @@ using namespace mirtk;
 namespace svrtk {
 
     class MeanShift {
-        
-    protected: 
+    protected:
         int _nBins;
         int _padding;
         GreyImage _image;
@@ -50,17 +49,15 @@ namespace svrtk {
         GreyImage *_brain;
         GreyImage *_output;
         GreyPixel _imin, _imax;
-        double _limit1, _limit2, _limit, _treshold;
+        double _limit1, _limit2, _limit, _threshold;
         double _bin_width;
         double * _density;
         int _clusterSize;
     public:
         double _bg, _wm, _gm, _split1, _split2;
 
-
     public:
-
-        MeanShift(GreyImage& image, int padding = -1, int nBins = 256);
+        MeanShift(const GreyImage& image, int padding = -1, int nBins = 256);
         ~MeanShift();
         void SetOutput(GreyImage *_output);
         double ValueToBin(double value);
@@ -75,14 +72,14 @@ namespace svrtk {
         double GenerateDensity(double cut_off = 0.02);
         void Grow(int x, int y, int z, int label);
         int Lcc(int label, bool add_second = false);
-        int LccS(int label, double treshold = 0.5);
+        int LccS(int label, double threshold = 0.5);
         void RemoveBackground();
         void RegionGrowing();
         void FindWMGMmeans();
         void Write(char *output_name);
         void WriteMap(char *output_name);
-        void SetTreshold();
-        void SetTreshold(double treshold);
+        void SetThreshold();
+        void SetThreshold(double threshold);
 
         RealImage ReturnMask();
     };

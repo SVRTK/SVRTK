@@ -151,7 +151,6 @@ int main(int argc, char **argv) {
     double delta = 150;
     int levels = 3;
     double lastIterLambda = 0.01;
-    int recIterations;
     double averageValue = 700;
     double smoothMask = 4;
     bool globalBiasCorrection = false;
@@ -205,7 +204,6 @@ int main(int argc, char **argv) {
 
     // Flag for automated exclusion of low quality / similarity stacks
     bool excludeWrongStacks = false;
-    int bestSelectedStacks = -1;
 
     // Paths of 'dofin' arguments
     vector<string> dofinPaths;
@@ -703,7 +701,7 @@ int main(int argc, char **argv) {
 
     // Exclude low quality / similarity stacks (should be transferred to a separate function)
     if (excludeWrongStacks) {
-        bestSelectedStacks = stacks.size();
+        const size_t bestSelectedStacks = stacks.size();
         cout << "Selecting stacks : " << " " << endl;
 
         RealImage transformedTemplateMask = *mask;
@@ -720,7 +718,6 @@ int main(int argc, char **argv) {
         Array<double> selectedNccArray;
         Array<int> selectedIndicesArray;
         double maxNcc = -1.0;
-        int maxIndex = -1;
         int averageCountNcc = 0;
         double averageSliceNcc = 0;
         double averageVolumeNcc = 0;
@@ -747,10 +744,8 @@ int main(int argc, char **argv) {
             allCountArray.push_back(countNcc);
             allSliceNccArray.push_back(sliceNcc);
 
-            if (volumeNcc > maxNcc) {
+            if (volumeNcc > maxNcc)
                 maxNcc = volumeNcc;
-                maxIndex = i;
-            }
         }
 
         averageCountNcc /= stacks.size();
@@ -777,7 +772,7 @@ int main(int argc, char **argv) {
         sort(sortedNccArray.begin(), sortedNccArray.end(), greater<double>());
 
         cout << " - selected : " << endl;
-        int totalSelected = 0;
+        size_t totalSelected = 0;
         for (int j = 0; j < sortedNccArray.size(); j++) {
             for (size_t i = 0; i < stacks.size(); i++) {
                 if (totalSelected < bestSelectedStacks) {
@@ -939,10 +934,7 @@ int main(int argc, char **argv) {
                 reconstruction->EStep();
 
             // Set number of reconstruction iterations
-            if (iter == iterations - 1)
-                recIterations = srIterations * 3;
-            else
-                recIterations = srIterations;
+            const int recIterations = iter == iterations - 1 ? srIterations * 3 : srIterations;
 
             // SR reconstruction loop
             for (int i = 0; i < recIterations; i++) {

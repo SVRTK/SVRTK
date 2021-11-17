@@ -455,7 +455,7 @@ int main(int argc, char **argv)
     //read initial orientation
     
     Transformation *t_org = Transformation::New(argv[1]);
-    RigidTransformation *rigidTransf_org = dynamic_cast<RigidTransformation*> (t_org);
+    unique_ptr<RigidTransformation> rigidTransf_org(dynamic_cast<RigidTransformation*>(t_org));
     orient = *rigidTransf_org;
 //    orient.Read(argv[1]);
     cout<<"Initial transformation is "<<argv[1]<<endl;

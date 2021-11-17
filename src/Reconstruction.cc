@@ -3164,7 +3164,7 @@ namespace svrtk {
                         rigidregistration.GuessParameter();
                         rigidregistration.Run();
 
-                        RigidTransformation *rigid_dofout = dynamic_cast<RigidTransformation*>(dofout);
+                        unique_ptr<RigidTransformation> rigid_dofout(dynamic_cast<RigidTransformation*>(dofout));
                         internal_transformations[j] = *rigid_dofout;
 
                         internal_transformations[j].PutMatrix(internal_transformations[j].GetMatrix() * mo.Inverse());
@@ -3392,7 +3392,7 @@ namespace svrtk {
                 rigidregistration.GuessParameter();
                 rigidregistration.Run();
 
-                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
+                unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                 _transformations[firstSliceIndex] = *rigidTransf;
 
                 //undo the offset
@@ -3827,7 +3827,7 @@ namespace svrtk {
             registration.InitialGuess(&r_init);
             registration.GuessParameter();
             registration.Run();
-            RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*>(dofout);
+            unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
 
             GenericLinearInterpolateImageFunction<RealImage> interpolator;
             double source_padding = 0;

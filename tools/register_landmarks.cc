@@ -81,10 +81,9 @@ void FindCentroid(RealImage input_mask, double& wx, double& wy, double& wz)
 
 int RegisterLandmarks(Array<Point> source, Array<Point> target, RigidTransformation& output_transformation)
 {
-    
-    RigidTransformation *tmp = new mirtk::RigidTransformation();
-    output_transformation = *tmp;
-    
+
+    output_transformation = RigidTransformation();
+
     int i;
     double x, y, z;
     Vector w;
@@ -284,7 +283,7 @@ int main(int argc, char **argv)
     argv++;
     
     Transformation *t = Transformation::New(init_dof_name);
-    RigidTransformation *init_transf = dynamic_cast<RigidTransformation*> (t);
+    unique_ptr<RigidTransformation> init_transf(dynamic_cast<RigidTransformation*>(t));
 
     cout << " - Init dof : " << init_dof_name << endl;
 

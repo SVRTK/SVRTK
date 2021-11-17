@@ -696,11 +696,9 @@ namespace svrtk {
             svr_range_stop = min(svr_range_start + stride, (int)_slices.size());
         }
 
-            string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-
-            Transformation *tmp_transf = Transformation::New(str_dofout.c_str());
-            RigidTransformation *tmp_r_transf = dynamic_cast<RigidTransformation*> (tmp_transf);
-            _transformations[inputIndex] = *tmp_r_transf;
+        for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            const string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+            _transformations[inputIndex].Read(str_dofout.c_str());
 
             //undo the offset
             _transformations[inputIndex].PutMatrix(_transformations[inputIndex].GetMatrix() * _offset_matrices[inputIndex].Inverse());
@@ -727,8 +725,8 @@ namespace svrtk {
         registration.InitialGuess(&rigidTransf);
         registration.GuessParameter();
         registration.Run();
-        
-        RigidTransformation *rigidTransf_dofout = dynamic_cast<RigidTransformation*> (dofout);
+
+        unique_ptr<RigidTransformation> rigidTransf_dofout(dynamic_cast<RigidTransformation*>(dofout));
         rigidTransf = *rigidTransf_dofout;
     }
 

@@ -661,8 +661,8 @@ namespace svrtk {
                 
                 registration.GuessParameter();
                 registration.Run();
-                
-                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+
+                unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                 stack_transformations[i] = *rigidTransf;
                 
                 mo.Invert();
@@ -856,8 +856,8 @@ namespace svrtk {
             
             registration.GuessParameter();
             registration.Run();
-            
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+
+            unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
             stack_transformations[i] = *rigidTransf;
             
 
@@ -1580,7 +1580,7 @@ namespace svrtk {
                     registration->Run();
                     
                     
-                    RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+                    unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                     reconstructor->_transformations[inputIndex] = *rigidTransf;
 
                 
@@ -4046,8 +4046,8 @@ namespace svrtk {
                     rigidregistration.InitialGuess(&tmp_dofin);
                     rigidregistration.GuessParameter();
                     rigidregistration.Run();
-                    
-                    RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+
+                    unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                     _transformations[firstSliceIndex] = *rigidTransf;
                     
                     //undo the offset
@@ -6910,7 +6910,7 @@ namespace svrtk {
                     registration->GuessParameter();
                     registration->Run();
                     
-                    RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*> (dofout);
+                    unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                     reconstructor->_transformations[inputIndex] = *rigidTransf;
                     //undo the offset
                     mo.Invert();

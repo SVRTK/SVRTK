@@ -1247,8 +1247,7 @@ namespace svrtk {
             registration->GuessParameter();
             registration->Run();
 
-            RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
-           
+            unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
             stack_transformations[i] = *r_dofout;
 
             tx = stack_transformations[i].GetTranslationX();

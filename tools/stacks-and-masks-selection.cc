@@ -639,9 +639,9 @@ int main(int argc, char **argv)
         registration->InitialGuess(r_init);
         registration->GuessParameter();
         registration->Run();
-        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
         
         
+        unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
         Matrix m = r_dofout->GetMatrix();
         
         

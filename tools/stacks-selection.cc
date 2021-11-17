@@ -425,13 +425,13 @@ int main(int argc, char **argv)
 
         if (median_volume_diff_test < median_volume_selection_threshold*median_volume) {
         //if (volume_diff_test < volume_selection_threshold*volume_tmp_stdev && volume_tmp_all[i] > volume_tmp_average*0.25) {
-            
-            RigidTransformation* tmp_r = new RigidTransformation();
-            
+
+            RigidTransformation tmp_r;
+
             ConnectivityType i_connectivity = CONNECTIVITY_26;
-            
-            reconstruction->TransformMask(s_tmp, m_tmp, *tmp_r);
-            
+
+            reconstruction->TransformMask(s_tmp, m_tmp, tmp_r);
+
             RealImage dl_m_tmp = m_tmp;
             
             Dilate<RealPixel>(&dl_m_tmp, dilation_degree, i_connectivity);
@@ -621,8 +621,8 @@ int main(int argc, char **argv)
         registration->InitialGuess(r_init);
         registration->GuessParameter();
         registration->Run();
-        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
         
+        unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
         Matrix m = r_dofout->GetMatrix();
         m.Invert();
         stacks[i].PutAffineMatrix(m, true);
@@ -735,8 +735,8 @@ int main(int argc, char **argv)
     resamplingF.Interpolator(interpolator.get());
     resamplingF.Run();
 
-    RigidTransformation* tmp_rF = new RigidTransformation();
-    reconstruction->TransformMask(prelim_template_stack, prelim_template_mask, *tmp_rF);
+    RigidTransformation tmp_rF;
+    reconstruction->TransformMask(prelim_template_stack, prelim_template_mask, tmp_rF);
     ConnectivityType f_connectivity = CONNECTIVITY_26;
     Erode<RealPixel>(&prelim_template_mask, 2, f_connectivity);
     
@@ -744,14 +744,14 @@ int main(int argc, char **argv)
     prelim_template_stack.Write("masked-tmp-template.nii.gz");
 
 
-    RealImage masked_selected_template = prelim_template_stack; 
+    RealImage masked_selected_template = prelim_template_stack;
 
-        
-    RigidTransformation *r_init = new RigidTransformation();
-    r_init->PutTranslationX(0.0001);
-    r_init->PutTranslationY(0.0001);
-    r_init->PutTranslationZ(-0.0001);
-        
+
+    RigidTransformation r_init;
+    r_init.PutTranslationX(0.0001);
+    r_init.PutTranslationY(0.0001);
+    r_init.PutTranslationZ(-0.0001);
+
     ParameterList params;
     Insert(params, "Transformation model", "Rigid");
     Insert(params, "Background value for image 1", 0);
@@ -771,8 +771,8 @@ int main(int argc, char **argv)
         registration->InitialGuess(r_init);
         registration->GuessParameter();
         registration->Run();
-        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
         
+        unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
         Matrix m = r_dofout->GetMatrix();
         m.Invert();
         stacks[i].PutAffineMatrix(m, true);
@@ -793,12 +793,12 @@ int main(int argc, char **argv)
         
         RealImage masked_selected_template = stacks[selected_template];
         masked_selected_template *= masks[selected_template];
-        
-        RigidTransformation *r_init = new RigidTransformation();
-        r_init->PutTranslationX(0.0001);
-        r_init->PutTranslationY(0.0001);
-        r_init->PutTranslationZ(-0.0001);
-        
+
+        RigidTransformation r_init;
+        r_init.PutTranslationX(0.0001);
+        r_init.PutTranslationY(0.0001);
+        r_init.PutTranslationZ(-0.0001);
+
         ParameterList params;
         Insert(params, "Transformation model", "Rigid");
         Insert(params, "Background value for image 1", 0);
@@ -811,9 +811,9 @@ int main(int argc, char **argv)
         registration->InitialGuess(r_init);
         registration->GuessParameter();
         registration->Run();
-        RigidTransformation *r_dofout = dynamic_cast<RigidTransformation*> (dofout);
         
         
+        unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
         Matrix m = r_dofout->GetMatrix();
         
         

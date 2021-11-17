@@ -354,8 +354,8 @@ int main(int argc, char **argv)
                 cout << "Rigid ransformation : " << argv[1] << endl;
                 
                 Transformation *t_tmp = Transformation::New(argv[1]);
-                RigidTransformation *r_transformation = dynamic_cast<RigidTransformation*> (t_tmp);
-                
+                unique_ptr<RigidTransformation> r_transformation(dynamic_cast<RigidTransformation*>(t_tmp));
+
                 argc--;
                 argv++;
                 
@@ -1253,9 +1253,8 @@ int main(int argc, char **argv)
                 
                 Matrix m = stack_transformations[i].GetMatrix();
                 stacks[i]->PutAffineMatrix(m, true);
-                
-                RigidTransformation *rigidTransf = new RigidTransformation;
-                stack_transformations[i] = *rigidTransf;
+
+                stack_transformations[i] = RigidTransformation();
             }
             
         }

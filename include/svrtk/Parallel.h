@@ -253,7 +253,7 @@ namespace svrtk::Parallel {
                 registration.GuessParameter();
                 registration.Run();
 
-                RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
+                unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                 stack_transformations[i] = *rigidTransf;
 
                 stack_transformations[i].PutMatrix(stack_transformations[i].GetMatrix() * mo.Inverse());
@@ -431,7 +431,7 @@ namespace svrtk::Parallel {
                     registration->Run();
 
                     // output transformation
-                    RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
+                    unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                     reconstructor->_transformations[inputIndex] = *rigidTransf;
 
                     //undo the offset
@@ -527,7 +527,7 @@ namespace svrtk::Parallel {
                         registration->InitialGuess(&reconstructor->_transformations[inputIndex]);
                         registration->GuessParameter();
                         registration->Run();
-                        RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(dofout);
+                        unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                         reconstructor->_transformations[inputIndex] = *rigidTransf;
 
                         //undo the offset
@@ -602,7 +602,7 @@ namespace svrtk::Parallel {
                     registration->Run();
 
                     // read output transformation
-                    MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*>(dofout);
+                    unique_ptr<MultiLevelFreeFormTransformation> mffd_dofout(dynamic_cast<MultiLevelFreeFormTransformation*>(dofout));
                     reconstructor->_mffd_transformations[inputIndex] = *mffd_dofout;
                 }
             }

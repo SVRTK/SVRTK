@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
     Array<RigidTransformation> stackTransformations;
 
     // Default RigidTransformation variable for operations
-    const unique_ptr<RigidTransformation> rigidTransformation(new RigidTransformation);
+    const RigidTransformation rigidTransformation;
 
     // Array of stack slice thickness
     vector<double> thickness;
@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
     vector<string> dofinPaths;
 
     // Create reconstruction object
-    unique_ptr<Reconstruction> reconstruction(new Reconstruction());
+    Reconstruction reconstruction;
 
     cout << "------------------------------------------------------" << endl;
 
@@ -334,11 +334,10 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < stacks.size(); i++) {
             cout << "Transformation " << i << " : " << dofinPaths[i] << endl;
             Transformation *t = Transformation::New(dofinPaths[i].c_str());
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(t);
+            unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(t));
             stackTransformations.push_back(*rigidTransf);
-            delete rigidTransf;
         }
-        reconstruction->InvertStackTransformations(stackTransformations);
+        reconstruction.InvertStackTransformations(stackTransformations);
     }
 
     // Slice thickness per stack
@@ -355,7 +354,7 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < stacks.size(); i++)
             cout << packages[i] << " ";
         cout << endl;
-        reconstruction->SetNPackages(packages);
+        reconstruction.SetNPackages(packages);
     }
 
     // Template for initialisation of registration
@@ -374,7 +373,7 @@ int main(int argc, char **argv) {
             templateStack = templateStack.GetRegion(0, 0, 0, 0, templateStack.GetX(), templateStack.GetY(), templateStack.GetZ(), 1);
 
         useTemplate = true;
-        reconstruction->SetTemplateFlag(useTemplate);
+        reconstruction.SetTemplateFlag(useTemplate);
     } else if (vm.count("template_number"))
         templateStack = stacks[templateNumber];
 
@@ -443,7 +442,7 @@ int main(int argc, char **argv) {
 
     // Use NCC similarity metric for SVR
     if (nccRegFlag) {
-        reconstruction->SetNCC(nccRegFlag);
+        reconstruction.SetNCC(nccRegFlag);
         strFlags += " -ncc";
     }
 
@@ -560,7 +559,7 @@ int main(int argc, char **argv) {
     // Rescale stack if specified
     if (rescaleStacks) {
         for (size_t i = 0; i < stacks.size(); i++)
-            reconstruction->Rescale(stacks[i], 1000);
+            reconstruction.Rescale(stacks[i], 1000);
     }
 
     // If transformations were not defined by user, set them to identity
@@ -580,22 +579,22 @@ int main(int argc, char **argv) {
     }
 
     // Set debug mode option
-    if (debug) reconstruction->DebugOn();
-    else reconstruction->DebugOff();
+    if (debug) reconstruction.DebugOn();
+    else reconstruction.DebugOff();
 
     // Set verbose mode on with file
-    reconstruction->VerboseOn("log-registration.txt");
+    reconstruction.VerboseOn("log-registration.txt");
 
     // Set force excluded slices option
-    reconstruction->SetForceExcludedSlices(forceExcluded);
+    reconstruction.SetForceExcludedSlices(forceExcluded);
 
     // Set low intensity cutoff for bias estimation
-    reconstruction->SetLowIntensityCutoff(lowIntensityCutoff);
+    reconstruction.SetLowIntensityCutoff(lowIntensityCutoff);
 
     // If no mask was given - try to create mask from the template image in case it was padded
     if (mask == NULL) {
         mask = unique_ptr<RealImage>(new RealImage(stacks[templateNumber]));
-        *mask = reconstruction->CreateMask(*mask);
+        *mask = reconstruction.CreateMask(*mask);
         cout << "Warning : no mask was provided " << endl;
     }
 
@@ -604,12 +603,12 @@ int main(int argc, char **argv) {
         // First resample the mask to the space of the stack
         // For template stact the transformation is identity
         RealImage m = *mask;
-        reconstruction->TransformMask(stacks[templateNumber], m, stackTransformations[templateNumber]);
+        reconstruction.TransformMask(stacks[templateNumber], m, stackTransformations[templateNumber]);
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = stacks[templateNumber] * m;
-        reconstruction->CropImage(stacks[templateNumber], m);
-        reconstruction->CropImage(maskedTemplate, m);
+        reconstruction.CropImage(stacks[templateNumber], m);
+        reconstruction.CropImage(maskedTemplate, m);
 
         if (debug) {
             m.Write("maskforTemplate.nii.gz");
@@ -620,24 +619,24 @@ int main(int argc, char **argv) {
     // If the template was provided separately - crop and mask the template with the given mask
     if (useTemplate) {
         RealImage m = *mask;
-        reconstruction->TransformMask(templateStack, m, *rigidTransformation);
+        reconstruction.TransformMask(templateStack, m, rigidTransformation);
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = templateStack * m;
-        reconstruction->CropImage(maskedTemplate, m);
-        reconstruction->CropImage(templateStack, m);
+        reconstruction.CropImage(maskedTemplate, m);
+        reconstruction.CropImage(templateStack, m);
     }
 
     // Create template volume with isotropic resolution
     // If resolution==0 it will be determined from in-plane resolution of the image
-    resolution = reconstruction->CreateTemplate(maskedTemplate, resolution);
+    resolution = reconstruction.CreateTemplate(maskedTemplate, resolution);
 
     // Set mask to reconstruction object
-    reconstruction->SetMask(mask.get(), smoothMask);
+    reconstruction.SetMask(mask.get(), smoothMask);
 
     // If remove_black_background flag is set, create mask from black background of the stacks
     if (removeBlackBackground)
-        reconstruction->CreateMaskFromBlackBackground(stacks, stackTransformations, smoothMask);
+        reconstruction.CreateMaskFromBlackBackground(stacks, stackTransformations, smoothMask);
 
     // Set precision
     cout << setprecision(3);
@@ -651,10 +650,10 @@ int main(int argc, char **argv) {
 
     // Volumetric stack to template registration
     if (!noGlobalFlag)
-        reconstruction->StackRegistrations(stacks, stackTransformations, templateNumber);
+        reconstruction.StackRegistrations(stacks, stackTransformations, templateNumber);
 
     // Create average volume
-    average = reconstruction->CreateAverage(stacks, stackTransformations);
+    average = reconstruction.CreateAverage(stacks, stackTransformations);
     if (debug)
         average.Write("average1.nii.gz");
 
@@ -664,10 +663,10 @@ int main(int argc, char **argv) {
         if (i == templateNumber)
             continue;
         // Transform the mask
-        RealImage m = reconstruction->GetMask();
-        reconstruction->TransformMask(stacks[i], m, stackTransformations[i]);
+        RealImage m = reconstruction.GetMask();
+        reconstruction.TransformMask(stacks[i], m, stackTransformations[i]);
         // Crop template stack
-        reconstruction->CropImage(stacks[i], m);
+        reconstruction.CropImage(stacks[i], m);
 
         if (debug) {
             m.Write((boost::format("mask%1%.nii.gz") % i).str().c_str());
@@ -697,7 +696,7 @@ int main(int argc, char **argv) {
 
     // Perform volumetric registration again
     if (!noGlobalFlag)
-        reconstruction->StackRegistrations(stacks, stackTransformations, templateNumber);
+        reconstruction.StackRegistrations(stacks, stackTransformations, templateNumber);
 
     // Exclude low quality / similarity stacks (should be transferred to a separate function)
     if (excludeWrongStacks) {
@@ -706,9 +705,9 @@ int main(int argc, char **argv) {
 
         RealImage transformedTemplateMask = *mask;
         RealImage templateToCheck = templateStack;
-        reconstruction->TransformMask(templateToCheck, transformedTemplateMask, *rigidTransformation);
-        reconstruction->CropImage(templateToCheck, transformedTemplateMask);
-        reconstruction->CropImage(transformedTemplateMask, transformedTemplateMask);
+        reconstruction.TransformMask(templateToCheck, transformedTemplateMask, rigidTransformation);
+        reconstruction.CropImage(templateToCheck, transformedTemplateMask);
+        reconstruction.CropImage(transformedTemplateMask, transformedTemplateMask);
 
         Array<double> allNccArray;
         Array<double> allSliceNccArray;
@@ -731,9 +730,9 @@ int main(int argc, char **argv) {
             Matrix m = stackTransformations[i].GetMatrix();
             stackToCheck.PutAffineMatrix(m, true);
 
-            const double sliceNcc = reconstruction->VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
+            const double sliceNcc = reconstruction.VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
             double countNcc = -1;
-            const double volumeNcc = reconstruction->ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
+            const double volumeNcc = reconstruction.ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
 
             averageCountNcc += countNcc;
             averageSliceNcc += sliceNcc;
@@ -804,42 +803,42 @@ int main(int argc, char **argv) {
 
     // Rescale intensities of the stacks to have the same average
     if (intensityMatching)
-        reconstruction->MatchStackIntensitiesWithMasking(stacks, stackTransformations, averageValue);
+        reconstruction.MatchStackIntensitiesWithMasking(stacks, stackTransformations, averageValue);
 
     // Create average of the registered stacks
-    average = reconstruction->CreateAverage(stacks, stackTransformations);
+    average = reconstruction.CreateAverage(stacks, stackTransformations);
     if (debug)
         average.Write("average2.nii.gz");
 
     // Create slices and slice-dependent transformations
     Array<RealImage> probabilityMaps;
-    reconstruction->CreateSlicesAndTransformations(stacks, stackTransformations, thickness, probabilityMaps);
+    reconstruction.CreateSlicesAndTransformations(stacks, stackTransformations, thickness, probabilityMaps);
 
     // If full remote reconstruction option is used - save the model and all outputs
     if (fullRemoteRecon)
-        reconstruction->SaveModelRemote(strCurrentExchangeFilePath, 1, 0);
+        reconstruction.SaveModelRemote(strCurrentExchangeFilePath, 1, 0);
 
     // Mask all the slices
-    reconstruction->MaskSlices();
+    reconstruction.MaskSlices();
 
     // Set sigma for the bias field smoothing
     if (sigma > 0)
-        reconstruction->SetSigma(sigma);
+        reconstruction.SetSigma(sigma);
     else
-        reconstruction->SetSigma(20);
+        reconstruction.SetSigma(20);
 
     // Set global bias correction flag
     if (globalBiasCorrection)
-        reconstruction->GlobalBiasCorrectionOn();
+        reconstruction.GlobalBiasCorrectionOn();
     else
-        reconstruction->GlobalBiasCorrectionOff();
+        reconstruction.GlobalBiasCorrectionOff();
 
     // If given read slice-to-volume registrations
     if (!folder.empty())
-        reconstruction->ReadTransformations((char*)folder.c_str());
+        reconstruction.ReadTransformations((char*)folder.c_str());
 
     // Initialise data structures for EM
-    reconstruction->InitializeEM();
+    reconstruction.InitializeEM();
 
     // If registration was switched off - only 1 iteration is required
     if (!registrationFlag)
@@ -855,7 +854,7 @@ int main(int argc, char **argv) {
         // Run reconstruction remotely ("reconstruct-round" function) - can be removed
         for (int iter = 0; iter < iterations; iter++) {
             currentIteration = iter;
-            const string reconstructCmd = strMirtkPath + "/reconstruct-round " + " " + strMirtkPath + " " + strCurrentMainFilePath + " " + strCurrentExchangeFilePath + " " + to_string(currentIteration) + " " + to_string(reconstruction->_number_of_slices_org) + " " + to_string(reconstruction->_average_thickness_org) + " " + strFlags;
+            const string reconstructCmd = strMirtkPath + "/reconstruct-round " + " " + strMirtkPath + " " + strCurrentMainFilePath + " " + strCurrentExchangeFilePath + " " + to_string(currentIteration) + " " + to_string(reconstruction._number_of_slices_org) + " " + to_string(reconstruction._average_thickness_org) + " " + strFlags;
             if (system(reconstructCmd.c_str()) == -1) {
                 cerr << "The reconstruct command couldn't be executed!" << endl;
                 return 1;
@@ -867,71 +866,71 @@ int main(int argc, char **argv) {
             cout << "------------------------------------------------------" << endl;
             cout << "Iteration : " << iter << endl;
 
-            reconstruction->MaskVolume();
+            reconstruction.MaskVolume();
 
             // If only SVR option is used - skip 1st SR only averaging
             if (svrOnly) {
                 if (remoteFlag)
-                    reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
+                    reconstruction.RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
                 else
-                    reconstruction->SliceToVolumeRegistration();
+                    reconstruction.SliceToVolumeRegistration();
             } else if (iter > 0) {
                 // Run package-based registartion is the number of packages was given
                 if (!packages.empty() && iter < iterations - 1) {
-                    reconstruction->PackageToVolume(stacks, packages, stackTransformations);
+                    reconstruction.PackageToVolume(stacks, packages, stackTransformations);
                 } else {
                     // Run
                     if (remoteFlag)
-                        reconstruction->RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
+                        reconstruction.RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
                     else
-                        reconstruction->SliceToVolumeRegistration();
+                        reconstruction.SliceToVolumeRegistration();
                 }
             }
 
             // Run structure-based outlier rejection if specified
             if (structural && iter > 1)
-                reconstruction->StructuralExclusion();
+                reconstruction.StructuralExclusion();
 
             // Set smoothing parameters
             // Amount of smoothing (given by lambda) is decreased with improving alignment
             // Delta (to determine edges) stays constant throughout
             if (iter == (iterations - 1))
-                reconstruction->SetSmoothingParameters(delta, lastIterLambda);
+                reconstruction.SetSmoothingParameters(delta, lastIterLambda);
             else {
                 double l = lambda;
                 for (int i = 0; i < levels; i++) {
                     if (iter == iterations * (levels - i - 1) / levels)
-                        reconstruction->SetSmoothingParameters(delta, l);
+                        reconstruction.SetSmoothingParameters(delta, l);
                     l *= 2;
                 }
             }
 
             // Use faster reconstruction during iterations and slower for final reconstruction
             if (iter < iterations - 1)
-                reconstruction->SpeedupOn();
+                reconstruction.SpeedupOn();
             else
-                reconstruction->SpeedupOff();
+                reconstruction.SpeedupOff();
 
             if (robustSlicesOnly)
-                reconstruction->ExcludeWholeSlicesOnly();
+                reconstruction.ExcludeWholeSlicesOnly();
 
-            reconstruction->InitializeEMValues();
+            reconstruction.InitializeEMValues();
 
             // Calculate matrix of transformation between voxels of slices and volume
-            reconstruction->CoeffInit();
+            reconstruction.CoeffInit();
 
             // Initialise reconstructed image with Gaussian weighted reconstruction
-            reconstruction->GaussianReconstruction();
+            reconstruction.GaussianReconstruction();
 
             // Simulate slices (needs to be done after Gaussian reconstruction)
-            reconstruction->SimulateSlices();
+            reconstruction.SimulateSlices();
 
             // Initialize robust statistics parameters
-            reconstruction->InitializeRobustStatistics();
+            reconstruction.InitializeRobustStatistics();
 
             // EStep
             if (robustStatistics)
-                reconstruction->EStep();
+                reconstruction.EStep();
 
             // Set number of reconstruction iterations
             const int recIterations = iter == iterations - 1 ? srIterations * 3 : srIterations;
@@ -946,53 +945,53 @@ int main(int argc, char **argv) {
                 if (intensityMatching) {
                     // Calculate bias fields
                     if (sigma > 0)
-                        reconstruction->Bias();
+                        reconstruction.Bias();
 
                     // Calculate scales
-                    reconstruction->Scale();
+                    reconstruction.Scale();
                 }
 
                 // Update reconstructed volume - super-resolution reconstruction
-                reconstruction->Superresolution(i + 1);
+                reconstruction.Superresolution(i + 1);
 
                 // Run bias normalisation
                 if (intensityMatching && sigma > 0 && !globalBiasCorrection)
-                    reconstruction->NormaliseBias(i);
+                    reconstruction.NormaliseBias(i);
 
                 // Simulate slices (needs to be done after the update of the reconstructed volume)
-                reconstruction->SimulateSlices();
+                reconstruction.SimulateSlices();
 
                 // Run robust statistics for rejection of outliers
                 if (robustStatistics) {
                     SVRTK_START_TIMING();
-                    reconstruction->MStep(i + 1);
-                    reconstruction->EStep();
+                    reconstruction.MStep(i + 1);
+                    reconstruction.EStep();
                     SVRTK_END_TIMING("robust statistics");
                 }
 
                 if (debug) {
                     // Save intermediate reconstructed image
-                    reconstruction->GetReconstructed().Write((boost::format("super%1%.nii.gz") % i).str().c_str());
+                    reconstruction.GetReconstructed().Write((boost::format("super%1%.nii.gz") % i).str().c_str());
 
                     // Evaluate reconstruction quality
-                    double error = reconstruction->EvaluateReconQuality(1);
+                    double error = reconstruction.EvaluateReconQuality(1);
                     cout << "Total reconstruction error : " << error << endl;
                 }
 
             } // End of SR reconstruction iterations
 
             // Mask reconstructed image to ROI given by the mask
-            reconstruction->MaskVolume();
+            reconstruction.MaskVolume();
 
             // Save reconstructed image
-            reconstruction->GetReconstructed().Write((boost::format("image%1%.nii.gz") % iter).str().c_str());
+            reconstruction.GetReconstructed().Write((boost::format("image%1%.nii.gz") % iter).str().c_str());
 
             // Compute and save quality metrics
             double outNcc = 0;
             double outNrmse = 0;
             double averageVolumeWeight = 0;
             double ratioExcluded = 0;
-            reconstruction->ReconQualityReport(outNcc, outNrmse, averageVolumeWeight, ratioExcluded);
+            reconstruction.ReconQualityReport(outNcc, outNrmse, averageVolumeWeight, ratioExcluded);
             cout << " - global metrics: ncc = " << outNcc << " ; nrmse = " << outNrmse << " ; average weight = " << averageVolumeWeight << " ; excluded slices = " << ratioExcluded << endl;
 
             ofstream ofsNcc("output-metric-ncc.txt");
@@ -1014,31 +1013,31 @@ int main(int argc, char **argv) {
 
         cout << "------------------------------------------------------" << endl;
 
-        reconstruction->RestoreSliceIntensities();
+        reconstruction.RestoreSliceIntensities();
 
         if (debug) {
-            reconstruction->SaveTransformations();
-            reconstruction->SaveSlices();
-            reconstruction->SaveWeights();
-            reconstruction->SaveBiasFields();
-            reconstruction->SimulateStacks(stacks);
+            reconstruction.SaveTransformations();
+            reconstruction.SaveSlices();
+            reconstruction.SaveWeights();
+            reconstruction.SaveBiasFields();
+            reconstruction.SimulateStacks(stacks);
             for (size_t i = 0; i < stacks.size(); i++)
                 stacks[i].Write((boost::format("simulated%1%.nii.gz") % i).str().c_str());
         }
 
-        reconstruction->ScaleVolume();
+        reconstruction.ScaleVolume();
     }
 
     // Load results if remote reconstruction was used - this option can be removed
     if (fullRemoteRecon) {
-        reconstruction->LoadResultsRemote(strCurrentExchangeFilePath, reconstruction->_number_of_slices_org, currentIteration);
-        reconstruction->ScaleVolume();
+        reconstruction.LoadResultsRemote(strCurrentExchangeFilePath, reconstruction._number_of_slices_org, currentIteration);
+        reconstruction.ScaleVolume();
     }
 
     // Remove the file exchange directory
     boost::filesystem::remove_all(strCurrentExchangeFilePath.c_str());
 
-    reconstruction->GetReconstructed().Write(outputName.c_str());
+    reconstruction.GetReconstructed().Write(outputName.c_str());
 
     cout << "Output volume : " << outputName << endl;
 

@@ -224,13 +224,9 @@ namespace svrtk {
         }
 
         InvertStackTransformations(stack_transformations);
-        unique_ptr<Parallel::Average> p_average(new Parallel::Average(this,
-            stacks,
-            stack_transformations,
-            -1, 0, 0, // target/source/background
-            true));
-        (*p_average)();
-        const RealImage average = p_average->average / p_average->weights;
+        Parallel::Average p_average(this, stacks, stack_transformations, -1, 0, 0, true);
+        p_average();
+        const RealImage average = p_average.average / p_average.weights;
 
         InvertStackTransformations(stack_transformations);
 
@@ -597,16 +593,16 @@ namespace svrtk {
         RealImage& output = template_stack;
         memset(output.Data(), 0, sizeof(RealPixel) * output.NumberOfVoxels());
 
-        unique_ptr<ImageTransformation> imagetransformation(new ImageTransformation);
-        imagetransformation->Input(&input_stack);
-        imagetransformation->Transformation(r_dofout.get());
-        imagetransformation->Output(&output);
-        imagetransformation->TargetPaddingValue(target_padding);
-        imagetransformation->SourcePaddingValue(source_padding);
-        imagetransformation->Interpolator(&interpolator);
-        imagetransformation->TwoD(twod);
-        imagetransformation->Invert(dofin_invert);
-        imagetransformation->Run();
+        ImageTransformation imagetransformation;
+        imagetransformation.Input(&input_stack);
+        imagetransformation.Transformation(r_dofout.get());
+        imagetransformation.Output(&output);
+        imagetransformation.TargetPaddingValue(target_padding);
+        imagetransformation.SourcePaddingValue(source_padding);
+        imagetransformation.Interpolator(&interpolator);
+        imagetransformation.TwoD(twod);
+        imagetransformation.Invert(dofin_invert);
+        imagetransformation.Run();
 
         input_stack = output * mask;
 
@@ -653,8 +649,8 @@ namespace svrtk {
         ResetOrigin(target, offset);
 
         //register all stacks to the target
-        unique_ptr<Parallel::StackRegistrations> p_reg(new Parallel::StackRegistrations(this, stacks, stack_transformations, templateNumber, target, offset));
-        (*p_reg)();
+        Parallel::StackRegistrations p_reg(this, stacks, stack_transformations, templateNumber, target, offset);
+        p_reg();
 
         InvertStackTransformations(stack_transformations);
 
@@ -733,8 +729,8 @@ namespace svrtk {
     // run simulation of slices from the reconstruction volume
     void Reconstruction::SimulateSlices() {
         SVRTK_START_TIMING();
-        unique_ptr<Parallel::SimulateSlices> p_sim(new Parallel::SimulateSlices(this));
-        (*p_sim)();
+        Parallel::SimulateSlices p_sim(this);
+        p_sim();
         SVRTK_END_TIMING("SimulateSlices");
     }
 
@@ -1131,8 +1127,8 @@ namespace svrtk {
                     _slice_pos.push_back(j);
                     slice = 1;
                     _simulated_weights.push_back(slice);
-                    _simulated_inside.push_back(slice);
-                    //remeber stack index for this slice
+                    _simulated_inside.push_back(move(slice));
+                    //remember stack index for this slice
                     _stack_index.push_back(i);
                     //initialize slice transformation with the stack transformation
                     _transformations.push_back(stack_transformations[i]);
@@ -1339,16 +1335,16 @@ namespace svrtk {
             RealImage output(_slices[inputIndex].Attributes());
 
             // transfrom reconstructed volume to the slice space
-            unique_ptr<ImageTransformation> imagetransformation(new ImageTransformation);
-            imagetransformation->Input(&source);
-            imagetransformation->Transformation(&_transformations[inputIndex]);
-            imagetransformation->Output(&output);
-            imagetransformation->TargetPaddingValue(target_padding);
-            imagetransformation->SourcePaddingValue(source_padding);
-            imagetransformation->Interpolator(&interpolator);
-            imagetransformation->TwoD(twod);
-            imagetransformation->Invert(dofin_invert);
-            imagetransformation->Run();
+            ImageTransformation imagetransformation;
+            imagetransformation.Input(&source);
+            imagetransformation.Transformation(&_transformations[inputIndex]);
+            imagetransformation.Output(&output);
+            imagetransformation.TargetPaddingValue(target_padding);
+            imagetransformation.SourcePaddingValue(source_padding);
+            imagetransformation.Interpolator(&interpolator);
+            imagetransformation.TwoD(twod);
+            imagetransformation.Invert(dofin_invert);
+            imagetransformation.Run();
 
             // blur the original slice
             RealImage target(_slices[inputIndex].Attributes());
@@ -1398,11 +1394,11 @@ namespace svrtk {
         _grey_reconstructed = _reconstructed;
 
         if (!_ffd) {
-            unique_ptr<Parallel::SliceToVolumeRegistration> p_reg(new Parallel::SliceToVolumeRegistration(this));
-            (*p_reg)();
+            Parallel::SliceToVolumeRegistration p_reg(this);
+            p_reg();
         } else {
-            unique_ptr<Parallel::SliceToVolumeRegistrationFFD> p_reg(new Parallel::SliceToVolumeRegistrationFFD(this));
-            (*p_reg)();
+            Parallel::SliceToVolumeRegistrationFFD p_reg(this);
+            p_reg();
         }
 
         SVRTK_END_TIMING("SliceToVolumeRegistration");
@@ -1607,8 +1603,7 @@ namespace svrtk {
 
             _slice_attributes.push_back(slice.Attributes());
 
-            GreyImage grey = slice;
-            _grey_slices.push_back(grey);
+            _grey_slices.push_back(GreyImage(slice));
 
             memset(slice.Data(), 0, sizeof(RealPixel) * slice.NumberOfVoxels());
             _slice_dif.push_back(slice);
@@ -1619,7 +1614,7 @@ namespace svrtk {
 
             slice = 1;
             _simulated_weights.push_back(slice);
-            _simulated_inside.push_back(slice);
+            _simulated_inside.push_back(move(slice));
 
             _stack_index.push_back(0);
 
@@ -1682,9 +1677,11 @@ namespace svrtk {
         SVRTK_START_TIMING();
 
         //resize slice-volume matrix from previous iteration
+        _volcoeffs.clear();
         _volcoeffs.resize(_slices.size());
 
         //resize indicator of slice having and overlap with volumetric mask
+        _slice_inside.clear();
         _slice_inside.resize(_slices.size());
         _attr_reconstructed = _reconstructed.Attributes();
 
@@ -1832,9 +1829,11 @@ namespace svrtk {
     // another version of CoeffInit
     void Reconstruction::CoeffInitSF(int begin, int end) {
         //resize slice-volume matrix from previous iteration
+        _volcoeffsSF.clear();
         _volcoeffsSF.resize(_slicePerDyn);
 
         //resize indicator of slice having and overlap with volumetric mask
+        _slice_insideSF.clear();
         _slice_insideSF.resize(_slicePerDyn);
 
         Parallel::CoeffInitSF coeffinit(this, begin, end);
@@ -3376,7 +3375,7 @@ namespace svrtk {
                 packages[j].ImageToWorld(x, y, z);
                 stacks[i].WorldToImage(x, y, z);
 
-                int firstSliceIndex = round(z) + firstSlice_array[i];
+                const int firstSliceIndex = round(z) + firstSlice_array[i];
                 // cout<<"First slice index for package "<<j<<" of stack "<<i<<" is "<<firstSliceIndex<<endl;
 
                 //put origin in target to zero
@@ -3426,7 +3425,6 @@ namespace svrtk {
                         _transformations[sliceIndex].UpdateMatrix();
                     }
                 }
-
             }
             // cout<<"End of stack "<<i<<endl<<endl;
         }
@@ -3836,16 +3834,16 @@ namespace svrtk {
             bool twod = false;
             RealImage output(template_stack.Attributes());
 
-            unique_ptr<ImageTransformation> imagetransformation(new ImageTransformation);
-            imagetransformation->Input(&input_stack);
-            imagetransformation->Transformation(r_dofout);
-            imagetransformation->Output(&output);
-            imagetransformation->TargetPaddingValue(target_padding);
-            imagetransformation->SourcePaddingValue(source_padding);
-            imagetransformation->Interpolator(&interpolator);
-            imagetransformation->TwoD(twod);
-            imagetransformation->Invert(dofin_invert);
-            imagetransformation->Run();
+            ImageTransformation imagetransformation;
+            imagetransformation.Input(&input_stack);
+            imagetransformation.Transformation(r_dofout.get());
+            imagetransformation.Output(&output);
+            imagetransformation.TargetPaddingValue(target_padding);
+            imagetransformation.SourcePaddingValue(source_padding);
+            imagetransformation.Interpolator(&interpolator);
+            imagetransformation.TwoD(twod);
+            imagetransformation.Invert(dofin_invert);
+            imagetransformation.Run();
             input_stack = move(output);
 
             double slice_count = 0;

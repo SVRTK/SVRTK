@@ -82,10 +82,7 @@ namespace svrtk {
 
         // Create volume and initialise volume values
         RealImage volume4D(attr);
-        
-        // Initialise volume values
-        volume4D = 0;
-        
+
         // Resample to specified resolution
         unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(Interpolation_NN));
 
@@ -94,9 +91,9 @@ namespace svrtk {
         resampling.Output(&volume4D);
         resampling.Interpolator(interpolator.get());
         resampling.Run();
-        
-        // Set recontructed 4D volume
-        _reconstructed4D = volume4D;
+
+        // Set reconstructed 4D volume
+        _reconstructed4D = move(volume4D);
         _template_created = true;
 
         // Set reconstructed 3D volume for reference by existing functions of irtkReconstruction class
@@ -104,10 +101,8 @@ namespace svrtk {
         ImageAttributes attr3d = attr4d;
         attr3d._t = 1;
         RealImage volume3D(attr3d);
-        _reconstructed = volume3D;
-        
-        
-        // Debug
+        _reconstructed = move(volume3D);
+
         if (_debug)
             cout << "CreateTemplateCardiac4DFromStaticMask created template 4D volume with " << attr4d._t << " time points and " << attr4d._dt << " s temporal resolution." << endl;
     }
@@ -123,6 +118,7 @@ namespace svrtk {
 
         //Calculate the averages of intensities for all stacks
         Array<double> stack_average;
+        stack_average.reserve(stacks.size());
 
         //remember the set average value
         _average_value = averageValue;
@@ -188,6 +184,7 @@ namespace svrtk {
 
         //Rescale stacks
         _stack_factor.clear();
+        _stack_factor.reserve(stacks.size());
         for (int ind = 0; ind < stacks.size(); ind++) {
             double factor = averageValue / (together ? global_average : stack_average[ind]);
             _stack_factor.push_back(factor);
@@ -240,7 +237,7 @@ namespace svrtk {
                     _slices.push_back(slice);
                     _simulated_slices.push_back(slice);
                     _simulated_weights.push_back(slice);
-                    _simulated_inside.push_back(slice);
+                    _simulated_inside.push_back(move(slice));
                     _zero_slices.push_back(1);
                     //remember stack indices for this slice
                     _stack_index.push_back(i);
@@ -254,7 +251,7 @@ namespace svrtk {
                     if (!probability_maps.empty()) {
                         RealImage proba = probability_maps[i].GetRegion(0, 0, j, k, attr._x, attr._y, j + 1, k + 1);
                         proba.PutPixelSize(attr._dx, attr._dy, thickness[i], attr._dt);
-                        _probability_maps.push_back(proba);
+                        _probability_maps.push_back(move(proba));
                     }
                     //initialise cardiac phase to use for 2D-3D registration
                     _slice_svr_card_index.push_back(0);
@@ -341,7 +338,6 @@ namespace svrtk {
             _verbose_log << "done." << endl;
 
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
-        _volume_weights = 0;
         if (_verbose)
             _verbose_log << "Computing 4D volume weights..." << endl;
         _volume_weights.Initialize(_reconstructed4D.Attributes());
@@ -400,7 +396,7 @@ namespace svrtk {
         Array<int> voxel_num;
 
         //clear _reconstructed image
-        _reconstructed4D = 0;
+        memset(_reconstructed4D.Data(), 0, sizeof(RealPixel) * _reconstructed4D.NumberOfVoxels());
 
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             if (_slice_excluded[inputIndex])
@@ -461,9 +457,11 @@ namespace svrtk {
 
         // find slices with small overlap with ROI and exclude them.
         //find median
-        sort(voxel_num_tmp.begin(),voxel_num_tmp.end());
-        int median = voxel_num_tmp[round(voxel_num_tmp.size()*0.5)];
-        
+        Array<int> voxel_num_tmp = voxel_num;
+        int median = round(voxel_num_tmp.size() * 0.5) - 1;
+        nth_element(voxel_num_tmp.begin(), voxel_num_tmp.begin() + median, voxel_num_tmp.end());
+        median = voxel_num_tmp[median];
+
         //remember slices with small overlap with ROI
         _small_slices.clear();
         for (size_t i = 0; i < voxel_num.size(); i++)
@@ -515,12 +513,13 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Simulate Stacks
     // -----------------------------------------------------------------------------
-        //Initialise simlated images
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)    _simulated_slices[inputIndex] = 0;
     void ReconstructionCardiac4D::SimulateStacksCardiac4D() {
         if (_verbose)
             _verbose_log << "Simulating stacks ... ";
 
+        //Initialise simulated images
+        for (size_t i = 0; i < _slices.size(); i++)
+            memset(_simulated_slices[i].Data(), 0, sizeof(RealPixel) * _simulated_slices[i].NumberOfVoxels());
 
         //Initialise indicator of images having overlap with volume
         _slice_inside = Array<bool>(_slices.size(), true);
@@ -558,9 +557,9 @@ namespace svrtk {
 
         Parallel::NormaliseBiasCardiac4D parallelNormaliseBias(this);
         parallelNormaliseBias();
-        RealImage bias = parallelNormaliseBias.bias;
-        RealImage volweight3d = parallelNormaliseBias.volweight3d;
-        
+        RealImage& bias = parallelNormaliseBias.bias;
+        RealImage& volweight3d = parallelNormaliseBias.volweight3d;
+
         // normalize the volume by proportion of contributing slice voxels for each volume voxel
         bias /= volweight3d;
 
@@ -582,6 +581,7 @@ namespace svrtk {
         if (_debug)
             bias.Write((boost::format("averagebias_mc%02isr%02i.nii.gz") % iter % rec_iter).str().c_str());
 
+        #pragma omp parallel for
         for (int i = 0; i < _reconstructed4D.GetX(); i++)
             for (int j = 0; j < _reconstructed4D.GetY(); j++)
                 for (int k = 0; k < _reconstructed4D.GetZ(); k++)
@@ -635,8 +635,8 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Remote Slice-to-Volume Registration
     // -----------------------------------------------------------------------------
-        ImageAttributes attr_recon = _reconstructed4D.Attributes();
     void ReconstructionCardiac4D::RemoteSliceToVolumeRegistrationCardiac4D(int iter, const string& str_mirtk_path, const string& str_current_exchange_file_path) {
+        const ImageAttributes& attr_recon = _reconstructed4D.Attributes();
 
         if (_verbose)
             _verbose_log << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
@@ -1152,6 +1152,7 @@ namespace svrtk {
     // Apply Static Mask to 4D Volume
     // -----------------------------------------------------------------------------
     void ReconstructionCardiac4D::StaticMaskVolume4D(RealImage& volume, const double padding) {
+        #pragma omp parallel for
         for (int i = 0; i < volume.GetX(); i++)
             for (int j = 0; j < volume.GetY(); j++)
                 for (int k = 0; k < volume.GetZ(); k++)
@@ -1174,9 +1175,9 @@ namespace svrtk {
 
         Parallel::SuperresolutionCardiac4D parallelSuperresolution(this);
         parallelSuperresolution();
-        addon = parallelSuperresolution.addon;
-        _confidence_map = parallelSuperresolution.confidence_map;
 
+        RealImage& addon = parallelSuperresolution.addon;
+        _confidence_map = move(parallelSuperresolution.confidence_map);
 
         if (_debug) {
             _confidence_map.Write((boost::format("confidence-map%i.nii.gz") % iter).str().c_str());
@@ -1184,6 +1185,7 @@ namespace svrtk {
         }
 
         if (!_adaptive) {
+            #pragma omp parallel for
             for (int i = 0; i < addon.GetX(); i++)
                 for (int j = 0; j < addon.GetY(); j++)
                     for (int k = 0; k < addon.GetZ(); k++)
@@ -1200,6 +1202,7 @@ namespace svrtk {
         _reconstructed4D += addon * _alpha; //_average_volume_weight;
 
         //bound the intensities
+        #pragma omp parallel for
         for (int i = 0; i < _reconstructed4D.GetX(); i++)
             for (int j = 0; j < _reconstructed4D.GetY(); j++)
                 for (int k = 0; k < _reconstructed4D.GetZ(); k++)
@@ -1264,6 +1267,7 @@ namespace svrtk {
     double ReconstructionCardiac4D::CalculateEntropy() {
         double sum_x_sq = 0;
 
+        #pragma omp parallel for reduction(+: sum_x_sq)
         for (int i = 0; i < _reconstructed4D.GetX(); i++)
             for (int j = 0; j < _reconstructed4D.GetY(); j++)
                 for (int k = 0; k < _reconstructed4D.GetZ(); k++)
@@ -1276,6 +1280,7 @@ namespace svrtk {
         const double x_max = sqrt(sum_x_sq);
         double entropy = 0;
 
+        #pragma omp parallel for reduction(+: entropy)
         for (int i = 0; i < _reconstructed4D.GetX(); i++)
             for (int j = 0; j < _reconstructed4D.GetY(); j++)
                 for (int k = 0; k < _reconstructed4D.GetZ(); k++)

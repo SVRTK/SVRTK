@@ -412,8 +412,8 @@ namespace svrtk::Parallel {
                         Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
                     }
 
-                    unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
-                    registration->Parameter(params);
+                    GenericRegistrationFilter registration;
+                    registration.Parameter(params);
 
                     //put origin to zero
                     RigidTransformation offset;
@@ -423,12 +423,12 @@ namespace svrtk::Parallel {
                     reconstructor->_transformations[inputIndex].PutMatrix(m);
 
                     // run registration
-                    registration->Input(&target, &reconstructor->_grey_reconstructed);
+                    registration.Input(&target, &reconstructor->_grey_reconstructed);
                     Transformation *dofout = nullptr;
-                    registration->Output(&dofout);
-                    registration->InitialGuess(&reconstructor->_transformations[inputIndex]);
-                    registration->GuessParameter();
-                    registration->Run();
+                    registration.Output(&dofout);
+                    registration.InitialGuess(&reconstructor->_transformations[inputIndex]);
+                    registration.GuessParameter();
+                    registration.Run();
 
                     // output transformation
                     unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
@@ -510,8 +510,8 @@ namespace svrtk::Parallel {
                         // double width = 0;
                         // Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
 
-                        unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
-                        registration->Parameter(params);
+                        GenericRegistrationFilter registration;
+                        registration.Parameter(params);
 
                         // put origin to zero
                         RigidTransformation offset;
@@ -521,12 +521,12 @@ namespace svrtk::Parallel {
 
                         // TODO: extract the nearest cardiac phase from reconstructed 4D to use as source
                         GreyImage source = reconstructor->_reconstructed4D.GetRegion(0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex] + 1);
-                        registration->Input(&target, &source);
+                        registration.Input(&target, &source);
                         Transformation *dofout = nullptr;
-                        registration->Output(&dofout);
-                        registration->InitialGuess(&reconstructor->_transformations[inputIndex]);
-                        registration->GuessParameter();
-                        registration->Run();
+                        registration.Output(&dofout);
+                        registration.InitialGuess(&reconstructor->_transformations[inputIndex]);
+                        registration.GuessParameter();
+                        registration.Run();
                         unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                         reconstructor->_transformations[inputIndex] = *rigidTransf;
 
@@ -592,14 +592,14 @@ namespace svrtk::Parallel {
                     }
 
                     // run registration
-                    unique_ptr<GenericRegistrationFilter> registration(new GenericRegistrationFilter());
-                    registration->Parameter(params);
-                    registration->Input(&target, &reconstructor->_reconstructed);
+                    GenericRegistrationFilter registration;
+                    registration.Parameter(params);
+                    registration.Input(&target, &reconstructor->_reconstructed);
                     Transformation *dofout = nullptr;
-                    registration->Output(&dofout);
-                    registration->InitialGuess(&(reconstructor->_mffd_transformations[inputIndex]));
-                    registration->GuessParameter();
-                    registration->Run();
+                    registration.Output(&dofout);
+                    registration.InitialGuess(&(reconstructor->_mffd_transformations[inputIndex]));
+                    registration.GuessParameter();
+                    registration.Run();
 
                     // read output transformation
                     unique_ptr<MultiLevelFreeFormTransformation> mffd_dofout(dynamic_cast<MultiLevelFreeFormTransformation*>(dofout));
@@ -696,9 +696,6 @@ namespace svrtk::Parallel {
             const double res = vx;
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                reconstructor->_volcoeffs[inputIndex] = {};
-                reconstructor->_slice_inside[inputIndex] = false;
-
                 const RealImage global_slice(reconstructor->_grey_slices[inputIndex].Attributes());
 
                 //prepare storage variable
@@ -994,9 +991,6 @@ namespace svrtk::Parallel {
             const double res = vx;
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                reconstructor->_volcoeffsSF[inputIndex % reconstructor->_slicePerDyn] = {};
-                reconstructor->_slice_insideSF[inputIndex % reconstructor->_slicePerDyn] = false;
-
                 const RealImage& slice = reconstructor->_withMB ? reconstructor->_slicesRwithMB[inputIndex] : reconstructor->_slices[inputIndex];
 
                 //prepare structures for storage
@@ -1278,9 +1272,6 @@ namespace svrtk::Parallel {
             const double res = vx;
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                reconstructor->_volcoeffs[inputIndex] = {};
-                reconstructor->_slice_inside[inputIndex] = false;
-
                 if (reconstructor->_slice_excluded[inputIndex])
                     continue;
 

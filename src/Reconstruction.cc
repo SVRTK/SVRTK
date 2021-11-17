@@ -1595,8 +1595,8 @@ namespace svrtk {
 
             // load transformations
             const string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
-            unique_ptr<Transformation> t(Transformation::New(str_dofin.c_str()));
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(t.get());
+            Transformation *t = Transformation::New(str_dofin.c_str());
+            unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(t));
             _transformations.push_back(*rigidTransf);
 
             RealPixel tmin, tmax;
@@ -1605,8 +1605,7 @@ namespace svrtk {
 
             _package_index.push_back(0);
 
-            const ImageAttributes& attr_s = slice.Attributes();
-            _slice_attributes.push_back(attr_s);
+            _slice_attributes.push_back(slice.Attributes());
 
             GreyImage grey = slice;
             _grey_slices.push_back(grey);
@@ -2554,8 +2553,8 @@ namespace svrtk {
         transformations.clear();
         for (size_t i = 0; i < file_count; i++) {
             const string path = (boost::format("%1%/transformation%2%.dof") % (folder ? folder : ".") % i).str();
-            unique_ptr<Transformation> transformation(Transformation::New(path.c_str()));
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(transformation.get());
+            Transformation *transformation = Transformation::New(path.c_str());
+            unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(transformation));
             transformations.push_back(*rigidTransf);
             cout << path << endl;
         }

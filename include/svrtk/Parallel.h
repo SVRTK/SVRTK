@@ -333,15 +333,16 @@ namespace svrtk::Parallel {
 
         void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
+                const RealImage& slice = reconstructor->_slices[inputIndex];
                 //Calculate simulated slice
-                reconstructor->_simulated_slices[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
-                reconstructor->_simulated_weights[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
-                reconstructor->_simulated_inside[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
+                reconstructor->_simulated_slices[inputIndex].Initialize(slice.Attributes());
+                reconstructor->_simulated_weights[inputIndex].Initialize(slice.Attributes());
+                reconstructor->_simulated_inside[inputIndex].Initialize(slice.Attributes());
                 reconstructor->_slice_inside[inputIndex] = false;
 
-                for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
-                    for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
-                        if (reconstructor->_slices[inputIndex](i, j, 0) != -1) {
+                for (int i = 0; i < slice.GetX(); i++)
+                    for (int j = 0; j < slice.GetY(); j++)
+                        if (slice(i, j, 0) != -1) {
                             double weight = 0;
                             const size_t n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             for (size_t k = 0; k < n; k++) {
@@ -1577,7 +1578,7 @@ namespace svrtk::Parallel {
                     //prepare structures for storage
                     POINT3D p;
                     VOXELCOEFFS empty;
-                    SLICECOEFFS slicecoeffs(slice.GetX(), Array < VOXELCOEFFS >(slice.GetY(), empty));
+                    SLICECOEFFS slicecoeffs(slice.GetX(), Array<VOXELCOEFFS>(slice.GetY(), empty));
 
                     //PSF will be calculated in slice space in higher resolution
 
@@ -2668,11 +2669,11 @@ namespace svrtk::Parallel {
 
         void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                //initialise
-                reconstructor->_error[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
-
                 //read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
+
+                //initialise
+                reconstructor->_error[inputIndex].Initialize(slice.Attributes());
 
                 //calculate error
                 for (int i = 0; i < slice.GetX(); i++)

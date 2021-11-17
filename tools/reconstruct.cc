@@ -404,11 +404,11 @@ int main(int argc, char **argv) {
         strFlags += " -sr_iterations " + to_string(srIterations);
 
     // Variance of Gaussian kernel to smooth the bias field
-    if (vm.count("sigma")) 
+    if (vm.count("sigma"))
         strFlags += " -sigma " + to_string(sigma);
 
     // SR smoothing parameter
-    if (vm.count("lambda")) 
+    if (vm.count("lambda"))
         strFlags += " -lambda " + to_string(lambda);
 
     // Smoothing parameter for last iteration

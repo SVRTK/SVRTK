@@ -146,7 +146,6 @@ namespace svrtk {
         Array<bool> _slice_inside;
         Array<bool> _slice_insideSF;
 
-
         // Flag to say whether the template volume has been created
         bool _template_created;
         // Flag to say whether we have a mask
@@ -384,7 +383,7 @@ namespace svrtk {
         // Initialise values of variables and parameters for EM
         void InitializeEMValues();
 
-        // Initalize robust statistics
+        // Initalise robust statistics
         void InitializeRobustStatistics();
 
         // Perform E-step
@@ -400,7 +399,7 @@ namespace svrtk {
         // Superresolution
         void Superresolution(int iter);
 
-        // Calculation of voxel-vise robust statistics
+        // Calculation of voxel-wise robust statistics
         void MStep(int iter);
 
         // Edge-preserving regularization
@@ -512,7 +511,7 @@ namespace svrtk {
         void newPackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num, const Array<int>& multiband,
             const Array<int>& order, const int step, const int rewinder, const int iter, const int steps);
 
-        // Filter backgound
+        // Filter background
         void BackgroundFiltering(Array<RealImage>& stacks, const double fg_sigma, const double bg_sigma);
 
         // Splits stacks into packages

@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
     int recIterationsLast = -1;
     double averageValue = 700;
     double smoothMask = 4;
-    
+
     //folder for slice-location registrations, if given
     string sliceTransformationsFolder;
 
@@ -303,8 +303,8 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < stacks.size(); i++) {
             cout << "Reading transformation " << dofinPaths[i];
             cout.flush();
-            unique_ptr<Transformation> transformation(dofinPaths[i] == "id" ? new RigidTransformation : Transformation::New(dofinPaths[i].c_str()));
-            RigidTransformation *rigidTransf = dynamic_cast<RigidTransformation*>(transformation.get());
+            Transformation *transformation = dofinPaths[i] == "id" ? new RigidTransformation : Transformation::New(dofinPaths[i].c_str());
+            unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(transformation));
             stackTransformations.push_back(*rigidTransf);
             cout << " done." << endl;
         }
@@ -332,12 +332,8 @@ int main(int argc, char **argv) {
     }
 
     // Cardiac phases
-    if (!cardPhases.empty()) {
-        cout << "Cardiac phases are ";
-        for (size_t i = 0; i < cardPhases.size(); i++)
-            cout << cardPhases[i] << " ";
-        cout << endl;
-    }
+    if (!cardPhases.empty())
+        cout << "Read cardiac phase for " << cardPhases.size() << " images" << endl;
 
     // R-R Interval of Reconstructed Volume
     if (vm.count("rrinterval")) {
@@ -596,8 +592,8 @@ int main(int argc, char **argv) {
     //if given, read transformations
     if (!folder.empty())
         reconstruction.ReadTransformations(folder.c_str());  // image-frame to volume registrations
-    else if (!sliceTransformationsFolder.empty())     
-        reconstruction.ReadSliceTransformation(sliceTransformationsFolder.c_str()); // slice-location to volume registrations
+    else if (!sliceTransformationsFolder.empty())
+        reconstruction.ReadSliceTransformations(sliceTransformationsFolder.c_str()); // slice-location to volume registrations
 
     //if given, read reference transformations
     const bool haveRefTransformations = !refTransformationsFolder.empty();
@@ -720,10 +716,8 @@ int main(int argc, char **argv) {
 
         // Save Initialised Volume to File
         if (debug) {
-            reconstructed = reconstruction.GetReconstructedCardiac4D();
-            reconstructed.Write((boost::format("init_mc%02i.nii.gz") % iter).str().c_str());
-            RealImage volumeWeights = reconstruction.GetVolumeWeights();
-            volumeWeights.Write((boost::format("volumeweights_mc%02i.nii.gz") % iter).str().c_str());
+            reconstruction.GetReconstructedCardiac4D().Write((boost::format("init_mc%02i.nii.gz") % iter).str().c_str());
+            reconstruction.GetVolumeWeights().Write((boost::format("volumeweights_mc%02i.nii.gz") % iter).str().c_str());
         }
 
         //Simulate slices (needs to be done after Gaussian reconstruction)
@@ -840,9 +834,8 @@ int main(int argc, char **argv) {
             // Invert to get recon to ref transformation
             if (regReconToRef) {
                 reconstruction.VolumeToVolumeRegistration(refVol, reconstructed, transformationReconToRef);
-                Matrix m = transformationReconToRef.GetMatrix();
-                m.Invert();  // Invert to get recon to ref transformation
-                transformationReconToRef.PutMatrix(m);
+                // Invert to get recon to ref transformation
+                transformationReconToRef.PutMatrix(transformationReconToRef.GetMatrix().Inverse());
             } else {
                 reconstruction.VolumeToVolumeRegistration(reconstructed, refVol, transformationReconToRef);
             }
@@ -923,13 +916,12 @@ int main(int argc, char **argv) {
 
     if (debug)
         cout << "Saving Reconstructed Volume" << endl;
-    reconstructed = reconstruction.GetReconstructedCardiac4D();
-    reconstructed.Write(outputName.c_str());
+    reconstruction.GetReconstructedCardiac4D().Write(outputName.c_str());
 
     if (debug)
         cout << "SaveSlices" << endl;
     reconstruction.SaveSlices(stacks);
-    
+
     if (debug)
         cout << "SaveTransformations" << endl;
     reconstruction.SaveTransformations();

@@ -30,26 +30,22 @@
 #include "svrtk/Profiling.h"
 #include "svrtk/Parallel.h"
 
- // Boost
-#include <boost/format.hpp>
-
 // C++ Standard
 #include <math.h>
 
 using namespace std;
 using namespace mirtk;
 
-namespace svrtk {    
+namespace svrtk {
 
     // -----------------------------------------------------------------------------
     // Determine Reconstructed Spatial Resolution
     // -----------------------------------------------------------------------------
     //determine resolution of volume to reconstruct
-    double ReconstructionCardiac4D::GetReconstructedResolutionFromTemplateStack( RealImage stack )
-    {
+    double ReconstructionCardiac4D::GetReconstructedResolutionFromTemplateStack(const RealImage& stack) {
         double dx, dy, dz, d;
         stack.GetPixelSize(&dx, &dy, &dz);
-        if ((dx <= dy) && (dx <= dz))
+        if (dx <= dy && dx <= dz)
             d = dx;
         else if (dy <= dz)
             d = dy;
@@ -57,12 +53,11 @@ namespace svrtk {
             d = dz;
         return d;
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Get Slice-Location Transformations
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ReadSliceTransformation(const char *folder) {
+    void ReconstructionCardiac4D::ReadSliceTransformations(const char *folder) {
         cout << "Reading slice transformations from: " << folder << endl;
         Array<RigidTransformation> loc_transformations;
         ReadTransformations(folder, _loc_index.back() + 1, loc_transformations);
@@ -77,27 +72,24 @@ namespace svrtk {
     // Initialise Reconstructed Volume from Static Mask
     // -----------------------------------------------------------------------------
     // Create zero image as a template for reconstructed volume
-    void ReconstructionCardiac4D::CreateTemplateCardiac4DFromStaticMask( RealImage mask, double resolution )
-    {
+    void ReconstructionCardiac4D::CreateTemplateCardiac4DFromStaticMask(const RealImage& mask, double resolution) {
         // Get mask attributes - image size and voxel size
         ImageAttributes attr = mask.Attributes();
-        
+
         // Set temporal dimension
         attr._t = _reconstructed_cardiac_phases.size();
         attr._dt = _reconstructed_temporal_resolution;
-        
-        // Create volume
+
+        // Create volume and initialise volume values
         RealImage volume4D(attr);
         
         // Initialise volume values
         volume4D = 0;
         
         // Resample to specified resolution
-        InterpolationMode interpolation = Interpolation_NN;
-        UniquePtr<InterpolateImageFunction> interpolator;
-        interpolator.reset(InterpolateImageFunction::New(interpolation));
-        
-        Resampling<RealPixel> resampling(resolution,resolution,resolution);
+        unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(Interpolation_NN));
+
+        Resampling<RealPixel> resampling(resolution, resolution, resolution);
         resampling.Input(&volume4D);
         resampling.Output(&volume4D);
         resampling.Interpolator(interpolator.get());
@@ -107,9 +99,8 @@ namespace svrtk {
         _reconstructed4D = volume4D;
         _template_created = true;
 
-        
         // Set reconstructed 3D volume for reference by existing functions of irtkReconstruction class
-        ImageAttributes attr4d = volume4D.Attributes();
+        const ImageAttributes& attr4d = _reconstructed4D.Attributes();
         ImageAttributes attr3d = attr4d;
         attr3d._t = 1;
         RealImage volume3D(attr3d);
@@ -118,50 +109,37 @@ namespace svrtk {
         
         // Debug
         if (_debug)
-        {
-            cout << "CreateTemplateCardiac4DFromStaticMask: created template 4D volume with "<<attr4d._t<<" time points and "<<attr4d._dt<<" s temporal resolution."<<endl;
-        }
+            cout << "CreateTemplateCardiac4DFromStaticMask created template 4D volume with " << attr4d._t << " time points and " << attr4d._dt << " s temporal resolution." << endl;
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Match Stack Intensities With Masking
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::MatchStackIntensitiesWithMasking(Array<RealImage>& stacks,
-                                                                   Array<RigidTransformation>& stack_transformations, double averageValue, bool together)
-    {
+    void ReconstructionCardiac4D::MatchStackIntensitiesWithMasking(Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations, double averageValue, bool together) {
         if (_debug)
             cout << "Matching intensities of stacks. ";
-        
-        cout<<setprecision(6);
-        
+
+        cout << setprecision(6);
+
         //Calculate the averages of intensities for all stacks
-        double sum, num;
-        char buffer[256];
-        unsigned int ind;
-        int i, j, k;
-        double x, y, z;
         Array<double> stack_average;
-        RealImage m;
-        
+
         //remember the set average value
         _average_value = averageValue;
-        
+
         //averages need to be calculated only in ROI
-        for (ind = 0; ind < stacks.size(); ind++) {
+        for (size_t ind = 0; ind < stacks.size(); ind++) {
             ImageAttributes attr = stacks[ind].Attributes();
             attr._t = 1;
-            m.Initialize(attr);
-            m = 0;
-            sum = 0;
-            num = 0;
-            for (i = 0; i < stacks[ind].GetX(); i++)
-                for (j = 0; j < stacks[ind].GetY(); j++)
-                    for (k = 0; k < stacks[ind].GetZ(); k++) {
+            RealImage m(attr);
+            double sum = 0, num = 0;
+            for (int i = 0; i < stacks[ind].GetX(); i++)
+                for (int j = 0; j < stacks[ind].GetY(); j++)
+                    for (int k = 0; k < stacks[ind].GetZ(); k++) {
                         //image coordinates of the stack voxel
-                        x = i;
-                        y = j;
-                        z = k;
+                        double x = i;
+                        double y = j;
+                        double z = k;
                         //change to world coordinates
                         stacks[ind].ImageToWorld(x, y, z);
                         //transform to template (and also _mask) space
@@ -172,83 +150,63 @@ namespace svrtk {
                         y = round(y);
                         z = round(z);
                         //if the voxel is inside mask ROI include it
-                        if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
-                            && (z < _mask.GetZ()))
-                        {
-                            if (_mask(x, y, z) == 1)
-                            {
-                                m(i,j,k)=1;
-                                for ( int f = 0; f < stacks[ind].GetT(); f++)
-                                {
+                        if (x >= 0 && x < _mask.GetX() && y >= 0 && y < _mask.GetY() && z >= 0 && z < _mask.GetZ()) {
+                            if (_mask(x, y, z) == 1) {
+                                m(i, j, k) = 1;
+                                for (int f = 0; f < stacks[ind].GetT(); f++) {
                                     sum += stacks[ind](i, j, k, f);
                                     num++;
                                 }
                             }
                         }
                     }
-            if(_debug)
-            {
-                sprintf(buffer,"maskformatching%03i.nii.gz",ind);
-                m.Write(buffer);
-            }
+            if (_debug)
+                m.Write((boost::format("maskformatching%03i.nii.gz") % ind).str().c_str());
+
             //calculate average for the stack
-            if (num > 0)
+            if (num > 0) {
                 stack_average.push_back(sum / num);
-            else {
+            } else {
                 cerr << "Stack " << ind << " has no overlap with ROI" << endl;
                 exit(1);
             }
         }
-        
-        double global_average;
+
+        double global_average = 0;
         if (together) {
-            global_average = 0;
-            for(ind=0;ind<stack_average.size();ind++)
-                global_average += stack_average[ind];
-            global_average/=stack_average.size();
+            for (int i = 0; i < stack_average.size(); i++)
+                global_average += stack_average[i];
+            global_average /= stack_average.size();
         }
-        
+
         if (_debug) {
             cout << "Stack average intensities are ";
-            for (ind = 0; ind < stack_average.size(); ind++)
+            for (int ind = 0; ind < stack_average.size(); ind++)
                 cout << stack_average[ind] << " ";
-            cout << endl;
-            cout << "The new average value is " << averageValue << endl;
+            cout << "\nThe new average value is " << averageValue << endl;
         }
-        
+
         //Rescale stacks
-        RealPixel *ptr;
-        double factor;
-        for (ind = 0; ind < stacks.size(); ind++) {
-            if (together) {
-                factor = averageValue / global_average;
-                _stack_factor.push_back(factor);
-            }
-            else {
-                factor = averageValue / stack_average[ind];
-                _stack_factor.push_back(factor);
-                
-            }
-            
-            ptr = stacks[ind].Data();
-            for (i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
-                if (*ptr > 0)
-                    *ptr *= factor;
-                ptr++;
+        _stack_factor.clear();
+        for (int ind = 0; ind < stacks.size(); ind++) {
+            double factor = averageValue / (together ? global_average : stack_average[ind]);
+            _stack_factor.push_back(factor);
+
+            RealPixel *ptr = stacks[ind].Data();
+            for (int i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
+                if (ptr[i] > 0)
+                    ptr[i] *= factor;
             }
         }
-        
+
         if (_debug) {
-            for (ind = 0; ind < stacks.size(); ind++) {
-                sprintf(buffer, "rescaledstack%03i.nii.gz", ind);
-                stacks[ind].Write(buffer);
-            }
-            
+            for (size_t ind = 0; ind < stacks.size(); ind++)
+                stacks[ind].Write((boost::format("rescaledstack%03i.nii.gz") % ind).str().c_str());
+
             cout << "Slice intensity factors are ";
-            for (ind = 0; ind < stack_average.size(); ind++)
+            for (size_t ind = 0; ind < _stack_factor.size(); ind++)
                 cout << _stack_factor[ind] << " ";
-            cout << endl;
-            cout << "The new average value is " << averageValue << endl;
+            cout << "\nThe new average value is " << averageValue << endl;
         }
 
         cout << setprecision(3);
@@ -257,35 +215,24 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Create Slices and Associated Transformations
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::CreateSlicesAndTransformationsCardiac4D( Array<RealImage> &stacks,
-                                                                          Array<RigidTransformation> &stack_transformations,
-                                                                          Array<double> &thickness,
-                                                                          const Array<RealImage> &probability_maps )
-    {
-        
-        double sliceAcqTime;
-        int loc_index = 0;
-        
+    void ReconstructionCardiac4D::CreateSlicesAndTransformationsCardiac4D(const Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations, const Array<double>& thickness, const Array<RealImage>& probability_maps) {
         if (_debug)
             cout << "CreateSlicesAndTransformations" << endl;
-        
-        //for each stack
-        for (unsigned int i = 0; i < stacks.size(); i++) {
+
+        for (size_t i = 0, loc_index = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
-            ImageAttributes attr = stacks[i].Attributes();
-            
+            const ImageAttributes& attr = stacks[i].Attributes();
+
             //attr._z is number of slices in the stack
-            for (int j = 0; j < attr._z; j++) {
-                
+            for (int j = 0; j < attr._z; j++, loc_index++) {
                 //attr._t is number of frames in the stack
                 for (int k = 0; k < attr._t; k++) {
-                    
-                    //create slice by selecting the appropreate region of the stack
+                    //create slice by selecting the appropriate region of the stack
                     RealImage slice = stacks[i].GetRegion(0, 0, j, k, attr._x, attr._y, j + 1, k + 1);
                     //set correct voxel size in the stack. Z size is equal to slice thickness.
                     slice.PutPixelSize(attr._dx, attr._dy, thickness[i], attr._dt);
                     //set slice acquisition time
-                    sliceAcqTime = attr._torigin + k * attr._dt;
+                    const double sliceAcqTime = attr._torigin + k * attr._dt;
                     _slice_time.push_back(sliceAcqTime);
                     //set slice temporal resolution
                     _slice_dt.push_back(attr._dt);
@@ -295,7 +242,7 @@ namespace svrtk {
                     _simulated_weights.push_back(slice);
                     _simulated_inside.push_back(slice);
                     _zero_slices.push_back(1);
-                    //remeber stack indices for this slice
+                    //remember stack indices for this slice
                     _stack_index.push_back(i);
                     _loc_index.push_back(loc_index);
                     _stack_loc_index.push_back(j);
@@ -304,7 +251,7 @@ namespace svrtk {
                     _transformations.push_back(stack_transformations[i]);
                     //initialise slice exclusion flags
                     _slice_excluded.push_back(0);
-                    if ( probability_maps.size() > 0 ) {
+                    if (!probability_maps.empty()) {
                         RealImage proba = probability_maps[i].GetRegion(0, 0, j, k, attr._x, attr._y, j + 1, k + 1);
                         proba.PutPixelSize(attr._dx, attr._dy, thickness[i], attr._dt);
                         _probability_maps.push_back(proba);
@@ -312,7 +259,6 @@ namespace svrtk {
                     //initialise cardiac phase to use for 2D-3D registration
                     _slice_svr_card_index.push_back(0);
                 }
-                loc_index++;
             }
         }
         cout << "Number of images: " << _slices.size() << endl;
@@ -332,336 +278,284 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Calculate Slice Temporal Weights
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::CalculateSliceTemporalWeights()
-    {
+    void ReconstructionCardiac4D::CalculateSliceTemporalWeights() {
         if (_debug)
             cout << "CalculateSliceTemporalWeights" << endl;
-        InitSliceTemporalWeights();
-        
-        
-        for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++)
-        {
-            for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-            {
-                _slice_temporal_weight[outputIndex][inputIndex] = CalculateTemporalWeight( _reconstructed_cardiac_phases[outputIndex], _slice_cardphase[inputIndex], _slice_dt[inputIndex], _slice_rr[inputIndex], _wintukeypct );
-                
-               // option for time window thresholding for velocity reconstruction
-               if (_no_ts) {
-                   if (_slice_temporal_weight[outputIndex][inputIndex] < 0.9)
-                       _slice_temporal_weight[outputIndex][inputIndex] = 0;
-               }
 
+        InitSliceTemporalWeights();
+
+        for (size_t i = 0; i < _reconstructed_cardiac_phases.size(); i++) {
+            for (size_t j = 0; j < _slices.size(); j++) {
+                _slice_temporal_weight[i][j] = CalculateTemporalWeight(_reconstructed_cardiac_phases[i], _slice_cardphase[j], _slice_dt[j], _slice_rr[j], _wintukeypct);
+
+                // option for time window thresholding for velocity reconstruction
+                if (_no_ts && _slice_temporal_weight[i][j] < 0.9)
+                    _slice_temporal_weight[i][j] = 0;
             }
         }
-
-        
     }
 
     // -----------------------------------------------------------------------------
     // Calculate Temporal Weight
     // -----------------------------------------------------------------------------
-    double ReconstructionCardiac4D::CalculateTemporalWeight( double cardphase0, double cardphase, double dt, double rr, double alpha )
-    {
-        double angdiff, dtrad, sigma, temporalweight;
-        
+    double ReconstructionCardiac4D::CalculateTemporalWeight(double cardphase0, double cardphase, double dt, double rr, double alpha) {
         // Angular Difference
-        angdiff = CalculateAngularDifference( cardphase0, cardphase );
-        
+        const double angdiff = CalculateAngularDifference(cardphase0, cardphase);
+
         // Temporal Resolution in Radians
-        dtrad = 2 * PI * dt / rr;
-        
+        const double dtrad = 2 * PI * dt / rr;
+
         // Temporal Weight
+        double temporalweight;
         if (_is_temporalpsf_gauss) {
             // Gaussian
-            sigma = dtrad / 2.355;  // sigma = ~FWHM/2.355
-            temporalweight = exp( -( angdiff * angdiff ) / (2 * sigma * sigma ) );
-        }
-        else {
+            const double sigma = dtrad / 2.355;  // sigma = ~FWHM/2.355
+            temporalweight = exp(-(angdiff * angdiff) / (2 * sigma * sigma));
+        } else {
             // Sinc
-            temporalweight = sinc( PI * angdiff / dtrad ) * wintukey( angdiff, alpha );
+            temporalweight = sinc(PI * angdiff / dtrad) * wintukey(angdiff, alpha);
         }
-        
+
         return temporalweight;
     }
 
     // -----------------------------------------------------------------------------
     // Calculate Transformation Matrix Between Slices and Voxels
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::CoeffInitCardiac4D()
-    {
-        if (_debug)
-            cout << "CoeffInit" << endl;
-        
-        
-        //clear slice-volume matrix from previous iteration
+    void ReconstructionCardiac4D::CoeffInitCardiac4D() {
+        SVRTK_START_TIMING();
+
+        //resize slice-volume matrix from previous iteration
         _volcoeffs.clear();
         _volcoeffs.resize(_slices.size());
-        
-        //clear indicator of slice having and overlap with volumetric mask
+
+        //resize indicator of slice having and overlap with volumetric mask
         _slice_inside.clear();
         _slice_inside.resize(_slices.size());
-        
-        cout << "Initialising matrix coefficients...";
-        cout.flush();
+
+        if (_verbose)
+            _verbose_log << "Initialising matrix coefficients... ";
         Parallel::CoeffInitCardiac4D coeffinit(this);
         coeffinit();
-        cout << " ... done." << endl;
-        
-        //prepare image for volume weights, will be needed for Gaussian Reconstruction
-        cout << "Computing 4D volume weights..." << endl;
-        ImageAttributes volAttr = _reconstructed4D.Attributes();
-        _volume_weights.Initialize( volAttr );
-        _volume_weights = 0;
-        
-        
-        
-        // TODO: investigate if this loop is taking a long time to compute, and consider parallelisation
-        int i, j, n, k, outputIndex;
-        unsigned int inputIndex;
-        POINT3D p;
-        cout << "    ... for input slice: ";
-        
+        if (_verbose)
+            _verbose_log << "done." << endl;
 
-        for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-            cout << inputIndex << ", ";
-            cout.flush();
-            for ( i = 0; i < _slices[inputIndex].GetX(); i++)
-                for ( j = 0; j < _slices[inputIndex].GetY(); j++) {
-                    n = _volcoeffs[inputIndex][i][j].size();
-                    for (k = 0; k < n; k++) {
-                        p = _volcoeffs[inputIndex][i][j][k];
-                        
-                        for (outputIndex=0; outputIndex<_reconstructed4D.GetT(); outputIndex++)
-                        {
+        //prepare image for volume weights, will be needed for Gaussian Reconstruction
+        _volume_weights = 0;
+        if (_verbose)
+            _verbose_log << "Computing 4D volume weights..." << endl;
+        _volume_weights.Initialize(_reconstructed4D.Attributes());
+
+        if (_verbose)
+            _verbose_log << "    ... for input slice: ";
+        // Do not parallelise: It would cause data inconsistencies
+        for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            if (_verbose)
+                _verbose_log << inputIndex << ", ";
+            // Do not parallelise: It would cause data inconsistencies
+            for (int i = 0; i < _slices[inputIndex].GetX(); i++)
+                for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+                    for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
+                        const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
+                        for (int outputIndex = 0; outputIndex < _reconstructed4D.GetT(); outputIndex++)
                             _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                            
-                        }
                     }
                 }
         }
-        cout << "\b\b." << endl;
+        if (_verbose)
+            _verbose_log << "\b\b" << endl;
         // if (_debug)
         //     _volume_weights.Write("volume_weights.nii.gz");
-        
 
         //find average volume weight to modify alpha parameters accordingly
+        const RealPixel *ptr = _volume_weights.Data();
+        const RealPixel *pm = _mask.Data();
         double sum = 0;
-        int num=0;
-        for (i=0; i<_volume_weights.GetX(); i++)
-            for (j=0; j<_volume_weights.GetY(); j++)
-                for (k=0; k<_volume_weights.GetZ(); k++)
-                    if (_mask(i,j,k)==1)
-                        for (int f=0; f<_volume_weights.GetT(); f++) {
-                            sum += _volume_weights(i,j,k,f);
-                            num++;
-                        }
-        
-        _average_volume_weight = sum/num;
-        
-        if(_debug) {
-            cout<<"Average volume weight is "<<_average_volume_weight<<endl;
+        int num = 0;
+        for (int i = 0; i < _volume_weights.NumberOfVoxels(); i++) {
+            if (pm[i] == 1) {
+                sum += ptr[i];
+                num++;
+            }
         }
-        
+        _average_volume_weight = sum / num;
+
+        if (_verbose)
+            _verbose_log << "Average volume weight is " << _average_volume_weight << endl;
+
+        SVRTK_END_TIMING("CoeffInitCardiac4D");
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // PSF-Weighted Reconstruction
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::GaussianReconstructionCardiac4D()
-    {
-        if(_debug)
-        {
-            cout << "Gaussian reconstruction ... " << endl;
-            cout << "\tinput slice:  ";
-            cout.flush();
+    void ReconstructionCardiac4D::GaussianReconstructionCardiac4D() {
+        SVRTK_START_TIMING();
+
+        if (_verbose) {
+            _verbose_log << "Gaussian reconstruction ... " << endl;
+            _verbose_log << "\tinput slice:  ";
         }
-        unsigned int inputIndex, outputIndex;
-        int k, n;
-        RealImage slice;
-        double scale;
-        POINT3D p;
+
         Array<int> voxel_num;
-        int slice_vox_num;
-        
+
         //clear _reconstructed image
         _reconstructed4D = 0;
-        
-        for (inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-            
-            if (_slice_excluded[inputIndex]==0) {
-                
-                if(_debug)
-                {
-                    cout << inputIndex << ", ";
-                    cout.flush();
-                }
-                //copy the current slice
-                slice = _slices[inputIndex];
-                //alias the current bias image
-                RealImage& b = _bias[inputIndex];
-                //read current scale factor
-                scale = _scale[inputIndex];
-                
-                slice_vox_num=0;
-                
-                //Distribute slice intensities to the volume
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) != -1) {
-                            //biascorrect and scale the slice
-                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                            
-                            //number of volume voxels with non-zero coefficients
-                            //for current slice voxel
-                            n = _volcoeffs[inputIndex][i][j].size();
-                            
-                            //if given voxel is not present in reconstructed volume at all,
-                            //pad it
-                            
-                            //if (n == 0)
-                            //_slices[inputIndex].PutAsDouble(i, j, 0, -1);
-                            //calculate num of vox in a slice that have overlap with roi
-                            if (n>0)
-                                slice_vox_num++;
-                            
-                            //add contribution of current slice voxel to all voxel volumes
-                            //to which it contributes
-                            for (k = 0; k < n; k++) {
-                                p = _volcoeffs[inputIndex][i][j][k];
-                                for (outputIndex=0; outputIndex<_reconstructed_cardiac_phases.size(); outputIndex++)
-                                {
-                                    _reconstructed4D(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
-                                }
-                            }
+
+        for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            if (_slice_excluded[inputIndex])
+                continue;
+
+            if (_verbose)
+                _verbose_log << inputIndex << ", ";
+
+            //copy the current slice
+            RealImage slice = _slices[inputIndex];
+            //alias the current bias image
+            const RealImage& b = _bias[inputIndex];
+            //read current scale factor
+            const double scale = _scale[inputIndex];
+
+            int slice_vox_num = 0;
+
+            //Distribute slice intensities to the volume
+            for (int i = 0; i < slice.GetX(); i++)
+                for (int j = 0; j < slice.GetY(); j++)
+                    if (slice(i, j, 0) != -1) {
+                        //biascorrect and scale the slice
+                        slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+
+                        //number of volume voxels with non-zero coefficients
+                        //for current slice voxel
+                        const size_t n = _volcoeffs[inputIndex][i][j].size();
+
+                        //if given voxel is not present in reconstructed volume at all,
+                        //pad it
+
+                        //if (n == 0)
+                        //_slices[inputIndex].PutAsDouble(i, j, 0, -1);
+                        //calculate num of vox in a slice that have overlap with roi
+                        if (n > 0)
+                            slice_vox_num++;
+
+                        //add contribution of current slice voxel to all voxel volumes
+                        //to which it contributes
+                        for (size_t k = 0; k < n; k++) {
+                            const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
+                            for (size_t outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++)
+                                _reconstructed4D(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0);
                         }
-                voxel_num.push_back(slice_vox_num);
-            } //end of if (_slice_excluded[inputIndex]==0)
+                    }
+            voxel_num.push_back(slice_vox_num);
         } //end of loop for a slice inputIndex
-        
+
         //normalize the volume by proportion of contributing slice voxels
-        //for each volume voxe
+        //for each volume voxel
         _reconstructed4D /= _volume_weights;
-        
-        if(_debug)
-        {
-            cout << inputIndex << "\b\b." << endl;
-            cout << "... Gaussian reconstruction done." << endl << endl;
-            cout.flush();
-        }
-        
-        
-         if (_debug)
-             _reconstructed4D.Write("init.nii.gz");
-        
-        //now find slices with small overlap with ROI and exclude them.
-        
-        Array<int> voxel_num_tmp;
-        for (unsigned int i=0;i<voxel_num.size();i++)
-            voxel_num_tmp.push_back(voxel_num[i]);
-        
+
+        if (_verbose)
+            _verbose_log << "\b\b\n... Gaussian reconstruction done.\n" << endl;
+
+        if (_debug)
+            _reconstructed4D.Write("init.nii.gz");
+
+        // find slices with small overlap with ROI and exclude them.
         //find median
         sort(voxel_num_tmp.begin(),voxel_num_tmp.end());
         int median = voxel_num_tmp[round(voxel_num_tmp.size()*0.5)];
         
         //remember slices with small overlap with ROI
         _small_slices.clear();
-        for (unsigned int i=0;i<voxel_num.size();i++)
-            if (voxel_num[i]<0.1*median)
+        for (size_t i = 0; i < voxel_num.size(); i++)
+            if (voxel_num[i] < 0.1 * median)
                 _small_slices.push_back(i);
-        
-        if (_debug) {
-            cout<<"Small slices:";
-            for (unsigned int i=0;i<_small_slices.size();i++)
-                cout<<" "<<_small_slices[i];
-            cout<<endl;
+
+        if (_verbose) {
+            _verbose_log << "Small slices:";
+            for (size_t i = 0; i < _small_slices.size(); i++)
+                _verbose_log << " " << _small_slices[i];
+            _verbose_log << endl;
         }
 
+        SVRTK_END_TIMING("GaussianReconstructionCardiac4D");
     }
 
     // -----------------------------------------------------------------------------
     // Calculate Corrected Slices
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::CalculateCorrectedSlices()
-    {
-        if (_debug)
-            cout<<"Calculating corrected slices..."<<endl;
-        
+    void ReconstructionCardiac4D::CalculateCorrectedSlices() {
+        if (_verbose)
+            _verbose_log << "Calculating corrected slices ... ";
+
         Parallel::CalculateCorrectedSlices parallelCalculateCorrectedSlices(this);
         parallelCalculateCorrectedSlices();
-        
-        if (_debug)
-            cout<<"\t...calculating corrected slices done."<<endl;
+
+        if (_verbose)
+            _verbose_log << "done." << endl;
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Simulate Slices
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SimulateSlicesCardiac4D()
-    {
-        if (_debug)
-            cout<<"Simulating Slices..."<<endl;
-        
+    void ReconstructionCardiac4D::SimulateSlicesCardiac4D() {
+        SVRTK_START_TIMING();
+
+        if (_verbose)
+            _verbose_log << "Simulating slices ... ";
+
         Parallel::SimulateSlicesCardiac4D parallelSimulateSlices(this);
         parallelSimulateSlices();
-        
-        if (_debug)
-            cout<<"\t...Simulating Slices done."<<endl;
+
+        if (_verbose)
+            _verbose_log << "done." << endl;
+
+        SVRTK_END_TIMING("SimulateSlicesCardiac4D");
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Simulate Stacks
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SimulateStacksCardiac4D(Array<bool> stack_excluded)
-    {
-        
-        cout << "SimulateStacksCardiac4D" << endl;
-        
         //Initialise simlated images
         for (unsigned int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)    _simulated_slices[inputIndex] = 0;
-        
+    void ReconstructionCardiac4D::SimulateStacksCardiac4D() {
+        if (_verbose)
+            _verbose_log << "Simulating stacks ... ";
+
+
         //Initialise indicator of images having overlap with volume
-        _slice_inside.clear();
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex)
-            _slice_inside.push_back(true);
-        
+        _slice_inside = Array<bool>(_slices.size(), true);
+
         //Simulate images
-        cout << "Simulating...";
-        cout.flush();
         Parallel::SimulateStacksCardiac4D simulatestacks(this);
         simulatestacks();
-        cout << " ... done." << endl;
-        
+
+        if (_verbose)
+            _verbose_log << "done." << endl;
     }
-    
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Error
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::CalculateError()
-    {
-        if (_debug)
-            cout<<"Calculating error..."<<endl;
-        
+    void ReconstructionCardiac4D::CalculateError() {
+        if (_verbose)
+            _verbose_log << "Calculating error ... ";
+
         Parallel::CalculateError parallelCalculateError(this);
         parallelCalculateError();
-        
-        if (_debug)
-            cout<<"\t...calculating error done."<<endl;
+
+        if (_verbose)
+            _verbose_log << "done." << endl;
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Normalise Bias
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::NormaliseBiasCardiac4D(int iter, int rec_iter)
-    {
-        if(_debug)
-            cout << "Normalise Bias ... ";
-        
+    void ReconstructionCardiac4D::NormaliseBiasCardiac4D(int iter, int rec_iter) {
+        SVRTK_START_TIMING();
+
+        if (_verbose)
+            _verbose_log << "Normalise Bias ... ";
+
         Parallel::NormaliseBiasCardiac4D parallelNormaliseBias(this);
         parallelNormaliseBias();
         RealImage bias = parallelNormaliseBias.bias;
@@ -669,11 +563,11 @@ namespace svrtk {
         
         // normalize the volume by proportion of contributing slice voxels for each volume voxel
         bias /= volweight3d;
-        
-        if(_debug)
-            cout << "done." << endl;
-        
-        bias = StaticMaskVolume4D(bias,0);
+
+        if (_verbose)
+            _verbose_log << "done." << endl;
+
+        StaticMaskVolume4D(bias, 0);
         RealImage m = _mask;
         GaussianBlurring<RealPixel> gb(_sigma_bias);
         gb.Input(&bias);
@@ -682,50 +576,42 @@ namespace svrtk {
         gb.Input(&m);
         gb.Output(&m);
         gb.Run();
-        
-        bias/=m;
-        
-        if (_debug) {
-            char buffer[256];
-            sprintf(buffer,"averagebias_mc%02isr%02i.nii.gz",iter,rec_iter);
-            bias.Write(buffer);
-        }
-        
-        for ( int i = 0; i < _reconstructed4D.GetX(); i++)
-            for ( int j = 0; j < _reconstructed4D.GetY(); j++)
-                for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
-                    for ( int f = 0; f < _reconstructed4D.GetT(); f++)
-                        if(_reconstructed4D(i,j,k,f)!=-1)
-                            _reconstructed4D(i,j,k,f) /=exp(-bias(i,j,k));
-        
+
+        bias /= m;
+
+        if (_debug)
+            bias.Write((boost::format("averagebias_mc%02isr%02i.nii.gz") % iter % rec_iter).str().c_str());
+
+        for (int i = 0; i < _reconstructed4D.GetX(); i++)
+            for (int j = 0; j < _reconstructed4D.GetY(); j++)
+                for (int k = 0; k < _reconstructed4D.GetZ(); k++)
+                    for (int f = 0; f < _reconstructed4D.GetT(); f++)
+                        if (_reconstructed4D(i, j, k, f) != -1)
+                            _reconstructed4D(i, j, k, f) /= exp(-bias(i, j, k));
+
+        SVRTK_END_TIMING("NormaliseBiasCardiac4D");
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Target Cardiac Phase in Reconstructed Volume for Slice-To-Volume Registration
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::CalculateSliceToVolumeTargetCardiacPhase()
-    {
-        int card_index;
-        double angdiff;
+    void ReconstructionCardiac4D::CalculateSliceToVolumeTargetCardiacPhase() {
         if (_debug)
             cout << "CalculateSliceToVolumeTargetCardiacPhase" << endl;
+
         _slice_svr_card_index.clear();
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
-        {
-            angdiff = PI + 0.001;  // NOTE: init angdiff larger than any possible calculated angular difference
-            card_index = -1;
-            for (unsigned int outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++)
-            {
-                if ( fabs( CalculateAngularDifference( _reconstructed_cardiac_phases[outputIndex], _slice_cardphase[inputIndex] ) ) < angdiff)
-                {
-                    angdiff = fabs( CalculateAngularDifference( _reconstructed_cardiac_phases[outputIndex], _slice_cardphase[inputIndex] ) );
+        for (size_t i = 0; i < _slices.size(); i++) {
+            double angdiff = PI + 0.001;  // NOTE: init angdiff larger than any possible calculated angular difference
+            int card_index = -1;
+            for (size_t outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++) {
+                if (fabs(CalculateAngularDifference(_reconstructed_cardiac_phases[outputIndex], _slice_cardphase[i])) < angdiff) {
+                    angdiff = fabs(CalculateAngularDifference(_reconstructed_cardiac_phases[outputIndex], _slice_cardphase[i]));
                     card_index = outputIndex;
                 }
             }
             _slice_svr_card_index.push_back(card_index);
             // if (_debug)
-            //   cout << inputIndex << ":" << _slice_svr_card_index[inputIndex] << ", ";
+            //   cout << i << ":" << _slice_svr_card_index[i] << ", ";
         }
         // if (_debug)
         //   cout << "\b\b." << endl;
@@ -734,86 +620,70 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Slice-to-Volume Registration
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SliceToVolumeRegistrationCardiac4D()
-    {
-        
-        if (_debug)
-            cout << "SliceToVolumeRegistrationCardiac4D" << endl;
+    void ReconstructionCardiac4D::SliceToVolumeRegistrationCardiac4D() {
+        SVRTK_START_TIMING();
+
+        if (_verbose)
+            _verbose_log << "SliceToVolumeRegistrationCardiac4D" << endl;
+
         Parallel::SliceToVolumeRegistrationCardiac4D registration(this);
         registration();
+
+        SVRTK_END_TIMING("SliceToVolumeRegistrationCardiac4D");
     }
 
     // -----------------------------------------------------------------------------
     // Remote Slice-to-Volume Registration
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::RemoteSliceToVolumeRegistrationCardiac4D(int iter, string str_mirtk_path, string str_current_main_file_path, string str_current_exchange_file_path)
-    {
-        
         ImageAttributes attr_recon = _reconstructed4D.Attributes();
-        
-        if (_debug)
-            cout << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
-        
-        for (int t=0; t<_reconstructed4D.GetT(); t++) {
-        
+    void ReconstructionCardiac4D::RemoteSliceToVolumeRegistrationCardiac4D(int iter, const string& str_mirtk_path, const string& str_current_exchange_file_path) {
+
+        if (_verbose)
+            _verbose_log << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
+
+        for (int t = 0; t < _reconstructed4D.GetT(); t++) {
             string str_source = str_current_exchange_file_path + "/current-source-" + to_string(t) + ".nii.gz";
-            RealImage source = _reconstructed4D.GetRegion( 0, 0, 0, t, attr_recon._x, attr_recon._y, attr_recon._z, (t+1));
+            RealImage source = _reconstructed4D.GetRegion(0, 0, 0, t, attr_recon._x, attr_recon._y, attr_recon._z, t + 1);
             source.Write(str_source.c_str());
-            
         }
-        
+
         if (iter == 1) {
-            
             _offset_matrices.clear();
-            
-            for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
-                
+
+            for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
                 ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
                 GenericLinearInterpolateImageFunction<RealImage> interpolator;
-                
-                RealImage target = _slices[inputIndex];
+
+                RealImage target(_slices[inputIndex].Attributes());
                 resampling.Input(&_slices[inputIndex]);
                 resampling.Output(&target);
                 resampling.Interpolator(&interpolator);
                 resampling.Run();
-                
+
                 // put origin to zero
                 RigidTransformation offset;
                 ResetOrigin(target, offset);
-                
-                
+
                 RealPixel tmin, tmax;
                 target.GetMinMax(&tmin, &tmax);
-                if (tmax > 1 && ((tmax-tmin) > 1) ) {
-                    _zero_slices[inputIndex] = 1;
-                } else {
-                    _zero_slices[inputIndex] = -1;
-                }
-                
-                
-                string str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
-                target.Write(str_target.c_str());
-                
-                Matrix mo = offset.GetMatrix();
-                _offset_matrices.push_back(mo);
+                _zero_slices[inputIndex] = tmax > 1 && (tmax - tmin) > 1 ? 1 : -1;
 
+                const string str_target = str_current_exchange_file_path + "/res-slice-" + to_string(inputIndex) + ".nii.gz";
+                target.Write(str_target.c_str());
+
+                _offset_matrices.push_back(offset.GetMatrix());
             }
         }
-        
-        
-        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
-            
-            RigidTransformation r_transform = _transformations[inputIndex];
-            Matrix m = r_transform.GetMatrix();
-            m=m*_offset_matrices[inputIndex];
-            r_transform.PutMatrix(m);
-            
-            string str_dofin = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
-            r_transform.Write(str_dofin.c_str());
 
+        for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            RigidTransformation r_transform = _transformations[inputIndex];
+            const Matrix m = r_transform.GetMatrix() * _offset_matrices[inputIndex];
+            r_transform.PutMatrix(m);
+
+            const string str_dofin = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
+            r_transform.Write(str_dofin.c_str());
         }
-        
-        
+
         int stride = 32;
         int svr_range_start = 0;
         int svr_range_stop = svr_range_start + stride;
@@ -821,17 +691,10 @@ namespace svrtk {
         while (svr_range_start < _slices.size()) {
             Parallel::RemoteSliceToVolumeRegistration registration(this, svr_range_start, svr_range_stop, str_mirtk_path, str_current_exchange_file_path, true, _slice_svr_card_index);
             registration();
-            
+
             svr_range_start = svr_range_stop;
-            svr_range_stop = svr_range_start + stride;
-            
-            if (svr_range_stop > _slices.size()) {
-                svr_range_stop = _slices.size();
-            }
-        
+            svr_range_stop = min(svr_range_start + stride, (int)_slices.size());
         }
-        
-        for (int inputIndex=0; inputIndex<_slices.size(); inputIndex++) {
 
             string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
 
@@ -840,50 +703,34 @@ namespace svrtk {
             _transformations[inputIndex] = *tmp_r_transf;
 
             //undo the offset
-            Matrix mo = _offset_matrices[inputIndex];
-            mo.Invert();
-            Matrix m = _transformations[inputIndex].GetMatrix();
-            m=m*mo;
-            _transformations[inputIndex].PutMatrix(m);
-
+            _transformations[inputIndex].PutMatrix(_transformations[inputIndex].GetMatrix() * _offset_matrices[inputIndex].Inverse());
         }
-        
-        
-        
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Volume-to-Volume Registration
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::VolumeToVolumeRegistration(GreyImage target, GreyImage source, RigidTransformation& rigidTransf)
-    {
-        
-        
+    void ReconstructionCardiac4D::VolumeToVolumeRegistration(const GreyImage& target, const GreyImage& source, RigidTransformation& rigidTransf) {
         ParameterList params;
         Insert(params, "Transformation model", "Rigid");
         Insert(params, "Image (dis-)similarity measure", "NMI");
-        if (_nmi_bins>0)
+        if (_nmi_bins > 0)
             Insert(params, "No. of bins", _nmi_bins);
         Insert(params, "Background value for image 1", -1);
         Insert(params, "Background value for image 2", -1);
-        
+
         GenericRegistrationFilter registration;
         registration.Parameter(params);
         registration.Input(&target, &source);
-        
-        
         Transformation *dofout = nullptr;
         registration.Output(&dofout);
-        
-        RigidTransformation dofin = rigidTransf;
-        registration.InitialGuess(&dofin);
-        
+        registration.InitialGuess(&rigidTransf);
         registration.GuessParameter();
         registration.Run();
         
         RigidTransformation *rigidTransf_dofout = dynamic_cast<RigidTransformation*> (dofout);
         rigidTransf = *rigidTransf_dofout;
+    }
 
     // -----------------------------------------------------------------------------
     // Common Calculate Function
@@ -911,55 +758,40 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Calculate Displacement
     // -----------------------------------------------------------------------------
-    double ReconstructionCardiac4D::CalculateDisplacement()
-    {
-        
+    double ReconstructionCardiac4D::CalculateDisplacement() {
         if (_debug)
-            cout << "CalculateDisplacment" << endl;
-        
+            cout << "CalculateDisplacement" << endl;
+
         _slice_displacement.clear();
         _slice_tx.clear();
         _slice_ty.clear();
         _slice_tz.clear();
-        double x,y,z,tx,ty,tz;
-        double disp_sum_slice, disp_sum_total = 0;
-        double tx_sum_slice, ty_sum_slice, tz_sum_slice = 0;
-        int num_voxel_slice, num_voxel_total = 0;
-        int k = 0;
-        double slice_disp, mean_disp;
-        double tx_slice, ty_slice, tz_slice;
-        
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            
-            disp_sum_slice = 0;
-            num_voxel_slice = 0;
-            slice_disp = -1;
-            tx_slice = 0;
-            ty_slice = 0;
-            tz_slice = 0;
-            tx_sum_slice = 0;
-            ty_sum_slice = 0;
-            tz_sum_slice = 0;
-            
-            if (_slice_excluded[inputIndex]==0) {
+        double disp_sum_total = 0;
+        int num_voxel_total = 0;
+
+        for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            int num_voxel_slice = 0;
+            double slice_disp = -1, disp_sum_slice = 0;
+            double tx_slice = 0, ty_slice = 0, tz_slice = 0;
+            double tx_sum_slice = 0, ty_sum_slice = 0, tz_sum_slice = 0;
+
+            if (!_slice_excluded[inputIndex]) {
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
-                        if (_slices[inputIndex](i,j,k)!=-1) {
-                            x = i;
-                            y = j;
-                            z = k;
-                            _slices[inputIndex].ImageToWorld(x,y,z);
-                            tx = x; ty = y; tz = z;
-                            _transformations[inputIndex].Transform(tx,ty,tz);
-                            disp_sum_slice += sqrt((tx-x)*(tx-x)+(ty-y)*(ty-y)+(tz-z)*(tz-z));
-                            tx_sum_slice += tx-x;
-                            ty_sum_slice += ty-y;
-                            tz_sum_slice += tz-z;
-                            num_voxel_slice += 1;
+                        if (_slices[inputIndex](i, j, 0) != -1) {
+                            double x = i, y = j, z = 0;
+                            _slices[inputIndex].ImageToWorld(x, y, z);
+                            double tx = x, ty = y, tz = z;
+                            _transformations[inputIndex].Transform(tx, ty, tz);
+                            disp_sum_slice += sqrt((tx - x) * (tx - x) + (ty - y) * (ty - y) + (tz - z) * (tz - z));
+                            tx_sum_slice += tx - x;
+                            ty_sum_slice += ty - y;
+                            tz_sum_slice += tz - z;
+                            num_voxel_slice++;
                         }
                     }
                 }
-                if ( num_voxel_slice>0 ) {
+                if (num_voxel_slice > 0) {
                     slice_disp = disp_sum_slice / num_voxel_slice;
                     tx_slice = tx_sum_slice / num_voxel_slice;
                     ty_slice = ty_sum_slice / num_voxel_slice;
@@ -968,7 +800,7 @@ namespace svrtk {
                     num_voxel_total += num_voxel_slice;
                 }
             }
-            
+
             _slice_displacement.push_back(slice_disp);
             _slice_tx.push_back(tx_slice);
             _slice_ty.push_back(ty_slice);
@@ -981,50 +813,37 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Calculate Weighted Displacement
     // -----------------------------------------------------------------------------
-    double ReconstructionCardiac4D::CalculateWeightedDisplacement()
-    {
-        
+    double ReconstructionCardiac4D::CalculateWeightedDisplacement() {
         if (_debug)
             cout << "CalculateWeightedDisplacement" << endl;
-        
+
         _slice_weighted_displacement.clear();
-        
-        double x,y,z,tx,ty,tz;
-        double disp_sum_slice, disp_sum_total = 0;
-        double weight_slice, weight_total = 0;
-        int k = 0;
-        double slice_disp, mean_disp = 0;
-        
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            
-            disp_sum_slice = 0;
-            weight_slice = 0;
-            slice_disp = -1;
-            
-            if (_slice_excluded[inputIndex]==0) {
+        double disp_sum_total = 0, weight_total = 0;
+
+        for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            double disp_sum_slice = 0, weight_slice = 0, slice_disp = -1;
+
+            if (!_slice_excluded[inputIndex]) {
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
-                        if (_slices[inputIndex](i,j,k)!=-1) {
-                            x = i;
-                            y = j;
-                            z = k;
-                            _slices[inputIndex].ImageToWorld(x,y,z);
-                            tx = x; ty = y; tz = z;
-                            _transformations[inputIndex].Transform(tx,ty,tz);
-                            disp_sum_slice += _slice_weight[inputIndex]*_weights[inputIndex](i,j,k)*sqrt((tx-x)*(tx-x)+(ty-y)*(ty-y)+(tz-z)*(tz-z));
-                            weight_slice += _slice_weight[inputIndex]*_weights[inputIndex](i,j,k);
+                        if (_slices[inputIndex](i, j, 0) != -1) {
+                            double x = i, y = j, z = 0;
+                            _slices[inputIndex].ImageToWorld(x, y, z);
+                            double tx = x, ty = y, tz = z;
+                            _transformations[inputIndex].Transform(tx, ty, tz);
+                            disp_sum_slice += _slice_weight[inputIndex] * _weights[inputIndex](i, j, 0) * sqrt((tx - x) * (tx - x) + (ty - y) * (ty - y) + (tz - z) * (tz - z));
+                            weight_slice += _slice_weight[inputIndex] * _weights[inputIndex](i, j, 0);
                         }
                     }
                 }
-                if (weight_slice>0) {
+                if (weight_slice > 0) {
                     slice_disp = disp_sum_slice / weight_slice;
                     disp_sum_total += disp_sum_slice;
                     weight_total += weight_slice;
                 }
             }
-            
+
             _slice_weighted_displacement.push_back(slice_disp);
-            
         }
 
         return weight_total > 0 ? disp_sum_total / weight_total : -1;
@@ -1033,47 +852,40 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Calculate Target Registration Error
     // -----------------------------------------------------------------------------
-
     double ReconstructionCardiac4D::CalculateTRE() {
         if (_debug)
             cout << "CalculateTRE" << endl;
-        
+
         _slice_tre.clear();
-        
-        double x,y,z,cx,cy,cz,px,py,pz;
-        double tre_sum_slice, tre_sum_total = 0;
-        int num_voxel_slice, num_voxel_total = 0;
-        int k = 0;
-        double slice_tre, mean_tre;
-        
-        for (unsigned int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            
-            tre_sum_slice = 0;
-            num_voxel_slice = 0;
-            slice_tre = -1;
-            
-            if (_slice_excluded[inputIndex]==0) {
+        double tre_sum_total = 0;
+        int num_voxel_total = 0;
+
+        for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+            double tre_sum_slice = 0, slice_tre = -1;
+            int num_voxel_slice = 0;
+
+            if (!_slice_excluded[inputIndex]) {
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
-                        if (_slices[inputIndex](i,j,k)!=-1) {
-                            x = i; y = j; z = k;
-                            _slices[inputIndex].ImageToWorld(x,y,z);
-                            cx = x; cy = y; cz = z;
-                            px = x; py = y; pz = z;
-                            _transformations[inputIndex].Transform(cx,cy,cz);
-                            _ref_transformations[inputIndex].Transform(px,py,pz);
-                            tre_sum_slice += sqrt((cx-px)*(cx-px)+(cy-py)*(cy-py)+(cz-pz)*(cz-pz));
-                            num_voxel_slice += 1;
+                        if (_slices[inputIndex](i, j, 0) != -1) {
+                            double x = i, y = j, z = 0;
+                            _slices[inputIndex].ImageToWorld(x, y, z);
+                            double cx = x, cy = y, cz = z;
+                            double px = x, py = y, pz = z;
+                            _transformations[inputIndex].Transform(cx, cy, cz);
+                            _ref_transformations[inputIndex].Transform(px, py, pz);
+                            tre_sum_slice += sqrt((cx - px) * (cx - px) + (cy - py) * (cy - py) + (cz - pz) * (cz - pz));
+                            num_voxel_slice++;
                         }
                     }
                 }
-                if ( num_voxel_slice>0 ) {
+                if (num_voxel_slice > 0) {
                     slice_tre = tre_sum_slice / num_voxel_slice;
                     tre_sum_total += tre_sum_slice;
                     num_voxel_total += num_voxel_slice;
                 }
             }
-            
+
             _slice_tre.push_back(slice_tre);
         }
 
@@ -1083,326 +895,256 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Smooth Transformations
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SmoothTransformations(double sigma_seconds, int niter, bool use_slice_inside)
-    {
-        
+    void ReconstructionCardiac4D::SmoothTransformations(double sigma_seconds, int niter, bool use_slice_inside) {
         if (_debug)
-            cout<<"SmoothTransformations"<<endl<<"\tsigma = "<<sigma_seconds<<" s"<<endl;
-        
-        int i,j,iter,par;
-        
+            cout << "SmoothTransformations\n\tsigma = " << sigma_seconds << " s" << endl;
+
         //Reset origin for transformations
         GreyImage t = _reconstructed4D;
         RigidTransformation offset;
-        ResetOrigin(t,offset);
-        Matrix m;
-        Matrix mo = offset.GetMatrix();
-        Matrix imo = mo;
-        imo.Invert();
+        ResetOrigin(t, offset);
         if (_debug)
             offset.Write("reset_origin.dof");
-        for(i=0;i<int(_transformations.size());i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m=imo*m*mo;
-            _transformations[i].PutMatrix(m);
-        }
-        
+
+        const Matrix& mo = offset.GetMatrix();
+        const Matrix imo = mo.Inverse();
+        for (size_t i = 0; i < _transformations.size(); i++)
+            _transformations[i].PutMatrix(imo * _transformations[i].GetMatrix() * mo);
+
         //initial weights
-        Matrix parameters(6,_transformations.size());
-        Matrix weights(6,_transformations.size());
+        Matrix parameters(6, _transformations.size());
+        Matrix weights(6, _transformations.size());
         ofstream fileOut("motion.txt", ofstream::out | ofstream::app);
-        
-        for(i=0;i<int(_transformations.size());i++)
-        {
-            parameters(0,i)=_transformations[i].GetTranslationX();
-            parameters(1,i)=_transformations[i].GetTranslationY();
-            parameters(2,i)=_transformations[i].GetTranslationZ();
-            parameters(3,i)=_transformations[i].GetRotationX();
-            parameters(4,i)=_transformations[i].GetRotationY();
-            parameters(5,i)=_transformations[i].GetRotationZ();
-            
+
+        for (size_t i = 0; i < _transformations.size(); i++) {
+            parameters(0, i) = _transformations[i].GetTranslationX();
+            parameters(1, i) = _transformations[i].GetTranslationY();
+            parameters(2, i) = _transformations[i].GetTranslationZ();
+            parameters(3, i) = _transformations[i].GetRotationX();
+            parameters(4, i) = _transformations[i].GetRotationY();
+            parameters(5, i) = _transformations[i].GetRotationZ();
+
             //write unprocessed parameters to file
-            for(j=0;j<6;j++)
-            {
-                fileOut<<parameters(j,i);
-                if(j<5)
-                    fileOut<<",";
+            for (int j = 0; j < 6; j++) {
+                fileOut << parameters(j, i);
+                if (j < 5)
+                    fileOut << ",";
                 else
-                    fileOut<<endl;
+                    fileOut << endl;
             }
-            
-            for(j=0;j<6;j++)
-                weights(j,i)=0;             //initialise as zero
-            if (!_slice_excluded[i])
-            {
-                if (!use_slice_inside)      //set weights based on image intensities
-                {
+
+            for (int j = 0; j < 6; j++)
+                weights(j, i) = 0;             //initialise as zero
+
+            if (!_slice_excluded[i]) {
+                if (!use_slice_inside) {    //set weights based on image intensities
                     RealPixel smin, smax;
-                    _slices[i].GetMinMax(&smin,&smax);
-                    if(smax>-1)
-                        for(j=0;j<6;j++)
-                            weights(j,i)=1;
-                }
-                else                        //set weights based on _slice_inside
-                {
-                    if(_slice_inside.size()>0)
-                    {
-                        if(_slice_inside[i])
-                            for(j=0;j<6;j++)
-                                weights(j,i)=1;
+                    _slices[i].GetMinMax(&smin, &smax);
+                    if (smax > -1)
+                        for (int j = 0; j < 6; j++)
+                            weights(j, i) = 1;
+                } else {    //set weights based on _slice_inside
+                    if (_slice_inside.size() > 0) {
+                        if (_slice_inside[i])
+                            for (int j = 0; j < 6; j++)
+                                weights(j, i) = 1;
                     }
                 }
             }
         }
-        
+
         //initialise
-        Matrix den(6,_transformations.size());
-        Matrix num(6,_transformations.size());
-        Matrix kr(6,_transformations.size());
-        Array<double> error,tmp,kernel;
-        double median;
-        double sigma;
+        Matrix den(6, _transformations.size());
+        Matrix num(6, _transformations.size());
+        Matrix kr(6, _transformations.size());
+
         int nloc = 0;
-        for(i=0;i<int(_transformations.size());i++)
-            if ((_loc_index[i]+1)>nloc)
-                nloc = _loc_index[i] + 1;
+        for (size_t i = 0; i < _transformations.size(); i++)
+            nloc = max(nloc, _loc_index[i] + 1);
         if (_debug)
             cout << "\tnumber of slice-locations = " << nloc << endl;
-        int dim = _transformations.size()/nloc; // assuming equal number of dynamic images for every slice-location
-        int loc;
-        
+        const int dim = _transformations.size() / nloc; // assuming equal number of dynamic images for every slice-location
+
         //step size for sampling volume in error calculation in kernel regression
-        int step;
-        double nstep=15;
-        step = ceil(_reconstructed4D.GetX()/nstep);
-        if(step>ceil(_reconstructed4D.GetY()/nstep))
-            step = ceil(_reconstructed4D.GetY()/nstep);
-        if(step>ceil(_reconstructed4D.GetZ()/nstep))
-            step = ceil(_reconstructed4D.GetZ()/nstep);
-        
+        constexpr double nstep = 15;
+        int step = ceil(_reconstructed4D.GetX() / nstep);
+        if (step > ceil(_reconstructed4D.GetY() / nstep))
+            step = ceil(_reconstructed4D.GetY() / nstep);
+        if (step > ceil(_reconstructed4D.GetZ() / nstep))
+            step = ceil(_reconstructed4D.GetZ() / nstep);
+
         //kernel regression
-        for(iter = 0; iter<niter;iter++)
-        {
-            
-            for(loc=0;loc<nloc;loc++)
-            {
-                
+        for (int iter = 0; iter < niter; iter++) {
+            for (int loc = 0; loc < nloc; loc++) {
                 //gaussian kernel for current slice-location
-                kernel.clear();
-                sigma = ceil( sigma_seconds / _slice_dt[loc*dim] );
-                for(j=-3*sigma; j<=3*sigma; j++)
-                {
-                    kernel.push_back(exp(-(j*_slice_dt[loc*dim]/sigma_seconds)*(j*_slice_dt[loc*dim]/sigma_seconds)));
-                }
-                
+                Array<double> kernel;
+                const double sigma = ceil(sigma_seconds / _slice_dt[loc * dim]);
+                for (int j = -3 * sigma; j <= 3 * sigma; j++)
+                    kernel.push_back(exp(-(j * _slice_dt[loc * dim] / sigma_seconds) * (j * _slice_dt[loc * dim] / sigma_seconds)));
+
                 //kernel-weighted summation
-                for(par=0;par<6;par++)
-                {
-                    for(i=loc*dim;i<(loc+1)*dim;i++)
-                    {
-                        if(!_slice_excluded[i])
-                        {
-                            for(j=-3*sigma;j<=3*sigma;j++)
-                                if(((i+j)>=loc*dim) && ((i+j)<(loc+1)*dim))
-                                {
-                                    num(par,i)+=parameters(par,i+j)*kernel[j+3*sigma]*weights(par,i+j);
-                                    den(par,i)+=kernel[j+3*sigma]*weights(par,i+j);
+                for (int par = 0; par < 6; par++) {
+                    for (int i = loc * dim; i < (loc + 1) * dim; i++) {
+                        if (!_slice_excluded[i]) {
+                            for (int j = -3 * sigma; j <= 3 * sigma; j++)
+                                if (((i + j) >= loc * dim) && ((i + j) < (loc + 1) * dim)) {
+                                    num(par, i) += parameters(par, i + j) * kernel[j + 3 * sigma] * weights(par, i + j);
+                                    den(par, i) += kernel[j + 3 * sigma] * weights(par, i + j);
                                 }
-                        }
-                        else
-                        {
-                            num(par,i)=parameters(par,i);
-                            den(par,i)=1;
+                        } else {
+                            num(par, i) = parameters(par, i);
+                            den(par, i) = 1;
                         }
                     }
                 }
             }
-            
+
             //kernel-weighted normalisation
-            for(par=0;par<6;par++)
-                for(i=0;i<int(_transformations.size());i++)
-                    kr(par,i)=num(par,i)/den(par,i);
-            
+            for (int par = 0; par < 6; par++)
+                for (size_t i = 0; i < _transformations.size(); i++)
+                    kr(par, i) = num(par, i) / den(par, i);
+
             //recalculate weights using target registration error with original transformations as targets
-            error.clear();
-            tmp.clear();
-            for(i=0;i<int(_transformations.size());i++)
-            {
-                
+            Array<double> error, tmp;
+            for (size_t i = 0; i < _transformations.size(); i++) {
                 RigidTransformation processed;
-                processed.PutTranslationX(kr(0,i));
-                processed.PutTranslationY(kr(1,i));
-                processed.PutTranslationZ(kr(2,i));
-                processed.PutRotationX(kr(3,i));
-                processed.PutRotationY(kr(4,i));
-                processed.PutRotationZ(kr(5,i));
-                
+                processed.PutTranslationX(kr(0, i));
+                processed.PutTranslationY(kr(1, i));
+                processed.PutTranslationZ(kr(2, i));
+                processed.PutRotationX(kr(3, i));
+                processed.PutRotationY(kr(4, i));
+                processed.PutRotationZ(kr(5, i));
+
                 RigidTransformation orig = _transformations[i];
-                
+
                 //need to convert the transformations back to the original coordinate system
-                m = orig.GetMatrix();
-                m=mo*m*imo;
-                orig.PutMatrix(m);
-                
-                m = processed.GetMatrix();
-                m=mo*m*imo;
-                processed.PutMatrix(m);
-                
-                RealImage slice = _slices[i];
-                
-                int n=0;
+                orig.PutMatrix(mo * orig.GetMatrix() * imo);
+                processed.PutMatrix(mo * processed.GetMatrix() * imo);
+
+                int n = 0;
                 double e = 0;
-                
-                if(!_slice_excluded[i]) {
-                    for(int ii=0;ii<_reconstructed4D.GetX();ii=ii+step)
-                        for(int jj=0;jj<_reconstructed4D.GetY();jj=jj+step)
-                            for(int kk=0;kk<_reconstructed4D.GetZ();kk=kk+step)
-                                if(_reconstructed4D(ii,jj,kk,0)>-1)
-                                {
+
+                if (!_slice_excluded[i]) {
+                    for (int ii = 0; ii < _reconstructed4D.GetX(); ii += step)
+                        for (int jj = 0; jj < _reconstructed4D.GetY(); jj += step)
+                            for (int kk = 0; kk < _reconstructed4D.GetZ(); kk += step)
+                                if (_reconstructed4D(ii, jj, kk, 0) > -1) {
                                     double x = ii, y = jj, z = kk;
-                                    _reconstructed4D.ImageToWorld(x,y,z);
+                                    _reconstructed4D.ImageToWorld(x, y, z);
                                     double xx = x, yy = y, zz = z;
-                                    orig.Transform(x,y,z);
-                                    processed.Transform(xx,yy,zz);
-                                    x-=xx;
-                                    y-=yy;
-                                    z-=zz;
-                                    e += sqrt(x*x+y*y+z*z);
+                                    orig.Transform(x, y, z);
+                                    processed.Transform(xx, yy, zz);
+                                    x -= xx;
+                                    y -= yy;
+                                    z -= zz;
+                                    e += sqrt(x * x + y * y + z * z);
                                     n++;
                                 }
                 }
-                
-                if(n>0)
-                {
-                    e/=n;
+
+                if (n > 0) {
+                    e /= n;
                     error.push_back(e);
                     tmp.push_back(e);
-                }
-                else
+                } else
                     error.push_back(-1);
             }
-            
-            sort(tmp.begin(),tmp.end());
-            median = tmp[round(tmp.size()*0.5)];
-            
-            if ((_debug)&(iter==0))
-                cout<<"\titeration:median_error(mm)...";
+
+            sort(tmp.begin(), tmp.end());
+            const double median = tmp[round(tmp.size() * 0.5) - 1];
+
+            if (_debug && iter == 0)
+                cout << "\titeration:median_error(mm)...";
             if (_debug) {
-                cout<<iter<<":"<<median<<", ";
+                cout << iter << ":" << median << ", ";
                 cout.flush();
             }
-            
-            for(i=0;i<int(_transformations.size());i++)
-            {
-                if((error[i]>=0)&(!_slice_excluded[i]))
-                {
-                    if(error[i]<=median*1.35)
-                        for(par=0;par<6;par++)
-                            weights(par,i)=1;
+
+            for (size_t i = 0; i < _transformations.size(); i++) {
+                double value = 0;
+                if (error[i] >= 0 && !_slice_excluded[i]) {
+                    if (error[i] <= median * 1.35)
+                        value = 1;
                     else
-                        for(par=0;par<6;par++)
-                            weights(par,i)=median*1.35/error[i];
+                        value = median * 1.35 / error[i];
                 }
-                else
-                    for(par=0;par<6;par++)
-                        weights(par,i)=0;
+                for (int par = 0; par < 6; par++)
+                    weights(par, i) = value;
             }
-            
         }
-        
+
         if (_debug)
-            cout<<"\b\b."<<endl;
-        
+            cout << "\b\b" << endl;
+
         ofstream fileOut2("motion-processed.txt", ofstream::out | ofstream::app);
         ofstream fileOut3("weights.txt", ofstream::out | ofstream::app);
         ofstream fileOut4("outliers.txt", ofstream::out | ofstream::app);
         ofstream fileOut5("empty.txt", ofstream::out | ofstream::app);
-        
-        for(i=0;i<int(_transformations.size());i++)
-        {
-            fileOut3<<weights(j,i)<<" ";
-            
-            if(weights(0,i)<=0)
-                fileOut5<<i<<" ";
-            
-            _transformations[i].PutTranslationX(kr(0,i));
-            _transformations[i].PutTranslationY(kr(1,i));
-            _transformations[i].PutTranslationZ(kr(2,i));
-            _transformations[i].PutRotationX(kr(3,i));
-            _transformations[i].PutRotationY(kr(4,i));
-            _transformations[i].PutRotationZ(kr(5,i));
-            
-            for(j=0;j<6;j++)
-            {
-                fileOut2<<kr(j,i);
-                if(j<5)
-                    fileOut2<<",";
+
+        for (size_t i = 0; i < _transformations.size(); i++) {
+            fileOut3 << weights(0, i) << " ";
+
+            if (weights(0, i) <= 0)
+                fileOut5 << i << " ";
+
+            _transformations[i].PutTranslationX(kr(0, i));
+            _transformations[i].PutTranslationY(kr(1, i));
+            _transformations[i].PutTranslationZ(kr(2, i));
+            _transformations[i].PutRotationX(kr(3, i));
+            _transformations[i].PutRotationY(kr(4, i));
+            _transformations[i].PutRotationZ(kr(5, i));
+
+            for (int j = 0; j < 6; j++) {
+                fileOut2 << kr(j, i);
+                if (j < 5)
+                    fileOut2 << ",";
                 else
-                    fileOut2<<endl;
+                    fileOut2 << endl;
             }
         }
-        
+
         //Put origin back
-        for(i=0;i<int(_transformations.size());i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m=mo*m*imo;
-            _transformations[i].PutMatrix(m);
-        }
-        
+        for (size_t i = 0; i < _transformations.size(); i++)
+            _transformations[i].PutMatrix(mo * _transformations[i].GetMatrix() * imo);
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Scale Transformations
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::ScaleTransformations(double scale)
-    {
-        
-        if (_debug)
-            cout<<"Scaling transformations."<<endl<<"scale = "<<scale<<"."<<endl;
-        
-        if (scale==1)
+    void ReconstructionCardiac4D::ScaleTransformations(double scale) {
+        if (_verbose)
+            _verbose_log << "Scaling transformations." << endl << "scale = " << scale << "." << endl;
+
+        if (scale == 1)
             return;
-        
-        if (scale<0) {
-            cerr<<"Scaling of transformations undefined for scale < 0.";
+
+        if (scale < 0) {
+            cerr << "Scaling of transformations undefined for scale < 0.";
             exit(1);
         }
-        
-        unsigned int i;
-        
+
         //Reset origin for transformations
         GreyImage t = _reconstructed4D;
         RigidTransformation offset;
-        ResetOrigin(t,offset);
-        Matrix m;
-        Matrix mo = offset.GetMatrix();
-        Matrix imo = mo;
-        imo.Invert();
+        ResetOrigin(t, offset);
         if (_debug)
             offset.Write("reset_origin.dof");
-        for(i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m = imo * m * mo;
-            _transformations[i].PutMatrix(m);
-        }
-        
+
+        const Matrix& mo = offset.GetMatrix();
+        const Matrix imo = mo.Inverse();
+        for (size_t i = 0; i < _transformations.size(); i++)
+            _transformations[i].PutMatrix(imo * _transformations[i].GetMatrix() * mo);
+
         //Scale transformations
-        Matrix orig, scaled;
-        int row, col;
-        for(i=0;i<_transformations.size();i++)
-        {
-            orig = logm( _transformations[i].GetMatrix() );
-            scaled = orig;
-            for(row=0;row<4;row++)
-                for(col=0;col<4;col++)
-                    scaled(row,col) = scale * orig(row,col);
-            _transformations[i].PutMatrix( expm( scaled ) );
+        for (size_t i = 0; i < _transformations.size(); i++) {
+            const Matrix orig = logm(_transformations[i].GetMatrix());
+            Matrix scaled = orig;
+            for (int row = 0; row < 4; row++)
+                for (int col = 0; col < 4; col++)
+                    scaled(row, col) = scale * orig(row, col);
+            _transformations[i].PutMatrix(expm(scaled));
         }
-        
+
         //Put origin back
         for (size_t i = 0; i < _transformations.size(); i++)
             _transformations[i].PutMatrix(mo * _transformations[i].GetMatrix() * imo);
@@ -1411,99 +1153,86 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Apply Static Mask to 4D Volume
     // -----------------------------------------------------------------------------
-    RealImage ReconstructionCardiac4D::StaticMaskVolume4D(RealImage volume, double padding)
-    {
-        for ( int i = 0; i < volume.GetX(); i++) {
-            for ( int j = 0; j < volume.GetY(); j++) {
-                for ( int k = 0; k < volume.GetZ(); k++) {
-                    if ( _mask(i,j,k) == 0 ) {
-                        for ( int t = 0; t < volume.GetT(); t++) {
-                            volume(i,j,k,t) = padding;
-                        }
-                    }
-                }
-            }
-        }
-        return volume;
+    void ReconstructionCardiac4D::StaticMaskVolume4D(RealImage& volume, const double padding) {
+        for (int i = 0; i < volume.GetX(); i++)
+            for (int j = 0; j < volume.GetY(); j++)
+                for (int k = 0; k < volume.GetZ(); k++)
+                    if (_mask(i, j, k) == 0)
+                        for (int t = 0; t < volume.GetT(); t++)
+                            volume(i, j, k, t) = padding;
     }
 
     // -----------------------------------------------------------------------------
     // Super-Resolution of 4D Volume
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SuperresolutionCardiac4D( int iter )
-    {
-        if (_debug)
-            cout << "Superresolution " << iter << endl;
-        
-        int i, j, k, t;
-        RealImage addon, original;
-        
-        
+    void ReconstructionCardiac4D::SuperresolutionCardiac4D(int iter) {
+        SVRTK_START_TIMING();
+
+        if (_verbose)
+            _verbose_log << "Superresolution " << iter << endl;
+
         //Remember current reconstruction for edge-preserving smoothing
-        original = _reconstructed4D;
+        RealImage original = _reconstructed4D;
 
         Parallel::SuperresolutionCardiac4D parallelSuperresolution(this);
         parallelSuperresolution();
-        
         addon = parallelSuperresolution.addon;
         _confidence_map = parallelSuperresolution.confidence_map;
-        
-        if(_debug) {
-            char buffer[256];
-            sprintf(buffer,"confidence-map%i.nii.gz",iter);
-            _confidence_map.Write(buffer);
-            
-            sprintf(buffer,"addon%i.nii.gz",iter);
-            addon.Write(buffer);
+
+
+        if (_debug) {
+            _confidence_map.Write((boost::format("confidence-map%i.nii.gz") % iter).str().c_str());
+            addon.Write((boost::format("addon%i.nii.gz") % iter).str().c_str());
         }
-        
-        if (!_adaptive)
-            for (i = 0; i < addon.GetX(); i++)
-                for (j = 0; j < addon.GetY(); j++)
-                    for (k = 0; k < addon.GetZ(); k++)
-                        for (t = 0; t < addon.GetT(); t++)
+
+        if (!_adaptive) {
+            for (int i = 0; i < addon.GetX(); i++)
+                for (int j = 0; j < addon.GetY(); j++)
+                    for (int k = 0; k < addon.GetZ(); k++)
+                        for (int t = 0; t < addon.GetT(); t++)
                             if (_confidence_map(i, j, k, t) > 0) {
                                 // ISSUES if _confidence_map(i, j, k, t) is too small leading
                                 // to bright pixels
                                 addon(i, j, k, t) /= _confidence_map(i, j, k, t);
                                 //this is to revert to normal (non-adaptive) regularisation
-                                _confidence_map(i,j,k,t) = 1;
+                                _confidence_map(i, j, k, t) = 1;
                             }
-        
+        }
+
         _reconstructed4D += addon * _alpha; //_average_volume_weight;
-        
+
         //bound the intensities
-        for (i = 0; i < _reconstructed4D.GetX(); i++)
-            for (j = 0; j < _reconstructed4D.GetY(); j++)
-                for (k = 0; k < _reconstructed4D.GetZ(); k++)
-                    for (t = 0; t < _reconstructed4D.GetT(); t++)
-                    {
+        for (int i = 0; i < _reconstructed4D.GetX(); i++)
+            for (int j = 0; j < _reconstructed4D.GetY(); j++)
+                for (int k = 0; k < _reconstructed4D.GetZ(); k++)
+                    for (int t = 0; t < _reconstructed4D.GetT(); t++) {
                         if (_reconstructed4D(i, j, k, t) < _min_intensity * 0.9)
                             _reconstructed4D(i, j, k, t) = _min_intensity * 0.9;
                         if (_reconstructed4D(i, j, k, t) > _max_intensity * 1.1)
                             _reconstructed4D(i, j, k, t) = _max_intensity * 1.1;
                     }
-        
+
         //Smooth the reconstructed image
         AdaptiveRegularizationCardiac4D(iter, original);
-        
+
         //Remove the bias in the reconstructed volume compared to previous iteration
         /* TODO: update adaptive regularisation for 4d
          if (_global_bias_correction)
          BiasCorrectVolume(original);
          */
+
+        SVRTK_END_TIMING("SuperresolutionCardiac4D");
     }
 
     // -----------------------------------------------------------------------------
     // Adaptive Regularization
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::AdaptiveRegularizationCardiac4D(int iter, RealImage& original)
-    {
-        if (_debug)
-            cout << "AdaptiveRegularizationCardiac4D."<< endl;
-        //cout << "AdaptiveRegularizationCardiac4D: _delta = "<<_delta<<" _lambda = "<<_lambda <<" _alpha = "<<_alpha<< endl;
-        
-        Array<double> factor(13,0);
+    void ReconstructionCardiac4D::AdaptiveRegularizationCardiac4D(int iter, const RealImage& original) {
+        if (_verbose)
+            _verbose_log << "AdaptiveRegularizationCardiac4D." << endl;
+        //_verbose_log << "AdaptiveRegularizationCardiac4D: _delta = "<<_delta<<" _lambda = "<<_lambda <<" _alpha = "<<_alpha<< endl;
+
+        Array<double> factor(13);
         for (int i = 0; i < 13; i++) {
             for (int j = 0; j < 3; j++)
                 factor[i] += fabs(double(_directions[i][j]));
@@ -1514,9 +1243,9 @@ namespace svrtk {
 
         Parallel::AdaptiveRegularization1Cardiac4D parallelAdaptiveRegularization1(this, b, factor, original);
         parallelAdaptiveRegularization1();
-        
+
         RealImage original2 = _reconstructed4D;
-        Parallel::AdaptiveRegularization2Cardiac4D parallelAdaptiveRegularization2(this, b, factor, original2);
+        Parallel::AdaptiveRegularization2Cardiac4D parallelAdaptiveRegularization2(this, b, original2);
         parallelAdaptiveRegularization2();
 
         if (_alpha * _lambda / (_delta * _delta) > 0.068)
@@ -1534,35 +1263,29 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Calculate Entropy
     // -----------------------------------------------------------------------------
-    double ReconstructionCardiac4D::CalculateEntropy()
-    {
-        
-        double x;
+    double ReconstructionCardiac4D::CalculateEntropy() {
         double sum_x_sq = 0;
-        double x_max = 0;
-        double entropy = 0;
-        
-        for ( int i = 0; i < _reconstructed4D.GetX(); i++)
-            for ( int j = 0; j < _reconstructed4D.GetY(); j++)
-                for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
-                    if ( _mask(i,j,k) == 1 )
-                        for ( int f = 0; f < _reconstructed4D.GetT(); f++)
-                        {
-                            x = _reconstructed4D(i,j,k,f);
-                            sum_x_sq += x*x;
+
+        for (int i = 0; i < _reconstructed4D.GetX(); i++)
+            for (int j = 0; j < _reconstructed4D.GetY(); j++)
+                for (int k = 0; k < _reconstructed4D.GetZ(); k++)
+                    if (_mask(i, j, k) == 1)
+                        for (int f = 0; f < _reconstructed4D.GetT(); f++) {
+                            const double x = _reconstructed4D(i, j, k, f);
+                            sum_x_sq += x * x;
                         }
-        
-        x_max = sqrt( sum_x_sq );
-        
-        for ( int i = 0; i < _reconstructed4D.GetX(); i++)
-            for ( int j = 0; j < _reconstructed4D.GetY(); j++)
-                for ( int k = 0; k < _reconstructed4D.GetZ(); k++)
-                    if ( _mask(i,j,k) == 1 )
-                        for ( int f = 0; f < _reconstructed4D.GetT(); f++)
-                        {
-                            x = _reconstructed4D(i,j,k,f);
-                            if (x>0)
-                                entropy += x/x_max * log( x/x_max );
+
+        const double x_max = sqrt(sum_x_sq);
+        double entropy = 0;
+
+        for (int i = 0; i < _reconstructed4D.GetX(); i++)
+            for (int j = 0; j < _reconstructed4D.GetY(); j++)
+                for (int k = 0; k < _reconstructed4D.GetZ(); k++)
+                    if (_mask(i, j, k) == 1)
+                        for (int f = 0; f < _reconstructed4D.GetT(); f++) {
+                            const double x = _reconstructed4D(i, j, k, f);
+                            if (x > 0)
+                                entropy += x / x_max * log(x / x_max);
                         }
 
         return -entropy;
@@ -1641,79 +1364,74 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // SlicesInfo
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SlicesInfoCardiac4D( const char* filename,
-                                                      Array<string> &stack_files )
-    {
-        ofstream info;
-        info.open( filename );
-        
-        info<<setprecision(3);
-        
+    void ReconstructionCardiac4D::SlicesInfoCardiac4D(const char *filename, const Array<string>& stack_files) {
+        ofstream info(filename);
+
+        info << setprecision(3);
+
         // header
         info << "StackIndex" << "\t"
-        << "StackLocIndex" << "\t"
-        << "StackDynIndex" << "\t"
-        << "LocIndex" << "\t"
-        << "InputIndex" << "\t"
-        << "File" << "\t"
-        << "Scale" << "\t"
-        << "StackFactor" << "\t"
-        << "Time" << "\t"
-        << "TemporalResolution" << "\t"
-        << "CardiacPhase" << "\t"
-        << "ReconCardPhaseIndex" << "\t"
-        << "Included" << "\t" // Included slices
-        << "Excluded" << "\t"  // Excluded slices
-        << "Outside" << "\t"  // Outside slices
-        << "Weight" << "\t"
-        << "MeanDisplacement" << "\t"
-        << "MeanDisplacementX" << "\t"
-        << "MeanDisplacementY" << "\t"
-        << "MeanDisplacementZ" << "\t"
-        << "WeightedMeanDisplacement" << "\t"
-        << "TRE" << "\t"
-        << "TranslationX" << "\t"
-        << "TranslationY" << "\t"
-        << "TranslationZ" << "\t"
-        << "RotationX" << "\t"
-        << "RotationY" << "\t"
-        << "RotationZ" << "\t";
+            << "StackLocIndex" << "\t"
+            << "StackDynIndex" << "\t"
+            << "LocIndex" << "\t"
+            << "InputIndex" << "\t"
+            << "File" << "\t"
+            << "Scale" << "\t"
+            << "StackFactor" << "\t"
+            << "Time" << "\t"
+            << "TemporalResolution" << "\t"
+            << "CardiacPhase" << "\t"
+            << "ReconCardPhaseIndex" << "\t"
+            << "Included" << "\t" // Included slices
+            << "Excluded" << "\t"  // Excluded slices
+            << "Outside" << "\t"  // Outside slices
+            << "Weight" << "\t"
+            << "MeanDisplacement" << "\t"
+            << "MeanDisplacementX" << "\t"
+            << "MeanDisplacementY" << "\t"
+            << "MeanDisplacementZ" << "\t"
+            << "WeightedMeanDisplacement" << "\t"
+            << "TRE" << "\t"
+            << "TranslationX" << "\t"
+            << "TranslationY" << "\t"
+            << "TranslationZ" << "\t"
+            << "RotationX" << "\t"
+            << "RotationY" << "\t"
+            << "RotationZ" << "\t";
         info << "\b" << endl;
-        
-        for (unsigned int i = 0; i < _slices.size(); i++) {
+
+        for (size_t i = 0; i < _slices.size(); i++) {
             RigidTransformation& t = _transformations[i];
             info << _stack_index[i] << "\t"
-            << _stack_loc_index[i] << "\t"
-            << _stack_dyn_index[i] << "\t"
-            << _loc_index[i] << "\t"
-            << i << "\t"
-            << stack_files[_stack_index[i]] << "\t"
-            << _scale[i] << "\t"
-            << _stack_factor[_stack_index[i]] << "\t"
-            << _slice_time[i] << "\t"
-            << _slice_dt[i] << "\t"
-            << _slice_cardphase[i] << "\t"
-            << _slice_svr_card_index[i] << "\t"
-            << (((_slice_weight[i] >= 0.5) && (_slice_inside[i]))?1:0) << "\t" // Included slices
-            << (((_slice_weight[i] < 0.5) && (_slice_inside[i]))?1:0) << "\t"  // Excluded slices
-            << ((!(_slice_inside[i]))?1:0) << "\t"  // Outside slices
-            << _slice_weight[i] << "\t"
-            << _slice_displacement[i] << "\t"
-            << _slice_tx[i] << "\t"
-            << _slice_ty[i] << "\t"
-            << _slice_tz[i] << "\t"
-            << _slice_weighted_displacement[i] << "\t"
-            << _slice_tre[i] << "\t"
-            << t.GetTranslationX() << "\t"
-            << t.GetTranslationY() << "\t"
-            << t.GetTranslationZ() << "\t"
-            << t.GetRotationX() << "\t"
-            << t.GetRotationY() << "\t"
-            << t.GetRotationZ() << "\t";
+                << _stack_loc_index[i] << "\t"
+                << _stack_dyn_index[i] << "\t"
+                << _loc_index[i] << "\t"
+                << i << "\t"
+                << stack_files[_stack_index[i]] << "\t"
+                << _scale[i] << "\t"
+                << _stack_factor[_stack_index[i]] << "\t"
+                << _slice_time[i] << "\t"
+                << _slice_dt[i] << "\t"
+                << _slice_cardphase[i] << "\t"
+                << _slice_svr_card_index[i] << "\t"
+                << ((_slice_weight[i] >= 0.5 && _slice_inside[i]) ? 1 : 0) << "\t" // Included slices
+                << ((_slice_weight[i] < 0.5 && _slice_inside[i]) ? 1 : 0) << "\t"  // Excluded slices
+                << ((!(_slice_inside[i])) ? 1 : 0) << "\t"  // Outside slices
+                << _slice_weight[i] << "\t"
+                << _slice_displacement[i] << "\t"
+                << _slice_tx[i] << "\t"
+                << _slice_ty[i] << "\t"
+                << _slice_tz[i] << "\t"
+                << _slice_weighted_displacement[i] << "\t"
+                << _slice_tre[i] << "\t"
+                << t.GetTranslationX() << "\t"
+                << t.GetTranslationY() << "\t"
+                << t.GetTranslationZ() << "\t"
+                << t.GetRotationX() << "\t"
+                << t.GetRotationY() << "\t"
+                << t.GetRotationZ() << "\t";
             info << "\b" << endl;
         }
-        
-        info.close();
     }
 
     // -----------------------------------------------------------------------------

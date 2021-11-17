@@ -885,9 +885,29 @@ namespace svrtk {
         RigidTransformation *rigidTransf_dofout = dynamic_cast<RigidTransformation*> (dofout);
         rigidTransf = *rigidTransf_dofout;
 
+    // -----------------------------------------------------------------------------
+    // Common Calculate Function
+    // -----------------------------------------------------------------------------
+    double ReconstructionCardiac4D::Calculate(const RigidTransformation& drift, double (ReconstructionCardiac4D::*Calculate)()) {
+        //Initialise
+        Matrix d = drift.GetMatrix();
+
+        //Remove drift
+        for (size_t i = 0; i < _transformations.size(); i++)
+            _transformations[i].PutMatrix(d * _transformations[i].GetMatrix());
+
+        //Calculate
+        const double mean = (this->*Calculate)();
+
+        //Return drift
+        d.Invert();
+        for (size_t i = 0; i < _transformations.size(); i++)
+            _transformations[i].PutMatrix(d * _transformations[i].GetMatrix());
+
+        //Output
+        return mean;
     }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Displacement
     // -----------------------------------------------------------------------------
@@ -953,51 +973,11 @@ namespace svrtk {
             _slice_tx.push_back(tx_slice);
             _slice_ty.push_back(ty_slice);
             _slice_tz.push_back(tz_slice);
-            
         }
-        
-        if (num_voxel_total>0)
-            mean_disp = disp_sum_total / num_voxel_total;
-        else
-            mean_disp = -1;
-        
-        return mean_disp;
-        
+
+        return num_voxel_total > 0 ? disp_sum_total / num_voxel_total : -1;
     }
-    
-    
-    double ReconstructionCardiac4D::CalculateDisplacement(RigidTransformation drift)
-    {
-        //Initialise
-        double mean_disp;
-        Matrix d = drift.GetMatrix();
-        Matrix m;
-        
-        //Remove drift
-        for(unsigned int i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m = d*m;
-            _transformations[i].PutMatrix(m);
-        }
-        
-        //Calculate displacements
-        mean_disp = CalculateDisplacement();
-        
-        //Return drift
-        d.Invert();
-        for(unsigned int i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m = d*m;
-            _transformations[i].PutMatrix(m);
-        }
-        
-        //Output
-        return mean_disp;
-    }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Weighted Displacement
     // -----------------------------------------------------------------------------
@@ -1046,49 +1026,10 @@ namespace svrtk {
             _slice_weighted_displacement.push_back(slice_disp);
             
         }
-        
-        if (weight_total>0)
-            mean_disp = disp_sum_total / weight_total;
-        else
-            mean_disp = -1;
-        
-        return mean_disp;
-        
+
+        return weight_total > 0 ? disp_sum_total / weight_total : -1;
     }
-    
-    
-    double ReconstructionCardiac4D::CalculateWeightedDisplacement(RigidTransformation drift)
-    {
-        //Initialise
-        double mean_disp;
-        Matrix d = drift.GetMatrix();
-        Matrix m;
-        
-        //Remove drift
-        for(unsigned int i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m = d*m;
-            _transformations[i].PutMatrix(m);
-        }
-        
-        //Calculate displacements
-        mean_disp = CalculateWeightedDisplacement();
-        
-        //Return drift
-        d.Invert();
-        for(unsigned int i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m = d*m;
-            _transformations[i].PutMatrix(m);
-        }
-        
-        //Output
-        return mean_disp;
-    }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Calculate Target Registration Error
     // -----------------------------------------------------------------------------
@@ -1134,51 +1075,11 @@ namespace svrtk {
             }
             
             _slice_tre.push_back(slice_tre);
-            
         }
-        
-        if (num_voxel_total>0)
-            mean_tre = tre_sum_total / num_voxel_total;
-        else
-            mean_tre = -1;
-        
-        return mean_tre;
-        
+
+        return num_voxel_total > 0 ? tre_sum_total / num_voxel_total : -1;
     }
-    
-    
-    double ReconstructionCardiac4D::CalculateTRE(RigidTransformation drift)
-    {
-        //Initialise
-        double mean_tre;
-        Matrix d = drift.GetMatrix();
-        Matrix m;
-        
-        //Remove drift
-        for(unsigned int i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m = d*m;
-            _transformations[i].PutMatrix(m);
-        }
-        
-        //Calculate displacements
-        mean_tre = CalculateTRE();
-        
-        //Return drift
-        d.Invert();
-        for(unsigned int i=0;i<_transformations.size();i++)
-        {
-            m = _transformations[i].GetMatrix();
-            m = d*m;
-            _transformations[i].PutMatrix(m);
-        }
-        
-        //Output
-        return mean_tre;
-    }
-    
-    
+
     // -----------------------------------------------------------------------------
     // Smooth Transformations
     // -----------------------------------------------------------------------------

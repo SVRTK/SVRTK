@@ -119,7 +119,9 @@ namespace svrtk {
         // Flag for Sinc Temporal Weighting
         // use Gaussian weighting if false
         bool _is_temporalpsf_gauss;
-        
+
+        // Common calculate function
+        double Calculate(const RigidTransformation& drift, double (ReconstructionCardiac4D::*)());
 
         // Angular difference between output cardiac phase (cardphase0) and slice cardiac phase (cardphase)
         inline double CalculateAngularDifference(double cardphase0, double cardphase) {
@@ -205,19 +207,19 @@ namespace svrtk {
         
         // Calculate Displacement
         double CalculateDisplacement();
-        double CalculateDisplacement(RigidTransformation drift);
+        inline double CalculateDisplacement(const RigidTransformation& drift) { return Calculate(drift, &ReconstructionCardiac4D::CalculateDisplacement); }
         double CalculateWeightedDisplacement();
-        double CalculateWeightedDisplacement(RigidTransformation drift);
-        
+        inline double CalculateWeightedDisplacement(const RigidTransformation& drift) { return Calculate(drift, &ReconstructionCardiac4D::CalculateWeightedDisplacement); }
+
         // Calculate Target Registration Error (TRE)
         inline void InitTRE() { _slice_tre = Array<double>(_slices.size(), -1); }
         double CalculateTRE();
-        double CalculateTRE(RigidTransformation drift);
-        
-        // Smooth Transformationss
-        void SmoothTransformations(double sigma, int niter=10, bool use_slice_inside=false);
-        
-        // Scale Transformationss
+        inline double CalculateTRE(const RigidTransformation& drift) { return Calculate(drift, &ReconstructionCardiac4D::CalculateTRE); }
+
+        // Smooth Transformations
+        void SmoothTransformations(double sigma, int niter = 10, bool use_slice_inside = false);
+
+        // Scale Transformations
         void ScaleTransformations(double scale);
         
         // Apply Static Mask to Reconstructed 4D Volume

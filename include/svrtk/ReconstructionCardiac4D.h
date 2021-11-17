@@ -21,6 +21,9 @@
 // SVRTK
 #include "svrtk/Reconstruction.h"
 
+// Boost
+#include <boost/format.hpp>
+
 using namespace mirtk;
 
 namespace svrtk {
@@ -122,6 +125,10 @@ namespace svrtk {
 
         // Common calculate function
         double Calculate(const RigidTransformation& drift, double (ReconstructionCardiac4D::*)());
+
+        // Common save function
+        void Save(const Array<RealImage>& save_stacks, const char *message, const char *filename_prefix);
+        void Save(const Array<RealImage>& source, const Array<RealImage>& stacks, int iter, int rec_iter, const char *message, const char *filename_prefix);
 
         // Angular difference between output cardiac phase (cardphase0) and slice cardiac phase (cardphase)
         inline double CalculateAngularDifference(double cardphase0, double cardphase) {
@@ -242,45 +249,10 @@ namespace svrtk {
 
         /// Calculate Entropy
         double CalculateEntropy();
-        
-        ///Save transformations
-        void SaveTransformations();
-        
-        // Save Bias Fields
-        void SaveBiasFields();
-        void SaveBiasFields(Array<RealImage>& stacks);
-        void SaveBiasFields(Array<RealImage>& stacks, int iter, int rec_iter);
-        
+
         // Save Slices
-        void SaveSimulatedSlices();
-        void SaveSimulatedSlices(Array<RealImage>& stacks);
-        void SaveSimulatedSlices(Array<RealImage>& stacks, int iter, int rec_iter);
-        void SaveSimulatedSlices(Array<RealImage>& stacks, int stack_no);
-        
-        // Save Simulated Weights
-        void SaveSimulatedWeights();
-        void SaveSimulatedWeights(Array<RealImage>& stacks);
-        void SaveSimulatedWeights(Array<RealImage>& stacks, int iter, int rec_iter);
-        
-        // Save Slices
-        void SaveSlices();
-        void SaveSlices(Array<RealImage>& stacks);
-        
-        // Save Corrected Slices
-        void SaveCorrectedSlices();
-        void SaveCorrectedSlices(Array<RealImage>& stacks);
-        void SaveCorrectedSlices(Array<RealImage>& stacks, int iter, int rec_iter);
-        
-        // Save Error
-        void SaveError();
-        void SaveError(Array<RealImage>& stacks);
-        void SaveError(Array<RealImage>& stacks, int iter, int rec_iter);
-        
-        // Save Weights
-        void SaveWeights();
-        void SaveWeights(Array<RealImage>& stacks);
-        void SaveWeights(Array<RealImage>& stacks, int iter, int rec_iter);
-        
+        void SaveSlices(const Array<RealImage>& stacks);
+
         // Slice Info
         void SlicesInfoCardiac4D( const char* filename, Array<string> &stack_filenames );
         
@@ -421,6 +393,70 @@ namespace svrtk {
 
             ScaleVolume(_reconstructed4D);
         }
+
+        // Save Bias Fields
+        inline void SaveBiasFields(const Array<RealImage>& stacks, int iter = -1, int rec_iter = -1) {
+            Save(_bias, stacks, iter, rec_iter, "SaveBiasFields as stacks", "bias");
+        }
+
+        // Save Simulated Slices
+        inline void SaveSimulatedSlices() {
+            Save(_simulated_slices, "Saving simulated images", "simimage");
+        }
+
+        inline void SaveSimulatedSlices(const Array<RealImage>& stacks, int iter = -1, int rec_iter = -1) {
+            Save(_simulated_slices, stacks, iter, rec_iter, "Saving simulated images as stacks", "simstack");
+        }
+
+        void SaveSimulatedSlices(const Array<RealImage>& stacks, int stack_no) {
+            RealImage simstack(stacks[stack_no].Attributes());
+
+            for (size_t inputIndex = 0; inputIndex < _simulated_slices.size(); inputIndex++)
+                for (int i = 0; i < _simulated_slices[inputIndex].GetX(); i++)
+                    for (int j = 0; j < _simulated_slices[inputIndex].GetY(); j++)
+                        if (stack_no == _stack_index[inputIndex])
+                            simstack(i, j, _stack_loc_index[inputIndex], _stack_dyn_index[inputIndex]) = _simulated_slices[inputIndex](i, j, 0);
+
+            simstack.Write((boost::format("simstack%03i.nii.gz") % stack_no).str().c_str());
+        }
+
+        // Save Simulated Weights
+        inline void SaveSimulatedWeights() {
+            Save(_simulated_weights, "Saving simulated weights", "simweight");
+        }
+
+        inline void SaveSimulatedWeights(const Array<RealImage>& stacks, int iter = -1, int rec_iter = -1) {
+            Save(_simulated_weights, stacks, iter, rec_iter, "Saving simulated weights as stacks", "simweightstack");
+        }
+
+        // Save Slices
+        inline void SaveSlices() {
+            Save(_slices, "Saving slices", "image");
+        }
+
+        // Save Corrected Slices
+        inline void SaveCorrectedSlices() {
+            Save(_corrected_slices, "Saving corrected images", "correctedimage");
+        }
+
+        inline void SaveCorrectedSlices(const Array<RealImage>& stacks, int iter = -1, int rec_iter = -1) {
+            Save(_corrected_slices, stacks, iter, rec_iter, "Saving error images as stacks", "correctedstack");
+        }
+
+        // Save Error
+        inline void SaveError() {
+            Save(_error, "Saving error images", "errorimage");
+        }
+
+        inline void SaveError(const Array<RealImage>& stacks, int iter = -1, int rec_iter = -1) {
+            Save(_error, stacks, iter, rec_iter, "Saving error images as stacks", "errorstack");
+        }
+
+        // Save Weights
+        inline void SaveWeights(const Array<RealImage>& stacks, int iter = -1, int rec_iter = -1) {
+            Save(_weights, stacks, iter, rec_iter, "Saving weights as stacks", "weight");
+        }
+
     };  // end of ReconstructionCardiac4D class definition
 
 } // namespace svrtk

@@ -16,7 +16,7 @@ The reconstruction pipelines are based  `reconstruction`  function for rigid SVR
 
 E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-resolution images of the fetal brain from motion-corrupted low-resolution stacks of 2D MRI slices. These output 3D images can be reoriented in any plane for diagnosis and suitable for 3D segmentation. The rest of the reconstruction tools employ additional registration and reconstruction methods depending on the specific features of the problem domain. 
 
-<img src="additional_files/svr-example.png" alt="SVRTKEXAMPLE" height="140" align ="center" />
+<img src="additional_files/svr-example.png" alt="SVRTKEXAMPLE" height="120" align ="center" />
 
 4D cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 

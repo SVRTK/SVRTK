@@ -3,18 +3,19 @@ SVRTK - slice to volume reconstruction toolkit
 
 <img src="additional_files/svr-logo.png" alt="SVRTK" height="260" align ="left" />
 
-
-
-SVR reconstruction package for MIRTK (https://biomedia.doc.ic.ac.uk/software/mirtk/) for fetal MRI motion correction including:
-- 3D brain
-- 3D body
+SVRTK C++ package based on MIRTK library (https://biomedia.doc.ic.ac.uk/software/mirtk/) provides a set of functions for retrospective (image-domain) motion correction and super-resolution reconstruction for fetal MRI including:
+- 3D structural brain
+- 3D structural body
 - 4D whole fetal heart, including magnitude and blood flow reconstructions
-- 3D placenta
-- 3D and 4D multi-channel T2* 
+- 3D structural placenta
+- 3D and 4D multi-channel quantitative T2* 
 - SH brain diffusion (HARDI) 
 
 
-The general pipeline for fetal brain reconstruction is based on the  `reconstruction`  function in IRTK implemented by Maria Deprez: https://biomedia.doc.ic.ac.uk/software/irtk/.
+The reconstruction pipelines are based  `reconstruction`  function for rigid SVR reconstruction in IRTK originally implemented by Maria Deprez (Kuklisova-Murgasova et al., 2012): https://biomedia.doc.ic.ac.uk/software/irtk/.
+
+E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-resolution images of the fetal brain from motion-corrupted low-resolution stacks of 2D MRI slices. These output 3D images can be reoriented in any plane for diagnosis and suitable for 3D segmentation. The rest of the reconstruction tools employ additional registration and reconstruction methods depending on the specific features of the problem domain. 
+
 
 4D cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 
@@ -38,7 +39,7 @@ mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz .
 
 ```
 
-_Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the Desktop Docker settings. You can increase RAM by using virtual RAM on Window and or swap on Ubuntu._ 
+_Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the Desktop Docker settings. _ 
 
 
 
@@ -48,8 +49,7 @@ Installation
 Please follow the installation instructions in InstallationInstructions.txt file.
 
 _Notes: The software can be compiled on either Ubuntu or OS X. 
-In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and 32 GB RAM. 
-In case of "-9" memory errors - please run reconstruction with "-remote" option (and increase SWAP)._
+In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and > 16 GB RAM. 
 
 
 

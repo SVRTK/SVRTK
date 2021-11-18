@@ -45,7 +45,9 @@ using namespace svrtk;
 
 void usage()
 {
-    cout << "Usage: combine_patches [target_volume] [output_resolution] [N] [stack_1] .. [stack_N] \n" << endl;
+    cout << "Usage: mirtk combine-patches [reference_image] [output_resolution] [N] [stack_1] .. [stack_N] " << endl;
+    cout << endl;
+    cout << "Function for mapping a set of input image patches on the common reference images space." << endl;
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
@@ -91,7 +93,7 @@ int main(int argc, char **argv)
     
     //read name of the target volume
     target_volume.Read(argv[1]);
-    cout<<"Original volume: "<<argv[1]<<endl;
+    cout<<"Original reference image: "<<argv[1]<<endl;
     argc--;
     argv++;
     
@@ -109,7 +111,7 @@ int main(int argc, char **argv)
     
     //read number of stacks
     nStacks = atoi(argv[1]);
-    cout<<"Number of stacks : "<<nStacks<<endl;
+    cout<<"Number of images : "<<nStacks<<endl;
     argc--;
     argv++;
     
@@ -123,7 +125,7 @@ int main(int argc, char **argv)
         
         stack_files.push_back(argv[1]);
         
-        cout<<"Reading stack : "<<argv[1]<<endl;
+        cout<<"Reading image : "<<argv[1]<<endl;
         
         tmp_fname = argv[1];
         image_reader.reset(ImageReader::TryNew(tmp_fname));
@@ -233,7 +235,7 @@ int main(int argc, char **argv)
     
     cout << "---------------------------------------------------------------------" << endl;
     
-    cout<<"Output volume : combined.nii.gz "<<endl;
+    cout<<"Output image : combined.nii.gz "<<endl;
     
     output_volume.Write("combined.nii.gz");
     

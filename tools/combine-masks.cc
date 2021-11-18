@@ -43,7 +43,9 @@ using namespace mirtk;
 
 void usage()
 {
-    cout << "Usage: combine_masks [reference_volume] [input_1 ... input_n] [output] \n" << endl;
+    cout << "Usage: mirtk combine-masks [reference_image] [input_1] ... [input_n] [output] " << endl;
+    cout << endl;
+    cout << "Function for computing an average mask from multiple input files in the reference space (transferred from IRTK library: https://biomedia.doc.ic.ac.uk/software/irtk/)." << endl; 
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
@@ -159,7 +161,7 @@ int main(int argc, char **argv)
     
     cout << "---------------------------------------------------------------------" << endl;
 
-    cout<<"Output volume : " << argv[number_of_volumes+2] <<endl;
+    cout<<"Output image : " << argv[number_of_volumes+2] <<endl;
     output_volume.Write(argv[number_of_volumes+2]);
     
     cout << "---------------------------------------------------------------------" << endl;

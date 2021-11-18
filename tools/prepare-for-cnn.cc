@@ -56,6 +56,11 @@ void usage()
     cout << "\t " << "[input label mask file names corresponding to the input stacks (if mode=1 was selected):" << endl;
     cout << "\t " << "[label_1_for_stack_1] [label_1_for_stack_N]..." << endl;
     cout << "\t " << "... [label_2_for_stack_1] ... [label_2_for_stack_N]]" << endl;
+    cout << endl;
+    cout << "Function for preparation a set of images image (with/without a label mask) for 3D UNet processing pipeline in https://github.com/SVRTK/Segmentation_FetalMRI. " << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     
     exit(0);
 }

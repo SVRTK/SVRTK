@@ -1,5 +1,19 @@
 /*
+ * SVRTK : SVR reconstruction based on MIRTK
  *
+ * Copyright 2018-2021 King's College London
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 // MIRTK
@@ -27,7 +41,17 @@ using namespace mirtk;
 // -----------------------------------------------------------------------------
 void usage()
 {
-    cout << "???" << endl;
+    cout << "Usage: mirtk register-landmarks " << endl;
+    cout << "\t [target_image] [source_image] [init_dof] [output_dof_name] " << endl;
+    cout << "\t [number_of_landmarks_to_be_used_for_registration] [number_of_input_landmarks_n]" << endl;
+    cout << "\t [target_landmark_image_1] ... [target_landmark_image_2] [source_landmark_image_1] ... [source_landmark_image_n]" << endl;
+    cout << endl;
+    cout << "Function for rigid landmark-based point registration of two images (the minimum number of landmarks is 4). " << endl;
+    cout << "The landmark corrdinates are computed as the centre of the input binary masks." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
+    
     exit(1);
 }
 
@@ -258,7 +282,7 @@ int main(int argc, char **argv)
 
     char *target_image_name = NULL;
     target_image_name = argv[1];
-    target_image.Read(target_image_name);
+//    target_image.Read(target_image_name);
 
     argc--;
     argv++;
@@ -296,14 +320,6 @@ int main(int argc, char **argv)
 
     cout << " - Output dof : " << output_dof_name << endl;
 
-
-//    int output_mode = 0;
-//
-//    output_mode = atoi(argv[1]);
-//    argc--;
-//    argv++;
-//
-//    cout << " - Output format mode : " << output_mode << endl;
 
 
     cout << "------------------------------------------------------" << endl;
@@ -458,7 +474,7 @@ int main(int argc, char **argv)
             selected_target_points.push_back(target_points[i]);
             selected_source_points.push_back(source_points[i]);
 
-	    number_of_selected_points = number_of_selected_points + 1;
+            number_of_selected_points = number_of_selected_points + 1;
 
             detected_points_to_use = detected_points_to_use + 1;
             cout << i << " ";
@@ -479,7 +495,6 @@ int main(int argc, char **argv)
     }
 
     cout << endl;
-
 
 
 
@@ -538,90 +553,15 @@ int main(int argc, char **argv)
     }
 
 
-//    cout << "------------------------------------------------------" << endl;
-//
-//
-//    RigidTransformation output_transformation_4;
-//    //    int out_reflection = RegisterLandmarks(source_points, target_points, output_transformation);
-//    int out_reflection_4 = RegisterLandmarks(selected_source_points_4, selected_target_points_4, output_transformation_4);
-//
-//    cout << " - Output transformation v2 (4) " << output_dof_name << " : ";
-//    cout << output_transformation_4.GetTranslationX() << " ";
-//    cout << output_transformation_4.GetTranslationY() << " ";
-//    cout << output_transformation_4.GetTranslationZ() << " | ";
-//    cout << output_transformation_4.GetRotationX() << " ";
-//    cout << output_transformation_4.GetRotationY() << " ";
-//    cout << output_transformation_4.GetRotationZ() << endl;
-//
-//
-//    output_transformation_4.Transform(source_set_4);
-//
-//    double error_4 = 0;
-//    for (int i = 0; i < source_set_4.Size(); i++) {
-//        mirtk::Point p1 = target_set_4(i);
-//        mirtk::Point p2 = source_set_4(i);
-//        error_4 += sqrt(pow(p1._x - p2._x, 2.0) + pow(p1._y - p2._y, 2.0) + pow(p1._z - p2._z, 2.0));
-//    }
-//    error_4 /= target_set_4.Size();
-//
-//    cout << " - Target registration error v2 (4) : " << error_4 << endl;
-//    if (out_reflection_4>0) {
-//        cout << "REFLECTION !!!!!" << endl;
-//    }
-
-
     cout << "------------------------------------------------------" << endl;
 
-//    if (error_4 < error) {
-//
-//        output_transformation_4.Write(output_dof_name);
-//        cout << "Selected : 4" << endl;
-//
-//    } else {
-
-        output_transformation.Write(output_dof_name);
-        cout << "Selected : " << number_of_selected_points << endl;
-
-//    }
+    output_transformation.Write(output_dof_name);
+    cout << "Selected : " << number_of_selected_points << endl;
 
 
     cout << "------------------------------------------------------" << endl;
 
 
-
-
-//    output_transformation.Invert();
-//
-//    RealImage processed_stack;
-//    processed_stack.Read(input_image_name);
-//
-//    Matrix m = output_transformation.GetMatrix();
-//    processed_stack.PutAffineMatrix(m, true);
-//
-//    processed_stack.Write(output_image_name);
-
-
-//
-//    if (out_reflection>0) {
-//
-//
-//        cout << "REFLECTION !!!!!" << endl;
-//
-////        string org_name(output_image_name);
-////        std::size_t pos = org_name.find(".nii");
-////        std::string main_name = org_name.substr (0, pos);
-////        string new_name = main_name + "-reflection.dof";
-////        char *c_new_name = &new_name[0];
-////        output_transformation.Write(c_new_name);
-//
-//
-//
-//    }
-//
-//
-//
-//    cout << "------------------------------------------------------" << endl;
-//
 
     return 0;
 }

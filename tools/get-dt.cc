@@ -45,7 +45,13 @@ using namespace svrtk;
 // -----------------------------------------------------------------------------
 void usage()
 {
-    cout << "..." << endl;
+    cout << "Usage: mirtk get-dt [input_image] " << endl;
+    cout << endl;
+    cout << "Function that prints dT spacing the image (4th dimension / in ms)." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
+    
     exit(1);
 }
 // -----------------------------------------------------------------------------

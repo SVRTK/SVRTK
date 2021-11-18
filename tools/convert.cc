@@ -34,8 +34,12 @@ using namespace mirtk;
 
 void usage()
 {
-    cout << "Usage: convert [input_volume] [reference_volume] [output_volume] [padding_value] \n" << endl;
-    cout << "- conversion between different .nii file formats" << endl;
+    cout << "Usage: mirtk convert [input_image] [reference_image] [output_image] [padding_value] " << endl;
+    cout << endl;
+    cout << "Function for conversion between different .nii file formats based on per-voxel copying." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     exit(0);
 }
 
@@ -69,7 +73,7 @@ int main(int argc, char **argv)
     file_name = argv[1];
     argc--;
     argv++;
-    cout << "Input volume : " << file_name << endl;
+    cout << "Input image : " << file_name << endl;
     stack_in.Read(file_name);
     
     
@@ -77,7 +81,7 @@ int main(int argc, char **argv)
     file_name = argv[1];
     argc--;
     argv++;
-    cout << "Reference volume : " << file_name << endl;
+    cout << "Reference image : " << file_name << endl;
     stack_ref.Read(file_name);
     
     
@@ -86,7 +90,7 @@ int main(int argc, char **argv)
     file_name = argv[1];
     argc--;
     argv++;
-    cout << "Output volume : " << file_name << endl;
+    cout << "Output image : " << file_name << endl;
     
     
     

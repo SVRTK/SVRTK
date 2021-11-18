@@ -30,8 +30,12 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
+// SVRTK
+#include "svrtk/Reconstruction.h"
+
 using namespace std;
 using namespace mirtk;
+using namespace svrtk;
 
 // =============================================================================
 // Auxiliary functions
@@ -41,10 +45,13 @@ using namespace mirtk;
 
 void usage()
 {
-    cout << "Usage: pad_image [input_A_volume] [input_B_volume] [output_volume] [Value in imageB] [Padding Value in output] \n" << endl;
+    cout << "Usage: mirtk filter-image-background [input_image] [output_image] [foreground_sigma] [background_sigma] \n" << endl;
+    cout << endl;
+    cout << "Function for filtering on the image background based on the difference between the outputs of gaussian blurring with differet kernels." << endl;
+    cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-
+    
     exit(1);
 }
 
@@ -67,7 +74,7 @@ int main(int argc, char **argv)
 
     
     //if not enough arguments print help
-    if (argc < 6)
+    if (argc < 5)
     usage();
     
     
@@ -77,75 +84,53 @@ int main(int argc, char **argv)
     
     //-------------------------------------------------------------------
     
-    RealImage input_volume_A, input_volume_B, output_volume;
+    RealImage input_volume, output_volume;
 
     
-    input_volume_A.Read(argv[1]);
-    cout<<"Input volume A: "<<argv[1]<<endl;
+    input_volume.Read(argv[1]);
+    cout<<"Input image: "<<argv[1]<<endl;
     argc--;
     argv++;
     
+    double smin, smax;
+    input_volume.GetMinMax(&smin, &smax);
     
-    input_volume_B.Read(argv[1]);
-    cout<<"Input volume B: "<<argv[1]<<endl;
-    argc--;
-    argv++;
+    if (smin < 0 || smax < 0) {
+        input_volume.PutMinMaxAsDouble(0, 1000);
+    }
     
     
     output_name = argv[1];
-    cout<<"Ouput volume: "<<output_name<<endl;
+    cout<<"Ouput image: "<<output_name<<endl;
     argc--;
     argv++;
     
     
-    double threshold = 0;
-    threshold = atof(argv[1]);
-    cout<<"threshold : "<<threshold<<endl;
+    double bg_sigma, fg_sigma;
+    
+    
+    fg_sigma = atof(argv[1]);
+    cout<<"foreground sigma : "<<fg_sigma<<endl;
     argc--;
     argv++;
     
-    double padding = 0;
-    padding = atof(argv[1]);
-    cout<<"padding : "<<padding<<endl;
+    bg_sigma = atof(argv[1]);
+    cout<<"background sigma : "<<bg_sigma<<endl;
     argc--;
     argv++;
-    
     
     
     //-------------------------------------------------------------------
     
+    Reconstruction *reconstruction = new Reconstruction();
     
-    output_volume = input_volume_A;
+    Array<RealImage> stacks;
+    stacks.push_back(input_volume);
     
-    int invert = 0;
+    reconstruction->BackgroundFiltering(stacks, fg_sigma, bg_sigma);
     
-    for (int t = 0; t < output_volume.GetT(); t++) {
-        for (int z = 0; z < output_volume.GetZ(); z++) {
-            for (int y = 0; y < output_volume.GetY(); y++) {
-                for (int x = 0; x < output_volume.GetX(); x++) {
-                    
-                    double i = x;
-                    double j = y;
-                    double k = z;
-                    input_volume_A.ImageToWorld(i,j,k);
-                    input_volume_B.WorldToImage(i,j,k);
-                    i = round(i);
-                    j = round(j);
-                    k = round(k);
-                    
-                    if(i >= 0 && i < input_volume_B.GetX() && j >= 0 && j < input_volume_B.GetY() && k >= 0 && k < input_volume_B.GetZ() && t >= 0 && t < input_volume_B.GetT()){
-                        if(invert){
-                            if (input_volume_B(i, j, k, t) != threshold) output_volume(x, y, z, t) = padding;
-                        }else{
-                            if (input_volume_B(i, j, k, t) == threshold) output_volume(x, y, z, t) = padding;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    output_volume = stacks[0];
     
-                                     
     output_volume.Write(output_name);
     
     

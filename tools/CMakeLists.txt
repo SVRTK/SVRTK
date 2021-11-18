@@ -25,6 +25,26 @@
 #set(USE_Python TRUE) 
 
 
+
+
+
+mirtk_add_executable(
+  resample-to-iso-grid
+  SOURCES
+    resample-to-iso-grid.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
 mirtk_add_executable(
   reconstruct-round
   SOURCES
@@ -42,9 +62,9 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  register_landmarks
+  register-landmarks
   SOURCES
-    register_landmarks.cc
+    register-landmarks.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -105,9 +125,9 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  weighted-average
+  median-average
   SOURCES
-    weighted-average.cc
+    median-average.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -281,9 +301,9 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  combine_patches
+  combine-patches
   SOURCES
-    combine_patches.cc
+    combine-patches.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -296,9 +316,9 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  combine_masks
+  combine-masks
   SOURCES
-    combine_masks.cc
+    combine-masks.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -311,9 +331,9 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  filter_background
+  filter-image-background
   SOURCES
-    filter_background.cc
+    filter-image-background.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -326,40 +346,9 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  threshold_image
+  threshold-image
   SOURCES
-    threshold_image.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-
-mirtk_add_executable(
-  pad_image
-  SOURCES
-    pad_image.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-mirtk_add_executable(
-  enlarge_image
-  SOURCES
-    enlarge_image.cc
+    threshold-image.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -373,9 +362,9 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  crop_volume
+  pad-image
   SOURCES
-    crop_volume.cc
+    pad-image.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -388,9 +377,40 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  mask_volume
+  enlarge-image
   SOURCES
-    mask_volume.cc
+    enlarge-image.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  crop-image
+  SOURCES
+    crop-image.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  mask-image
+  SOURCES
+    mask-image.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -472,9 +492,9 @@ mirtk_add_executable(
 
 
 mirtk_add_executable(
-  mask_stats_4d
+  image-label-statistics
   SOURCES
-    mask_stats_4d.cc
+    image-label-statistics.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -487,52 +507,7 @@ mirtk_add_executable(
 )
 
 
-mirtk_add_executable(
-  multiply_volumes
-  SOURCES
-    multiply_volumes.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
 
-
-mirtk_add_executable(
-  initialise_volume
-  SOURCES
-    initialise_volume.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-
-mirtk_add_executable(
-  get-middle-limits
-  SOURCES
-    get-middle-limits.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
 
 
 #mirtk_add_executable(test DEPENDS ${BASIS_PYTHON_LIBRARY_TARGET})

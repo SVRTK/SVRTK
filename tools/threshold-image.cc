@@ -41,8 +41,9 @@ using namespace mirtk;
 
 void usage()
 {
-    cout << "Usage: threshold_image [input_volume] [output_volume] [threshold] \n" << endl;
-    cout << "(the thresholded image will be in [0; 1] binary range) "<< endl;
+    cout << "Usage: mirtk threshold-image [input_image] [output_image] [threshold] \n" << endl;
+    cout << endl;
+    cout << "Function for binary thresholding: the output will be in [0; 1] range. "<< endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
 

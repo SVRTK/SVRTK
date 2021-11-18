@@ -45,7 +45,12 @@ using namespace svrtk;
 // -----------------------------------------------------------------------------
 void usage()
 {
-    cout << "..." << endl;
+    cout << "Usage: mirtk get-t [input_image] " << endl;
+    cout << endl;
+    cout << "Function that prints T size the image (4th dimension / number of images)." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     exit(1);
 }
 // -----------------------------------------------------------------------------

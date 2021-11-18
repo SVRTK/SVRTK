@@ -41,7 +41,10 @@ using namespace mirtk;
 
 void usage()
 {
-    cout << "Usage: enlarge_image [input_volume] [output_volume] <-x voxels> <-y voxels> <-z voxels> <-percent> <-value value>"<<endl;
+    cout << "Usage: mirtk enlarge-image [input_image] [output_image] <-x voxels> <-y voxels> <-z voxels> <-percent> <-value value>" <<endl;
+    cout << endl;
+    cout << "Function for changing the image grid size with padding (transferred from IRTK library: https://biomedia.doc.ic.ac.uk/software/irtk/)." << endl;
+    cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
 

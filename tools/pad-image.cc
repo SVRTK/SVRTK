@@ -30,12 +30,8 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
-// SVRTK
-#include "svrtk/Reconstruction.h"
-
 using namespace std;
 using namespace mirtk;
-using namespace svrtk;
 
 // =============================================================================
 // Auxiliary functions
@@ -45,11 +41,13 @@ using namespace svrtk;
 
 void usage()
 {
-    cout << "Usage: filter_background [input_volume] [output_volume] [foreground_sigma] [background_sigma] \n" << endl;
+    cout << "Usage: mirtk pad-image [input_image_A] [input_image_B] [output_image] [threshold value in imageB] [padding value in output] \n" << endl;
+    cout << endl;
+    cout << "Function for padding of an image based on the threshold values in the 2nd image." << endl;
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-    
+
     exit(1);
 }
 
@@ -64,15 +62,14 @@ void usage()
 int main(int argc, char **argv)
 {
     
-    cout << "---------------------------------------------------------------------" << endl;
-    
+ 
     char buffer[256];
     RealImage stack;
     char * output_name = NULL;
 
     
     //if not enough arguments print help
-    if (argc < 5)
+    if (argc < 6)
     usage();
     
     
@@ -82,57 +79,71 @@ int main(int argc, char **argv)
     
     //-------------------------------------------------------------------
     
-    RealImage input_volume, output_volume;
+    RealImage input_volume_A, input_volume_B, output_volume;
 
     
-    input_volume.Read(argv[1]);
-    cout<<"Input volume: "<<argv[1]<<endl;
+    input_volume_A.Read(argv[1]);
     argc--;
     argv++;
     
-    double smin, smax;
-    input_volume.GetMinMax(&smin, &smax);
     
-    if (smin < 0 || smax < 0) {
-        input_volume.PutMinMaxAsDouble(0, 1000);
-    }
+    input_volume_B.Read(argv[1]);
+    argc--;
+    argv++;
     
     
     output_name = argv[1];
-    cout<<"Ouput volume: "<<output_name<<endl;
     argc--;
     argv++;
     
     
-    double bg_sigma, fg_sigma;
-    
-    
-    fg_sigma = atof(argv[1]);
-    cout<<"foreground sigma : "<<fg_sigma<<endl;
+    double threshold = 0;
+    threshold = atof(argv[1]);
     argc--;
     argv++;
     
-    bg_sigma = atof(argv[1]);
-    cout<<"background sigma : "<<bg_sigma<<endl;
+    double padding = 0;
+    padding = atof(argv[1]);
     argc--;
     argv++;
+    
     
     
     //-------------------------------------------------------------------
     
-    Reconstruction *reconstruction = new Reconstruction();
     
-    Array<RealImage> stacks;
-    stacks.push_back(input_volume);
+    output_volume = input_volume_A;
     
-    reconstruction->BackgroundFiltering(stacks, fg_sigma, bg_sigma);
+    int invert = 0;
     
-    output_volume = stacks[0];
+    for (int t = 0; t < output_volume.GetT(); t++) {
+        for (int z = 0; z < output_volume.GetZ(); z++) {
+            for (int y = 0; y < output_volume.GetY(); y++) {
+                for (int x = 0; x < output_volume.GetX(); x++) {
+                    
+                    double i = x;
+                    double j = y;
+                    double k = z;
+                    input_volume_A.ImageToWorld(i,j,k);
+                    input_volume_B.WorldToImage(i,j,k);
+                    i = round(i);
+                    j = round(j);
+                    k = round(k);
+                    
+                    if(i >= 0 && i < input_volume_B.GetX() && j >= 0 && j < input_volume_B.GetY() && k >= 0 && k < input_volume_B.GetZ() && t >= 0 && t < input_volume_B.GetT()){
+                        if(invert){
+                            if (input_volume_B(i, j, k, t) != threshold) output_volume(x, y, z, t) = padding;
+                        }else{
+                            if (input_volume_B(i, j, k, t) == threshold) output_volume(x, y, z, t) = padding;
+                        }
+                    }
+                }
+            }
+        }
+    }
     
+                                     
     output_volume.Write(output_name);
-    
-    
-    cout << "---------------------------------------------------------------------" << endl;
     
     
     

@@ -41,7 +41,12 @@ using namespace mirtk;
 // -----------------------------------------------------------------------------
 void usage()
 {
-    cout << "..." << endl;
+    cout << "Usage: mirtk extract-label [input_label_image] [output_label_image] [start_label_number] [end_label_number]\n" << endl;
+    cout << endl;
+    cout << "Function for extracting specific label range from a multi-label image." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     exit(1);
 }
 // -----------------------------------------------------------------------------

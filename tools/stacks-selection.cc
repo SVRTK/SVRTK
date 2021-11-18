@@ -62,9 +62,17 @@ using namespace svrtk;
 
 void usage()
 {
-    cout << "Usage: mirtk .... " << endl;
+    cout << "Usage: mirtk stacks-selection [number_of_input_stacks] [input_stack_1] ... [input_stack_n] " << endl;
+    cout << "\t [input_mask_1] ... [input_mask_n] [output_folder_for_selected_stacks] [roi_dilation_degree_for_stack_cropping]" << endl;
+    cout << "\t [include_volume_into_selection: 0/1 flag] [stack_similary_selection_theshold: value between 0.5 and 1.25] [use_existing_template: 0/1 flag + [input_template_file]]" << endl;
     cout << endl;
-
+    cout << "Function for automated preparation for an optimal input for reconstruct or reconstructBody 3D SVR SR functions. " << endl;
+    cout << "The outputs include generated average template and mask and selected preregistered stacks." << endl;
+    cout << "The stack selection is based on the median mark ROI volumes and cross-correlation between the stacks in the analysed ROI." << endl;
+    cout << "(NOTE: this is an alternative implementation for stacks-and-masks-selection function.)" << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     exit(1);
 }
 
@@ -84,15 +92,6 @@ double median_val(Array<double> in_vector)
     }
   }
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -243,7 +242,7 @@ int main(int argc, char **argv)
 
     if (include_volume_option > 0) {
 
-	include_volume = true;
+        include_volume = true;
 
     }
 
@@ -531,26 +530,6 @@ int main(int argc, char **argv)
     double norm_volume = 0;
 
 
-    /*
-    for (int i=0; i<stacks.size(); i++) {
-
-        cout << " ... " << i << endl;
-
-        double average_ncc = 0;
-        double average_volume = 0;
-        Array<RigidTransformation> current_stack_tranformations;
-
-        reconstruction->GlobalStackStats(stacks[i], masks[i], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
-
-        prelim_stack_tranformations.push_back(current_stack_tranformations);
-
-        all_global_ncc_array.push_back(average_ncc);
-        all_global_volume_array.push_back(average_volume);
-
-        norm_volume = norm_volume + average_volume;
-    }
-    */
-
     reconstruction->RunParallelGlobalStackStats( stacks, masks, all_global_ncc_array, all_global_volume_array );
 
 
@@ -596,53 +575,6 @@ int main(int argc, char **argv)
 
     }
 
-
-
-
-
-
-
-    /*
-    ParameterList params;
-    Insert(params, "Transformation model", "Rigid");
-    Insert(params, "Background value for image 1", 0);
-    Insert(params, "Background value for image 2", 0);
-
-    for (int i=0; i<stacks.size(); i++) {
-
-        RealImage input_stack = stacks[i];
-        input_stack *= masks[i];
-
-        GenericRegistrationFilter registration;
-        registration.Parameter(params);
-        registration.Input(&prelim_template_stack, &input_stack);
-        Transformation *dofout = nullptr;
-        registration.Output(&dofout);
-        registration.InitialGuess(&r_init);
-        registration.GuessParameter();
-        registration.Run();
-        unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
-
-        Matrix m = r_dofout->GetMatrix();
-        m.Invert();
-        stacks[i].PutAffineMatrix(m, true);
-        masks[i].PutAffineMatrix(m, true);
-
-    }
-    */
-
-
-
-    /*
-    for (int i=0; i<stacks.size(); i++) {
-
-        Matrix m = prelim_stack_tranformations[selected_template][i].GetMatrix();
-        m.Invert();
-        stacks[i].PutAffineMatrix(m, true);
-        masks[i].PutAffineMatrix(m, true);
-
-    }
-    */
 
 
     global_stats_average = global_stats_average / count_stats;
@@ -781,45 +713,6 @@ int main(int argc, char **argv)
 
     template_stack = stacks[selected_template];
 
-
-
-    /*
-    if (!use_template) {
-
-        template_stack = stacks[selected_template];
-
-    } else {
-
-        RealImage masked_selected_template = stacks[selected_template];
-        masked_selected_template *= masks[selected_template];
-
-        RigidTransformation r_init;
-        r_init.PutTranslationX(0.0001);
-        r_init.PutTranslationY(0.0001);
-        r_init.PutTranslationZ(-0.0001);
-
-        ParameterList params;
-        Insert(params, "Transformation model", "Rigid");
-        Insert(params, "Background value for image 1", 0);
-
-        GenericRegistrationFilter registration;
-        registration.Parameter(params);
-        registration.Input(&masked_selected_template, &template_stack);
-        Transformation *dofout = nullptr;
-        registration.Output(&dofout);
-        registration.InitialGuess(&r_init);
-        registration.GuessParameter();
-        registration.Run();
-        unique_ptr<RigidTransformation> r_dofout(dynamic_cast<RigidTransformation*>(dofout));
-
-        Matrix m = r_dofout->GetMatrix();
-
-        for (int i=0; i<stacks.size(); i++) {
-            stacks[i].PutAffineMatrix(m, true);
-            masks[i].PutAffineMatrix(m, true);
-        }
-    }
-    */
 
 
 

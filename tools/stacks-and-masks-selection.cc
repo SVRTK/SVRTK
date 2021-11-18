@@ -62,9 +62,17 @@ using namespace svrtk;
 
 void usage()
 {
-    cout << "Usage: mirtk .... " << endl;
+    cout << "Usage: mirtk stacks-and-masks-selection [number_of_input_stacks] [input_stack_1] ... [input_stack_n] " << endl;
+    cout << "\t [input_mask_1] ... [input_mask_n] [output_folder_for_selected_stacks] [roi_dilation_degree_for_stack_cropping]" << endl;
+    cout << "\t [include_volume_into_selection: 0/1 flag] [use_existing_template: 0/1 flag + [input_template_file]]" << endl;
     cout << endl;
-
+    cout << "Function for automated preparation for an optimal input for reconstruct or reconstructBody 3D SVR SR functions. " << endl;
+    cout << "The outputs include generated average template and mask and selected preregistered stacks." << endl;
+    cout << "The stack selection is based on the median mark ROI volumes and cross-correlation between the stacks in the analysed ROI." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
+    
     exit(1);
 }
 
@@ -211,9 +219,7 @@ int main(int argc, char **argv)
 
 
     if (include_volume_option > 0) {
-
-	include_volume = true;
-
+        include_volume = true;
     }
 
 
@@ -678,8 +684,6 @@ int main(int argc, char **argv)
         bool twod = false;
 
     for (int i=0; i<stacks.size(); i++) {
-
-
 
         RealImage tr_mask = common_mask;
 

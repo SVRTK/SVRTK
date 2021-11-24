@@ -29,12 +29,14 @@
 #include "svrtk/ReconstructionCardiac4D.h"
 #include "svrtk/Profiling.h"
 #include "svrtk/Parallel.h"
+#include "svrtk/Utility.h"
 
 // C++ Standard
 #include <math.h>
 
 using namespace std;
 using namespace mirtk;
+using namespace svrtk::Utility;
 
 namespace svrtk {
 
@@ -63,7 +65,7 @@ namespace svrtk {
         ReadTransformations(folder, _loc_index.back() + 1, loc_transformations);
 
         // Assign transformations to single-frame images
-        _transformations.clear();
+        ClearAndReserve(_transformations, _slices.size());
         for (size_t i = 0; i < _slices.size(); i++)
             _transformations.push_back(loc_transformations[_loc_index[i]]);
     }
@@ -117,6 +119,7 @@ namespace svrtk {
         cout << setprecision(6);
 
         //Calculate the averages of intensities for all stacks
+        RealImage m;
         Array<double> stack_average;
         stack_average.reserve(stacks.size());
 
@@ -127,8 +130,10 @@ namespace svrtk {
         for (size_t ind = 0; ind < stacks.size(); ind++) {
             ImageAttributes attr = stacks[ind].Attributes();
             attr._t = 1;
-            RealImage m(attr);
+            m.Initialize(attr);
             double sum = 0, num = 0;
+
+            #pragma omp parallel for reduction(+: sum, num)
             for (int i = 0; i < stacks[ind].GetX(); i++)
                 for (int j = 0; j < stacks[ind].GetY(); j++)
                     for (int k = 0; k < stacks[ind].GetZ(); k++) {
@@ -170,26 +175,26 @@ namespace svrtk {
 
         double global_average = 0;
         if (together) {
-            for (int i = 0; i < stack_average.size(); i++)
+            for (size_t i = 0; i < stack_average.size(); i++)
                 global_average += stack_average[i];
             global_average /= stack_average.size();
         }
 
         if (_debug) {
             cout << "Stack average intensities are ";
-            for (int ind = 0; ind < stack_average.size(); ind++)
+            for (size_t ind = 0; ind < stack_average.size(); ind++)
                 cout << stack_average[ind] << " ";
             cout << "\nThe new average value is " << averageValue << endl;
         }
 
         //Rescale stacks
-        _stack_factor.clear();
-        _stack_factor.reserve(stacks.size());
-        for (int ind = 0; ind < stacks.size(); ind++) {
+        ClearAndReserve(_stack_factor, stacks.size());
+        for (size_t ind = 0; ind < stacks.size(); ind++) {
             double factor = averageValue / (together ? global_average : stack_average[ind]);
             _stack_factor.push_back(factor);
 
             RealPixel *ptr = stacks[ind].Data();
+            #pragma omp parallel for
             for (int i = 0; i < stacks[ind].NumberOfVoxels(); i++) {
                 if (ptr[i] > 0)
                     ptr[i] *= factor;
@@ -197,6 +202,7 @@ namespace svrtk {
         }
 
         if (_debug) {
+            #pragma omp parallel for
             for (size_t ind = 0; ind < stacks.size(); ind++)
                 stacks[ind].Write((boost::format("rescaledstack%03i.nii.gz") % ind).str().c_str());
 
@@ -215,6 +221,25 @@ namespace svrtk {
     void ReconstructionCardiac4D::CreateSlicesAndTransformationsCardiac4D(const Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations, const Array<double>& thickness, const Array<RealImage>& probability_maps) {
         if (_debug)
             cout << "CreateSlicesAndTransformations" << endl;
+
+        // Reset and allocate memory
+        const size_t reserve_size = stacks.size() * stacks[0].Attributes()._z * stacks[0].Attributes()._t;
+        ClearAndReserve(_slice_time, reserve_size);
+        ClearAndReserve(_slice_dt, reserve_size);
+        ClearAndReserve(_slices, reserve_size);
+        ClearAndReserve(_simulated_slices, reserve_size);
+        ClearAndReserve(_simulated_weights, reserve_size);
+        ClearAndReserve(_simulated_inside, reserve_size);
+        ClearAndReserve(_zero_slices, reserve_size);
+        ClearAndReserve(_stack_index, reserve_size);
+        ClearAndReserve(_loc_index, reserve_size);
+        ClearAndReserve(_stack_loc_index, reserve_size);
+        ClearAndReserve(_stack_dyn_index, reserve_size);
+        ClearAndReserve(_transformations, reserve_size);
+        ClearAndReserve(_slice_excluded, reserve_size);
+        ClearAndReserve(_slice_svr_card_index, reserve_size);
+        if (!probability_maps.empty())
+            ClearAndReserve(_probability_maps, reserve_size);
 
         for (size_t i = 0, loc_index = 0; i < stacks.size(); i++) {
             //image attributes contain image and voxel size
@@ -258,14 +283,18 @@ namespace svrtk {
                 }
             }
         }
+
         cout << "Number of images: " << _slices.size() << endl;
+
         //set excluded slices
         for (size_t i = 0; i < _force_excluded.size(); i++)
             _slice_excluded[_force_excluded[i]] = true;
+
         for (size_t i = 0; i < _force_excluded_stacks.size(); i++)
             for (size_t j = 0; j < _slices.size(); j++)
                 if (_force_excluded_stacks[i] == _stack_index[j])
                     _slice_excluded[j] = true;
+
         for (size_t i = 0; i < _force_excluded_locs.size(); i++)
             for (size_t j = 0; j < _slices.size(); j++)
                 if (_force_excluded_locs[i] == _loc_index[j])
@@ -281,6 +310,7 @@ namespace svrtk {
 
         InitSliceTemporalWeights();
 
+        #pragma omp parallel for collapse(2)
         for (size_t i = 0; i < _reconstructed_cardiac_phases.size(); i++) {
             for (size_t j = 0; j < _slices.size(); j++) {
                 _slice_temporal_weight[i][j] = CalculateTemporalWeight(_reconstructed_cardiac_phases[i], _slice_cardphase[j], _slice_dt[j], _slice_rr[j], _wintukeypct);
@@ -323,12 +353,10 @@ namespace svrtk {
         SVRTK_START_TIMING();
 
         //resize slice-volume matrix from previous iteration
-        _volcoeffs.clear();
-        _volcoeffs.resize(_slices.size());
+        ClearAndResize(_volcoeffs, _slices.size());
 
         //resize indicator of slice having and overlap with volumetric mask
-        _slice_inside.clear();
-        _slice_inside.resize(_slices.size());
+        ClearAndResize(_slice_inside, _slices.size());
 
         if (_verbose)
             _verbose_log << "Initialising matrix coefficients... ";
@@ -368,6 +396,7 @@ namespace svrtk {
         const RealPixel *pm = _mask.Data();
         double sum = 0;
         int num = 0;
+        #pragma omp parallel for reduction(+: sum, num)
         for (int i = 0; i < _volume_weights.NumberOfVoxels(); i++) {
             if (pm[i] == 1) {
                 sum += ptr[i];
@@ -393,7 +422,9 @@ namespace svrtk {
             _verbose_log << "\tinput slice:  ";
         }
 
+        RealImage slice;
         Array<int> voxel_num;
+        voxel_num.reserve(_slices.size() * _slices[0].GetX() * _slices[0].GetY());
 
         //clear _reconstructed image
         memset(_reconstructed4D.Data(), 0, sizeof(RealPixel) * _reconstructed4D.NumberOfVoxels());
@@ -406,7 +437,7 @@ namespace svrtk {
                 _verbose_log << inputIndex << ", ";
 
             //copy the current slice
-            RealImage slice = _slices[inputIndex];
+            slice = _slices[inputIndex];
             //alias the current bias image
             const RealImage& b = _bias[inputIndex];
             //read current scale factor
@@ -463,7 +494,7 @@ namespace svrtk {
         median = voxel_num_tmp[median];
 
         //remember slices with small overlap with ROI
-        _small_slices.clear();
+        ClearAndReserve(_small_slices, voxel_num.size());
         for (size_t i = 0; i < voxel_num.size(); i++)
             if (voxel_num[i] < 0.1 * median)
                 _small_slices.push_back(i);
@@ -518,6 +549,7 @@ namespace svrtk {
             _verbose_log << "Simulating stacks ... ";
 
         //Initialise simulated images
+        #pragma omp parallel for
         for (size_t i = 0; i < _slices.size(); i++)
             memset(_simulated_slices[i].Data(), 0, sizeof(RealPixel) * _simulated_slices[i].NumberOfVoxels());
 
@@ -599,17 +631,19 @@ namespace svrtk {
         if (_debug)
             cout << "CalculateSliceToVolumeTargetCardiacPhase" << endl;
 
-        _slice_svr_card_index.clear();
+        ClearAndResize(_slice_svr_card_index, _slices.size());
+        #pragma omp parallel for
         for (size_t i = 0; i < _slices.size(); i++) {
             double angdiff = PI + 0.001;  // NOTE: init angdiff larger than any possible calculated angular difference
             int card_index = -1;
-            for (size_t outputIndex = 0; outputIndex < _reconstructed_cardiac_phases.size(); outputIndex++) {
-                if (fabs(CalculateAngularDifference(_reconstructed_cardiac_phases[outputIndex], _slice_cardphase[i])) < angdiff) {
-                    angdiff = fabs(CalculateAngularDifference(_reconstructed_cardiac_phases[outputIndex], _slice_cardphase[i]));
-                    card_index = outputIndex;
+            for (size_t j = 0; j < _reconstructed_cardiac_phases.size(); j++) {
+                const double nangdiff = fabs(CalculateAngularDifference(_reconstructed_cardiac_phases[j], _slice_cardphase[i]));
+                if (nangdiff < angdiff) {
+                    angdiff = nangdiff;
+                    card_index = j;
                 }
             }
-            _slice_svr_card_index.push_back(card_index);
+            _slice_svr_card_index[i] = card_index;
             // if (_debug)
             //   cout << i << ":" << _slice_svr_card_index[i] << ", ";
         }
@@ -637,27 +671,30 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     void ReconstructionCardiac4D::RemoteSliceToVolumeRegistrationCardiac4D(int iter, const string& str_mirtk_path, const string& str_current_exchange_file_path) {
         const ImageAttributes& attr_recon = _reconstructed4D.Attributes();
+        RealImage source, target;
 
         if (_verbose)
             _verbose_log << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
 
+        #pragma omp parallel for
         for (int t = 0; t < _reconstructed4D.GetT(); t++) {
             string str_source = str_current_exchange_file_path + "/current-source-" + to_string(t) + ".nii.gz";
-            RealImage source = _reconstructed4D.GetRegion(0, 0, 0, t, attr_recon._x, attr_recon._y, attr_recon._z, t + 1);
+            source = _reconstructed4D.GetRegion(0, 0, 0, t, attr_recon._x, attr_recon._y, attr_recon._z, t + 1);
             source.Write(str_source.c_str());
         }
 
         if (iter == 1) {
-            _offset_matrices.clear();
+            ClearAndReserve(_offset_matrices, _slices.size());
 
-            for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-                ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
-                GenericLinearInterpolateImageFunction<RealImage> interpolator;
+            GenericLinearInterpolateImageFunction<RealImage> interpolator;
+            ResamplingWithPadding<RealPixel> resampling(attr_recon._dx, attr_recon._dx, attr_recon._dx, -1);
+            resampling.Output(&target);
+            resampling.Interpolator(&interpolator);
 
-                RealImage target(_slices[inputIndex].Attributes());
+            // Do not parallelise: ResamplingWithPadding has already been parallelised!
+            for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+                target.Initialize(_slices[inputIndex].Attributes());
                 resampling.Input(&_slices[inputIndex]);
-                resampling.Output(&target);
-                resampling.Interpolator(&interpolator);
                 resampling.Run();
 
                 // put origin to zero
@@ -675,10 +712,10 @@ namespace svrtk {
             }
         }
 
-        for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+        #pragma omp parallel for
+        for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             RigidTransformation r_transform = _transformations[inputIndex];
-            const Matrix m = r_transform.GetMatrix() * _offset_matrices[inputIndex];
-            r_transform.PutMatrix(m);
+            r_transform.PutMatrix(r_transform.GetMatrix() * _offset_matrices[inputIndex]);
 
             const string str_dofin = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
             r_transform.Write(str_dofin.c_str());
@@ -696,7 +733,8 @@ namespace svrtk {
             svr_range_stop = min(svr_range_start + stride, (int)_slices.size());
         }
 
-        for (int inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
+        #pragma omp parallel for
+        for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             const string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
             _transformations[inputIndex].Read(str_dofout.c_str());
 
@@ -738,6 +776,7 @@ namespace svrtk {
         Matrix d = drift.GetMatrix();
 
         //Remove drift
+        #pragma omp parallel for
         for (size_t i = 0; i < _transformations.size(); i++)
             _transformations[i].PutMatrix(d * _transformations[i].GetMatrix());
 
@@ -746,6 +785,7 @@ namespace svrtk {
 
         //Return drift
         d.Invert();
+        #pragma omp parallel for
         for (size_t i = 0; i < _transformations.size(); i++)
             _transformations[i].PutMatrix(d * _transformations[i].GetMatrix());
 
@@ -760,13 +800,15 @@ namespace svrtk {
         if (_debug)
             cout << "CalculateDisplacement" << endl;
 
-        _slice_displacement.clear();
-        _slice_tx.clear();
-        _slice_ty.clear();
-        _slice_tz.clear();
+        ClearAndResize(_slice_displacement, _slices.size());
+        ClearAndResize(_slice_tx, _slices.size());
+        ClearAndResize(_slice_ty, _slices.size());
+        ClearAndResize(_slice_tz, _slices.size());
+
         double disp_sum_total = 0;
         int num_voxel_total = 0;
 
+        #pragma omp parallel for reduction(+: disp_sum_total, num_voxel_total)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             int num_voxel_slice = 0;
             double slice_disp = -1, disp_sum_slice = 0;
@@ -799,10 +841,10 @@ namespace svrtk {
                 }
             }
 
-            _slice_displacement.push_back(slice_disp);
-            _slice_tx.push_back(tx_slice);
-            _slice_ty.push_back(ty_slice);
-            _slice_tz.push_back(tz_slice);
+            _slice_displacement[inputIndex] = slice_disp;
+            _slice_tx[inputIndex] = tx_slice;
+            _slice_ty[inputIndex] = ty_slice;
+            _slice_tz[inputIndex] = tz_slice;
         }
 
         return num_voxel_total > 0 ? disp_sum_total / num_voxel_total : -1;
@@ -815,9 +857,11 @@ namespace svrtk {
         if (_debug)
             cout << "CalculateWeightedDisplacement" << endl;
 
-        _slice_weighted_displacement.clear();
+        ClearAndResize(_slice_weighted_displacement, _slices.size());
+
         double disp_sum_total = 0, weight_total = 0;
 
+        #pragma omp parallel for reduction(+: disp_sum_total, weight_total)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             double disp_sum_slice = 0, weight_slice = 0, slice_disp = -1;
 
@@ -841,7 +885,7 @@ namespace svrtk {
                 }
             }
 
-            _slice_weighted_displacement.push_back(slice_disp);
+            _slice_weighted_displacement[inputIndex] = slice_disp;
         }
 
         return weight_total > 0 ? disp_sum_total / weight_total : -1;
@@ -854,10 +898,12 @@ namespace svrtk {
         if (_debug)
             cout << "CalculateTRE" << endl;
 
-        _slice_tre.clear();
+        ClearAndReserve(_slice_tre, _slices.size());
+
         double tre_sum_total = 0;
         int num_voxel_total = 0;
 
+        #pragma omp parallel for reduction(+: tre_sum_total, num_voxel_total)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             double tre_sum_slice = 0, slice_tre = -1;
             int num_voxel_slice = 0;
@@ -884,7 +930,7 @@ namespace svrtk {
                 }
             }
 
-            _slice_tre.push_back(slice_tre);
+            _slice_tre[inputIndex] = slice_tre;
         }
 
         return num_voxel_total > 0 ? tre_sum_total / num_voxel_total : -1;
@@ -942,11 +988,9 @@ namespace svrtk {
                         for (int j = 0; j < 6; j++)
                             weights(j, i) = 1;
                 } else {    //set weights based on _slice_inside
-                    if (_slice_inside.size() > 0) {
-                        if (_slice_inside[i])
-                            for (int j = 0; j < 6; j++)
-                                weights(j, i) = 1;
-                    }
+                    if (!_slice_inside.empty() && _slice_inside[i])
+                        for (int j = 0; j < 6; j++)
+                            weights(j, i) = 1;
                 }
             }
         }
@@ -972,15 +1016,18 @@ namespace svrtk {
             step = ceil(_reconstructed4D.GetZ() / nstep);
 
         //kernel regression
+        Array<double> kernel, error, tmp;
+        error.reserve(_transformations.size());
+        tmp.reserve(_transformations.size());
         for (int iter = 0; iter < niter; iter++) {
             for (int loc = 0; loc < nloc; loc++) {
                 //gaussian kernel for current slice-location
-                Array<double> kernel;
                 const double sigma = ceil(sigma_seconds / _slice_dt[loc * dim]);
                 for (int j = -3 * sigma; j <= 3 * sigma; j++)
                     kernel.push_back(exp(-(j * _slice_dt[loc * dim] / sigma_seconds) * (j * _slice_dt[loc * dim] / sigma_seconds)));
 
                 //kernel-weighted summation
+                #pragma omp parallel for collapse(2)
                 for (int par = 0; par < 6; par++) {
                     for (int i = loc * dim; i < (loc + 1) * dim; i++) {
                         if (!_slice_excluded[i]) {
@@ -995,15 +1042,17 @@ namespace svrtk {
                         }
                     }
                 }
+
+                kernel.clear();
             }
 
             //kernel-weighted normalisation
+            #pragma omp parallel for collapse(2)
             for (int par = 0; par < 6; par++)
                 for (size_t i = 0; i < _transformations.size(); i++)
                     kr(par, i) = num(par, i) / den(par, i);
 
             //recalculate weights using target registration error with original transformations as targets
-            Array<double> error, tmp;
             for (size_t i = 0; i < _transformations.size(); i++) {
                 RigidTransformation processed;
                 processed.PutTranslationX(kr(0, i));
@@ -1023,6 +1072,7 @@ namespace svrtk {
                 double e = 0;
 
                 if (!_slice_excluded[i]) {
+                    #pragma omp parallel for collapse(3) reduction(+: n, e)
                     for (int ii = 0; ii < _reconstructed4D.GetX(); ii += step)
                         for (int jj = 0; jj < _reconstructed4D.GetY(); jj += step)
                             for (int kk = 0; kk < _reconstructed4D.GetZ(); kk += step)
@@ -1058,6 +1108,7 @@ namespace svrtk {
                 cout.flush();
             }
 
+            #pragma omp parallel for
             for (size_t i = 0; i < _transformations.size(); i++) {
                 double value = 0;
                 if (error[i] >= 0 && !_slice_excluded[i]) {
@@ -1069,6 +1120,9 @@ namespace svrtk {
                 for (int par = 0; par < 6; par++)
                     weights(par, i) = value;
             }
+
+            error.clear();
+            tmp.clear();
         }
 
         if (_debug)
@@ -1102,6 +1156,7 @@ namespace svrtk {
         }
 
         //Put origin back
+        #pragma omp parallel for
         for (size_t i = 0; i < _transformations.size(); i++)
             _transformations[i].PutMatrix(mo * _transformations[i].GetMatrix() * imo);
     }
@@ -1130,22 +1185,22 @@ namespace svrtk {
 
         const Matrix& mo = offset.GetMatrix();
         const Matrix imo = mo.Inverse();
-        for (size_t i = 0; i < _transformations.size(); i++)
+
+        #pragma omp parallel for
+        for (size_t i = 0; i < _transformations.size(); i++) {
             _transformations[i].PutMatrix(imo * _transformations[i].GetMatrix() * mo);
 
-        //Scale transformations
-        for (size_t i = 0; i < _transformations.size(); i++) {
+            //Scale transformations
             const Matrix orig = logm(_transformations[i].GetMatrix());
             Matrix scaled = orig;
             for (int row = 0; row < 4; row++)
                 for (int col = 0; col < 4; col++)
                     scaled(row, col) = scale * orig(row, col);
             _transformations[i].PutMatrix(expm(scaled));
-        }
 
-        //Put origin back
-        for (size_t i = 0; i < _transformations.size(); i++)
+            //Put origin back
             _transformations[i].PutMatrix(mo * _transformations[i].GetMatrix() * imo);
+        }
     }
 
     // -----------------------------------------------------------------------------
@@ -1185,33 +1240,30 @@ namespace svrtk {
         }
 
         if (!_adaptive) {
+            RealPixel *pa = addon.Data();
+            RealPixel *pcm = _confidence_map.Data();
             #pragma omp parallel for
-            for (int i = 0; i < addon.GetX(); i++)
-                for (int j = 0; j < addon.GetY(); j++)
-                    for (int k = 0; k < addon.GetZ(); k++)
-                        for (int t = 0; t < addon.GetT(); t++)
-                            if (_confidence_map(i, j, k, t) > 0) {
-                                // ISSUES if _confidence_map(i, j, k, t) is too small leading
-                                // to bright pixels
-                                addon(i, j, k, t) /= _confidence_map(i, j, k, t);
-                                //this is to revert to normal (non-adaptive) regularisation
-                                _confidence_map(i, j, k, t) = 1;
-                            }
+            for (int i = 0; i < addon.NumberOfVoxels(); i++) {
+                if (pcm[i] > 0) {
+                    // ISSUES if pcm[i] is too small leading to bright pixels
+                    pa[i] /= pcm[i];
+                    //this is to revert to normal (non-adaptive) regularisation
+                    pcm[i] = 1;
+                }
+            }
         }
 
         _reconstructed4D += addon * _alpha; //_average_volume_weight;
 
         //bound the intensities
+        RealPixel *pr = _reconstructed4D.Data();
         #pragma omp parallel for
-        for (int i = 0; i < _reconstructed4D.GetX(); i++)
-            for (int j = 0; j < _reconstructed4D.GetY(); j++)
-                for (int k = 0; k < _reconstructed4D.GetZ(); k++)
-                    for (int t = 0; t < _reconstructed4D.GetT(); t++) {
-                        if (_reconstructed4D(i, j, k, t) < _min_intensity * 0.9)
-                            _reconstructed4D(i, j, k, t) = _min_intensity * 0.9;
-                        if (_reconstructed4D(i, j, k, t) > _max_intensity * 1.1)
-                            _reconstructed4D(i, j, k, t) = _max_intensity * 1.1;
-                    }
+        for (int i = 0; i < _reconstructed4D.NumberOfVoxels(); i++) {
+            if (pr[i] < _min_intensity * 0.9)
+                pr[i] = _min_intensity * 0.9;
+            if (pr[i] > _max_intensity * 1.1)
+                pr[i] = _max_intensity * 1.1;
+        }
 
         //Smooth the reconstructed image
         AdaptiveRegularizationCardiac4D(iter, original);
@@ -1300,8 +1352,11 @@ namespace svrtk {
     void ReconstructionCardiac4D::Save(const Array<RealImage>& save_stacks, const char *message, const char *filename_prefix) {
         if (_verbose)
             _verbose_log << message;
+
+        #pragma omp parallel for
         for (size_t i = 0; i < save_stacks.size(); i++)
             save_stacks[i].Write((boost::format("%s%05i.nii.gz") % filename_prefix % i).str().c_str());
+
         if (_verbose)
             _verbose_log << " done." << endl;
     }
@@ -1311,14 +1366,18 @@ namespace svrtk {
             _verbose_log << message;
 
         Array<RealImage> save_stacks;
+        save_stacks.reserve(stacks.size());
+
         for (size_t i = 0; i < stacks.size(); i++)
             save_stacks.push_back(RealImage(stacks[i].Attributes()));
 
+        #pragma omp parallel for
         for (size_t inputIndex = 0; inputIndex < source.size(); inputIndex++)
             for (int i = 0; i < source[inputIndex].GetX(); i++)
                 for (int j = 0; j < source[inputIndex].GetY(); j++)
                     save_stacks[_stack_index[inputIndex]](i, j, _stack_loc_index[inputIndex], _stack_dyn_index[inputIndex]) = source[inputIndex](i, j, 0);
 
+        #pragma omp parallel for
         for (size_t i = 0; i < stacks.size(); i++) {
             string filename;
             if (iter < 0 || rec_iter < 0)
@@ -1339,8 +1398,9 @@ namespace svrtk {
         if (_verbose)
             _verbose_log << "Saving slices as stacks ... ";
 
-        Array<RealImage> imagestacks;
-        Array<RealImage> wstacks;
+        Array<RealImage> imagestacks, wstacks;
+        imagestacks.reserve(stacks.size());
+        wstacks.reserve(stacks.size());
 
         for (size_t i = 0; i < stacks.size(); i++) {
             RealImage stack(stacks[i].Attributes());
@@ -1348,6 +1408,7 @@ namespace svrtk {
             wstacks.push_back(move(stack));
         }
 
+        #pragma omp parallel for
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             for (int i = 0; i < _slices[inputIndex].GetX(); i++)
                 for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
@@ -1355,6 +1416,7 @@ namespace svrtk {
                     wstacks[_stack_index[inputIndex]](i, j, _stack_loc_index[inputIndex], _stack_dyn_index[inputIndex]) = 10 * _weights[inputIndex](i, j, 0);
                 }
 
+        #pragma omp parallel for
         for (size_t i = 0; i < stacks.size(); i++) {
             imagestacks[i].Write((boost::format("stack%03i.nii.gz") % i).str().c_str());
             wstacks[i].Write((boost::format("w%03i.nii.gz") % i).str().c_str());

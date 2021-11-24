@@ -379,10 +379,7 @@ namespace svrtk {
         }
 
         inline void InitSliceTemporalWeights() {
-            _slice_temporal_weight.clear();
-            _slice_temporal_weight.resize(_reconstructed_cardiac_phases.size());
-            for (size_t i = 0; i < _reconstructed_cardiac_phases.size(); i++)
-                _slice_temporal_weight[i].resize(_slices.size());
+            ClearAndResize(_slice_temporal_weight, _reconstructed_cardiac_phases.size(), Array<double>(_slices.size()));
         }
 
         // Scale volume to match the slice intensities

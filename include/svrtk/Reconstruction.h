@@ -42,6 +42,7 @@
 // SVRTK
 #include "svrtk/MeanShift.h"
 #include "svrtk/NLDenoising.h"
+#include "svrtk/Utility.h"
 
 // C++ Standard
 #include <set>
@@ -49,6 +50,7 @@
 #include <thread>
 
 using namespace mirtk;
+using namespace svrtk::Utility;
 
 namespace svrtk {
 
@@ -304,7 +306,7 @@ namespace svrtk {
 
         void SliceDifference();
 
-        void SaveSliceInfo(int current_iteration);
+        void SaveSliceInfo(int current_iteration = -1);
 
         // Center stacks
         void CenterStacks(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber);
@@ -413,9 +415,9 @@ namespace svrtk {
         void RemoteSliceToVolumeRegistration(int iter, const string& str_mirtk_path, const string& str_current_exchange_file_path);
 
         // remote recon functions
-        void SaveModelRemote(string str_current_exchange_file_path, int status_flag, int current_iteration);
-        void LoadModelRemote(string str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration);
-        void LoadResultsRemote(string str_current_exchange_file_path, int current_number_of_slices, int current_iteration);
+        void SaveModelRemote(const string& str_current_exchange_file_path, int status_flag, int current_iteration);
+        void LoadModelRemote(const string& str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration);
+        void LoadResultsRemote(const string& str_current_exchange_file_path, int current_number_of_slices, int current_iteration);
 
         // Correct bias in the reconstructed volume
         void BiasCorrectVolume(const RealImage& original);

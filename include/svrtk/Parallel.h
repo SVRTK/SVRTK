@@ -18,15 +18,17 @@
 
 #pragma once
 
- // SVRTK
+// SVRTK
 #include "svrtk/Reconstruction.h"
 #include "svrtk/ReconstructionCardiac4D.h"
+#include "svrtk/Utility.h"
 
 // Boost
 #include <boost/format.hpp>
 
 using namespace mirtk;
 using namespace svrtk;
+using namespace svrtk::Utility;
 
 namespace svrtk::Parallel {
 
@@ -76,11 +78,13 @@ namespace svrtk::Parallel {
         Average(Average& x, split) : Average(x.reconstructor, x.stacks, x.stack_transformations, x.targetPadding, x.sourcePadding, x.background, x.linear) {}
 
         void operator()(const blocked_range<size_t>& r) {
-            for (size_t i = r.begin(); i < r.end(); i++) {
-                GenericLinearInterpolateImageFunction<RealImage> interpolator;
-                RealImage image(reconstructor->_reconstructed.Attributes());
+            GenericLinearInterpolateImageFunction<RealImage> interpolator;
+            ImageTransformation imagetransformation;
+            RealImage image;
 
-                ImageTransformation imagetransformation;
+            for (size_t i = r.begin(); i < r.end(); i++) {
+                image.Initialize(reconstructor->_reconstructed.Attributes());
+
                 imagetransformation.Input(&stacks[i]);
                 imagetransformation.Transformation(&stack_transformations[i]);
                 imagetransformation.Output(&image);
@@ -201,54 +205,53 @@ namespace svrtk::Parallel {
             offset(offset) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            RealImage r_source, r_target;
+            GenericLinearInterpolateImageFunction<RealImage> interpolator;
+            ResamplingWithPadding<RealPixel> resampling(1.5, 1.5, 1.5, 0);
+            resampling.Interpolator(&interpolator);
+
+            ParameterList params;
+            Insert(params, "Transformation model", "Rigid");
+            if (reconstructor->_nmi_bins > 0)
+                Insert(params, "No. of bins", reconstructor->_nmi_bins);
+
+            if (reconstructor->_masked_stacks)
+                Insert(params, "Background value", 0);
+            else
+                Insert(params, "Background value for image 1", 0);
+
+            // Insert(params, "Background value", 0);
+            // Insert(params, "Image (dis-)similarity measure", "NCC");
+            // Insert(params, "Image interpolation mode", "Linear");
+            // string type = "box";
+            // string units = "mm";
+            // double width = 0;
+            // Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+
+            Transformation *dofout;
+            GenericRegistrationFilter registration;
+            registration.Parameter(params);
+            registration.Output(&dofout);
+
             for (size_t i = r.begin(); i != r.end(); i++) {
-                if (!reconstructor->_template_flag) {
-                    //do not perform registration for template
-                    if (i == templateNumber)
-                        continue;
-                }
+                //do not perform registration for template
+                if (!reconstructor->_template_flag && i == templateNumber)
+                    continue;
 
-                ResamplingWithPadding<RealPixel> resampling2(1.5, 1.5, 1.5, 0);
-                GenericLinearInterpolateImageFunction<RealImage> interpolator;
-                resampling2.Interpolator(&interpolator);
+                r_source.Initialize(stacks[i].Attributes());
+                resampling.Input(&stacks[i]);
+                resampling.Output(&r_source);
+                resampling.Run();
 
-                RealImage r_source(stacks[i].Attributes());
-                resampling2.Input(&stacks[i]);
-                resampling2.Output(&r_source);
-                resampling2.Run();
-
-                RealImage r_target(target.Attributes());
-                resampling2.Input(&target);
-                resampling2.Output(&r_target);
-                resampling2.Run();
+                r_target.Initialize(target.Attributes());
+                resampling.Input(&target);
+                resampling.Output(&r_target);
+                resampling.Run();
 
                 const Matrix& mo = offset.GetMatrix();
                 stack_transformations[i].PutMatrix(stack_transformations[i].GetMatrix() * mo);
 
-                ParameterList params;
-                Insert(params, "Transformation model", "Rigid");
-                if (reconstructor->_nmi_bins > 0)
-                    Insert(params, "No. of bins", reconstructor->_nmi_bins);
-
-                if (reconstructor->_masked_stacks) {
-                    Insert(params, "Background value", 0);
-                } else {
-                    Insert(params, "Background value for image 1", 0);
-                }
-
-                // Insert(params, "Background value", 0);
-                // Insert(params, "Image (dis-)similarity measure", "NCC");
-                //// Insert(params, "Image interpolation mode", "Linear");
-                // string type = "box";
-                // string units = "mm";
-                // double width = 0;
-                // Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
-
-                GenericRegistrationFilter registration;
-                registration.Parameter(params);
                 registration.Input(&r_target, &r_source);
-                Transformation *dofout = nullptr;
-                registration.Output(&dofout);
                 registration.InitialGuess(&stack_transformations[i]);
                 registration.GuessParameter();
                 registration.Run();
@@ -379,26 +382,25 @@ namespace svrtk::Parallel {
         SliceToVolumeRegistration(Reconstruction *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            GreyPixel smin, smax, tmin, tmax;
+            GreyImage target;
+
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                GreyPixel smin, smax;
-                GreyImage target = reconstructor->_grey_slices[inputIndex];
+                target = reconstructor->_grey_slices[inputIndex];
                 target.GetMinMax(&smin, &smax);
 
                 if (smax > 1 && (smax - smin) > 1) {
                     ParameterList params;
                     Insert(params, "Transformation model", "Rigid");
-                    GreyPixel tmin, tmax;
                     reconstructor->_grey_reconstructed.GetMinMax(&tmin, &tmax);
 
-                    if (smin < 1) {
+                    if (smin < 1)
                         Insert(params, "Background value for image 1", -1);
-                    }
 
-                    if (tmin < 0) {
+                    if (tmin < 0)
                         Insert(params, "Background value for image 2", -1);
-                    } else if (tmin < 1) {
+                    else if (tmin < 1)
                         Insert(params, "Background value for image 2", 0);
-                    }
 
                     if (!reconstructor->_ncc_reg) {
                         Insert(params, "Image (dis-)similarity measure", "NMI");
@@ -406,9 +408,9 @@ namespace svrtk::Parallel {
                             Insert(params, "No. of bins", reconstructor->_nmi_bins);
                     } else {
                         Insert(params, "Image (dis-)similarity measure", "NCC");
-                        string type = "sigma";
-                        string units = "mm";
-                        double width = 0;
+                        const string type = "sigma";
+                        const string units = "mm";
+                        constexpr double width = 0;
                         Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
                     }
 
@@ -417,36 +419,35 @@ namespace svrtk::Parallel {
 
                     //put origin to zero
                     RigidTransformation offset;
-                    reconstructor->ResetOrigin(target, offset);
-                    Matrix mo = offset.GetMatrix();
-                    Matrix m = reconstructor->_transformations[inputIndex].GetMatrix() * mo;
-                    reconstructor->_transformations[inputIndex].PutMatrix(m);
+                    ResetOrigin(target, offset);
+                    const Matrix& mo = offset.GetMatrix();
+                    auto& transformation = reconstructor->_transformations[inputIndex];
+                    transformation.PutMatrix(transformation.GetMatrix() * mo);
 
                     // run registration
                     registration.Input(&target, &reconstructor->_grey_reconstructed);
-                    Transformation *dofout = nullptr;
+                    Transformation *dofout;
                     registration.Output(&dofout);
-                    registration.InitialGuess(&reconstructor->_transformations[inputIndex]);
+                    registration.InitialGuess(&transformation);
                     registration.GuessParameter();
                     registration.Run();
 
                     // output transformation
                     unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
-                    reconstructor->_transformations[inputIndex] = *rigidTransf;
+                    transformation = *rigidTransf;
 
                     //undo the offset
-                    m = reconstructor->_transformations[inputIndex].GetMatrix() * mo.Invert();
-                    reconstructor->_transformations[inputIndex].PutMatrix(m);
+                    transformation.PutMatrix(transformation.GetMatrix() * mo.Inverse());
 
                     // save log outputs
                     if (reconstructor->_reg_log) {
-                        double tx = reconstructor->_transformations[inputIndex].GetTranslationX();
-                        double ty = reconstructor->_transformations[inputIndex].GetTranslationY();
-                        double tz = reconstructor->_transformations[inputIndex].GetTranslationZ();
+                        const double tx = transformation.GetTranslationX();
+                        const double ty = transformation.GetTranslationY();
+                        const double tz = transformation.GetTranslationZ();
 
-                        double rx = reconstructor->_transformations[inputIndex].GetRotationX();
-                        double ry = reconstructor->_transformations[inputIndex].GetRotationY();
-                        double rz = reconstructor->_transformations[inputIndex].GetRotationZ();
+                        const double rx = transformation.GetRotationX();
+                        const double ry = transformation.GetRotationY();
+                        const double rz = transformation.GetRotationZ();
 
                         cout << boost::format("%1% %1% %1% %1% %1% %1% %1%") % inputIndex % tx % ty % tz % rx % ry % rz << endl;
                     }
@@ -457,7 +458,6 @@ namespace svrtk::Parallel {
         void operator()() const {
             parallel_for(blocked_range<size_t>(0, reconstructor->_slices.size()), *this);
         }
-
     };
 
     //-------------------------------------------------------------------
@@ -470,69 +470,70 @@ namespace svrtk::Parallel {
 
         void operator()(const blocked_range<size_t>& r) const {
             const ImageAttributes& attr = reconstructor->_reconstructed4D.Attributes();
+            GreyImage source, target;
+
+            ParameterList params;
+            Insert(params, "Transformation model", "Rigid");
+            Insert(params, "Image (dis-)similarity measure", "NMI");
+            if (reconstructor->_nmi_bins > 0)
+                Insert(params, "No. of bins", reconstructor->_nmi_bins);
+
+            Insert(params, "Background value for image 1", 0); // -1
+            Insert(params, "Background value for image 2", -1);
+
+            // Insert(params, "Image (dis-)similarity measure", "NCC");
+            // Insert(params, "Image interpolation mode", "Linear");
+            // string type = "sigma";
+            // string units = "mm";
+            // double width = 0;
+            // Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+
+            Transformation *dofout;
+            GenericRegistrationFilter registration;
+            registration.Parameter(params);
+            registration.Output(&dofout);
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                if (!reconstructor->_slice_excluded[inputIndex]) {
-                    // ResamplingWithPadding<RealPixel> resampling(attr._dx, attr._dx, attr._dx, -1);
-                    // GenericLinearInterpolateImageFunction<RealImage> interpolator;
-                    // // TARGET
-                    // // get current slice
-                    // RealImage t(reconstructor->_slices[inputIndex].Attributes());
-                    // // resample to spatial resolution of reconstructed volume
-                    // resampling.Input(&reconstructor->_slices[inputIndex]);
-                    // resampling.Output(&t);
-                    // resampling.Interpolator(&interpolator);
-                    // resampling.Run();
-                    // GreyImage target = t;
+                if (reconstructor->_slice_excluded[inputIndex])
+                    continue;
 
-                    // get pixel value min and max
-                    GreyPixel smin, smax;
-                    GreyImage target = reconstructor->_slices[inputIndex];
-                    target.GetMinMax(&smin, &smax);
+                // ResamplingWithPadding<RealPixel> resampling(attr._dx, attr._dx, attr._dx, -1);
+                // GenericLinearInterpolateImageFunction<RealImage> interpolator;
+                // // TARGET
+                // // get current slice
+                // RealImage t(reconstructor->_slices[inputIndex].Attributes());
+                // // resample to spatial resolution of reconstructed volume
+                // resampling.Input(&reconstructor->_slices[inputIndex]);
+                // resampling.Output(&t);
+                // resampling.Interpolator(&interpolator);
+                // resampling.Run();
+                // target = t;
 
-                    // SOURCE
-                    if (smax > 0 && (smax - smin) > 1) {
-                        ParameterList params;
-                        Insert(params, "Transformation model", "Rigid");
-                        Insert(params, "Image (dis-)similarity measure", "NMI");
-                        if (reconstructor->_nmi_bins > 0)
-                            Insert(params, "No. of bins", reconstructor->_nmi_bins);
+                // get pixel value min and max
+                GreyPixel smin, smax;
+                target = reconstructor->_slices[inputIndex];
+                target.GetMinMax(&smin, &smax);
 
-                        // Insert(params, "Image interpolation mode", "Linear");
+                // SOURCE
+                if (smax > 0 && (smax - smin) > 1) {
+                    // put origin to zero
+                    RigidTransformation offset;
+                    ResetOrigin(target, offset);
+                    const Matrix& mo = offset.GetMatrix();
+                    auto& transformation = reconstructor->_transformations[inputIndex];
+                    transformation.PutMatrix(transformation.GetMatrix() * mo);
 
-                        Insert(params, "Background value for image 1", 0); // -1
-                        Insert(params, "Background value for image 2", -1);
+                    // TODO: extract the nearest cardiac phase from reconstructed 4D to use as source
+                    source = reconstructor->_reconstructed4D.GetRegion(0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex] + 1);
+                    registration.Input(&target, &source);
+                    registration.InitialGuess(&transformation);
+                    registration.GuessParameter();
+                    registration.Run();
+                    unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
+                    transformation = *rigidTransf;
 
-                        // Insert(params, "Image (dis-)similarity measure", "NCC");
-                        // Insert(params, "Image interpolation mode", "Linear");
-                        // string type = "sigma";
-                        // string units = "mm";
-                        // double width = 0;
-                        // Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
-
-                        GenericRegistrationFilter registration;
-                        registration.Parameter(params);
-
-                        // put origin to zero
-                        RigidTransformation offset;
-                        Reconstruction::ResetOrigin(target, offset);
-                        const Matrix& mo = offset.GetMatrix();
-                        reconstructor->_transformations[inputIndex].PutMatrix(reconstructor->_transformations[inputIndex].GetMatrix() * mo);
-
-                        // TODO: extract the nearest cardiac phase from reconstructed 4D to use as source
-                        GreyImage source = reconstructor->_reconstructed4D.GetRegion(0, 0, 0, reconstructor->_slice_svr_card_index[inputIndex], attr._x, attr._y, attr._z, reconstructor->_slice_svr_card_index[inputIndex] + 1);
-                        registration.Input(&target, &source);
-                        Transformation *dofout = nullptr;
-                        registration.Output(&dofout);
-                        registration.InitialGuess(&reconstructor->_transformations[inputIndex]);
-                        registration.GuessParameter();
-                        registration.Run();
-                        unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
-                        reconstructor->_transformations[inputIndex] = *rigidTransf;
-
-                        //undo the offset
-                        reconstructor->_transformations[inputIndex].PutMatrix(reconstructor->_transformations[inputIndex].GetMatrix() * mo.Inverse());
-                    }
+                    //undo the offset
+                    transformation.PutMatrix(transformation.GetMatrix() * mo.Inverse());
                 }
             }
         }
@@ -552,29 +553,40 @@ namespace svrtk::Parallel {
         SliceToVolumeRegistrationFFD(Reconstruction *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            GreyPixel smin, smax, tmin, tmax;
+
+            // define registration model
+            ParameterList params_init;
+            Insert(params_init, "Transformation model", "FFD");
+
+            if (!reconstructor->_ncc_reg) {
+                Insert(params_init, "Image (dis-)similarity measure", "NMI");
+                if (reconstructor->_nmi_bins > 0)
+                    Insert(params_init, "No. of bins", reconstructor->_nmi_bins);
+            } else {
+                Insert(params_init, "Image (dis-)similarity measure", "NCC");
+                const string type = "sigma";
+                const string units = "mm";
+                constexpr double width = 0;
+                Insert(params_init, string("Local window size [") + type + string("]"), ToString(width) + units);
+            }
+
+            if (reconstructor->_cp_spacing > 0) {
+                const int& cp_spacing = reconstructor->_cp_spacing;
+                Insert(params_init, "Control point spacing in X", cp_spacing);
+                Insert(params_init, "Control point spacing in Y", cp_spacing);
+                Insert(params_init, "Control point spacing in Z", cp_spacing);
+            }
+
+            Transformation *dofout;
+            GenericRegistrationFilter registration;
+            registration.Output(&dofout);
+
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                GreyPixel smin, smax;
-                const GreyImage& target = reconstructor->_grey_slices[inputIndex];
-                target.GetMinMax(&smin, &smax);
-
                 if (smax > 1 && (smax - smin) > 1) {
-                    // define registration model
-                    ParameterList params;
-                    Insert(params, "Transformation model", "FFD");
-
-                    if (!reconstructor->_ncc_reg) {
-                        Insert(params, "Image (dis-)similarity measure", "NMI");
-                        if (reconstructor->_nmi_bins > 0)
-                            Insert(params, "No. of bins", reconstructor->_nmi_bins);
-                    } else {
-                        Insert(params, "Image (dis-)similarity measure", "NCC");
-                        string type = "sigma";
-                        string units = "mm";
-                        double width = 0;
-                        Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
-                    }
-
-                    GreyPixel tmin, tmax;
+                    ParameterList params = params_init;
+                    const GreyImage& target = reconstructor->_grey_slices[inputIndex];
+                    target.GetMinMax(&smin, &smax);
                     reconstructor->_grey_reconstructed.GetMinMax(&tmin, &tmax);
                     if (smin < 1)
                         Insert(params, "Background value for image 1", -1);
@@ -584,20 +596,10 @@ namespace svrtk::Parallel {
                     else if (tmin < 1)
                         Insert(params, "Background value for image 2", 0);
 
-                    if (reconstructor->_cp_spacing > 0) {
-                        int cp_spacing = reconstructor->_cp_spacing;
-                        Insert(params, "Control point spacing in X", cp_spacing);
-                        Insert(params, "Control point spacing in Y", cp_spacing);
-                        Insert(params, "Control point spacing in Z", cp_spacing);
-                    }
-
                     // run registration
-                    GenericRegistrationFilter registration;
                     registration.Parameter(params);
                     registration.Input(&target, &reconstructor->_reconstructed);
-                    Transformation *dofout = nullptr;
-                    registration.Output(&dofout);
-                    registration.InitialGuess(&(reconstructor->_mffd_transformations[inputIndex]));
+                    registration.InitialGuess(&reconstructor->_mffd_transformations[inputIndex]);
                     registration.GuessParameter();
                     registration.Run();
 
@@ -689,14 +691,15 @@ namespace svrtk::Parallel {
 
         void operator()(const blocked_range<size_t>& r) const {
             const RealImage global_reconstructed(reconstructor->_grey_reconstructed.Attributes());
+            RealImage global_slice, PSF, tPSF;
             //get resolution of the volume
             double vx, vy, vz;
             global_reconstructed.GetPixelSize(&vx, &vy, &vz);
             //volume is always isotropic
-            const double res = vx;
+            const double& res = vx;
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                const RealImage global_slice(reconstructor->_grey_slices[inputIndex].Attributes());
+                global_slice.Initialize(reconstructor->_grey_slices[inputIndex].Attributes());
 
                 //prepare storage variable
                 SLICECOEFFS slicecoeffs(global_slice.GetX(), Array<VOXELCOEFFS>(global_slice.GetY()));
@@ -760,7 +763,7 @@ namespace svrtk::Parallel {
                 attr._dx = size;
                 attr._dy = size;
                 attr._dz = size;
-                RealImage PSF(attr);
+                PSF.Initialize(attr);
 
                 //centre of PSF
                 double cx = 0.5 * (xDim - 1);
@@ -800,13 +803,13 @@ namespace svrtk::Parallel {
                 attr._dy = res;
                 attr._dz = res;
                 //create matrix from transformed PSF
-                RealImage tPSF(attr);
+                tPSF.Initialize(attr);
                 //calculate centre of tPSF in image coordinates
                 const int centre = (dim - 1) / 2;
 
                 //for each voxel in current slice calculate matrix coefficients
                 bool excluded_slice = false;
-                for (int ff = 0; ff < reconstructor->_force_excluded.size(); ff++) {
+                for (size_t ff = 0; ff < reconstructor->_force_excluded.size(); ff++) {
                     if (inputIndex == reconstructor->_force_excluded[ff]) {
                         excluded_slice = true;
                         break;
@@ -984,11 +987,12 @@ namespace svrtk::Parallel {
             end(end) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            RealImage PSF, tPSF;
             //get resolution of the volume
             double vx, vy, vz;
             reconstructor->_reconstructed.GetPixelSize(&vx, &vy, &vz);
             //volume is always isotropic
-            const double res = vx;
+            const double& res = vx;
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 const RealImage& slice = reconstructor->_withMB ? reconstructor->_slicesRwithMB[inputIndex] : reconstructor->_slices[inputIndex];
@@ -1049,7 +1053,7 @@ namespace svrtk::Parallel {
                 attr._dx = size;
                 attr._dy = size;
                 attr._dz = size;
-                RealImage PSF(attr);
+                PSF.Initialize(attr);
 
                 //centre of PSF
                 double cx = 0.5 * (xDim - 1);
@@ -1089,7 +1093,7 @@ namespace svrtk::Parallel {
                 attr._dy = res;
                 attr._dz = res;
                 //create matrix from transformed PSF
-                RealImage tPSF(attr);
+                tPSF.Initialize(attr);
                 //calculate centre of tPSF in image coordinates
                 int centre = (dim - 1) / 2;
 
@@ -1265,11 +1269,12 @@ namespace svrtk::Parallel {
         CoeffInitCardiac4D(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            RealImage PSF, tPSF;
             //get resolution of the volume
             double vx, vy, vz;
             reconstructor->_reconstructed4D.GetPixelSize(&vx, &vy, &vz);
             //volume is always isotropic
-            const double res = vx;
+            const double& res = vx;
 
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 if (reconstructor->_slice_excluded[inputIndex])
@@ -1345,7 +1350,7 @@ namespace svrtk::Parallel {
                 attr._dx = size;
                 attr._dy = size;
                 attr._dz = size;
-                RealImage PSF(attr);
+                PSF.Initialize(attr);
 
                 //centre of PSF
                 double cx, cy, cz;
@@ -1386,7 +1391,7 @@ namespace svrtk::Parallel {
                 attr._dy = res;
                 attr._dz = res;
                 //create matrix from transformed PSF
-                RealImage tPSF(attr);
+                tPSF.Initialize(attr);
                 //calculate centre of tPSF in image coordinates
                 int centre = (dim - 1) / 2;
 
@@ -1554,299 +1559,290 @@ namespace svrtk::Parallel {
         SimulateStacksCardiac4D(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            RealImage PSF, tPSF;
+            //get resolution of the volume
+            double vx, vy, vz;
+            reconstructor->_reconstructed4D.GetPixelSize(&vx, &vy, &vz);
+            //volume is always isotropic
+            const double& res = vx;
+
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                if (!reconstructor->_slice_excluded[inputIndex]) {
-                    reconstructor->GetVerboseLog() << inputIndex << " ";
+                if (reconstructor->_slice_excluded[inputIndex])
+                    continue;
 
-                    //get resolution of the volume
-                    double vx, vy, vz;
-                    reconstructor->_reconstructed4D.GetPixelSize(&vx, &vy, &vz);
-                    //volume is always isotropic
-                    double res = vx;
-                    //read the slice
-                    RealImage& slice = reconstructor->_slices[inputIndex];
+                reconstructor->GetVerboseLog() << inputIndex << " ";
 
-                    //prepare structures for storage
-                    POINT3D p;
-                    VOXELCOEFFS empty;
-                    SLICECOEFFS slicecoeffs(slice.GetX(), Array<VOXELCOEFFS>(slice.GetY(), empty));
+                //read the slice
+                RealImage& slice = reconstructor->_slices[inputIndex];
 
-                    //PSF will be calculated in slice space in higher resolution
+                //prepare structures for storage
+                SLICECOEFFS slicecoeffs(slice.GetX(), Array<VOXELCOEFFS>(slice.GetY()));
 
-                    //get slice voxel size to define PSF
-                    double dx, dy, dz;
-                    slice.GetPixelSize(&dx, &dy, &dz);
+                //PSF will be calculated in slice space in higher resolution
 
-                    //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
+                //get slice voxel size to define PSF
+                double dx, dy, dz;
+                slice.GetPixelSize(&dx, &dy, &dz);
 
-                    double sigmax, sigmay, sigmaz;
-                    if (reconstructor->_recon_type == _3D) {
-                        sigmax = 1.2 * dx / 2.3548;
-                        sigmay = 1.2 * dy / 2.3548;
-                        sigmaz = dz / 2.3548;
-                    }
+                //sigma of 3D Gaussian (sinc with FWHM=dx or dy in-plane, Gaussian with FWHM = dz through-plane)
 
-                    if (reconstructor->_recon_type == _1D) {
-                        sigmax = 0.5 * dx / 2.3548;
-                        sigmay = 0.5 * dy / 2.3548;
-                        sigmaz = dz / 2.3548;
-                    }
+                double sigmax, sigmay, sigmaz;
+                if (reconstructor->_recon_type == _3D) {
+                    sigmax = 1.2 * dx / 2.3548;
+                    sigmay = 1.2 * dy / 2.3548;
+                    sigmaz = dz / 2.3548;
+                }
 
-                    if (reconstructor->_recon_type == _interpolate) {
-                        sigmax = 0.5 * dx / 2.3548;
-                        sigmay = 0.5 * dx / 2.3548;
-                        sigmaz = 0.5 * dx / 2.3548;
-                    }
+                if (reconstructor->_recon_type == _1D) {
+                    sigmax = 0.5 * dx / 2.3548;
+                    sigmay = 0.5 * dy / 2.3548;
+                    sigmaz = dz / 2.3548;
+                }
 
-                    //calculate discretized PSF
+                if (reconstructor->_recon_type == _interpolate) {
+                    sigmax = 0.5 * dx / 2.3548;
+                    sigmay = 0.5 * dx / 2.3548;
+                    sigmaz = 0.5 * dx / 2.3548;
+                }
 
-                    //isotropic voxel size of PSF - derived from resolution of reconstructed volume
-                    double size = res / reconstructor->_quality_factor;
+                //calculate discretized PSF
 
-                    //number of voxels in each direction
-                    //the ROI is 2*voxel dimension
+                //isotropic voxel size of PSF - derived from resolution of reconstructed volume
+                double size = res / reconstructor->_quality_factor;
 
-                    int xDim = round(2 * dx / size);
-                    int yDim = round(2 * dy / size);
-                    int zDim = round(2 * dz / size);
-                    ///test to make dimension always odd
-                    xDim = xDim / 2 * 2 + 1;
-                    yDim = yDim / 2 * 2 + 1;
-                    zDim = zDim / 2 * 2 + 1;
-                    ///end test
+                //number of voxels in each direction
+                //the ROI is 2*voxel dimension
 
-                    //image corresponding to PSF
-                    ImageAttributes attr;
-                    attr._x = xDim;
-                    attr._y = yDim;
-                    attr._z = zDim;
-                    attr._dx = size;
-                    attr._dy = size;
-                    attr._dz = size;
-                    RealImage PSF(attr);
+                int xDim = round(2 * dx / size);
+                int yDim = round(2 * dy / size);
+                int zDim = round(2 * dz / size);
+                ///test to make dimension always odd
+                xDim = xDim / 2 * 2 + 1;
+                yDim = yDim / 2 * 2 + 1;
+                zDim = zDim / 2 * 2 + 1;
+                ///end test
 
-                    //centre of PSF
-                    double cx, cy, cz;
-                    cx = 0.5 * (xDim - 1);
-                    cy = 0.5 * (yDim - 1);
-                    cz = 0.5 * (zDim - 1);
-                    PSF.ImageToWorld(cx, cy, cz);
+                //image corresponding to PSF
+                ImageAttributes attr;
+                attr._x = xDim;
+                attr._y = yDim;
+                attr._z = zDim;
+                attr._dx = size;
+                attr._dy = size;
+                attr._dz = size;
+                PSF.Initialize(attr);
 
-                    double x, y, z;
-                    double sum = 0;
-                    int i, j, k;
-                    for (i = 0; i < xDim; i++)
-                        for (j = 0; j < yDim; j++)
-                            for (k = 0; k < zDim; k++) {
-                                x = i;
-                                y = j;
-                                z = k;
-                                PSF.ImageToWorld(x, y, z);
-                                x -= cx;
-                                y -= cy;
-                                z -= cz;
-                                //continuous PSF does not need to be normalized as discrete will be
-                                PSF(i, j, k) = exp(
-                                    -x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay)
-                                    - z * z / (2 * sigmaz * sigmaz));
-                                sum += PSF(i, j, k);
-                            }
-                    PSF /= sum;
+                //centre of PSF
+                double cx, cy, cz;
+                cx = 0.5 * (xDim - 1);
+                cy = 0.5 * (yDim - 1);
+                cz = 0.5 * (zDim - 1);
+                PSF.ImageToWorld(cx, cy, cz);
 
-                    if (reconstructor->_debug)
-                        if (inputIndex == 0)
-                            PSF.Write("PSF.nii.gz");
+                double x, y, z;
+                double sum = 0;
+                int i, j, k;
+                for (i = 0; i < xDim; i++)
+                    for (j = 0; j < yDim; j++)
+                        for (k = 0; k < zDim; k++) {
+                            x = i;
+                            y = j;
+                            z = k;
+                            PSF.ImageToWorld(x, y, z);
+                            x -= cx;
+                            y -= cy;
+                            z -= cz;
+                            //continuous PSF does not need to be normalized as discrete will be
+                            PSF(i, j, k) = exp(-x * x / (2 * sigmax * sigmax) - y * y / (2 * sigmay * sigmay) - z * z / (2 * sigmaz * sigmaz));
+                            sum += PSF(i, j, k);
+                        }
+                PSF /= sum;
 
-                    //prepare storage for PSF transformed and resampled to the space of reconstructed volume
-                    //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
-                    //Note conversion from PSF image coordinates to tPSF image coordinates *size/res
-                    int dim = (floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2))
-                        * 2 + 1 + 2;
-                    //prepare image attributes. Voxel dimension will be taken from the reconstructed volume
-                    attr._x = dim;
-                    attr._y = dim;
-                    attr._z = dim;
-                    attr._dx = res;
-                    attr._dy = res;
-                    attr._dz = res;
-                    //create matrix from transformed PSF
-                    RealImage tPSF(attr);
-                    //calculate centre of tPSF in image coordinates
-                    int centre = (dim - 1) / 2;
+                if (reconstructor->_debug)
+                    if (inputIndex == 0)
+                        PSF.Write("PSF.nii.gz");
 
-                    //for each voxel in current slice calculate matrix coefficients
-                    int ii, jj, kk;
-                    int tx, ty, tz;
-                    int nx, ny, nz;
-                    int l, m, n;
-                    double weight;
-                    for (i = 0; i < slice.GetX(); i++)
-                        for (j = 0; j < slice.GetY(); j++)
-                            if (slice(i, j, 0) != -1) {
-                                //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
-                                x = i;
-                                y = j;
-                                z = 0;
-                                slice.ImageToWorld(x, y, z);
-                                reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                                reconstructor->_reconstructed4D.WorldToImage(x, y, z);
-                                tx = round(x);
-                                ty = round(y);
-                                tz = round(z);
+                //prepare storage for PSF transformed and resampled to the space of reconstructed volume
+                //maximum dim of rotated kernel - the next higher odd integer plus two to accound for rounding error of tx,ty,tz.
+                //Note conversion from PSF image coordinates to tPSF image coordinates *size/res
+                int dim = (floor(ceil(sqrt(double(xDim * xDim + yDim * yDim + zDim * zDim)) * size / res) / 2)) * 2 + 1 + 2;
+                //prepare image attributes. Voxel dimension will be taken from the reconstructed volume
+                attr._x = dim;
+                attr._y = dim;
+                attr._z = dim;
+                attr._dx = res;
+                attr._dy = res;
+                attr._dz = res;
+                //create matrix from transformed PSF
+                tPSF.Initialize(attr);
+                //calculate centre of tPSF in image coordinates
+                int centre = (dim - 1) / 2;
 
-                                //Clear the transformed PSF
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
-                                            tPSF(ii, jj, kk) = 0;
+                //for each voxel in current slice calculate matrix coefficients
+                int ii, jj, kk;
+                int tx, ty, tz;
+                int nx, ny, nz;
+                int l, m, n;
+                for (i = 0; i < slice.GetX(); i++)
+                    for (j = 0; j < slice.GetY(); j++)
+                        if (slice(i, j, 0) != -1) {
+                            //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
+                            x = i;
+                            y = j;
+                            z = 0;
+                            slice.ImageToWorld(x, y, z);
+                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
+                            tx = round(x);
+                            ty = round(y);
+                            tz = round(z);
 
-                                //for each POINT3D of the PSF
-                                for (ii = 0; ii < xDim; ii++)
-                                    for (jj = 0; jj < yDim; jj++)
-                                        for (kk = 0; kk < zDim; kk++) {
-                                            //Calculate the position of the POINT3D of
-                                            //PSF centred over current slice voxel
-                                            //This is a bit complicated because slices
-                                            //can be oriented in any direction
+                            //Clear the transformed PSF
+                            memset(tPSF.Data(), 0, sizeof(RealPixel) * tPSF.NumberOfVoxels());
 
-                                            //PSF image coordinates
-                                            x = ii;
-                                            y = jj;
-                                            z = kk;
-                                            //change to PSF world coordinates - now real sizes in mm
-                                            PSF.ImageToWorld(x, y, z);
-                                            //centre around the centrepoint of the PSF
-                                            x -= cx;
-                                            y -= cy;
-                                            z -= cz;
+                            //for each POINT3D of the PSF
+                            for (ii = 0; ii < xDim; ii++)
+                                for (jj = 0; jj < yDim; jj++)
+                                    for (kk = 0; kk < zDim; kk++) {
+                                        //Calculate the position of the POINT3D of
+                                        //PSF centred over current slice voxel
+                                        //This is a bit complicated because slices
+                                        //can be oriented in any direction
 
-                                            //Need to convert (x,y,z) to slice image
-                                            //coordinates because slices can have
-                                            //transformations included in them (they are
-                                            //nifti)  and those are not reflected in
-                                            //PSF. In slice image coordinates we are
-                                            //sure that z is through-plane
+                                        //PSF image coordinates
+                                        x = ii;
+                                        y = jj;
+                                        z = kk;
+                                        //change to PSF world coordinates - now real sizes in mm
+                                        PSF.ImageToWorld(x, y, z);
+                                        //centre around the centrepoint of the PSF
+                                        x -= cx;
+                                        y -= cy;
+                                        z -= cz;
 
-                                            //adjust according to voxel size
-                                            x /= dx;
-                                            y /= dy;
-                                            z /= dz;
-                                            //center over current voxel
-                                            x += i;
-                                            y += j;
+                                        //Need to convert (x,y,z) to slice image
+                                        //coordinates because slices can have
+                                        //transformations included in them (they are
+                                        //nifti)  and those are not reflected in
+                                        //PSF. In slice image coordinates we are
+                                        //sure that z is through-plane
 
-                                            //convert from slice image coordinates to world coordinates
-                                            slice.ImageToWorld(x, y, z);
+                                        //adjust according to voxel size
+                                        x /= dx;
+                                        y /= dy;
+                                        z /= dz;
+                                        //center over current voxel
+                                        x += i;
+                                        y += j;
 
-                                            //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
-                                            //Transform to space of reconstructed volume
-                                            reconstructor->_transformations[inputIndex].Transform(x, y, z);
-                                            //Change to image coordinates
-                                            reconstructor->_reconstructed4D.WorldToImage(x, y, z);
+                                        //convert from slice image coordinates to world coordinates
+                                        slice.ImageToWorld(x, y, z);
 
-                                            //determine coefficients of volume voxels for position x,y,z
-                                            //using linear interpolation
+                                        //x+=(vx-cx); y+=(vy-cy); z+=(vz-cz);
+                                        //Transform to space of reconstructed volume
+                                        reconstructor->_transformations[inputIndex].Transform(x, y, z);
+                                        //Change to image coordinates
+                                        reconstructor->_reconstructed4D.WorldToImage(x, y, z);
 
-                                            //Find the 8 closest volume voxels
+                                        //determine coefficients of volume voxels for position x,y,z
+                                        //using linear interpolation
 
-                                            //lowest corner of the cube
-                                            nx = (int)floor(x);
-                                            ny = (int)floor(y);
-                                            nz = (int)floor(z);
+                                        //Find the 8 closest volume voxels
 
-                                            //not all neighbours might be in ROI, thus we need to normalize
-                                            //(l,m,n) are image coordinates of 8 neighbours in volume space
-                                            //for each we check whether it is in volume
-                                            sum = 0;
-                                            //to find wether the current slice voxel has overlap with ROI
-                                            bool inside = false;
-                                            for (l = nx; l <= nx + 1; l++)
-                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
-                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
-                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
-                                                                    sum += weight;
-                                                                    if (reconstructor->_mask(l, m, n) == 1) {
-                                                                        inside = true;
-                                                                    }
-                                                                }
-                                            //if there were no voxels do nothing
-                                            if ((sum <= 0) || (!inside))
-                                                continue;
-                                            //now calculate the transformed PSF
-                                            for (l = nx; l <= nx + 1; l++)
-                                                if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
-                                                    for (m = ny; m <= ny + 1; m++)
-                                                        if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
-                                                            for (n = nz; n <= nz + 1; n++)
-                                                                if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
-                                                                    weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                        //lowest corner of the cube
+                                        nx = (int)floor(x);
+                                        ny = (int)floor(y);
+                                        nz = (int)floor(z);
 
-                                                                    //image coordinates in tPSF
-                                                                    //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
-                                                                    int aa, bb, cc;
-                                                                    aa = l - tx + centre;
-                                                                    bb = m - ty + centre;
-                                                                    cc = n - tz + centre;
+                                        //not all neighbours might be in ROI, thus we need to normalize
+                                        //(l,m,n) are image coordinates of 8 neighbours in volume space
+                                        //for each we check whether it is in volume
+                                        sum = 0;
+                                        //to find wether the current slice voxel has overlap with ROI
+                                        bool inside = false;
+                                        for (l = nx; l <= nx + 1; l++)
+                                            if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
+                                                for (m = ny; m <= ny + 1; m++)
+                                                    if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
+                                                        for (n = nz; n <= nz + 1; n++)
+                                                            if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
+                                                                const double weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
+                                                                sum += weight;
+                                                                if (reconstructor->_mask(l, m, n) == 1)
+                                                                    inside = true;
+                                                            }
+                                        //if there were no voxels do nothing
+                                        if (sum <= 0 || !inside)
+                                            continue;
+                                        //now calculate the transformed PSF
+                                        for (l = nx; l <= nx + 1; l++)
+                                            if ((l >= 0) && (l < reconstructor->_reconstructed4D.GetX()))
+                                                for (m = ny; m <= ny + 1; m++)
+                                                    if ((m >= 0) && (m < reconstructor->_reconstructed4D.GetY()))
+                                                        for (n = nz; n <= nz + 1; n++)
+                                                            if ((n >= 0) && (n < reconstructor->_reconstructed4D.GetZ())) {
+                                                                const double weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
 
-                                                                    //resulting value
-                                                                    double value = PSF(ii, jj, kk) * weight / sum;
+                                                                //image coordinates in tPSF
+                                                                //(centre,centre,centre) in tPSF is aligned with (tx,ty,tz)
+                                                                int aa = l - tx + centre;
+                                                                int bb = m - ty + centre;
+                                                                int cc = n - tz + centre;
 
-                                                                    //Check that we are in tPSF
-                                                                    if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
-                                                                        || (cc >= dim)) {
-                                                                        cerr << "Error while trying to populate tPSF. " << aa << " " << bb
-                                                                            << " " << cc << endl;
-                                                                        cerr << l << " " << m << " " << n << endl;
-                                                                        cerr << tx << " " << ty << " " << tz << endl;
-                                                                        cerr << centre << endl;
-                                                                        tPSF.Write("tPSF.nii.gz");
-                                                                        exit(1);
-                                                                    } else
-                                                                        //update transformed PSF
-                                                                        tPSF(aa, bb, cc) += value;
-                                                                }
+                                                                //resulting value
+                                                                double value = PSF(ii, jj, kk) * weight / sum;
 
-                                        } //end of the loop for PSF points
+                                                                //Check that we are in tPSF
+                                                                if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0) || (cc >= dim)) {
+                                                                    cerr << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
+                                                                    cerr << l << " " << m << " " << n << endl;
+                                                                    cerr << tx << " " << ty << " " << tz << endl;
+                                                                    cerr << centre << endl;
+                                                                    tPSF.Write("tPSF.nii.gz");
+                                                                    exit(1);
+                                                                } else
+                                                                    //update transformed PSF
+                                                                    tPSF(aa, bb, cc) += value;
+                                                            }
 
-                                //store tPSF values
-                                for (ii = 0; ii < dim; ii++)
-                                    for (jj = 0; jj < dim; jj++)
-                                        for (kk = 0; kk < dim; kk++)
-                                            if (tPSF(ii, jj, kk) > 0) {
-                                                p.x = ii + tx - centre;
-                                                p.y = jj + ty - centre;
-                                                p.z = kk + tz - centre;
-                                                p.value = tPSF(ii, jj, kk);
-                                                slicecoeffs[i][j].push_back(p);
-                                            }
+                                    } //end of the loop for PSF points
 
-                            } //end of loop for slice voxels
+                            //store tPSF values
+                            for (ii = 0; ii < dim; ii++)
+                                for (jj = 0; jj < dim; jj++)
+                                    for (kk = 0; kk < dim; kk++)
+                                        if (tPSF(ii, jj, kk) > 0) {
+                                            POINT3D p;
+                                            p.x = ii + tx - centre;
+                                            p.y = jj + ty - centre;
+                                            p.z = kk + tz - centre;
+                                            p.value = tPSF(ii, jj, kk);
+                                            slicecoeffs[i][j].push_back(p);
+                                        }
 
-                    //Calculate simulated slice
-                    reconstructor->_simulated_slices[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
-                    reconstructor->_simulated_weights[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
+                        } //end of loop for slice voxels
 
-                    for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
-                        for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
-                            if (reconstructor->_slices[inputIndex](i, j, 0) != -1) {
-                                double weight = 0;
-                                const size_t n = slicecoeffs[i][j].size();
-                                for (size_t k = 0; k < n; k++) {
-                                    const POINT3D& p = slicecoeffs[i][j][k];
-                                    for (int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++) {
-                                        reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
-                                        weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                                    }
-                                }
-                                if (weight > 0) {
-                                    reconstructor->_simulated_slices[inputIndex](i, j, 0) /= weight;
-                                    reconstructor->_simulated_weights[inputIndex](i, j, 0) = weight;
+                //Calculate simulated slice
+                reconstructor->_simulated_slices[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
+                reconstructor->_simulated_weights[inputIndex].Initialize(reconstructor->_slices[inputIndex].Attributes());
+
+                for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
+                    for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
+                        if (reconstructor->_slices[inputIndex](i, j, 0) != -1) {
+                            double weight = 0;
+                            const size_t n = slicecoeffs[i][j].size();
+                            for (size_t k = 0; k < n; k++) {
+                                const POINT3D& p = slicecoeffs[i][j][k];
+                                for (int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++) {
+                                    reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
+                                    weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
                                 }
                             }
-                }  // if(!_slice_excluded[inputIndex])
+                            if (weight > 0) {
+                                reconstructor->_simulated_slices[inputIndex](i, j, 0) /= weight;
+                                reconstructor->_simulated_weights[inputIndex](i, j, 0) = weight;
+                            }
+                        }
             }  //end of loop through the slices
         }
 
@@ -1869,12 +1865,15 @@ namespace svrtk::Parallel {
             slice_potential(slice_potential) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            RealImage slice;
+
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 // read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
+                slice = reconstructor->_slices[inputIndex];
 
                 //read current weight image
-                memset(reconstructor->_weights[inputIndex].Data(), 0, sizeof(RealPixel) * reconstructor->_weights[inputIndex].NumberOfVoxels());
+                RealImage& weight = reconstructor->_weights[inputIndex];
+                memset(weight.Data(), 0, sizeof(RealPixel) * weight.NumberOfVoxels());
 
                 double num = 0;
                 //Calculate error, voxel weights, and slice potential
@@ -1901,16 +1900,16 @@ namespace svrtk::Parallel {
                                 const double m = reconstructor->M(reconstructor->_m);
 
                                 //voxel_wise posterior
-                                const double weight = g * reconstructor->_mix / (g * reconstructor->_mix + m * (1 - reconstructor->_mix));
-                                reconstructor->_weights[inputIndex].PutAsDouble(i, j, 0, weight);
+                                const double w = g * reconstructor->_mix / (g * reconstructor->_mix + m * (1 - reconstructor->_mix));
+                                weight.PutAsDouble(i, j, 0, w);
 
                                 //calculate slice potentials
                                 if (reconstructor->_simulated_weights[inputIndex](i, j, 0) > 0.99) {
-                                    slice_potential[inputIndex] += (1 - weight) * (1 - weight);
+                                    slice_potential[inputIndex] += (1 - w) * (1 - w);
                                     num++;
                                 }
                             } else
-                                reconstructor->_weights[inputIndex].PutAsDouble(i, j, 0, 0);
+                                weight.PutAsDouble(i, j, 0, 0);
                         }
 
                 //evaluate slice potential
@@ -1949,7 +1948,7 @@ namespace svrtk::Parallel {
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                             if (reconstructor->_simulated_weights[inputIndex](i, j, 0) > 0.99) {
                                 //scale - intensity matching
-                                double eb = exp(-b(i, j, 0));
+                                const double eb = exp(-b(i, j, 0));
                                 scalenum += reconstructor->_weights[inputIndex](i, j, 0) * reconstructor->_slices[inputIndex](i, j, 0) * eb * reconstructor->_simulated_slices[inputIndex](i, j, 0);
                                 scaleden += reconstructor->_weights[inputIndex](i, j, 0) * reconstructor->_slices[inputIndex](i, j, 0) * eb * reconstructor->_slices[inputIndex](i, j, 0) * eb;
                             }
@@ -1975,17 +1974,20 @@ namespace svrtk::Parallel {
         Bias(Reconstruction *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            RealImage slice, wb, wresidual;
+            GaussianBlurring<RealPixel> gb(reconstructor->_sigma_bias);
+
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 // read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
+                slice = reconstructor->_slices[inputIndex];
 
                 //alias the current bias image
                 RealImage& b = reconstructor->_bias[inputIndex];
 
                 //prepare weight image for bias field
-                RealImage wb = reconstructor->_weights[inputIndex];
+                wb = reconstructor->_weights[inputIndex];
 
-                RealImage wresidual(slice.Attributes());
+                wresidual.Initialize(slice.Attributes());
 
                 for (int i = 0; i < slice.GetX(); i++)
                     for (int j = 0; j < slice.GetY(); j++)
@@ -2009,7 +2011,6 @@ namespace svrtk::Parallel {
                         }
 
                 //calculate bias field for this slice
-                GaussianBlurring<RealPixel> gb(reconstructor->_sigma_bias);
                 //smooth weighted residual
                 gb.Input(&wresidual);
                 gb.Output(&wresidual);
@@ -2079,7 +2080,7 @@ namespace svrtk::Parallel {
                                 reconstructor->_slice_dif[inputIndex](i, j, 0) = 0;
 
                             #pragma omp simd
-                            for (int k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
+                            for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
                                 const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 const auto multiplier = reconstructor->_robust_slices_only ? 1 : reconstructor->_weights[inputIndex](i, j, 0);
                                 addon(p.x, p.y, p.z) += multiplier * p.value * reconstructor->_slice_weight[inputIndex] * reconstructor->_slice_dif[inputIndex](i, j, 0);
@@ -2119,9 +2120,11 @@ namespace svrtk::Parallel {
         SuperresolutionCardiac4D(SuperresolutionCardiac4D& x, split) : SuperresolutionCardiac4D(x.reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) {
+            RealImage slice;
+
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 // read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
+                slice = reconstructor->_slices[inputIndex];
 
                 //Update reconstructed volume using current slice
                 //Distribute error to the volume
@@ -2183,9 +2186,11 @@ namespace svrtk::Parallel {
         MStep(MStep& x, split) : MStep(x.reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) {
+            RealImage slice;
+
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 // read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
+                slice = reconstructor->_slices[inputIndex];
 
                 //calculate error
                 for (int i = 0; i < slice.GetX(); i++)
@@ -2199,7 +2204,7 @@ namespace svrtk::Parallel {
                                 slice(i, j, 0) -= reconstructor->_simulated_slices[inputIndex](i, j, 0);
 
                                 //sigma and mix
-                                double e = slice(i, j, 0);
+                                const double e = slice(i, j, 0);
                                 sigma += e * e * reconstructor->_weights[inputIndex](i, j, 0);
                                 mix += reconstructor->_weights[inputIndex](i, j, 0);
 
@@ -2456,6 +2461,7 @@ namespace svrtk::Parallel {
     // class for bias normalisation
     class NormaliseBias {
         Reconstruction *reconstructor;
+
     public:
         RealImage bias;
 
@@ -2466,22 +2472,23 @@ namespace svrtk::Parallel {
         NormaliseBias(NormaliseBias& x, split) : NormaliseBias(x.reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) {
+            RealImage b;
+
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 if (reconstructor->_verbose)
                     reconstructor->_verbose_log << inputIndex << " ";
 
                 //read the current bias image
-                RealImage b = reconstructor->_bias[inputIndex];
+                b = reconstructor->_bias[inputIndex];
 
                 //read current scale factor
                 const double scale = reconstructor->_scale[inputIndex];
 
                 const RealPixel *pi = reconstructor->_slices[inputIndex].Data();
                 RealPixel *pb = b.Data();
-                for (int i = 0; i < reconstructor->_slices[inputIndex].NumberOfVoxels(); i++) {
+                for (int i = 0; i < reconstructor->_slices[inputIndex].NumberOfVoxels(); i++)
                     if (pi[i] > -1 && scale > 0)
                         pb[i] -= log(scale);
-                }
 
                 //Distribute slice intensities to the volume
                 for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
@@ -2527,6 +2534,7 @@ namespace svrtk::Parallel {
         NormaliseBiasCardiac4D(NormaliseBiasCardiac4D& x, split) : NormaliseBiasCardiac4D(x.reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) {
+            RealImage b;
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 if (reconstructor->_verbose)
                     reconstructor->_verbose_log << inputIndex << " ";
@@ -2535,17 +2543,16 @@ namespace svrtk::Parallel {
                 const RealImage& slice = reconstructor->_slices[inputIndex];
 
                 //read the current bias image
-                RealImage b = reconstructor->_bias[inputIndex];
+                b = reconstructor->_bias[inputIndex];
 
                 //read current scale factor
                 const double scale = reconstructor->_scale[inputIndex];
 
                 const RealPixel *pi = slice.Data();
                 RealPixel *pb = b.Data();
-                for (int i = 0; i < slice.NumberOfVoxels(); i++) {
+                for (int i = 0; i < slice.NumberOfVoxels(); i++)
                     if (pi[i] > -1 && scale > 0)
                         pb[i] -= log(scale);
-                }
 
                 //Distribute slice intensities to the volume
                 for (int i = 0; i < slice.GetX(); i++)
@@ -2602,13 +2609,15 @@ namespace svrtk::Parallel {
             all_global_volume_array(all_global_volume_array) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            Array<RigidTransformation> current_stack_transformations;
+
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 double average_ncc = 0;
                 double average_volume = 0;
-                Array<RigidTransformation> current_stack_transformations;
 
                 cout << " - " << inputIndex << endl;
                 reconstructor->GlobalStackStats(stacks[inputIndex], masks[inputIndex], stacks, masks, average_ncc, average_volume, current_stack_transformations);
+                current_stack_transformations.clear();
                 cout << " + " << inputIndex << endl;
 
                 all_global_ncc_array[inputIndex] = average_ncc;
@@ -2659,9 +2668,11 @@ namespace svrtk::Parallel {
         CalculateError(ReconstructionCardiac4D *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) const {
+            RealImage slice;
+
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
                 //read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
+                slice = reconstructor->_slices[inputIndex];
 
                 //initialise
                 reconstructor->_error[inputIndex].Initialize(slice.Attributes());

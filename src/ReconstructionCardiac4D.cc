@@ -151,7 +151,7 @@ namespace svrtk {
                         y = round(y);
                         z = round(z);
                         //if the voxel is inside mask ROI include it
-                        if (x >= 0 && x < _mask.GetX() && y >= 0 && y < _mask.GetY() && z >= 0 && z < _mask.GetZ()) {
+                        if (_mask.IsInside(x, y, z)) {
                             if (_mask(x, y, z) == 1) {
                                 m(i, j, k) = 1;
                                 for (int f = 0; f < stacks[ind].GetT(); f++) {

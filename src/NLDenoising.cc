@@ -23,7 +23,7 @@ using namespace std;
 namespace svrtk {
 
     // Returns the modified Bessel function I0(x) for any real x.
-    double bessi0(double x) {
+    static double bessi0(double x) {
         double ax, ans, a;
         double y;
         if ((ax = fabs(x)) < 3.75) {
@@ -39,9 +39,8 @@ namespace svrtk {
         return ans;
     }
 
-
     // Returns the modified Bessel function I1(x) for any real x.
-    double bessi1(double x) {
+    static double bessi1(double x) {
         double ax, ans;
         double y;
         if ((ax = fabs(x)) < 3.75) {
@@ -57,8 +56,7 @@ namespace svrtk {
         return x < 0.0 ? -ans : ans;
     }
 
-
-    double Epsi(double snr) {
+    static double Epsi(double snr) {
         double val;
         double pi = 3.1415926535;
 
@@ -68,9 +66,8 @@ namespace svrtk {
         return val;
     }
 
-
     // Function which compute the weighted average for one block
-    void Average_block(double *ima, int x, int y, int z, int neighborhoodsize, double *average, double weight, int sx, int sy, int sz, bool rician) {
+    static void Average_block(double *ima, int x, int y, int z, int neighborhoodsize, double *average, double weight, int sx, int sy, int sz, bool rician) {
         int x_pos, y_pos, z_pos;
         bool is_outside;
         int a, b, c, ns, sxy, count;
@@ -110,9 +107,8 @@ namespace svrtk {
         }
     }
 
-
     // Function which computes the value assigned to each voxel
-    void Value_block(double *Estimate, double *Label, int x, int y, int z, int neighborhoodsize, double *average, double global_sum, int sx, int sy, int sz) {
+    static void Value_block(double *Estimate, double *Label, int x, int y, int z, int neighborhoodsize, double *average, double global_sum, int sx, int sy, int sz) {
         int x_pos, y_pos, z_pos;
         bool is_outside;
         double value = 0.0;
@@ -149,8 +145,7 @@ namespace svrtk {
         }
     }
 
-
-    double distance(double* ima, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
+    static double distance(double* ima, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
         double d, acu, distancetotal;
         int i, j, k, ni1, nj1, ni2, nj2, nk1, nk2;
 
@@ -189,8 +184,7 @@ namespace svrtk {
         return d;
     }
 
-
-    double distance2(double* ima, double * medias, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
+    static double distance2(double* ima, double * medias, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
         double d, acu, distancetotal;
         int i, j, k, ni1, nj1, ni2, nj2, nk1, nk2;
 
@@ -231,8 +225,7 @@ namespace svrtk {
         return d;
     }
 
-
-    void Regularize(double* in, double * out, int r, int sx, int sy, int sz) {
+    static void Regularize(double* in, double * out, int r, int sx, int sy, int sz) {
         double acu;
         int ind, i, j, k, ni, nj, nk, ii, jj, kk;
 
@@ -311,8 +304,25 @@ namespace svrtk {
         free(temp);
     }
 
+    typedef struct {
+        int rows;
+        int cols;
+        int slices;
+        double *in_image;
+        double *means_image;
+        double *var_image;
+        double *estimate;
+        double *label;
+        double *bias;
+        int ini;
+        int fin;
+        int radioB;
+        int radioS;
+        bool rician;
+        double max_val;
+    } myargument;
 
-    void* ThreadFunc(void* pArguments) {
+    static void* ThreadFunc(void* pArguments) {
         double *bias, *Estimate, *Label, *ima, *means, *variances, *average, epsilon, mu1, var1, totalweight, wmax, t1, t1i, t2, d, w, distanciaminima;
         int rows, cols, slices, ini, fin, v, f, init, i, j, k, rc, ii, jj, kk, ni, nj, nk, Ndims;
         bool rician;

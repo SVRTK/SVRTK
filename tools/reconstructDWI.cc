@@ -995,7 +995,7 @@ int main(int argc, char **argv)
     reconstruction.SetLowIntensityCutoff(low_intensity_cutoff)  ;
 
 
-    // Check whether the template stack can be indentified
+    // Check whether the template stack can be identified
     if (templateNumber<0)
     {
         cerr<<"Please identify the template by assigning id transformation."<<endl;
@@ -1011,7 +1011,7 @@ int main(int argc, char **argv)
      if (mask !=NULL)
      {
      //first resample the mask to the space of the stack
-     //for template stact the transformation is identity
+     //for template stack the transformation is identity
      RealImage m = *mask;
      reconstruction.TransformMask(stacks[templateNumber],m,stack_transformations[templateNumber]);
      //Crop template stack

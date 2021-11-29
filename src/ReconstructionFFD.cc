@@ -772,9 +772,7 @@ namespace svrtk {
                         y = round(y);
                         z = round(z);
 
-                        if ((x >= 0) && (x < _mask.GetX()) && (y >= 0) && (y < _mask.GetY()) && (z >= 0)
-                            && (z < _mask.GetZ()))
-                        {
+                        if (_mask.IsInside(x, y, z)) {
                             if (_mask(x, y, z) > 0 && _mask(x, y, z) < 2 )
                             {
                                 m(i,j,k)=1;
@@ -2240,12 +2238,9 @@ namespace svrtk {
 
                             stacks[is]->WorldToImage(sx, sy, sz);
 
-                            if (sx>0 && sx<stacks[is]->GetX() && sy>0 && sy<stacks[is]->GetY() && sz>0 && sz<stacks[is]->GetZ()) {
-
+                            if (stacks[is]->IsInside(sx, sy, sz)) {
                                 i_mask(ix,iy,iz) = i_mask(ix,iy,iz) * 1;
-                            }
-                            else {
-
+                            } else {
                                 i_mask(ix,iy,iz) = i_mask(ix,iy,iz) * 0;
                             }
                         }
@@ -2261,14 +2256,8 @@ namespace svrtk {
                         my = round(sy);
                         mz = round(sz);
 
-                        if (mx>0 && mx<template_mask.GetX() && my>0 && my<template_mask.GetY() && mz>0 && mz<template_mask.GetZ()) {
-
-                            if (template_mask(mx,my,mz)>0)
+                        if (template_mask.IsInside(mx, my, mz) && template_mask(mx, my, mz) > 0)
                                 i_mask(ix,iy,iz) = 1;
-                        }
-
-
-
                     }
                 }
             }
@@ -5039,7 +5028,7 @@ namespace svrtk {
             sum = 0;
             for (j = image.GetY() - 1; j >= 0; j--)
                 for (i = image.GetX() - 1; i >= 0; i--)
-                    if (mask.Get(i, j, k) > 0)
+                    if (mask(i, j, k) > 0)
                         sum++;
             if (sum > 0)
                 break;
@@ -5051,7 +5040,7 @@ namespace svrtk {
             sum = 0;
             for (j = image.GetY() - 1; j >= 0; j--)
                 for (i = image.GetX() - 1; i >= 0; i--)
-                    if (mask.Get(i, j, k) > 0)
+                    if (mask(i, j, k) > 0)
                         sum++;
             if (sum > 0)
                 break;
@@ -5063,7 +5052,7 @@ namespace svrtk {
             sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (i = image.GetX() - 1; i >= 0; i--)
-                    if (mask.Get(i, j, k) > 0)
+                    if (mask(i, j, k) > 0)
                         sum++;
             if (sum > 0)
                 break;
@@ -5075,7 +5064,7 @@ namespace svrtk {
             sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (i = image.GetX() - 1; i >= 0; i--)
-                    if (mask.Get(i, j, k) > 0)
+                    if (mask(i, j, k) > 0)
                         sum++;
             if (sum > 0)
                 break;
@@ -5087,7 +5076,7 @@ namespace svrtk {
             sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (j = image.GetY() - 1; j >= 0; j--)
-                    if (mask.Get(i, j, k) > 0)
+                    if (mask(i, j, k) > 0)
                         sum++;
             if (sum > 0)
                 break;
@@ -5099,7 +5088,7 @@ namespace svrtk {
             sum = 0;
             for (k = image.GetZ() - 1; k >= 0; k--)
                 for (j = image.GetY() - 1; j >= 0; j--)
-                    if (mask.Get(i, j, k) > 0)
+                    if (mask(i, j, k) > 0)
                         sum++;
             if (sum > 0)
                 break;

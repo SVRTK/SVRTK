@@ -99,12 +99,12 @@ namespace svrtk {
     }
 
     void MeanShift::AddPoint(int x, int y, int z) {
-        if ((x >= 0) && (y >= 0) && (z >= 0) && (x < _image.GetX()) && (y < _image.GetY()) && (z < _image.GetZ())) {
+        if (_image.IsInside(x, y, z)) {
             bool mask = true;
             if (_brain != NULL && _brain->Get(x, y, z) == 1)
                 mask = false;
 
-            if ((_map.Get(x, y, z) == 1) && (_image.Get(x, y, z) < _threshold) && (mask)) {
+            if ((_map(x, y, z) == 1) && (_image(x, y, z) < _threshold) && (mask)) {
                 _q.push(Point(x, y, z));
                 _map.Put(x, y, z, 0);
             }
@@ -112,12 +112,10 @@ namespace svrtk {
     }
 
     void MeanShift::AddPoint(int x, int y, int z, int label) {
-        if ((x >= 0) && (y >= 0) && (z >= 0) && (x < _image.GetX()) && (y < _image.GetY()) && (z < _image.GetZ())) {
-            if ((_map.Get(x, y, z) == 0) && (_image.Get(x, y, z) == label)) {
-                _q.push(Point(x, y, z));
-                _map.Put(x, y, z, 1);
-                _clusterSize++;
-            }
+        if (_image.IsInside(x, y, z) && _map(x, y, z) == 0 && _image(x, y, z) == label) {
+            _q.push(Point(x, y, z));
+            _map.Put(x, y, z, 1);
+            _clusterSize++;
         }
     }
 
@@ -306,7 +304,7 @@ namespace svrtk {
             for (int j = 0; j < _image.GetY(); j++)
                 for (int k = 0; k < _image.GetZ(); k++) {
                     _clusterSize = 0;
-                    if ((_map.Get(i, j, k) == 0) && (_image.Get(i, j, k) == label)) Grow(i, j, k, label);
+                    if ((_map(i, j, k) == 0) && (_image(i, j, k) == label)) Grow(i, j, k, label);
                     if (_clusterSize > lcc_size) {
                         lcc2_size = lcc_size;
                         lcc2_x = lcc_x;
@@ -346,7 +344,7 @@ namespace svrtk {
             for (int j = 0; j < _image.GetY(); j++)
                 for (int k = 0; k < _image.GetZ(); k++) {
                     _clusterSize = 0;
-                    if ((_map.Get(i, j, k) == 0) && (_image.Get(i, j, k) == label)) Grow(i, j, k, label);
+                    if ((_map(i, j, k) == 0) && (_image(i, j, k) == label)) Grow(i, j, k, label);
                     if (_clusterSize > lcc_size)
                         lcc_size = _clusterSize;
 

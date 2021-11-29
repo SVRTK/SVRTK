@@ -61,66 +61,66 @@ void usage()
 
 int main(int argc, char **argv)
 {
-    
- 
+
+
     char buffer[256];
     RealImage stack;
     char * output_name = NULL;
 
-    
+
     //if not enough arguments print help
     if (argc < 6)
     usage();
-    
-    
+
+
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
-    
-    
+
+
     //-------------------------------------------------------------------
-    
+
     RealImage input_volume_A, input_volume_B, output_volume;
 
-    
+
     input_volume_A.Read(argv[1]);
     argc--;
     argv++;
-    
-    
+
+
     input_volume_B.Read(argv[1]);
     argc--;
     argv++;
-    
-    
+
+
     output_name = argv[1];
     argc--;
     argv++;
-    
-    
+
+
     double threshold = 0;
     threshold = atof(argv[1]);
     argc--;
     argv++;
-    
+
     double padding = 0;
     padding = atof(argv[1]);
     argc--;
     argv++;
-    
-    
-    
+
+
+
     //-------------------------------------------------------------------
-    
-    
+
+
     output_volume = input_volume_A;
-    
+
     int invert = 0;
-    
+
     for (int t = 0; t < output_volume.GetT(); t++) {
         for (int z = 0; z < output_volume.GetZ(); z++) {
             for (int y = 0; y < output_volume.GetY(); y++) {
                 for (int x = 0; x < output_volume.GetX(); x++) {
-                    
+
                     double i = x;
                     double j = y;
                     double k = z;
@@ -129,8 +129,8 @@ int main(int argc, char **argv)
                     i = round(i);
                     j = round(j);
                     k = round(k);
-                    
-                    if(i >= 0 && i < input_volume_B.GetX() && j >= 0 && j < input_volume_B.GetY() && k >= 0 && k < input_volume_B.GetZ() && t >= 0 && t < input_volume_B.GetT()){
+
+                    if (input_volume_B.IsInside(i, j, k)) {
                         if(invert){
                             if (input_volume_B(i, j, k, t) != threshold) output_volume(x, y, z, t) = padding;
                         }else{
@@ -141,11 +141,11 @@ int main(int argc, char **argv)
             }
         }
     }
-    
-                                     
+
+
     output_volume.Write(output_name);
-    
-    
-    
+
+
+
     return 0;
 }

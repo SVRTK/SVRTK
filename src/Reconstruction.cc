@@ -65,8 +65,6 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
-    Reconstruction::~Reconstruction() {}
-
     // Create average of all stacks based on the input transformations
     RealImage Reconstruction::CreateAverage(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations) {
         if (!_template_created) {
@@ -145,11 +143,11 @@ namespace svrtk {
         //initialise reconstructed volume
         _reconstructed = move(enlarged);
         _template_created = true;
+        _grey_reconstructed = _reconstructed;
+        _attr_reconstructed = _reconstructed.Attributes();
 
         if (_debug)
             _reconstructed.Write("template.nii.gz");
-        _grey_reconstructed = _reconstructed;
-        _attr_reconstructed = _reconstructed.Attributes();
 
         //return resulting resolution of the template image
         return d;
@@ -618,7 +616,7 @@ namespace svrtk {
                         y = round(y);
                         z = round(z);
                         //if the voxel is inside mask ROI include it
-                        if (x >= 0 && x < _mask.GetX() && y >= 0 && y < _mask.GetY() && z >= 0 && z < _mask.GetZ()) {
+                        if (_mask.IsInside(x, y, z)) {
                             if (_mask(x, y, z) == 1) {
                                 if (_debug)
                                     m(i, j, k) = 1;
@@ -2170,12 +2168,12 @@ namespace svrtk {
             exit(1);
         }
 
-        ClearAndResize(transformations, file_count);
+        ClearAndReserve(transformations, file_count);
         for (size_t i = 0; i < file_count; i++) {
             const string path = (boost::format("%1%/transformation%2%.dof") % (folder ? folder : ".") % i).str();
             Transformation *transformation = Transformation::New(path.c_str());
             unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(transformation));
-            transformations[i] = *rigidTransf;
+            transformations.push_back(*rigidTransf);
             cout << path << endl;
         }
     }
@@ -2323,8 +2321,6 @@ namespace svrtk {
                 << t.GetRotationY() << "\t"
                 << t.GetRotationZ() << endl;
         }
-
-        info.close();
     }
 
     //-------------------------------------------------------------------

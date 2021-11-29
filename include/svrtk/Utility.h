@@ -130,7 +130,8 @@ namespace svrtk::Utility {
     ////////////////////////////////////////////////////////////////////////////////
 
     // Clear and preallocate memory for a vector
-    inline void ClearAndReserve(vector<auto>& vectorVar, size_t reserveSize) {
+    template<typename VectorType>
+    inline void ClearAndReserve(vector<VectorType>& vectorVar, size_t reserveSize) {
         vectorVar.clear();
         vectorVar.reserve(reserveSize);
     }

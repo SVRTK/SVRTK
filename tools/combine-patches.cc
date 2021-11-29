@@ -51,7 +51,7 @@ void usage()
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-    
+
     exit(1);
 }
 
@@ -65,185 +65,184 @@ void usage()
 
 int main(int argc, char **argv)
 {
-    
+
     cout << "---------------------------------------------------------------------" << endl;
-    
+
     char buffer[256];
     RealImage stack;
     char * output_name = NULL;
     /// Slice stacks
     Array<RealImage> stacks;
     Array<string> stack_files;
-    
-    
+
+
     //if not enough arguments print help
     if (argc < 5)
     usage();
-    
-    
+
+
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
-    
-    
+
+
     //-------------------------------------------------------------------
-    
+
     RealImage target_volume;
-    
+
     int nStacks;
-    
+
     //read name of the target volume
     target_volume.Read(argv[1]);
     cout<<"Original reference image: "<<argv[1]<<endl;
     argc--;
     argv++;
-    
-    
-    
+
+
+
     double output_resolution;
-    
+
     //resolution
     output_resolution = atof(argv[1]);
     cout<<"Output resolution : "<<output_resolution<<endl;
     argc--;
     argv++;
-    
-    
-    
+
+
+
     //read number of stacks
     nStacks = atoi(argv[1]);
     cout<<"Number of images : "<<nStacks<<endl;
     argc--;
     argv++;
-    
+
     //-------------------------------------------------------------------
-    
+
     // Read stacks
     const char *tmp_fname;
     UniquePtr<BaseImage> tmp_image;
-    
+
     for (int i=0; i<nStacks; i++) {
-        
+
         stack_files.push_back(argv[1]);
-        
+
         cout<<"Reading image : "<<argv[1]<<endl;
-        
+
         tmp_fname = argv[1];
         image_reader.reset(ImageReader::TryNew(tmp_fname));
         tmp_image.reset(image_reader->Run());
-        
+
         stack = *tmp_image;
-        
+
         double smin, smax;
         stack.GetMinMax(&smin, &smax);
-        
+
         if (smin < 0 || smax < 0) {
-            
+
             stack.PutMinMaxAsDouble(0, 1000);
         }
-        
+
         argc--;
         argv++;
         stacks.push_back(stack);
     }
-    
-    
+
+
     InterpolationMode interpolation = Interpolation_Linear;
     UniquePtr<InterpolateImageFunction> interpolator;
     interpolator.reset(InterpolateImageFunction::New(interpolation));
-    
+
     Resampling<RealPixel> resampler(output_resolution, output_resolution, output_resolution);
     resampler.Interpolator(interpolator.get());
-    
+
     resampler.Input(&target_volume);
     resampler.Output(&target_volume);
     resampler.Run();
-    
-    
-    
-    
+
+
+
+
     RealImage output_volume;
     output_volume.Initialize(target_volume.Attributes());
-    
-    
+
+
     //-------------------------------------------------------------------
-    
+
     double patch_resolution = output_resolution;
-    
+
     Resampling<RealPixel> resampler2(patch_resolution, patch_resolution, patch_resolution);
     resampler2.Interpolator(interpolator.get());
-    
+
     for (int i=0; i<stacks.size(); i++) {
-        
+
         resampler2.Input(&stacks[i]);
         resampler2.Output(&stacks[i]);
         resampler2.Run();
     }
-    
-    
+
+
     //-------------------------------------------------------------------
-    
-    
+
+
     double wx, wy, wz;
     int rx, ry, rz;
-    
+
     RealImage weights = output_volume;
     weights = 0;
     output_volume = 0;
-    
+
     double val, num;
-    
+
     for (int z=0; z<output_volume.GetZ(); z++) {
         for (int y=0; y<output_volume.GetY(); y++) {
             for (int x=0; x<output_volume.GetX(); x++) {
-                
+
                 val = 0;
                 num = 0;
-                
+
                 for (int i=0; i<stacks.size(); i++) {
-                    
+
                     wx = x;
                     wy = y;
                     wz = z;
-                    
+
                     output_volume.ImageToWorld(wx, wy, wz);
                     stacks[i].WorldToImage(wx, wy, wz);
-                    
+
                     rx = round(wx);
                     ry = round(wy);
                     rz = round(wz);
-                    
-                    if (rx > -1 && ry > -1 && rz > -1 && rx < stacks[i].GetX() && ry < stacks[i].GetY() && rz < stacks[i].GetZ() ) {
-                        
+
+                    if (stacks[i].IsInside(rx, ry, rz)) {
                         val += stacks[i](rx, ry, rz);
                         num++;
                     }
                 }
-                
+
                 if (num >0)
                 val = val/num;
-                
+
                 output_volume(x, y, z) = val;
                 weights(x, y, z) = num;
-                
-                
+
+
             }
         }
     }
-    
-    
-    
-    
+
+
+
+
     cout << "---------------------------------------------------------------------" << endl;
-    
+
     cout<<"Output image : combined.nii.gz "<<endl;
-    
+
     output_volume.Write("combined.nii.gz");
-    
+
     weights.Write("overlap-weights.nii.gz");
-    
+
     cout << "---------------------------------------------------------------------" << endl;
-    
-    
-    
+
+
+
     return 0;
 }

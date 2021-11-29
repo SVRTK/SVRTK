@@ -287,7 +287,7 @@ namespace svrtk {
         // Constructor
         Reconstruction();
         // Destructor
-        ~Reconstruction();
+        ~Reconstruction() {}
 
         int _number_of_slices_org;
         double _average_thickness_org;
@@ -314,8 +314,8 @@ namespace svrtk {
 
         // Create slices from the stacks and slice-dependent transformations from
         // stack transformations
-        void CreateSlicesAndTransformations(const Array<RealImage> &stacks, const Array<RigidTransformation> &stack_transformations,
-            const Array<double> &thickness, const Array<RealImage> &probability_maps);
+        void CreateSlicesAndTransformations(const Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations,
+            const Array<double>& thickness, const Array<RealImage>& probability_maps);
 
         void SetSlicesAndTransformations(const Array<RealImage>& slices,
             const Array<RigidTransformation>& slice_transformations, const Array<int>& stack_ids, const Array<double>& thickness);

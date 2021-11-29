@@ -869,7 +869,7 @@ int main(int argc, char **argv)
     size_t pos = str_recon_path.find_last_of("/");
     str_mirtk_path = str_recon_path.substr (0, pos);
 
-    system("pwd > pwd.txt ");
+    int sysRet = system("pwd > pwd.txt ");
     ifstream pwd_file("pwd.txt");
 
     if (pwd_file.is_open()) {

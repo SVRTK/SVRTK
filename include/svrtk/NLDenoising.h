@@ -34,31 +34,10 @@ using namespace mirtk;
 
 namespace svrtk {
 
-    typedef struct {
-        int rows;
-        int cols;
-        int slices;
-        double *in_image;
-        double *means_image;
-        double *var_image;
-        double *estimate;
-        double *label;
-        double *bias;
-        int ini;
-        int fin;
-        int radioB;
-        int radioS;
-        bool rician;
-        double max_val;
-    } myargument;
-
     class NLDenoising {
     public:
-        NLDenoising() {}
-        ~NLDenoising() {}
-
-        RealImage Run(const RealImage& image);
-        RealImage Run(const RealImage& image, int input_param_w, int input_param_f);
+        static RealImage Run(const RealImage& image);
+        static RealImage Run(const RealImage& image, int input_param_w, int input_param_f);
     };
 
 } // namespace svrtk

@@ -72,7 +72,7 @@ void usage()
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-    
+
     exit(1);
 }
 
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
         RealImage tmp_mask;
         tmp_mask.Read(argv[1]);
 
-        tmp_mask = reconstruction->CreateMask(tmp_mask);
+        tmp_mask = CreateMask(tmp_mask);
 
         if (tmp_mask.GetX() != stacks[i].GetX() || tmp_mask.GetY() != stacks[i].GetY() || tmp_mask.GetZ() != stacks[i].GetZ() || tmp_mask.GetT() != stacks[i].GetT()) {
             cout << "Error: the mask (" << argv[1] << ") dimensions are different from the corresponding stack (" << i << ") !" << endl;
@@ -381,14 +381,14 @@ int main(int argc, char **argv)
 
             ConnectivityType i_connectivity = CONNECTIVITY_26;
 
-            reconstruction->TransformMask(s_tmp, m_tmp, *tmp_r);
+            TransformMask(s_tmp, m_tmp, *tmp_r);
 
             RealImage dl_m_tmp = m_tmp;
 
             Dilate<RealPixel>(&dl_m_tmp, dilation_degree, i_connectivity);
 
-            reconstruction->CropImage(s_tmp,dl_m_tmp);
-            reconstruction->CropImage(m_tmp,dl_m_tmp);
+            CropImage(s_tmp,dl_m_tmp);
+            CropImage(m_tmp,dl_m_tmp);
 
 
             Dilate<RealPixel>(&m_tmp, 1, i_connectivity);
@@ -443,7 +443,7 @@ int main(int argc, char **argv)
 
         cout << i << " ... " <<  endl;
 
-        reconstruction->StackStats(stacks[i], masks[i], mask_volume, slice_ncc);
+        StackStats(stacks[i], masks[i], mask_volume, slice_ncc);
 
         all_volume_array.push_back(mask_volume);
         all_slice_ncc_array.push_back(slice_ncc);
@@ -488,7 +488,7 @@ int main(int argc, char **argv)
 
 
 
-        reconstruction->GlobalStackStats(stacks[i], masks[i], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
+        GlobalStackStats(stacks[i], masks[i], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
 
         prelim_stack_tranformations.push_back(current_stack_tranformations);
 
@@ -724,7 +724,7 @@ int main(int argc, char **argv)
 
 
 
-    common_mask = reconstruction->ThresholdNormalisedMask(common_mask, 0.5);
+    common_mask = ThresholdNormalisedMask(common_mask, 0.5);
 
 
     common_mask.Write("average_mask_cnn.nii.gz");

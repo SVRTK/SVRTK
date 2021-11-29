@@ -365,7 +365,7 @@ int main(int argc, char **argv)
                 stack_transformations.push_back(*rigidTransf);
                 delete rigidTransf;
             }
-            reconstruction.InvertStackTransformations(stack_transformations);
+            InvertStackTransformations(stack_transformations);
             have_stack_transformations = true;
         }
 
@@ -840,8 +840,8 @@ int main(int argc, char **argv)
 
     // Crop mask
     RealImage maskCropped = *mask;
-    reconstruction.CropImage(maskCropped,*mask);  // TODO: TBD: use CropImage or CropImageIgnoreZ
-    // Initilaise reconstructed volume with isotropic resolution
+    CropImage(maskCropped,*mask);  // TODO: TBD: use CropImage or CropImageIgnoreZ
+    // Initialise reconstructed volume with isotropic resolution
     // if resolution==0 it will be determined from in-plane resolution of the image
     if (resolution <= 0)
     {
@@ -887,10 +887,10 @@ int main(int argc, char **argv)
 
         //transform the mask
         RealImage m=reconstruction.GetMask();
-        reconstruction.TransformMask(stacks[i],m,stack_transformations[i]);
+        TransformMask(stacks[i],m,stack_transformations[i]);
 
         //Crop template stack
-        reconstruction.CropImageIgnoreZ(stacks[i],m);
+        CropImageIgnoreZ(stacks[i],m);
         if (debug)
         {
             sprintf(buffer,"mask%03i.nii.gz",i);

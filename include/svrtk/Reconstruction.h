@@ -49,6 +49,7 @@
 #include <pthread.h>
 #include <thread>
 
+using namespace std;
 using namespace mirtk;
 using namespace svrtk::Utility;
 
@@ -232,9 +233,6 @@ namespace svrtk {
         Array<int> _stack_index;
 
         // GF 200416 Handling slice acquisition order
-        // Array containing slice acquisition order
-        Array<int> _z_slice_order;
-        Array<int> _t_slice_order;
         Array<int> _slice_timing;
 
         //forced excluded slices
@@ -308,17 +306,8 @@ namespace svrtk {
 
         void SaveSliceInfo(int current_iteration = -1);
 
-        // Center stacks
-        void CenterStacks(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber);
-
         //Create average image from the stacks and volumetric transformations
         RealImage CreateAverage(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations);
-
-        // Transform and resample mask to the space of the image
-        void TransformMask(const RealImage& image, RealImage& mask, const RigidTransformation& transformation);
-
-        // Rescale image ignoring negative values
-        void Rescale(RealImage& img, double max);
 
         // Calculate initial registrations
         void StackRegistrations(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber);
@@ -338,9 +327,6 @@ namespace svrtk {
 
         void SaveProbabilityMap(int i);
 
-        // Invert all stack transformation
-        void InvertStackTransformations(Array<RigidTransformation>& stack_transformations);
-
         // Match stack intensities
         void MatchStackIntensities(Array<RealImage>& stacks,
             const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
@@ -348,16 +334,6 @@ namespace svrtk {
         // Match stack intensities with masking
         void MatchStackIntensitiesWithMasking(Array<RealImage>& stacks,
             const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
-
-        // If template image has been masked instead of creating the mask in separate
-        // file, this function can be used to create mask from the template image
-        RealImage CreateMask(RealImage image);
-
-        void CreateMaskFromBlackBackground(const Array<RealImage>& stacks,
-            Array<RigidTransformation> stack_transformations, double smooth_mask);
-
-        // Mask all stacks
-        void MaskStacks(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations);
 
         // Mask all slices
         void MaskSlices();
@@ -372,12 +348,6 @@ namespace svrtk {
         // Reconstruction using weighted Gaussian PSF
         void GaussianReconstruction();
         void GaussianReconstructionSF(const Array<RealImage>& stacks);
-
-        // NLM filtering
-        void NLMFiltering(Array<RealImage>& stacks);
-
-        // NCC stats
-        double VolumeNCC(RealImage& input_stack, RealImage template_stack, const RealImage& mask);
 
         // Initialise variables and parameters for EM
         void InitializeEM();
@@ -423,8 +393,7 @@ namespace svrtk {
         void BiasCorrectVolume(const RealImage& original);
 
         // Mask the volume
-        void MaskVolume();
-        void MaskImage(RealImage& image, double padding = -1);
+        inline void MaskVolume() { MaskImage(_reconstructed, _mask, -1); }
 
         // Save slices
         void SaveSlices();
@@ -450,19 +419,6 @@ namespace svrtk {
 
         void ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
 
-        RealImage ThresholdNormalisedMask(RealImage image, double threshold);
-
-        double ComputeNCC(const RealImage& slice_1, const RealImage& slice_2, const double threshold = 0.01, double *count = nullptr);
-
-        void GlobalStackStats(RealImage template_stack, const RealImage& template_mask, const Array<RealImage>& stacks,
-            const Array<RealImage>& masks, double& average_ncc, double& average_volume,
-            Array<RigidTransformation>& current_stack_tranformations);
-
-        void StackStats(RealImage input_stack, const RealImage& mask, double& mask_volume, double& slice_ncc);
-
-        void RunParallelGlobalStackStats(const Array<RealImage>& stacks, const Array<RealImage>& masks,
-            Array<double>& all_global_ncc_array, Array<double>& all_global_volume_array);
-
         // evaluation based on the number of excluded slices
         void Evaluate(int iter, ostream& outstr = cout);
 
@@ -473,64 +429,20 @@ namespace svrtk {
         // Restore slice intensities to their original values
         void RestoreSliceIntensities();
         // Scale volume to match the slice intensities
-        void ScaleVolume();
+        inline void ScaleVolume() { ScaleVolume(_reconstructed); }
 
         // To compare how simulation from the reconstructed volume matches the original stacks
         void SimulateStacks(Array<RealImage>& stacks);
 
         void SimulateSlices();
 
-        // Puts origin of the image into origin of world coordinates
-        static void ResetOrigin(GreyImage& image, RigidTransformation& transformation);
-        static void ResetOrigin(RealImage& image, RigidTransformation& transformation);
-
         // Packages to volume registrations
         void PackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num,
             const Array<RigidTransformation>& stack_transformations);
 
-        // Calculate Slice acquisition order
-        void GetSliceAcquisitionOrder(const Array<RealImage>& stacks,
-            const Array<int>& pack_num, const Array<int>& order, const int step, const int rewinder);
-
-        // Split image in a flexible manner
-        void flexibleSplitImage(const Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
-            const Array<int>& pack_num, const Array<int>& sliceNums, const Array<int>& order, const int step, const int rewinder);
-
-        // Create Multiband replica for flexibleSplitImage
-        void flexibleSplitImagewithMB(const Array<RealImage>& stacks, Array<RealImage>& sliceStacks,
-            const Array<int>& pack_num, const Array<int>& sliceNums, const Array<int>& multiband,
-            const Array<int>& order, const int step, const int rewinder);
-
-        // Split images into packages
-        void splitPackages(const Array<RealImage>& stacks, const Array<int>& pack_num,
-            Array<RealImage>& packageStacks, const Array<int>& order, const int step, const int rewinder);
-
-        // Create Multiband replica for splitPackages
-        void splitPackageswithMB(const Array<RealImage>& stacks, const Array<int>& pack_num, Array<RealImage>& packageStacks,
-            const Array<int>& multiband_vector, const Array<int>& order, const int step, const int rewinder);
-
         // Performs package registration
         void newPackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num, const Array<int>& multiband,
             const Array<int>& order, const int step, const int rewinder, const int iter, const int steps);
-
-        // Filter background
-        void BackgroundFiltering(Array<RealImage>& stacks, const double fg_sigma, const double bg_sigma);
-
-        // Splits stacks into packages
-        void SplitImage(const RealImage& image, const int packages, Array<RealImage>& stacks);
-
-        // Splits stacks into packages and each package into even and odd slices
-        void SplitImageEvenOdd(const RealImage& image, const int packages, Array<RealImage>& stacks);
-
-        // Splits image into top and bottom half roi according to z coordinate
-        void HalfImage(const RealImage& image, Array<RealImage>& stacks);
-
-        // Splits stacks into packages and each package into even and odd slices and top and bottom roi
-        void SplitImageEvenOddHalf(const RealImage& image, const int packages, Array<RealImage>& stacks, const int iter = 1);
-
-        // Crop image according to the given mask
-        void CropImage(RealImage& image, const RealImage& mask);
-        void CropImageIgnoreZ(RealImage& image, const RealImage& mask);
 
         // Run structure-based rejection of outliers
         void StructuralExclusion();
@@ -781,6 +693,14 @@ namespace svrtk {
 
         inline void SetSlices(const Array<RealImage>& slices) {
             _slices = slices;
+        }
+
+        // mask stacks with respect to the reconstruction mask and given transformations
+        inline void MaskStacks(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations) {
+            if (!_have_mask)
+                cerr << "Could not mask slices because no mask has been set." << endl;
+            else
+                Utility::MaskStacks(stacks, stack_transformations, _mask);
         }
 
     };  // end of Reconstruction class definition

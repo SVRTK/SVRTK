@@ -34,7 +34,7 @@ namespace svrtk::Parallel {
 
     // Class for computing average of all stacks
     class Average {
-        Reconstruction *reconstructor;
+        const Reconstruction *reconstructor;
         const Array<RealImage>& stacks;
         const Array<RigidTransformation>& stack_transformations;
 
@@ -57,7 +57,7 @@ namespace svrtk::Parallel {
         RealImage weights;
 
         Average(
-            Reconstruction *reconstructor,
+            const Reconstruction *reconstructor,
             const Array<RealImage>& stacks,
             const Array<RigidTransformation>& stack_transformations,
             double targetPadding,
@@ -133,7 +133,7 @@ namespace svrtk::Parallel {
 
         void operator()(const blocked_range<size_t>& r) {
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
-                const double out_ncc = reconstructor->ComputeNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], 0.1);
+                const double out_ncc = ComputeNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], 0.1);
                 out_global_ncc += out_ncc;
 
                 double s_diff = 0;
@@ -182,7 +182,7 @@ namespace svrtk::Parallel {
 
     // class for global 3D stack registration
     class StackRegistrations {
-        Reconstruction *reconstructor;
+        const Reconstruction *reconstructor;
         const Array<RealImage>& stacks;
         Array<RigidTransformation>& stack_transformations;
         int templateNumber;
@@ -191,7 +191,7 @@ namespace svrtk::Parallel {
 
     public:
         StackRegistrations(
-            Reconstruction *reconstructor,
+            const Reconstruction *reconstructor,
             const Array<RealImage>& stacks,
             Array<RigidTransformation>& stack_transformations,
             int templateNumber,
@@ -2586,8 +2586,7 @@ namespace svrtk::Parallel {
 
     // class for global stack similarity statists (for the stack selection function)
     class GlobalSimilarityStats {
-        Reconstruction *reconstructor;
-        int nStacks;
+        const int nStacks;
         const Array<RealImage>& stacks;
         const Array<RealImage>& masks;
         Array<double>& all_global_ncc_array;
@@ -2595,13 +2594,11 @@ namespace svrtk::Parallel {
 
     public:
         GlobalSimilarityStats(
-            Reconstruction *reconstructor,
-            int nStacks,
+            const int nStacks,
             const Array<RealImage>& stacks,
             const Array<RealImage>& masks,
             Array<double>& all_global_ncc_array,
             Array<double>& all_global_volume_array) :
-            reconstructor(reconstructor),
             nStacks(nStacks),
             stacks(stacks),
             masks(masks),
@@ -2616,7 +2613,7 @@ namespace svrtk::Parallel {
                 double average_volume = 0;
 
                 cout << " - " << inputIndex << endl;
-                reconstructor->GlobalStackStats(stacks[inputIndex], masks[inputIndex], stacks, masks, average_ncc, average_volume, current_stack_transformations);
+                GlobalStackStats(stacks[inputIndex], masks[inputIndex], stacks, masks, average_ncc, average_volume, current_stack_transformations);
                 current_stack_transformations.clear();
                 cout << " + " << inputIndex << endl;
 

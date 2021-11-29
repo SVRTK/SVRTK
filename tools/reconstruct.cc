@@ -337,7 +337,7 @@ int main(int argc, char **argv) {
             unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(t));
             stackTransformations.push_back(*rigidTransf);
         }
-        reconstruction.InvertStackTransformations(stackTransformations);
+        InvertStackTransformations(stackTransformations);
     }
 
     // Slice thickness per stack
@@ -559,7 +559,7 @@ int main(int argc, char **argv) {
     // Rescale stack if specified
     if (rescaleStacks) {
         for (size_t i = 0; i < stacks.size(); i++)
-            reconstruction.Rescale(stacks[i], 1000);
+            Rescale(stacks[i], 1000);
     }
 
     // If transformations were not defined by user, set them to identity
@@ -594,21 +594,21 @@ int main(int argc, char **argv) {
     // If no mask was given - try to create mask from the template image in case it was padded
     if (mask == NULL) {
         mask = unique_ptr<RealImage>(new RealImage(stacks[templateNumber]));
-        *mask = reconstruction.CreateMask(*mask);
+        *mask = CreateMask(*mask);
         cout << "Warning : no mask was provided " << endl;
     }
 
     // Before creating the template we will crop template stack according to the given mask
     if (mask != NULL) {
         // First resample the mask to the space of the stack
-        // For template stact the transformation is identity
+        // For template stack the transformation is identity
         RealImage m = *mask;
-        reconstruction.TransformMask(stacks[templateNumber], m, stackTransformations[templateNumber]);
+        TransformMask(stacks[templateNumber], m, stackTransformations[templateNumber]);
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = stacks[templateNumber] * m;
-        reconstruction.CropImage(stacks[templateNumber], m);
-        reconstruction.CropImage(maskedTemplate, m);
+        CropImage(stacks[templateNumber], m);
+        CropImage(maskedTemplate, m);
 
         if (debug) {
             m.Write("maskforTemplate.nii.gz");
@@ -619,12 +619,12 @@ int main(int argc, char **argv) {
     // If the template was provided separately - crop and mask the template with the given mask
     if (useTemplate) {
         RealImage m = *mask;
-        reconstruction.TransformMask(templateStack, m, rigidTransformation);
+        TransformMask(templateStack, m, rigidTransformation);
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = templateStack * m;
-        reconstruction.CropImage(maskedTemplate, m);
-        reconstruction.CropImage(templateStack, m);
+        CropImage(maskedTemplate, m);
+        CropImage(templateStack, m);
     }
 
     // Create template volume with isotropic resolution
@@ -636,7 +636,7 @@ int main(int argc, char **argv) {
 
     // If remove_black_background flag is set, create mask from black background of the stacks
     if (removeBlackBackground)
-        reconstruction.CreateMaskFromBlackBackground(stacks, stackTransformations, smoothMask);
+        CreateMaskFromBlackBackground(&reconstruction, stacks, stackTransformations, smoothMask);
 
     // Set precision
     cout << setprecision(3);
@@ -664,9 +664,9 @@ int main(int argc, char **argv) {
             continue;
         // Transform the mask
         RealImage m = reconstruction.GetMask();
-        reconstruction.TransformMask(stacks[i], m, stackTransformations[i]);
+        TransformMask(stacks[i], m, stackTransformations[i]);
         // Crop template stack
-        reconstruction.CropImage(stacks[i], m);
+        CropImage(stacks[i], m);
 
         if (debug) {
             m.Write((boost::format("mask%1%.nii.gz") % i).str().c_str());
@@ -705,9 +705,9 @@ int main(int argc, char **argv) {
 
         RealImage transformedTemplateMask = *mask;
         RealImage templateToCheck = templateStack;
-        reconstruction.TransformMask(templateToCheck, transformedTemplateMask, rigidTransformation);
-        reconstruction.CropImage(templateToCheck, transformedTemplateMask);
-        reconstruction.CropImage(transformedTemplateMask, transformedTemplateMask);
+        TransformMask(templateToCheck, transformedTemplateMask, rigidTransformation);
+        CropImage(templateToCheck, transformedTemplateMask);
+        CropImage(transformedTemplateMask, transformedTemplateMask);
 
         Array<double> allNccArray;
         Array<double> allSliceNccArray;
@@ -730,9 +730,9 @@ int main(int argc, char **argv) {
             Matrix m = stackTransformations[i].GetMatrix();
             stackToCheck.PutAffineMatrix(m, true);
 
-            const double sliceNcc = reconstruction.VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
+            const double sliceNcc = VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
             double countNcc = -1;
-            const double volumeNcc = reconstruction.ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
+            const double volumeNcc = ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
 
             averageCountNcc += countNcc;
             averageSliceNcc += sliceNcc;

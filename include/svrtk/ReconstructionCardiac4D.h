@@ -229,10 +229,7 @@ namespace svrtk {
         void ScaleTransformations(double scale);
 
         // Apply Static Mask to Reconstructed 4D Volume
-        inline void StaticMaskReconstructedVolume4D() { StaticMaskVolume4D(_reconstructed4D, -1); }
-
-        // Apply Static Mask 4D Volume
-        void StaticMaskVolume4D(RealImage& volume, const double padding);
+        inline void StaticMaskReconstructedVolume4D() { StaticMaskVolume4D(_reconstructed4D, _mask, -1); }
 
         // Calculate Error
         void CalculateError();

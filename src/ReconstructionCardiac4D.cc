@@ -598,7 +598,7 @@ namespace svrtk {
         if (_verbose)
             _verbose_log << "done." << endl;
 
-        StaticMaskVolume4D(bias, 0);
+        StaticMaskVolume4D(bias, _mask, 0);
         RealImage m = _mask;
         GaussianBlurring<RealPixel> gb(_sigma_bias);
         gb.Input(&bias);
@@ -1201,19 +1201,6 @@ namespace svrtk {
             //Put origin back
             _transformations[i].PutMatrix(mo * _transformations[i].GetMatrix() * imo);
         }
-    }
-
-    // -----------------------------------------------------------------------------
-    // Apply Static Mask to 4D Volume
-    // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::StaticMaskVolume4D(RealImage& volume, const double padding) {
-        #pragma omp parallel for
-        for (int i = 0; i < volume.GetX(); i++)
-            for (int j = 0; j < volume.GetY(); j++)
-                for (int k = 0; k < volume.GetZ(); k++)
-                    if (_mask(i, j, k) == 0)
-                        for (int t = 0; t < volume.GetT(); t++)
-                            volume(i, j, k, t) = padding;
     }
 
     // -----------------------------------------------------------------------------

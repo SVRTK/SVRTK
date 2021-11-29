@@ -205,12 +205,10 @@ namespace svrtk {
         char buffer[256];
         RealImage tmp_stack;
 
-        NLDenoising *denoising = new NLDenoising;
-
         for (int i=0; i<stacks.size(); i++) {
 
             tmp_stack = *stacks[i];
-            tmp_stack = denoising->Run(tmp_stack, 3, 1);
+            tmp_stack = NLDenoising::Run(tmp_stack, 3, 1);
 
             RealImage *tmp_p = new RealImage(tmp_stack);
             stacks[i] = tmp_p;

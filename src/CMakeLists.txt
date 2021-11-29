@@ -34,6 +34,7 @@ set(HEADERS
   ../svrtk/NLDenoising.h
   ../svrtk/SphericalHarmonics.h
   ../svrtk/Parallel.h
+  ../svrtk/Utility.h
 )
 
 set(SOURCES
@@ -45,9 +46,10 @@ set(SOURCES
   MeanShift.cc
   NLDenoising.cc
   SphericalHarmonics.cc
-) 
+  Utility.cc
+)
 
-set(DEPENDS 
+set(DEPENDS
   LibCommon
   LibNumerics
   LibImage

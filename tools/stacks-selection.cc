@@ -201,7 +201,7 @@ int main(int argc, char **argv)
         RealImage tmp_mask;
         tmp_mask.Read(argv[1]);
 
-        tmp_mask = reconstruction->CreateMask(tmp_mask);
+        tmp_mask = CreateMask(tmp_mask);
 
         if (tmp_mask.GetX() != stacks[i].GetX() || tmp_mask.GetY() != stacks[i].GetY() || tmp_mask.GetZ() != stacks[i].GetZ() || tmp_mask.GetT() != stacks[i].GetT()) {
             cout << "Error: the mask (" << argv[1] << ") dimensions are different from the corresponding stack (" << i << ") !" << endl;
@@ -429,7 +429,7 @@ int main(int argc, char **argv)
 
             ConnectivityType i_connectivity = CONNECTIVITY_26;
 
-            reconstruction->TransformMask(s_tmp, m_tmp, tmp_r);
+            (s_tmp, m_tmp, tmp_r);
 
             RealImage dl_m_tmp = m_tmp;
 
@@ -437,8 +437,8 @@ int main(int argc, char **argv)
 
             if (dilation_degree < 12) {
 
-                reconstruction->CropImage(s_tmp,dl_m_tmp);
-                reconstruction->CropImage(m_tmp,dl_m_tmp);
+                CropImage(s_tmp,dl_m_tmp);
+                CropImage(m_tmp,dl_m_tmp);
 
             }
 
@@ -495,7 +495,7 @@ int main(int argc, char **argv)
         double mask_volume = 0;
         double slice_ncc = 0;
 
-        reconstruction->StackStats(stacks[i], masks[i], mask_volume, slice_ncc);
+        StackStats(stacks[i], masks[i], mask_volume, slice_ncc);
 
         all_volume_array.push_back(mask_volume);
         all_slice_ncc_array.push_back(slice_ncc);
@@ -530,7 +530,7 @@ int main(int argc, char **argv)
     double norm_volume = 0;
 
 
-    reconstruction->RunParallelGlobalStackStats( stacks, masks, all_global_ncc_array, all_global_volume_array );
+    RunParallelGlobalStackStats( stacks, masks, all_global_ncc_array, all_global_volume_array );
 
 
     for (int i=0; i<stacks.size(); i++) {
@@ -668,7 +668,7 @@ int main(int argc, char **argv)
     resamplingF.Run();
 
     RigidTransformation tmp_rF;
-    reconstruction->TransformMask(prelim_template_stack, prelim_template_mask, tmp_rF);
+    TransformMask(prelim_template_stack, prelim_template_mask, tmp_rF);
     ConnectivityType f_connectivity = CONNECTIVITY_26;
     Erode<RealPixel>(&prelim_template_mask, 2, f_connectivity);
 
@@ -784,7 +784,7 @@ int main(int argc, char **argv)
 
 
 
-    common_mask = reconstruction->ThresholdNormalisedMask(common_mask, 0.4);
+    common_mask = ThresholdNormalisedMask(common_mask, 0.4);
 
 
     common_mask.Write("average_mask_cnn.nii.gz");

@@ -51,7 +51,7 @@ void usage()
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-    
+
     exit(1);
 }
 
@@ -65,78 +65,78 @@ void usage()
 
 int main(int argc, char **argv)
 {
-    
+
     cout << "---------------------------------------------------------------------" << endl;
-    
+
     char buffer[256];
     RealImage stack;
     char * output_name = NULL;
 
-    
+
     //if not enough arguments print help
     if (argc < 5)
     usage();
-    
-    
+
+
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
-    
-    
+
+
     //-------------------------------------------------------------------
-    
+
     RealImage input_volume, output_volume;
 
-    
+
     input_volume.Read(argv[1]);
     cout<<"Input image: "<<argv[1]<<endl;
     argc--;
     argv++;
-    
+
     double smin, smax;
     input_volume.GetMinMax(&smin, &smax);
-    
+
     if (smin < 0 || smax < 0) {
         input_volume.PutMinMaxAsDouble(0, 1000);
     }
-    
-    
+
+
     output_name = argv[1];
     cout<<"Ouput image: "<<output_name<<endl;
     argc--;
     argv++;
-    
-    
+
+
     double bg_sigma, fg_sigma;
-    
-    
+
+
     fg_sigma = atof(argv[1]);
     cout<<"foreground sigma : "<<fg_sigma<<endl;
     argc--;
     argv++;
-    
+
     bg_sigma = atof(argv[1]);
     cout<<"background sigma : "<<bg_sigma<<endl;
     argc--;
     argv++;
-    
-    
+
+
     //-------------------------------------------------------------------
-    
+
     Reconstruction *reconstruction = new Reconstruction();
-    
+
     Array<RealImage> stacks;
     stacks.push_back(input_volume);
-    
-    reconstruction->BackgroundFiltering(stacks, fg_sigma, bg_sigma);
-    
+
+    BackgroundFiltering(stacks, fg_sigma, bg_sigma);
+
     output_volume = stacks[0];
-    
+
     output_volume.Write(output_name);
-    
-    
+
+
     cout << "---------------------------------------------------------------------" << endl;
-    
-    
-    
+
+
+
     return 0;
 }

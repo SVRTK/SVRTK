@@ -1005,7 +1005,7 @@ int main(int argc, char **argv)
 //    if ((mask==NULL)&&(!remove_black_background))
 //    {
 //        mask = new RealImage(stacks[templateNumber]);
-//        *mask = reconstruction.CreateMask(*mask);
+//        *mask = CreateMask(*mask);
 //    }
     /*
      if (mask !=NULL)

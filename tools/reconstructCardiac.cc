@@ -308,7 +308,7 @@ int main(int argc, char **argv) {
             stackTransformations.push_back(*rigidTransf);
             cout << " done." << endl;
         }
-        reconstruction.InvertStackTransformations(stackTransformations);
+        InvertStackTransformations(stackTransformations);
     }
 
     //Stack registration
@@ -421,7 +421,7 @@ int main(int argc, char **argv) {
 
     if (rescaleStacks) {
         for (size_t i = 0; i < stacks.size(); i++)
-            reconstruction.Rescale(stacks[i], 1000);
+            Rescale(stacks[i], 1000);
     }
 
     //If transformations were not defined by user, set them to identity
@@ -446,7 +446,7 @@ int main(int argc, char **argv) {
         const RigidTransformation rigidTransf;
         for (size_t i = 0; i < masks.size(); i++) {
             RealImage stackMask = masks[i];
-            reconstruction.TransformMask(stacks[i], stackMask, rigidTransf);
+            TransformMask(stacks[i], stackMask, rigidTransf);
 
             // ConnectivityType i_connectivity = CONNECTIVITY_26;
             // Dilate<RealPixel>(&stackMask, 7, i_connectivity);
@@ -511,7 +511,7 @@ int main(int argc, char **argv) {
     // Initialise Reconstructed Volume
     // Crop mask
     RealImage maskCropped = *mask;
-    reconstruction.CropImage(maskCropped, *mask);  // TODO: TBD: use CropImage or CropImageIgnoreZ
+    CropImage(maskCropped, *mask);  // TODO: TBD: use CropImage or CropImageIgnoreZ
     // Initialise reconstructed volume with isotropic resolution
     // if resolution==0 it will be determined from in-plane resolution of the image
     if (resolution <= 0)
@@ -543,10 +543,10 @@ int main(int argc, char **argv) {
         else {
             reconstruction.StackRegistrations(maskedStacks, stackTransformations, templateNumber);
             if (debug) {
-                reconstruction.InvertStackTransformations(stackTransformations);
+                InvertStackTransformations(stackTransformations);
                 for (size_t i = 0; i < stacks.size(); i++)
                     stackTransformations[i].Write((boost::format("stack-transformation%03i.dof") % i).str().c_str());
-                reconstruction.InvertStackTransformations(stackTransformations);
+                InvertStackTransformations(stackTransformations);
             }
         }
     }
@@ -559,13 +559,13 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < stacks.size(); i++) {
         //transform the mask
         RealImage m = reconstruction.GetMask();
-        reconstruction.TransformMask(stacks[i], m, stackTransformations[i]);
+        TransformMask(stacks[i], m, stackTransformations[i]);
         //Crop template stack
 
         // ConnectivityType connectivity2 = CONNECTIVITY_26;
         // Dilate<RealPixel>(&m, 5, connectivity2);
 
-        reconstruction.CropImageIgnoreZ(stacks[i], m);
+        CropImageIgnoreZ(stacks[i], m);
         if (debug) {
             m.Write((boost::format("mask%03i.nii.gz") % i).str().c_str());
             stacks[i].Write((boost::format("cropped%03i.nii.gz") % i).str().c_str());
@@ -773,7 +773,7 @@ int main(int argc, char **argv) {
             //Save intermediate reconstructed volume
             if (debug) {
                 reconstructed = reconstruction.GetReconstructedCardiac4D();
-                reconstruction.StaticMaskVolume4D(reconstructed, -1);
+                StaticMaskVolume4D(reconstructed, reconstruction.GetMask(), -1);
                 reconstructed.Write((boost::format("super_mc%02isr%02i.nii.gz") % iter % i).str().c_str());
             }
 
@@ -815,7 +815,7 @@ int main(int argc, char **argv) {
 
         //Save reconstructed image
         reconstructed = reconstruction.GetReconstructedCardiac4D();
-        reconstruction.StaticMaskVolume4D(reconstructed, -1);
+        StaticMaskVolume4D(reconstructed, reconstruction.GetMask(), -1);
         reconstructed.Write((boost::format("reconstructed_mc%02i.nii.gz") % iter).str().c_str());
 
         //Save Calculated Entropy
@@ -829,7 +829,7 @@ int main(int argc, char **argv) {
         if (haveRefVol) {
             // Get Current Reconstructed Volume
             reconstructed = reconstruction.GetReconstructedCardiac4D();
-            reconstruction.StaticMaskVolume4D(reconstructed, -1);
+            StaticMaskVolume4D(reconstructed, reconstruction.GetMask(), -1);
 
             // Invert to get recon to ref transformation
             if (regReconToRef) {

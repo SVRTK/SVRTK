@@ -290,8 +290,8 @@ int main(int argc, char **argv) {
     // Read stacks
     for (int i = 0; i < nStacks; i++) {
         cout << "Reading stack " << stackFiles[i] << endl;
-        unique_ptr<RealImage> stack(new RealImage(stackFiles[i].c_str()));
-        stacks.push_back(move(*stack));
+        RealImage stack(stackFiles[i].c_str());
+        stacks.push_back(move(stack));
     }
 
     // Target stack

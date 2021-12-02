@@ -85,14 +85,14 @@ namespace svrtk {
     double Reconstruction::CreateTemplate(const RealImage& stack, double resolution) {
         double dx, dy, dz, d;
 
-        //Get image attributes - image size and voxel size
-        ImageAttributes attr = stack.Attributes();
+        // //Get image attributes - image size and voxel size
+        // ImageAttributes attr = stack.Attributes();
 
-        //enlarge stack in z-direction in case top of the head is cut off
-        attr._z += 2;
+        // //enlarge stack in z-direction in case top of the head is cut off
+        // attr._z += 2;
 
-        //create enlarged image
-        RealImage enlarged(attr);
+        // //create enlarged image
+        // RealImage enlarged(attr);
 
         //determine resolution of volume to reconstruct
         if (resolution <= 0) {
@@ -109,39 +109,37 @@ namespace svrtk {
 
         cout << "Reconstructed volume voxel size : " << d << " mm" << endl;
 
+        RealImage temp(stack.Attributes());
         RealPixel smin, smax;
         stack.GetMinMax(&smin, &smax);
-        enlarged.Initialize(stack.Attributes());
 
         // interpolate the input stack to the given resolution
         if (smin < -0.1) {
             GenericLinearInterpolateImageFunction<RealImage> interpolator;
             ResamplingWithPadding<RealPixel> resampler(d, d, d, -1);
             resampler.Input(&stack);
-            resampler.Output(&enlarged);
+            resampler.Output(&temp);
+            resampler.Interpolator(&interpolator);
+            resampler.Run();
+        } else if (smin < 0.1) {
+            GenericLinearInterpolateImageFunction<RealImage> interpolator;
+            ResamplingWithPadding<RealPixel> resampler(d, d, d, 0);
+            resampler.Input(&stack);
+            resampler.Output(&temp);
             resampler.Interpolator(&interpolator);
             resampler.Run();
         } else {
-            if (smin < 0.1) {
-                GenericLinearInterpolateImageFunction<RealImage> interpolator;
-                ResamplingWithPadding<RealPixel> resampler(d, d, d, 0);
-                resampler.Input(&stack);
-                resampler.Output(&enlarged);
-                resampler.Interpolator(&interpolator);
-                resampler.Run();
-            } else {
-                //resample "enlarged" to resolution "d"
-                unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(Interpolation_Linear));
-                Resampling<RealPixel> resampler(d, d, d);
-                resampler.Input(&stack);
-                resampler.Output(&enlarged);
-                resampler.Interpolator(interpolator.get());
-                resampler.Run();
-            }
+            //resample "temp" to resolution "d"
+            unique_ptr<InterpolateImageFunction> interpolator(InterpolateImageFunction::New(Interpolation_Linear));
+            Resampling<RealPixel> resampler(d, d, d);
+            resampler.Input(&stack);
+            resampler.Output(&temp);
+            resampler.Interpolator(interpolator.get());
+            resampler.Run();
         }
 
         //initialise reconstructed volume
-        _reconstructed = move(enlarged);
+        _reconstructed = move(temp);
         _template_created = true;
         _grey_reconstructed = _reconstructed;
         _attr_reconstructed = _reconstructed.Attributes();
@@ -157,19 +155,14 @@ namespace svrtk {
 
     // Create anisotropic template
     double Reconstruction::CreateTemplateAniso(const RealImage& stack) {
-        //Get image attributes - image size and voxel size
         ImageAttributes attr = stack.Attributes();
-
-        //enlarge stack in z-direction in case top of the head is cut off
         attr._t = 1;
-
-        //create enlarged image
-        RealImage enlarged(attr);
+        RealImage temp(attr);
 
         cout << "Constructing volume with anisotropic voxel size " << attr._x << " " << attr._y << " " << attr._z << endl;
 
         //initialize reconstructed volume
-        _reconstructed = move(enlarged);
+        _reconstructed = move(temp);
         _template_created = true;
 
         //return resulting resolution of the template image
@@ -207,7 +200,7 @@ namespace svrtk {
             exit(1);
         }
 
-        _mask = _reconstructed;
+        _mask.Initialize(_reconstructed.Attributes());
 
         if (mask != NULL) {
             //if sigma is nonzero first smooth the mask

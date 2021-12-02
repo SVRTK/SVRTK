@@ -119,9 +119,6 @@ int main(int argc, char **argv) {
     // Array of stack transformation to the template space
     Array<RigidTransformation> stackTransformations;
 
-    // Default RigidTransformation variable for operations
-    const RigidTransformation rigidTransformation;
-
     // Array of stack slice thickness
     vector<double> thickness;
 
@@ -305,29 +302,26 @@ int main(int argc, char **argv) {
     // Read input stacks
     for (int i = 0; i < nStacks; i++) {
         cout << "Stack " << i << " : " << stackFiles[i];
-        unique_ptr<RealImage> stack(new RealImage(stackFiles[i].c_str()));
+        RealImage stack(stackFiles[i].c_str());
 
         // Check if the intensity is not negative and correct if so
         double smin, smax;
-        stack->GetMinMax(&smin, &smax);
+        stack.GetMinMax(&smin, &smax);
         if (smin < 0 || smax < 0)
-            stack->PutMinMaxAsDouble(0, 1000);
+            stack.PutMinMaxAsDouble(0, 1000);
 
         // Print stack info
-        double dx = stack->GetXSize(); double dy = stack->GetYSize();
-        double dz = stack->GetZSize(); double dt = stack->GetTSize();
-        double sx = stack->GetX(); double sy = stack->GetY();
-        double sz = stack->GetZ(); double st = stack->GetT();
+        double dx = stack.GetXSize(); double dy = stack.GetYSize();
+        double dz = stack.GetZSize(); double dt = stack.GetTSize();
+        double sx = stack.GetX(); double sy = stack.GetY();
+        double sz = stack.GetZ(); double st = stack.GetT();
 
         cout << "  ;  size : " << sx << " - " << sy << " - " << sz << " - " << st << "  ;";
         cout << "  voxel : " << dx << " - " << dy << " - " << dz << " - " << dt << "  ;";
         cout << "  range : [" << smin << "; " << smax << "]" << endl;
 
-        stacks.push_back(move(*stack));
+        stacks.push_back(move(stack));
     }
-
-    // Default template stack
-    templateStack = stacks[0];
 
     // Input stack transformations to the template space
     if (!dofinPaths.empty()) {
@@ -492,7 +486,7 @@ int main(int argc, char **argv) {
     // SET RECONSTRUCTION OPTIONS AND PERFORM PREPROCESSING
     // -----------------------------------------------------------------------------
 
-    // Set thickess to the exact dz value if specified
+    // Set thickness to the exact dz value if specified
     if (flagNoOverlapThickness && thickness.size() < 1) {
         for (size_t i = 0; i < stacks.size(); i++)
             thickness.push_back(stacks[i].GetZSize());
@@ -567,7 +561,7 @@ int main(int argc, char **argv) {
         stackTransformations = Array<RigidTransformation>(stacks.size());
 
     // Initialise 2*slice thickness if not given by user
-    if (thickness.size() == 0) {
+    if (thickness.empty()) {
         cout << "Slice thickness : ";
         for (size_t i = 0; i < stacks.size(); i++) {
             double dx, dy, dz;
@@ -619,7 +613,7 @@ int main(int argc, char **argv) {
     // If the template was provided separately - crop and mask the template with the given mask
     if (useTemplate) {
         RealImage m = *mask;
-        TransformMask(templateStack, m, rigidTransformation);
+        TransformMask(templateStack, m, RigidTransformation());
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = templateStack * m;
@@ -705,7 +699,7 @@ int main(int argc, char **argv) {
 
         RealImage transformedTemplateMask = *mask;
         RealImage templateToCheck = templateStack;
-        TransformMask(templateToCheck, transformedTemplateMask, rigidTransformation);
+        TransformMask(templateToCheck, transformedTemplateMask, RigidTransformation());
         CropImage(templateToCheck, transformedTemplateMask);
         CropImage(transformedTemplateMask, transformedTemplateMask);
 

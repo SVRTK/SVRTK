@@ -1,9 +1,9 @@
 # ==============================================================================
-# SVR : SVRTK reconstruction based on MIRTK 
+# SVR : SVRTK reconstruction based on MIRTK
 #
 # Copyright 2013-2017 Imperial College London
 # Copyright 2013-2017 Andreas Schuh
-# Copyright 2018-2020 King's College London
+# Copyright 2018-2021 King's College London
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@
 # @file  BasisProject.cmake
 # @brief Sets basic information about the MIRTK module and calls basis_project().
 #
-# This file defines basic information about a project by calling 
-# the basis_project() function. This basic information, also known as metadata, 
+# This file defines basic information about a project by calling
+# the basis_project() function. This basic information, also known as metadata,
 # is used by CMake BASIS to setup the project. The dependencies to other modules
 # have to be specified here such that the top-level IRTK project can analyze the
 # inter-module dependencies, as well as dependencies on third-party libraries.
@@ -66,5 +66,6 @@ basis_project (
     #<optional-dependency>
   TOOLS_DEPENDS
     Python{Interp}
-
+  TEST_DEPENDS
+    Boost{unit_test_framework}
 )

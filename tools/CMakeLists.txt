@@ -40,6 +40,36 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
+  resample-to-iso-grid
+  SOURCES
+    resample-to-iso-grid.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  centre_volume
+  SOURCES
+    centre_volume.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
   reconstruct-round
   SOURCES
     reconstruct-round.cc
@@ -55,7 +85,22 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
-  register-landmarks
+  pad-3d
+  SOURCES
+    pad-3d.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  register_landmarks
   SOURCES
     register-landmarks.cc
   DEPENDS

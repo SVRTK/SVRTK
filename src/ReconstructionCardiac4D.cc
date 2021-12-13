@@ -625,7 +625,7 @@ namespace svrtk {
     }
 
     // -----------------------------------------------------------------------------
-    // Calculate Target Cardiac Phase in Reconstructed Volume for Slice-To-Volume Registration
+    // Calculate Target Cardiac Phase in Reconstructed Volume for Slice-to-Volume Registration
     // -----------------------------------------------------------------------------
     void ReconstructionCardiac4D::CalculateSliceToVolumeTargetCardiacPhase() {
         if (_debug)
@@ -1414,9 +1414,9 @@ namespace svrtk {
     }
 
     // -----------------------------------------------------------------------------
-    // SlicesInfo
+    // Save slice info
     // -----------------------------------------------------------------------------
-    void ReconstructionCardiac4D::SlicesInfoCardiac4D(const char *filename, const Array<string>& stack_files) {
+    void ReconstructionCardiac4D::SaveSliceInfoCardiac4D(const char *filename, const Array<string>& stack_files) {
         ofstream info(filename);
 
         info << setprecision(3);

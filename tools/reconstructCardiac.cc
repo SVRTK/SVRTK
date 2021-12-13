@@ -868,8 +868,8 @@ int main(int argc, char **argv) {
                 cout << "Mean TRE (iter " << iter << ") = " << meanTRE[iter] << " mm" << endl;
 
             // Save Info for Iteration
-            cout << "SlicesInfoCardiac4D" << endl;
-            reconstruction.SlicesInfoCardiac4D((boost::format("info_mc%02i.tsv") % iter).str().c_str(), stackFiles);
+            cout << "SaveSliceInfoCardiac4D" << endl;
+            reconstruction.SaveSliceInfoCardiac4D((boost::format("info_mc%02i.tsv") % iter).str().c_str(), stackFiles);
         }
     }// end of interleaved registration-reconstruction iterations
 
@@ -932,8 +932,8 @@ int main(int argc, char **argv) {
 
     if (!infoFilename.empty()) {
         if (debug)
-            cout << "SlicesInfoCardiac4D" << endl;
-        reconstruction.SlicesInfoCardiac4D(infoFilename.c_str(), stackFiles);
+            cout << "SaveSliceInfoCardiac4D" << endl;
+        reconstruction.SaveSliceInfoCardiac4D(infoFilename.c_str(), stackFiles);
     }
 
     if (debug) {

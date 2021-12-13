@@ -1224,7 +1224,7 @@ int main(int argc, char **argv)
     cout << "---------------------------------------------------------------------" << endl;
 
     if ( info_filename.length() > 0 )
-        reconstruction->SlicesInfo( info_filename.c_str(),
+        reconstruction->SaveSliceInfo( info_filename.c_str(),
                                   stack_files );
 
     if(debug)

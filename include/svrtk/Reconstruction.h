@@ -50,16 +50,19 @@ namespace svrtk {
         class AdaptiveRegularization2;
     }
 
+    /**
+     * @brief Reconstruction class used reconstruction.
+     */
     class Reconstruction {
     protected:
-        // Reconstruction type
+        /// Reconstruction type
         RECON_TYPE _recon_type;
 
-        // Structures to store the matrix of transformation between volume and slices
+        /// Structures to store the matrix of transformation between volume and slices
         Array<SLICECOEFFS> _volcoeffs;
         Array<SLICECOEFFS> _volcoeffsSF;
 
-        // flags
+        /// flags
         int _slicePerDyn;
         bool _ffd;
         bool _blurring;
@@ -83,7 +86,7 @@ namespace svrtk {
         bool _filtered_cmp_flag;
         bool _bg_flag;
 
-        // Slices
+        /// Slices
         Array<RealImage> _slices;
         Array<RealImage> _slicesRwithMB;
         Array<RealImage> _simulated_slices;
@@ -100,92 +103,92 @@ namespace svrtk {
         Array<int> _package_index;
         Array<int> _slice_pos;
 
-        // Transformations
+        /// Transformations
         Array<RigidTransformation> _transformations;
         Array<RigidTransformation> _previous_transformations;
         Array<RigidTransformation> _transformationsRwithMB;
         Array<MultiLevelFreeFormTransformation> _mffd_transformations;
 
-        // Indicator whether slice has an overlap with volumetric mask
+        /// Indicator whether slice has an overlap with volumetric mask
         Array<bool> _slice_inside;
         Array<bool> _slice_insideSF;
 
-        // Flag to say whether the template volume has been created
+        /// Flag to say whether the template volume has been created
         bool _template_created;
-        // Flag to say whether we have a mask
+        /// Flag to say whether we have a mask
         bool _have_mask;
 
-        // Volumes
+        /// Volumes
         RealImage _reconstructed;
         RealImage _mask;
         RealImage _target;
         RealImage _brain_probability;
         Array<RealImage> _probability_maps;
 
-        // Weights for Gaussian reconstruction
+        /// Weights for Gaussian reconstruction
         RealImage _volume_weights;
         RealImage _volume_weightsSF;
 
-        // Weights for regularization
+        /// Weights for regularization
         RealImage _confidence_map;
 
         // EM algorithm
-        // Variance for inlier voxel errors
+        /// Variance for inlier voxel errors
         double _sigma;
-        // Proportion of inlier voxels
+        /// Proportion of inlier voxels
         double _mix;
-        // Uniform distribution for outlier voxels
+        /// Uniform distribution for outlier voxels
         double _m;
-        // Mean for inlier slice errors
+        /// Mean for inlier slice errors
         double _mean_s;
-        // Variance for inlier slice errors
+        /// Variance for inlier slice errors
         double _sigma_s;
-        // Mean for outlier slice errors
+        /// Mean for outlier slice errors
         double _mean_s2;
-        // Variance for outlier slice errors
+        /// Variance for outlier slice errors
         double _sigma_s2;
-        // Proportion of inlier slices
+        /// Proportion of inlier slices
         double _mix_s;
-        // Step size for likelihood calculation
+        /// Step size for likelihood calculation
         double _step;
-        // Voxel posteriors
+        /// Voxel posteriors
         Array<RealImage> _weights;
-        // Slice posteriors
+        /// Slice posteriors
         Array<double> _slice_weight;
 
-        // NMI registration bins
+        /// NMI registration bins
         int _nmi_bins;
 
         //Bias field
-        // Variance for bias field
+        /// Variance for bias field
         double _sigma_bias;
-        // Slice-dependent bias fields
+        /// Slice-dependent bias fields
         Array<RealImage> _bias;
 
-        // Slice-dependent scales
+        /// Slice-dependent scales
         Array<double> _scale;
 
-        // Quality factor - higher means slower and better
+        /// Quality factor - higher means slower and better
         double _quality_factor;
-        // Intensity min and max
+        /// Intensity min and max
         double _max_intensity;
         double _min_intensity;
 
         //Gradient descent and regularisation parameters
-        // Step for gradient descent
+        /// Step for gradient descent
         double _alpha;
-        // Determine what is en edge in edge-preserving smoothing
+        /// Determine what is en edge in edge-preserving smoothing
         double _delta;
-        // Amount of smoothing
+        /// Amount of smoothing
         double _lambda;
-        // Average voxel wights to modulate parameter alpha
+        /// Average voxel wights to modulate parameter alpha
         double _average_volume_weight;
         double _average_volume_weightSF;
 
         //global bias field correction
-        // global bias correction flag
+        /// global bias correction flag
         bool _global_bias_correction;
-        // low intensity cutoff for bias field estimation
+        /// low intensity cutoff for bias field estimation
         double _low_intensity_cutoff;
 
         //to restore original signal intensity of the MRI slices
@@ -193,7 +196,7 @@ namespace svrtk {
         double _average_value;
         Array<int> _stack_index;
 
-        // GF 200416 Handling slice acquisition order
+        /// GF 200416 Handling slice acquisition order
         Array<int> _slice_timing;
 
         //forced excluded slices
@@ -202,14 +205,14 @@ namespace svrtk {
         //slices identify as too small to be used
         Array<int> _small_slices;
 
-        // use adaptive or non-adaptive regularisation (default:false)
+        /// use adaptive or non-adaptive regularisation (default:false)
         bool _adaptive;
 
         //utility
-        // Debug mode
+        /// Debug mode
         bool _debug;
 
-        // Verbose mode
+        /// Verbose mode
         bool _verbose;
         ostream _verbose_log {cout.rdbuf()};
         ofstream _verbose_log_stream_buf;
@@ -235,186 +238,319 @@ namespace svrtk {
             {0, 0, 1}
         };
 
-        // Gestational age (to compute expected brain volume)
+        /// Gestational age (to compute expected brain volume)
         double _GA;
 
-        // Read Transformations common function
+        /// Read Transformations common function
         void ReadTransformations(const char *folder, size_t file_count, Array<RigidTransformation>& transformations);
 
-        // Scale volume common function
+        /// Scale volume common function
         void ScaleVolume(RealImage& reconstructed);
 
     public:
-        // Constructor
+        /// Reconstruction constructor
         Reconstruction();
-        // Destructor
+        /// Reconstruction destructor
         ~Reconstruction() {}
 
         int _number_of_slices_org;
         double _average_thickness_org;
 
-        // Create zero image as a template for reconstructed volume
+        /**
+         * @brief Create zero image as a template for reconstructed volume.
+         * @param stack Stack to be set as template.
+         * @param resolution Resolution to interpolate the input stack.
+         * @return The resulting resolution of the template image.
+         */
         double CreateTemplate(const RealImage& stack, double resolution = 0);
 
+        /**
+         * @brief Create anisotropic template.
+         * @param stack Stack to be set as template.
+         * @return The resulting resolution of the template image.
+         */
         double CreateTemplateAniso(const RealImage& stack);
 
+        /// Array of excluded slices.
         Array<int> _excluded_entirely;
 
-        // Remember volumetric mask and smooth it if necessary
+        /**
+         * @brief Remember volumetric mask and smooth it if necessary.
+         * @param mask Mask to be set.
+         * @param sigma
+         * @param threshold
+         * @return The resulting resolution of the template image.
+         */
         void SetMask(RealImage *mask, double sigma, double threshold = 0.5);
 
+        /// Compute difference between simulated and original slices
         void SliceDifference();
 
+        /**
+         * @brief Save slice info in a CSV file.
+         * @param current_iteration Iteration number will be put into the filename.
+         */
         void SaveSliceInfo(int current_iteration = -1);
 
-        //Create average image from the stacks and volumetric transformations
+        /**
+         * @brief Create average image from the stacks and volumetric transformations.
+         * @param stacks
+         * @param stack_transformations
+         * @return
+         */
         RealImage CreateAverage(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations);
 
-        // Calculate initial registrations
+        /**
+         * @brief Calculate initial registrations.
+         * @param stacks
+         * @param stack_transformations
+         * @param templateNumber
+         */
         void StackRegistrations(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber);
 
-        // Create slices from the stacks and slice-dependent transformations from
-        // stack transformations
+        /**
+         * @brief Create slices from the stacks and slice-dependent transformations from stack transformations.
+         * @param stacks
+         * @param stack_transformations
+         * @param thickness
+         * @param probability_maps
+         */
         void CreateSlicesAndTransformations(const Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations,
             const Array<double>& thickness, const Array<RealImage>& probability_maps);
 
+        /**
+         * @brief Set slices and transformations from the given array.
+         * @param slices
+         * @param slice_transformations
+         * @param stack_ids
+         * @param thickness
+         */
         void SetSlicesAndTransformations(const Array<RealImage>& slices,
             const Array<RigidTransformation>& slice_transformations, const Array<int>& stack_ids, const Array<double>& thickness);
 
+        /**
+         * @brief Reset slices array and read them from the input stacks.
+         * @param stacks
+         * @param thickness
+         */
         void ResetSlices(Array<RealImage>& stacks, Array<double>& thickness);
 
-        // Update slices if stacks have changed
+        /**
+         * @brief Update slices based on the given stacks.
+         * @param stacks
+         * @param thickness
+         */
         void UpdateSlices(Array<RealImage>& stacks, Array<double>& thickness);
 
+        /**
+         * @brief Saves probability map.
+         * @param i
+         */
         void SaveProbabilityMap(int i);
 
-        // Match stack intensities
+        /**
+         * @brief Match stack intensities with respect to the average.
+         * @param stacks
+         * @param stack_transformations
+         * @param averageValue
+         * @param together
+         */
         void MatchStackIntensities(Array<RealImage>& stacks,
             const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
 
-        // Match stack intensities with masking
+        /**
+         * @brief Match stack intensities with respect to the masked ROI.
+         * @param stacks
+         * @param stack_transformations
+         * @param averageValue
+         * @param together
+         */
         void MatchStackIntensitiesWithMasking(Array<RealImage>& stacks,
             const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
 
-        // Mask all slices
+        /// Mask slices based on the reconstruction mask
         void MaskSlices();
 
-        // Set reconstructed image
+        /// Set reconstructed image
         void SetTemplate(RealImage tempImage);
 
-        // Calculate transformation matrix between slices and voxels
+        /// Calculate transformation matrix between slices and voxels
         void CoeffInit();
+        /// Calculate transformation matrix between slices and voxels
         void CoeffInitSF(int begin, int end);
 
-        // Reconstruction using weighted Gaussian PSF
+        /// Run gaussian reconstruction based on SVR & coeffinit outputs
         void GaussianReconstruction();
+        /// Run gaussian reconstruction based on SVR & coeffinit outputs
         void GaussianReconstructionSF(const Array<RealImage>& stacks);
 
-        // Initialise variables and parameters for EM
+        /// Initialise variables and parameters for EM
         void InitializeEM();
 
-        // Initialise values of variables and parameters for EM
+        /// Initialise values of variables and parameters for EM
         void InitializeEMValues();
 
-        // Initalise robust statistics
+        /// Initalise parameters of EM robust statistics
         void InitializeRobustStatistics();
 
-        // Perform E-step
+        /// Perform EStep for calculation of voxel-wise and slice-wise posteriors (weights)
         void EStep();
 
-        // Calculate slice-dependent scale
+        /// Calculate slice-dependent scale
         void Scale();
 
         // Calculate slice-dependent bias fields
+        /// Run slice bias correction
         void Bias();
+        /// Normalise bias
         void NormaliseBias(int iter);
 
-        // Superresolution
+        /// Run superresolution reconstruction step
         void Superresolution(int iter);
 
-        // Calculation of voxel-wise robust statistics
+        /// Run MStep
         void MStep(int iter);
 
-        // Edge-preserving regularization
-        void Regularization(int iter);
-
-        // Edge-preserving regularization with confidence map
+        /**
+         * @brief Run edge-preserving regularization with confidence map.
+         * @param iter
+         * @param original
+         */
         void AdaptiveRegularization(int iter, const RealImage& original);
 
-        // Slice to volume registrations
+        /// Run slice to volume registration
         void SliceToVolumeRegistration();
+
+        /**
+         * @brief Run remote slice to volume registration.
+         * @param iter
+         * @param str_mirtk_path
+         * @param str_current_exchange_file_path
+         */
         void RemoteSliceToVolumeRegistration(int iter, const string& str_mirtk_path, const string& str_current_exchange_file_path);
 
-        // remote recon functions
+        /// Save the current reconstruction model
         void SaveModelRemote(const string& str_current_exchange_file_path, int status_flag, int current_iteration);
+        /// Load the current reconstruction model
         void LoadModelRemote(const string& str_current_exchange_file_path, int current_number_of_slices, double average_thickness, int current_iteration);
+        /// Load remotely reconstructed volume
         void LoadResultsRemote(const string& str_current_exchange_file_path, int current_number_of_slices, int current_iteration);
 
-        // Correct bias in the reconstructed volume
+        /**
+         * @brief Correct bias in the reconstructed volume.
+         * @param original
+         */
         void BiasCorrectVolume(const RealImage& original);
 
-        // Mask the volume
+        /// Mask the volume
         inline void MaskVolume() { MaskImage(_reconstructed, _mask, -1); }
 
-        // Save slices
+        /// Save slices
         void SaveSlices();
+        /// Save slices with timing info
         void SaveSlicesWithTiming();
-        void SlicesInfo(const char *filename, const Array<string>& stack_filenames);
+        /// Save slice info
+        void SaveSliceInfo(const char *filename, const Array<string>& stack_filenames);
 
-        // Save simulated slices
+        /// Save simulated slices
         void SaveSimulatedSlices();
 
-        // Save weights
+        /// Save weights
         void SaveWeights();
+        /// Save registration step
         void SaveRegistrationStep(const Array<RealImage>& stacks, const int step);
 
-        // Save transformations
+        /// Save transformations
         void SaveTransformations();
+        /// Save transformations with timing info
         void SaveTransformationsWithTiming(const int iter = -1);
 
-        // Save confidence map
+        /// Save confidence map
         void SaveConfidenceMap();
 
-        // Save bias field
+        /// Save bias fields
         void SaveBiasFields();
 
+        /**
+         * @brief Generate reconstruction quality report / metrics.
+         * @param out_ncc
+         * @param out_nrmse
+         * @param average_weight
+         * @param ratio_excluded
+         */
         void ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded);
 
-        // evaluation based on the number of excluded slices
+        /**
+         * @brief Evaluation based on the number of excluded slices.
+         * @param iter
+         * @param outstr
+         */
         void Evaluate(int iter, ostream& outstr = cout);
 
-        // Read transformations
+        /// Read transformations
         void ReadTransformations(const char *folder);
 
-        //To recover original scaling
-        // Restore slice intensities to their original values
+        /// Restore slice intensities to their original values to recover original scaling
         void RestoreSliceIntensities();
-        // Scale volume to match the slice intensities
+
+        /// Scale volume to match the slice intensities
         inline void ScaleVolume() { ScaleVolume(_reconstructed); }
 
-        // To compare how simulation from the reconstructed volume matches the original stacks
+        /**
+         * @brief Simulate stacks from the reconstructed volume to compare how simulation
+         * from the reconstructed volume matches the original stacks.
+         * @param stacks
+         */
         void SimulateStacks(Array<RealImage>& stacks);
 
+        /// Run simulation of slices from the reconstruction volume
         void SimulateSlices();
 
-        // Packages to volume registrations
+        /**
+         * @brief Run package-to-volume registration.
+         * @param stacks
+         * @param pack_num
+         * @param stack_transformations
+         */
         void PackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num,
             const Array<RigidTransformation>& stack_transformations);
 
         // Performs package registration
+        /**
+         * @brief Run updated package-to-volume registration.
+         * @param stacks
+         * @param pack_num
+         * @param multiband
+         * @param order
+         * @param step
+         * @param rewinder
+         * @param iter
+         * @param steps
+         */
         void newPackageToVolume(const Array<RealImage>& stacks, const Array<int>& pack_num, const Array<int>& multiband,
             const Array<int>& order, const int step, const int rewinder, const int iter, const int steps);
 
-        // Run structure-based rejection of outliers
+        /// Run structure-based rejection of outliers
         void StructuralExclusion();
 
-        // Evaluated reconstruction quality (errors per slices)
+        /**
+         * @brief Evaluate reconstruction quality (errors per slices).
+         * @param index
+         * @return Reconstruction quality.
+         */
         double EvaluateReconQuality(int index);
 
-        // Initialisation with stack transformations
+        /// Initialisation slice transformations with stack transformations
         void InitialiseWithStackTransformations(const Array<RigidTransformation>& stack_transformations);
 
-        // transformation to the reconstructed image space
+        /**
+         * @brief Transform slice coordinates to the reconstructed space.
+         * @param inputIndex
+         * @param i
+         * @param j
+         * @param k
+         * @param mode
+         */
         void Transform2Reconstructed(const int inputIndex, int& i, int& j, int& k, const int mode);
 
         friend class Parallel::GlobalSimilarityStats;
@@ -440,63 +576,73 @@ namespace svrtk {
         // Inline/template definitions
         ////////////////////////////////////////////////////////////////////////////////
 
-        // Zero-mean Gaussian PDF
+        /// Zero-mean Gaussian PDF
         inline double G(double x, double s) {
             return _step * exp(-x * x / (2 * s)) / (sqrt(6.28 * s));
         }
 
-        // Uniform PDF
+        /// Uniform PDF
         inline double M(double m) {
             return m * _step;
         }
 
+        /// Return reconstructed volume
         inline const RealImage& GetReconstructed() {
             return _reconstructed;
         }
 
+        /// Set reconstructed volume
         inline void SetReconstructed(const RealImage& reconstructed) {
             _reconstructed = reconstructed;
             _template_created = true;
         }
 
+        /// Return mask
         inline const RealImage& GetMask() {
             return _mask;
         }
 
+        /// Set mask
         inline void PutMask(const RealImage& mask) {
             _mask = mask;
         }
 
+        /// Set FFD
         inline void SetFFD(bool flag_ffd) {
             _ffd = flag_ffd;
         }
 
+        /// Set NCC
         inline void SetNCC(bool flag_ncc) {
             _ncc_reg = flag_ncc;
         }
 
+        /// Set reglog
         inline void SetRegLog(bool flag_reg_log) {
             _reg_log = flag_reg_log;
         }
 
+        /// Set SR
         inline void SetSR(bool flag_sr) {
             _no_sr = flag_sr;
         }
 
+        /// Set template flag
         inline void SetTemplateFlag(bool template_flag) {
             _template_flag = template_flag;
         }
 
-        // Whether to save intermediate results
+        /// Enable debug mode
         inline void DebugOn() {
             _debug = true;
         }
 
+        /// Disable debug mode
         inline void DebugOff() {
             _debug = false;
         }
 
-        // Whether to print out results
+        /// Enable verbose mode
         inline void VerboseOn(const string& log_file_name = "") {
             VerboseOff();
 
@@ -508,6 +654,7 @@ namespace svrtk {
             _verbose = true;
         }
 
+        /// Disable verbose mode
         inline void VerboseOff() {
             if (_verbose_log_stream_buf.is_open()) {
                 _verbose_log_stream_buf.close();
@@ -517,69 +664,80 @@ namespace svrtk {
             _verbose = false;
         }
 
+        /// Return cout-like verbose log variable for printing out to file or screen
         inline ostream& GetVerboseLog() {
             return _verbose_log;
         }
 
+        /// Set blurring flag
         inline void SetBlurring(bool flag_blurring) {
             _blurring = flag_blurring;
         }
 
+        /// Set structural flag
         inline void SetStructural(bool flag_structural) {
             _structural = flag_structural;
         }
 
+        /// Enable adaptive regularisation
         inline void UseAdaptiveRegularisation() {
             _adaptive = true;
         }
 
+        /// Set masked stacks flag
         inline void SetMaskedStacks() {
             _masked_stacks = true;
         }
 
+        /// Set sigma flag
         inline void SetSigma(double sigma) {
             _sigma_bias = sigma;
         }
 
-        // Set gestational age (to compute expected brain volume)
+        /// Set gestational age (to compute expected brain volume)
         inline void SetGA(double ga) {
             _GA = ga;
         }
 
+        /// Set n packages flag
         inline void SetNPackages(const Array<int>& N) {
             _n_packages = N;
         }
 
-        // Use faster lower quality reconstruction
+        /// Use faster lower quality reconstruction
         inline void SpeedupOn() {
             _quality_factor = 1;
         }
 
-        // Use slower better quality reconstruction
+        /// Use slower better quality reconstruction
         inline void SpeedupOff() {
             _quality_factor = 2;
         }
 
+        /// Enable global bias correction
         inline void GlobalBiasCorrectionOn() {
             _global_bias_correction = true;
         }
 
+        /// Disable global bias correction
         inline void GlobalBiasCorrectionOff() {
             _global_bias_correction = false;
         }
 
-        // Set lower threshold for low intensity cutoff during bias estimation
+        /// Set lower threshold for low intensity cutoff during bias estimation
         inline void SetLowIntensityCutoff(double cutoff) {
             if (cutoff > 1) cutoff = 1;
             else if (cutoff < 0) cutoff = 0;
             _low_intensity_cutoff = cutoff;
         }
 
+        /// Enable robust slices mode
         inline void ExcludeWholeSlicesOnly() {
             _robust_slices_only = true;
             cout << "Exclude only whole slices." << endl;
         }
 
+        /// Set smoothing parameters
         inline void SetSmoothingParameters(double delta, double lambda) {
             _delta = delta;
             _lambda = lambda * delta * delta;
@@ -591,39 +749,47 @@ namespace svrtk {
                 _verbose_log << "delta = " << _delta << " lambda = " << lambda << " alpha = " << _alpha << endl;
         }
 
-        // Set slices which need to be excluded by default
+        /// Set slices which need to be excluded by default
         inline void SetForceExcludedSlices(const Array<int>& force_excluded) {
             _force_excluded = force_excluded;
         }
 
+        /// Set NMI bins
         inline void SetNMIBins(int nmi_bins) {
             _nmi_bins = nmi_bins;
         }
 
+        /// Set reconstruction type to 3D
         inline void Set3DRecon() {
             _recon_type = _3D;
         }
 
+        /// Set reconstruction type to 1D
         inline void Set1DRecon() {
             _recon_type = _1D;
         }
 
+        /// Set reconstruction type to interpolation
         inline void SetInterpolationRecon() {
             _recon_type = _interpolate;
         }
 
+        /// Set slices per dyn
         inline void SetSlicesPerDyn(int slices) {
             _slicePerDyn = slices;
         }
 
+        /// Enable multiband mode
         inline void SetMultiband(bool withMB) {
             _withMB = withMB;
         }
 
+        /// Return transformation size
         inline int GetNumberOfTransformations() {
             return _transformations.size();
         }
 
+        /// Return specified transformation
         inline RigidTransformation GetTransformation(int n) {
             if (_transformations.size() <= n) {
                 cerr << "GetTransformation: too large n = " << n << endl;
@@ -632,31 +798,37 @@ namespace svrtk {
             return _transformations[n];
         }
 
+        /// Set BG flag
         inline void SetBG(bool flag_bg) {
             _bg_flag = flag_bg;
         }
 
+        /// Set CP spacing
         inline void SetCP(int cp_spacing) {
             _cp_spacing = cp_spacing;
         }
 
+        /// Return rigid transformations
         inline void GetTransformations(Array<RigidTransformation>& transformations) {
             transformations = _transformations;
         }
 
+        /// Set rigid transformations
         inline void SetTransformations(const Array<RigidTransformation>& transformations) {
             _transformations = transformations;
         }
 
+        /// Return slices
         inline void GetSlices(Array<RealImage>& slices) {
             slices = _slices;
         }
 
+        /// Set slices
         inline void SetSlices(const Array<RealImage>& slices) {
             _slices = slices;
         }
 
-        // mask stacks with respect to the reconstruction mask and given transformations
+        /// Mask stacks with respect to the reconstruction mask and given transformations
         inline void MaskStacks(Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations) {
             if (!_have_mask)
                 cerr << "Could not mask slices because no mask has been set." << endl;

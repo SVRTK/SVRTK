@@ -897,7 +897,7 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
-    // initialise slice transfromations with stack transformations
+    // initialise slice transformations with stack transformations
     void Reconstruction::InitialiseWithStackTransformations(const Array<RigidTransformation>& stack_transformations) {
         #pragma omp parallel for
         for (size_t sliceIndex = 0; sliceIndex < _slices.size(); sliceIndex++) {
@@ -2116,7 +2116,7 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
-    // normalise Bias
+    // Normalise Bias
     void Reconstruction::NormaliseBias(int iter) {
         SVRTK_START_TIMING();
 
@@ -2278,7 +2278,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     // save slice info
-    void Reconstruction::SlicesInfo(const char *filename, const Array<string>& stack_files) {
+    void Reconstruction::SaveSliceInfo(const char *filename, const Array<string>& stack_files) {
         ofstream info(filename);
 
         // header

@@ -596,7 +596,7 @@ namespace svrtk::Utility {
 
     //-------------------------------------------------------------------
 
-    // create mask from dark / black background
+    // create a mask from dark / black background
     void CreateMaskFromBlackBackground(const Reconstruction *reconstructor, const Array<RealImage>& stacks, Array<RigidTransformation> stack_transformations, double smooth_mask) {
         //Create average of the stack using currect stack transformations
         GreyImage average = CreateAverage(reconstructor, stacks, stack_transformations);

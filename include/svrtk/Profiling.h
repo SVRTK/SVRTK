@@ -20,9 +20,12 @@
 
 #include "mirtk/Profiling.h"
 
+/// Start measurement of execution time of current code block
 #define SVRTK_START_TIMING    MIRTK_START_TIMING
+/// Reset measurement of starting execution time of current code block
 #define SVRTK_RESET_TIMING    MIRTK_RESET_TIMING
 
+/// End measurement of execution time of current code block
 #ifdef  SVRTK_TOOL
 #define SVRTK_END_TIMING      if (debug) MIRTK_END_TIMING
 #else

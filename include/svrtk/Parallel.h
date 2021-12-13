@@ -28,7 +28,7 @@ using namespace svrtk::Utility;
 
 namespace svrtk::Parallel {
 
-    // Class for computing average of all stacks
+    /// Class for computing average of all stacks
     class Average {
         const Reconstruction *reconstructor;
         const Array<RealImage>& stacks;
@@ -176,7 +176,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for global 3D stack registration
+    /// Class for global 3D stack registration
     class StackRegistrations {
         const Reconstruction *reconstructor;
         const Array<RealImage>& stacks;
@@ -272,7 +272,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for simulation of slices from the current reconstructed 3D volume - v2 (use this one)
+    /// Class for simulation of slices from the current reconstructed 3D volume - v2 (use this one)
     class SimulateSlices {
         Reconstruction *reconstructor;
 
@@ -370,7 +370,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for parallel SVR
+    /// Class for parallel SVR
     class SliceToVolumeRegistration {
         Reconstruction *reconstructor;
 
@@ -541,7 +541,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for FFD SVR
+    /// Class for FFD SVR
     class SliceToVolumeRegistrationFFD {
         Reconstruction *reconstructor;
 
@@ -678,7 +678,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for calculation of transformation matrices
+    /// Class for calculation of transformation matrices
     class CoeffInit {
         Reconstruction *reconstructor;
 
@@ -967,7 +967,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // another version of CoeffInit
+    /// Another version of CoeffInit
     class CoeffInitSF {
         Reconstruction *reconstructor;
         size_t begin;
@@ -1849,7 +1849,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for EStep (RS)
+    /// Class for EStep (RS)
     class EStep {
         Reconstruction *reconstructor;
         Array<double>& slice_potential;
@@ -1923,7 +1923,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for slice scale calculation
+    /// Class for slice scale calculation
     class Scale {
         Reconstruction *reconstructor;
 
@@ -1962,7 +1962,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for slice bias calculation
+    /// Class for slice bias calculation
     class Bias {
         Reconstruction *reconstructor;
 
@@ -2047,7 +2047,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for SR reconstruction
+    /// Class for SR reconstruction
     class Superresolution {
         Reconstruction *reconstructor;
 
@@ -2160,7 +2160,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for MStep (RS)
+    /// Class for MStep (RS)
     class MStep {
         Reconstruction *reconstructor;
 
@@ -2234,7 +2234,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for adaptive regularisation (Part I)
+    /// Class for adaptive regularisation (Part I)
     class AdaptiveRegularization1 {
         const Reconstruction *reconstructor;
         Array<RealImage>& b;
@@ -2280,7 +2280,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for adaptive regularisation (Part II)
+    /// Class for adaptive regularisation (Part II)
     class AdaptiveRegularization2 {
         Reconstruction *reconstructor;
         const Array<RealImage>& b;
@@ -2454,7 +2454,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for bias normalisation
+    /// Class for bias normalisation
     class NormaliseBias {
         Reconstruction *reconstructor;
 
@@ -2580,7 +2580,7 @@ namespace svrtk::Parallel {
 
     //-------------------------------------------------------------------
 
-    // class for global stack similarity statists (for the stack selection function)
+    /// Class for global stack similarity statistics (for the stack selection function)
     class GlobalSimilarityStats {
         const int nStacks;
         const Array<RealImage>& stacks;

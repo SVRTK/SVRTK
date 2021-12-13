@@ -1,7 +1,7 @@
 /*
  * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2018-2020 King's College London
+ * Copyright 2018-2021 King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,6 @@
 
 // SVRTK
 #include "svrtk/Reconstruction.h"
-
-// Boost
-#include <boost/format.hpp>
 
 using namespace mirtk;
 

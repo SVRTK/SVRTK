@@ -19,20 +19,8 @@
 
 #pragma once
 
-// MIRTK
-#include "mirtk/Common.h"
-#include "mirtk/Options.h"
-#include "mirtk/Array.h"
-#include "mirtk/Point.h"
-#include "mirtk/BaseImage.h"
-#include "mirtk/GenericImage.h"
-#include "mirtk/Dilation.h"
-#include "mirtk/Erosion.h"
-#include "mirtk/GaussianBlurring.h"
-
-// C++ Standard
-#include <algorithm>
-#include <queue>
+// SVRTK
+#include "svrtk/Common.h"
 
 using namespace std;
 using namespace mirtk;
@@ -53,10 +41,10 @@ namespace svrtk {
         double _bin_width;
         double * _density;
         int _clusterSize;
+
     public:
         double _bg, _wm, _gm, _split1, _split2;
 
-    public:
         MeanShift(const GreyImage& image, int padding = -1, int nBins = 256);
         ~MeanShift();
         void SetOutput(GreyImage *_output);
@@ -80,7 +68,6 @@ namespace svrtk {
         void WriteMap(char *output_name);
         void SetThreshold();
         void SetThreshold(double threshold);
-
         RealImage ReturnMask();
     };
 

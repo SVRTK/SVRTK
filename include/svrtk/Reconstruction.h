@@ -19,35 +19,8 @@
 
 #pragma once
 
-// MIRTK
-#include "mirtk/Common.h"
-#include "mirtk/Options.h"
-#include "mirtk/Array.h"
-#include "mirtk/Point.h"
-#include "mirtk/GenericImage.h"
-#include "mirtk/GaussianBlurring.h"
-#include "mirtk/Resampling.h"
-#include "mirtk/ResamplingWithPadding.h"
-#include "mirtk/LinearInterpolateImageFunction.hxx"
-#include "mirtk/GaussianBlurringWithPadding.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/Transformation.h"
-#include "mirtk/HomogeneousTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/ImageTransformation.h"
-#include "mirtk/MultiLevelFreeFormTransformation.h"
-#include "mirtk/FreeFormTransformation.h"
-#include "mirtk/LinearFreeFormTransformation3D.h"
-
 // SVRTK
-#include "svrtk/MeanShift.h"
-#include "svrtk/NLDenoising.h"
-#include "svrtk/Utility.h"
-
-// C++ Standard
-#include <set>
-#include <pthread.h>
-#include <thread>
+#include "svrtk/Common.h"
 
 using namespace std;
 using namespace mirtk;
@@ -76,18 +49,6 @@ namespace svrtk {
         class AdaptiveRegularization1;
         class AdaptiveRegularization2;
     }
-
-    struct POINT3D {
-        short x;
-        short y;
-        short z;
-        double value;
-    };
-
-    enum RECON_TYPE { _3D, _1D, _interpolate };
-
-    typedef Array<POINT3D> VOXELCOEFFS;
-    typedef Array<Array<VOXELCOEFFS>> SLICECOEFFS;
 
     class Reconstruction {
     protected:

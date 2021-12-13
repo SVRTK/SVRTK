@@ -18,20 +18,8 @@
 
 #pragma once
 
-// MIRTK
-#include "mirtk/GenericImage.h"
-#include "mirtk/ImageTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/LinearInterpolateImageFunction.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/GaussianBlurring.h"
-
 // SVRTK
-#include "svrtk/MeanShift.h"
-#include "svrtk/NLDenoising.h"
-
-// Boost
-#include <boost/format.hpp>
+#include "svrtk/Common.h"
 
 using namespace std;
 using namespace mirtk;

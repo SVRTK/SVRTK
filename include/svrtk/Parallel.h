@@ -21,10 +21,6 @@
 // SVRTK
 #include "svrtk/Reconstruction.h"
 #include "svrtk/ReconstructionCardiac4D.h"
-#include "svrtk/Utility.h"
-
-// Boost
-#include <boost/format.hpp>
 
 using namespace mirtk;
 using namespace svrtk;

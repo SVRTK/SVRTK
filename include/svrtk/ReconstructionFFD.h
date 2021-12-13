@@ -18,60 +18,12 @@
 
 #pragma once
 
-// MIRTK
-#include "mirtk/Common.h"
-#include "mirtk/Options.h"
-#include "mirtk/Array.h"
-#include "mirtk/Point.h"
-#include "mirtk/GenericImage.h"
-#include "mirtk/GaussianBlurring.h"
-#include "mirtk/GaussianBlurringWithPadding.h"
-#include "mirtk/Resampling.h"
-#include "mirtk/ResamplingWithPadding.h"
-#include "mirtk/LinearInterpolateImageFunction.hxx"
-#include "mirtk/GaussianBlurring2D.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/Transformation.h"
-#include "mirtk/HomogeneousTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/ImageTransformation.h"
-#include "mirtk/MultiLevelFreeFormTransformation.h"
-#include "mirtk/FreeFormTransformation.h"
-#include "mirtk/LinearFreeFormTransformation3D.h"
-#include "mirtk/IOConfig.h"
-#include "mirtk/VoxelFunction.h"
-#include "mirtk/SimilarityMeasure.h"
-#include "mirtk/ImageSimilarity.h"
-#include "mirtk/HistogramImageSimilarity.h"
-#include "mirtk/Dilation.h"
-#include "mirtk/Erosion.h"
-#include "mirtk/HistogramMatching.h"
-#include "mirtk/BSplineFreeFormTransformationSV.h"
-
 // SVRTK
-#include "svrtk/NLDenoising.h"
-
-// C++ Standard
-#include <thread>
-#include <pthread.h>
+#include "svrtk/Common.h"
 
 using namespace mirtk;
 
 namespace svrtk {
-
-
-    struct POINT3D
-    {
-        short x;
-        short y;
-        short z;
-        double value;
-    };
-
-    typedef Array<POINT3D> VOXELCOEFFS;
-    typedef Array<Array<VOXELCOEFFS> > SLICECOEFFS;
-
-
 
     class ReconstructionFFD //: public RegistrationFilter
     {

@@ -1,7 +1,7 @@
 /*
  * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2018-2020 King's College London
+ * Copyright 2018-2021 King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,8 @@
 
 // C++ Standard
 #include <math.h>
+#include "svrtk/Profiling.h"
+#include "svrtk/Parallel.h"
 
 using namespace std;
 using namespace mirtk;
@@ -126,110 +128,11 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Simulation of phase slices from velocity volumes
     // -----------------------------------------------------------------------------
-
-    class ParallelSimulateSlicesCardiacVelocity4D {
-        ReconstructionCardiacVelocity4D *reconstructor;
-
-    public:
-        ParallelSimulateSlicesCardiacVelocity4D( ReconstructionCardiacVelocity4D *_reconstructor ) :
-        reconstructor(_reconstructor) { }
-
-        void operator() (const blocked_range<size_t> &r) const {
-            for ( size_t inputIndex = r.begin(); inputIndex != r.end(); ++inputIndex ) {
-
-                // calculate simulated slice
-                reconstructor->_simulated_slices[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                reconstructor->_simulated_slices[inputIndex] = 0;
-
-                reconstructor->_simulated_weights[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                reconstructor->_simulated_weights[inputIndex] = 0;
-
-                reconstructor->_simulated_inside[inputIndex].Initialize( reconstructor->_slices[inputIndex].Attributes() );
-                reconstructor->_simulated_inside[inputIndex] = 0;
-
-                reconstructor->_slice_inside[inputIndex] = false;
-
-                reconstructor->_simulated_velocities[inputIndex][0] = 0;
-                reconstructor->_simulated_velocities[inputIndex][1] = 0;
-                reconstructor->_simulated_velocities[inputIndex][2] = 0;
-
-                // Gradient magnitude for the current slice
-                int gradientIndex = reconstructor->_stack_index[inputIndex];
-                double gval = reconstructor->_g_values[gradientIndex];
-
-
-                double weight;
-                POINT3D p;
-                for ( int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ ) {
-                    for ( int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ ) {
-                        if ( reconstructor->_slices[inputIndex](i, j, 0) > -10 ) {
-                            weight = 0;
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-
-                            for ( int k = 0; k < n; k++ ) {
-
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-                                for ( int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
-
-                                   if (reconstructor->_reconstructed4D.GetT() == 1) {
-                                       reconstructor->_slice_temporal_weight[outputIndex][inputIndex] = 1;
-                                   }
-
-                                    // Simulation of phase signal from velocity volumes
-                                    double sim_signal = 0;
-
-                                    for( int velocityIndex = 0; velocityIndex < reconstructor->_reconstructed5DVelocity.size(); velocityIndex++ ) {
-
-                                        sim_signal += reconstructor->_reconstructed5DVelocity[velocityIndex](p.x, p.y, p.z, outputIndex)*gval*reconstructor->_slice_g_directions[inputIndex][velocityIndex];
-
-                                        reconstructor->_simulated_velocities[inputIndex][velocityIndex](i, j, 0) += reconstructor->_reconstructed5DVelocity[velocityIndex](p.x, p.y, p.z, outputIndex) * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-                                    }
-
-                                    sim_signal = sim_signal * reconstructor->gamma;
-
-
-                                    reconstructor->_simulated_slices[inputIndex](i, j, 0) += sim_signal * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-
-                                    weight += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value;
-
-                                }
-                                if ( reconstructor->_mask(p.x, p.y, p.z) == 1 ) {
-                                    reconstructor->_simulated_inside[inputIndex](i, j, 0) = 1;
-                                    reconstructor->_slice_inside[inputIndex] = true;
-                                }
-                            }
-                            if( weight > 0 ) {
-                                reconstructor->_simulated_slices[inputIndex](i,j,0) /= weight;
-                                reconstructor->_simulated_weights[inputIndex](i,j,0) = weight;
-
-                                for( int velocityIndex = 0; velocityIndex < reconstructor->_reconstructed5DVelocity.size(); velocityIndex++ ) {
-                                    reconstructor->_simulated_velocities[inputIndex][velocityIndex](i,j,0) /= weight;
-                                }
-
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // execute
-        void operator() () const {
-
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ),
-                         *this );
-
-        }
-
-    };
-
-
-    void ReconstructionCardiacVelocity4D::SimulateSlicesCardiacVelocity4D()
-    {
+    void ReconstructionCardiacVelocity4D::SimulateSlicesCardiacVelocity4D() {
         if (_debug)
             cout<<"Simulating slices ...";
 
-        ParallelSimulateSlicesCardiacVelocity4D parallelSimulateSlices( this );
+        Parallel::SimulateSlicesCardiacVelocity4D parallelSimulateSlices(this);
         parallelSimulateSlices();
 
         if (_debug)
@@ -374,163 +277,7 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Gradient descend step of velocity estimation
     // -----------------------------------------------------------------------------
-
-    class ParallelSuperresolutionCardiacVelocity4D {
-        ReconstructionCardiacVelocity4D* reconstructor;
-    public:
-        Array<RealImage> confidence_maps;
-        Array<RealImage> addons_p;
-        Array<RealImage> addons_n;
-        Array<RealImage> addons;
-
-
-        void operator()( const blocked_range<size_t>& r ) {
-
-            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-
-                // Read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
-
-                // Read the current simulated slice
-                RealImage sim = reconstructor->_simulated_slices[inputIndex];
-
-
-                // Compute error between simulated and original slices
-                RealImage slice_dif = slice - sim;
-                for ( int i = 0; i < slice.GetX(); i++ ) {
-                    for ( int j = 0; j < slice.GetY(); j++ ) {
-
-                        if (slice(i,j,0)>-10 && sim(i,j,0)<-10) {
-                            slice_dif(i,j,0) = 0;
-                        }
-
-                    }
-                }
-                slice = slice_dif;
-
-                // Read the current weight image
-                RealImage& w = reconstructor->_weights[inputIndex];
-
-                // Gradient moment magnitude for the current slice
-                int gradientIndex = reconstructor->_stack_index[inputIndex];
-                double gval = reconstructor->_g_values[gradientIndex];
-
-
-                // Update reconstructed velocity volumes using current slice
-                for ( int velocityIndex = 0; velocityIndex < reconstructor->_v_directions.size(); velocityIndex++ ) {
-
-                    // Compute current velocity component factor
-                    double v_component = reconstructor->_slice_g_directions[inputIndex][velocityIndex] / (3*reconstructor->gamma*gval);
-
-                    // Distribute error to the volume
-                    POINT3D p;
-                    for ( int i = 0; i < slice.GetX(); i++ ) {
-                        for ( int j = 0; j < slice.GetY(); j++ ) {
-
-                            if (slice(i, j, 0) > -10) {
-
-                                if (sim(i,j,0)<-10)
-                                    slice(i,j,0) = 0;
-
-                                int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-
-
-                                for ( int k = 0; k < n; k++ ) {
-                                    p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-
-                                    if (p.value>0.0) {
-
-                                        for ( int outputIndex=0; outputIndex<reconstructor->_reconstructed4D.GetT(); outputIndex++ ) {
-                                            if (reconstructor->_robust_slices_only) {
-
-
-                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0);
-                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0);
-                                            }
-                                            else {
-
-                                                addons[velocityIndex](p.x, p.y, p.z, outputIndex) += v_component * reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * slice(i, j, 0) * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                                confidence_maps[velocityIndex](p.x, p.y, p.z, outputIndex) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * w(i, j, 0) * reconstructor->_slice_weight[inputIndex];
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                } // end of loop for velocity directions
-
-
-            } //end of loop for a slice inputIndex
-
-        }
-
-        ParallelSuperresolutionCardiacVelocity4D( ParallelSuperresolutionCardiacVelocity4D& x, split ) :
-        reconstructor(x.reconstructor)
-        {
-            // Clear addon
-            RealImage addon = reconstructor->_reconstructed4D;
-            addon = 0;
-
-            addons.clear();
-            for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
-                addons.push_back(addon);
-            }
-
-
-            // Clear confidence map
-            RealImage confidence_map = reconstructor->_reconstructed4D;
-            confidence_map = 0;
-
-            confidence_maps.clear();
-            for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
-                confidence_maps.push_back(confidence_map);
-            }
-
-        }
-
-        void join( const ParallelSuperresolutionCardiacVelocity4D& y ) {
-
-            for (int i=0; i<addons.size(); i++) {
-                addons[i] += y.addons[i];
-                confidence_maps[i] += y.confidence_maps[i];
-            }
-
-        }
-
-        ParallelSuperresolutionCardiacVelocity4D( ReconstructionCardiacVelocity4D *reconstructor ) :
-        reconstructor(reconstructor)
-        {
-            // Clear addon
-            RealImage addon = reconstructor->_reconstructed4D;
-            addon = 0;
-
-            addons.clear();
-            for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
-                addons.push_back(addon);
-            }
-
-            // Clear confidence map
-            RealImage confidence_map = reconstructor->_reconstructed4D;
-            confidence_map = 0;
-
-            confidence_maps.clear();
-            for (int i=0; i<reconstructor->_reconstructed5DVelocity.size(); i++) {
-                confidence_maps.push_back(confidence_map);
-            }
-
-        }
-
-        // execute
-        void operator() () {
-            parallel_reduce( blocked_range<size_t>(0,reconstructor->_slices.size()), *this );
-        }
-    };
-
-
-    void ReconstructionCardiacVelocity4D::SuperresolutionCardiacVelocity4D( int iter )
-    {
+    void ReconstructionCardiacVelocity4D::SuperresolutionCardiacVelocity4D(int iter) {
         if (_debug)
             cout << "Superresolution ... ";
 
@@ -542,7 +289,7 @@ namespace svrtk {
         // Remember current reconstruction for edge-preserving smoothing
         originals = _reconstructed5DVelocity;
 
-        ParallelSuperresolutionCardiacVelocity4D parallelSuperresolution(this);
+        Parallel::SuperresolutionCardiacVelocity4D parallelSuperresolution(this);
         parallelSuperresolution();
 
         addons = parallelSuperresolution.addons;
@@ -650,147 +397,6 @@ namespace svrtk {
 
     }
 
-
-
-    // -----------------------------------------------------------------------------
-    // Parallel Adaptive Regularization Class 1: calculate smoothing factor, b
-    // -----------------------------------------------------------------------------
-
-    class ParallelAdaptiveRegularization1CardiacVelocity4D {
-        ReconstructionCardiacVelocity4D *reconstructor;
-        Array<RealImage> &b;
-        Array<double> &factor;
-        RealImage &original;
-
-    public:
-        ParallelAdaptiveRegularization1CardiacVelocity4D( ReconstructionCardiacVelocity4D *_reconstructor,
-                                                         Array<RealImage> &_b,
-                                                         Array<double> &_factor,
-                                                         RealImage &_original) :
-        reconstructor(_reconstructor),
-        b(_b),
-        factor(_factor),
-        original(_original) { }
-
-        void operator() (const blocked_range<size_t> &r) const {
-            int dx = reconstructor->_reconstructed4D.GetX();
-            int dy = reconstructor->_reconstructed4D.GetY();
-            int dz = reconstructor->_reconstructed4D.GetZ();
-            int dt = reconstructor->_reconstructed4D.GetT();
-            for ( size_t i = r.begin(); i != r.end(); ++i ) {
-
-                int x, y, z, xx, yy, zz, t;
-                double diff;
-                for (x = 0; x < dx; x++)
-                    for (y = 0; y < dy; y++)
-                        for (z = 0; z < dz; z++) {
-                            xx = x + reconstructor->_directions[i][0];
-                            yy = y + reconstructor->_directions[i][1];
-                            zz = z + reconstructor->_directions[i][2];
-                            for (t = 0; t < dt; t++) {
-                                if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
-                                    && (reconstructor->_confidence_map(x, y, z, t) > 0) && (reconstructor->_confidence_map(xx, yy, zz, t) > 0)) {
-                                    diff = (original(xx, yy, zz, t) - original(x, y, z, t)) * sqrt(factor[i]) / reconstructor->_delta;
-                                    b[i](x, y, z, t) = factor[i] / sqrt(1 + diff * diff);
-
-                                }
-                                else
-                                    b[i](x, y, z, t) = 0;
-                            }
-                        }
-            }
-        }
-
-        // execute
-        void operator() () const {
-
-            parallel_for( blocked_range<size_t>(0, 13), *this );
-
-        }
-
-    };
-
-
-    // -----------------------------------------------------------------------------
-    // Parallel Adaptive Regularization Class 2: compute regularisation update
-    // -----------------------------------------------------------------------------
-
-    class ParallelAdaptiveRegularization2CardiacVelocity4D {
-        ReconstructionCardiacVelocity4D *reconstructor;
-        Array<RealImage> &b;
-        Array<double> &factor;
-        RealImage &original;
-
-    public:
-        ParallelAdaptiveRegularization2CardiacVelocity4D( ReconstructionCardiacVelocity4D *_reconstructor,
-                                                         Array<RealImage> &_b,
-                                                         Array<double> &_factor,
-                                                         RealImage &_original) :
-        reconstructor(_reconstructor),
-        b(_b),
-        factor(_factor),
-        original(_original) { }
-
-        void operator() (const blocked_range<size_t> &r) const {
-            int dx = reconstructor->_reconstructed4D.GetX();
-            int dy = reconstructor->_reconstructed4D.GetY();
-            int dz = reconstructor->_reconstructed4D.GetZ();
-            int dt = reconstructor->_reconstructed4D.GetT();
-            for ( size_t x = r.begin(); x != r.end(); ++x ) {
-                int xx, yy, zz;
-                for (int y = 0; y < dy; y++) {
-                    for (int z = 0; z < dz; z++) {
-                            for (int t = 0; t < dt; t++) {
-                                if(reconstructor->_confidence_map(x,y,z,t)>0) {
-                                    double val = 0;
-                                    double sum = 0;
-                                    for (int i = 0; i < 13; i++) {
-                                        xx = x + reconstructor->_directions[i][0];
-                                        yy = y + reconstructor->_directions[i][1];
-                                        zz = z + reconstructor->_directions[i][2];
-                                        if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                            if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
-                                            {
-                                                val += b[i](x, y, z, t) * original(xx, yy, zz, t);
-                                                sum += b[i](x, y, z, t);
-                                            }
-                                    }
-
-                                    for (int i = 0; i < 13; i++) {
-                                        xx = x - reconstructor->_directions[i][0];
-                                        yy = y - reconstructor->_directions[i][1];
-                                        zz = z - reconstructor->_directions[i][2];
-                                        if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
-                                            if(reconstructor->_confidence_map(xx,yy,zz,t)>0)
-                                            {
-                                                val += b[i](x, y, z, t) * original(xx, yy, zz, t);
-                                                sum += b[i](x, y, z, t);
-                                            }
-                                    }
-
-                                    val -= sum * original(x, y, z, t);
-
-                                    val = original(x, y, z, t)
-                                    + ( reconstructor->_alpha )* reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
-                                    reconstructor->_reconstructed4D(x, y, z, t) = val;
-                                }
-                            }
-                    }
-                }
-            }
-        }
-
-        // execute
-        void operator() () const {
-
-            parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed4D.GetX()),
-                         *this );
-
-        }
-
-    };
-
-
     // -----------------------------------------------------------------------------
     // Adaptive Regularization
     // -----------------------------------------------------------------------------
@@ -832,17 +438,17 @@ namespace svrtk {
             for (int i = 0; i < 13; i++)
                 b.push_back( _reconstructed4D );
 
-            ParallelAdaptiveRegularization1CardiacVelocity4D parallelAdaptiveRegularization1( this,
-                                                                                             b,
-                                                                                             factor,
-                                                                                             original1 );
+            Parallel::AdaptiveRegularization1CardiacVelocity4D parallelAdaptiveRegularization1(this,
+                b,
+                factor,
+                original1);
             parallelAdaptiveRegularization1();
 
             original2 = _reconstructed4D;
-            ParallelAdaptiveRegularization2CardiacVelocity4D parallelAdaptiveRegularization2( this,
-                                                                                             b,
-                                                                                             factor,
-                                                                                             original2 );
+            Parallel::AdaptiveRegularization2CardiacVelocity4D parallelAdaptiveRegularization2(this,
+                b,
+                factor,
+                original2);
             parallelAdaptiveRegularization2();
 
             _reconstructed5DVelocity[i] = _reconstructed4D;
@@ -1245,93 +851,7 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // E-step (todo: optimise for velocity)
     // -----------------------------------------------------------------------------
-
-    class ParallelEStepardiacVelocity4D {
-        ReconstructionCardiacVelocity4D* reconstructor;
-        Array<double> &slice_potential;
-
-    public:
-
-        void operator()( const blocked_range<size_t>& r ) const {
-            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-                // read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
-
-                //read current weight image
-                reconstructor->_weights[inputIndex] = 0;
-
-                // read the current simulated slice
-                RealImage sim = reconstructor->_simulated_slices[inputIndex];
-                RealImage sss = slice - sim;
-
-                for ( int i = 0; i < slice.GetX(); i++ ) {
-                    for ( int j = 0; j < slice.GetY(); j++ ) {
-                        if (slice(i,j,0)<-10 )
-                            sss(i,j,0) = -15;
-                        else
-                            sss(i,j,0) = (sss(i,j,0));
-                    }
-                }
-                slice = sss;
-
-                double num = 0;
-                //Calculate error, voxel weights, and slice potential
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) > -10) {
-
-                            //number of volumetric voxels to which
-                            // current slice voxel contributes
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-
-                            // if n == 0, slice voxel has no overlap with volumetric ROI,
-                            // do not process it
-
-                            if ( (n>0) && (reconstructor->_simulated_weights[inputIndex](i,j,0) > 0) ) {
-
-                                //calculate norm and voxel-wise weights
-                                //Gaussian distribution for inliers (likelihood)
-                                double g = reconstructor->G(slice(i, j, 0), reconstructor->_sigma);
-                                //Uniform distribution for outliers (likelihood)
-                                double m = reconstructor->M(reconstructor->_m);
-
-                                //voxel_wise posterior
-                                double weight = g * reconstructor->_mix / (g *reconstructor->_mix + m * (1 - reconstructor->_mix));
-
-                                reconstructor->_weights[inputIndex].PutAsDouble(i, j, 0, weight);
-
-                                //calculate slice potentials
-                                if(reconstructor->_simulated_weights[inputIndex](i,j,0)>0.99) {
-                                    slice_potential[inputIndex] += (1 - weight) * (1 - weight);
-                                    num++;
-                                }
-                            }
-                            else
-                                reconstructor->_weights[inputIndex].PutAsDouble(i, j, 0, 0);
-                        }
-
-                //evaluate slice potential
-                if (num > 0)
-                    slice_potential[inputIndex] = sqrt(slice_potential[inputIndex] / num);
-                else
-                    slice_potential[inputIndex] = -1; // slice has no unpadded voxels
-            }
-        }
-
-        ParallelEStepardiacVelocity4D( ReconstructionCardiacVelocity4D *reconstructor, Array<double> &slice_potential ) :
-        reconstructor(reconstructor), slice_potential(slice_potential)
-        { }
-
-        // execute
-        void operator() () const {
-            parallel_for( blocked_range<size_t>(0, reconstructor->_slices.size() ), *this );
-        }
-
-    };
-
-
-    void ReconstructionCardiacVelocity4D::EStepVelocity4D()
-    {
+    void ReconstructionCardiacVelocity4D::EStepVelocity4D() {
         //EStep performs calculation of voxel-wise and slice-wise posteriors (weights)
         if (_debug)
             cout << "EStep: " << endl;
@@ -1341,7 +861,7 @@ namespace svrtk {
         int num = 0;
         Array<double> slice_potential(_slices.size(), 0);
 
-        ParallelEStepardiacVelocity4D parallelEStep( this, slice_potential );
+        Parallel::EStepCardiacVelocity4D parallelEStep(this, slice_potential);
         parallelEStep();
 
         //To force-exclude slices predefined by a user, set their potentials to -1
@@ -1528,108 +1048,11 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // M-step (todo: optimise for velocity)
     // -----------------------------------------------------------------------------
-
-    class ParallelMStepCardiacVelocity4D{
-        ReconstructionCardiacVelocity4D* reconstructor;
-    public:
-        double sigma;
-        double mix;
-        double num;
-        double min;
-        double max;
-
-        void operator()( const blocked_range<size_t>& r ) {
-            for ( size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
-                // read the current slice
-                RealImage slice = reconstructor->_slices[inputIndex];
-
-                //alias the current weight image
-                RealImage& w = reconstructor->_weights[inputIndex];
-
-                // read the current simulated slice
-                RealImage sim = reconstructor->_simulated_slices[inputIndex];
-                RealImage sss = slice - sim;
-
-
-                for ( int i = 0; i < slice.GetX(); i++ ) {
-                    for ( int j = 0; j < slice.GetY(); j++ ) {
-                        if (slice(i,j,0)<-10 )
-                            sss(i,j,0) = -15;
-                        else
-                            sss(i,j,0) = (sss(i,j,0));
-                    }
-                }
-                slice = sss;
-
-                //calculate error
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
-                        if (slice(i, j, 0) > -10) {
-
-                            //otherwise the error has no meaning - it is equal to slice intensity
-                            if ( reconstructor->_simulated_weights[inputIndex](i,j,0) > 0.99 ) {
-
-                                //sigma and mix
-                                double e = slice(i, j, 0);
-                                sigma += e * e * w(i, j, 0);
-                                mix += w(i, j, 0);
-
-                                //_m
-                                if (e < min)
-                                    min = e;
-                                if (e > max)
-                                    max = e;
-
-                                num++;
-                            }
-                        }
-            } //end of loop for a slice inputIndex
-        }
-
-        ParallelMStepCardiacVelocity4D( ParallelMStepCardiacVelocity4D& x, split ) :
-        reconstructor(x.reconstructor)
-        {
-            sigma = 0;
-            mix = 0;
-            num = 0;
-            min = 0;
-            max = 0;
-        }
-
-        void join( const ParallelMStepCardiacVelocity4D& y ) {
-            if (y.min < min)
-                min = y.min;
-            if (y.max > max)
-                max = y.max;
-
-            sigma += y.sigma;
-            mix += y.mix;
-            num += y.num;
-        }
-
-        ParallelMStepCardiacVelocity4D( ReconstructionCardiacVelocity4D *reconstructor ) :
-        reconstructor(reconstructor)
-        {
-            sigma = 0;
-            mix = 0;
-            num = 0;
-            min = voxel_limits<RealPixel>::max();
-            max = voxel_limits<RealPixel>::min();
-        }
-
-        // execute
-        void operator() () {
-            parallel_reduce( blocked_range<size_t>(0, reconstructor->_slices.size()), *this );
-        }
-    };
-
-
-    void ReconstructionCardiacVelocity4D::MStepVelocity4D(int iter)
-    {
+    void ReconstructionCardiacVelocity4D::MStepVelocity4D(int iter) {
         if (_debug)
             cout << "MStep" << endl;
 
-        ParallelMStepCardiacVelocity4D parallelMStep(this);
+        Parallel::MStepCardiacVelocity4D parallelMStep(this);
         parallelMStep();
         double sigma = parallelMStep.sigma;
         double mix = parallelMStep.mix;

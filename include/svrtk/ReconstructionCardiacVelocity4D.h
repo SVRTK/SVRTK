@@ -1,7 +1,7 @@
 /*
  * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2018-2020 King's College London
+ * Copyright 2018-2021 King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,17 @@ using namespace mirtk;
 
 namespace svrtk {
 
-    class ReconstructionCardiacVelocity4D : public ReconstructionCardiac4D
-    {
+    // Forward declarations
+    namespace Parallel {
+        class EStepCardiacVelocity4D;
+        class MStepCardiacVelocity4D;
+        class SimulateSlicesCardiacVelocity4D;
+        class SuperresolutionCardiacVelocity4D;
+        class AdaptiveRegularization1CardiacVelocity4D;
+        class AdaptiveRegularization2CardiacVelocity4D;
+    }
 
+    class ReconstructionCardiacVelocity4D: public ReconstructionCardiac4D {
     protected:
 
         // Arrays of gradient moment values
@@ -97,13 +105,6 @@ namespace svrtk {
         void EStepVelocity4D();
         void MStepVelocity4D(int iter);
 
-        friend class ParallelEStepardiacVelocity4D;
-        friend class ParallelMStepCardiacVelocity4D;
-
-        friend class ParallelSimulateSlicesCardiacVelocity4D;
-        friend class ParallelSuperresolutionCardiacVelocity4D;
-        friend class ParallelAdaptiveRegularization1CardiacVelocity4D;
-        friend class ParallelAdaptiveRegularization2CardiacVelocity4D;
 
 
     };  // end of ReconstructionCardiacVelocity4D class definition
@@ -139,6 +140,12 @@ namespace svrtk {
     // -----------------------------------------------------------------------------
     // Set adaptive regularisation flag
     // -----------------------------------------------------------------------------
+        friend class Parallel::EStepCardiacVelocity4D;
+        friend class Parallel::MStepCardiacVelocity4D;
+        friend class Parallel::SimulateSlicesCardiacVelocity4D;
+        friend class Parallel::SuperresolutionCardiacVelocity4D;
+        friend class Parallel::AdaptiveRegularization1CardiacVelocity4D;
+        friend class Parallel::AdaptiveRegularization2CardiacVelocity4D;
 
 
     inline void ReconstructionCardiacVelocity4D::SetAdaptiveRegularisation(bool flag)

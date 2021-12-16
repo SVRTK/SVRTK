@@ -1052,7 +1052,9 @@ namespace svrtk::Parallel {
                                         }
                         } //end of loop for slice voxels
 
-                reconstructor->_volcoeffs[inputIndex] = move(slicecoeffs);
+                // move assignment operation for slicecoeffs should have been more performant and memory efficient
+                // but it turned out that it consumes more memory and it's less performant (GCC 9.3.0)
+                reconstructor->_volcoeffs[inputIndex] = slicecoeffs;
                 reconstructor->_slice_inside[inputIndex] = slice_inside;
 
             }  //end of loop through the slices
@@ -1343,7 +1345,9 @@ namespace svrtk::Parallel {
                                         }
                         } //end of loop for slice voxels
 
-                reconstructor->_volcoeffsSF[inputIndex % reconstructor->_slicePerDyn] = move(slicecoeffs);
+                // move assignment operation for slicecoeffs should have been more performant and memory efficient
+                // but it turned out that it consumes more memory and it's less performant (GCC 9.3.0)
+                reconstructor->_volcoeffsSF[inputIndex % reconstructor->_slicePerDyn] = slicecoeffs;
                 reconstructor->_slice_insideSF[inputIndex % reconstructor->_slicePerDyn] = slice_inside;
                 //cerr<<" Done "<<inputIndex % (reconstructor->_slicePerDyn)<<endl;
             }  //end of loop through the slices
@@ -1633,7 +1637,9 @@ namespace svrtk::Parallel {
 
                         } //end of loop for slice voxels
 
-                reconstructor->_volcoeffs[inputIndex] = move(slicecoeffs);
+                // move assignment operation for slicecoeffs should have been more performant and memory efficient
+                // but it turned out that it consumes more memory and it's less performant (GCC 9.3.0)
+                reconstructor->_volcoeffs[inputIndex] = slicecoeffs;
                 reconstructor->_slice_inside[inputIndex] = slice_inside;
 
             }  //end of loop through the slices

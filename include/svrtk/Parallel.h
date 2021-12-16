@@ -292,12 +292,11 @@ namespace svrtk::Parallel {
                 memset(sim_inside.Data(), 0, sizeof(RealPixel) * sim_inside.NumberOfVoxels());
                 reconstructor->_slice_inside[inputIndex] = false;
 
-                for (int i = 0; i < reconstructor->_slice_attributes[inputIndex]._x; i++)
-                    for (int j = 0; j < reconstructor->_slice_attributes[inputIndex]._y; j++)
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                             double weight = 0;
-                            const size_t n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                            for (size_t k = 0; k < n; k++) {
+                            for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
                                 const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 sim_slice(i, j, 0) += p.value * reconstructor->_reconstructed(p.x, p.y, p.z);
                                 weight += p.value;
@@ -338,12 +337,11 @@ namespace svrtk::Parallel {
                 reconstructor->_simulated_inside[inputIndex].Initialize(slice.Attributes());
                 reconstructor->_slice_inside[inputIndex] = false;
 
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (slice(i, j, 0) != -1) {
                             double weight = 0;
-                            const size_t n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-                            for (size_t k = 0; k < n; k++) {
+                            for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
                                 const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 for (int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++) {
                                     reconstructor->_simulated_slices[inputIndex](i, j, 0) += reconstructor->_slice_temporal_weight[outputIndex][inputIndex] * p.value * reconstructor->_reconstructed4D(p.x, p.y, p.z, outputIndex);
@@ -400,18 +398,12 @@ namespace svrtk::Parallel {
                 int gradientIndex = reconstructor->_stack_index[inputIndex];
                 double gval = reconstructor->_g_values[gradientIndex];
 
-
-                double weight;
-                POINT3D p;
-                for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++) {
-                    for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++) {
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -10) {
-                            weight = 0;
-                            int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-
-                            for (int k = 0; k < n; k++) {
-
-                                p = reconstructor->_volcoeffs[inputIndex][i][j][k];
+                            double weight = 0;
+                            for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
+                                const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 for (int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++) {
 
                                     if (reconstructor->_reconstructed4D.GetT() == 1) {
@@ -1977,8 +1969,8 @@ namespace svrtk::Parallel {
 
                 double num = 0;
                 //Calculate error, voxel weights, and slice potential
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (slice(i, j, 0) > -0.01) {
                             //bias correct and scale the slice
                             slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * reconstructor->_scale[inputIndex];
@@ -2058,8 +2050,8 @@ namespace svrtk::Parallel {
 
                 double num = 0;
                 //Calculate error, voxel weights, and slice potential
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (slice(i, j, 0) > -10) {
 
                             //number of volumetric voxels to which
@@ -2257,8 +2249,8 @@ namespace svrtk::Parallel {
             //Update reconstructed volume using current slice
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 //Distribute error to the volume
-                for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
-                    for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
                             if (reconstructor->_simulated_slices[inputIndex](i, j, 0) < 0.01)
                                 reconstructor->_slice_dif[inputIndex](i, j, 0) = 0;
@@ -2307,13 +2299,16 @@ namespace svrtk::Parallel {
             RealImage slice;
 
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
+                if (reconstructor->_volcoeffs[inputIndex].empty())
+                    continue;
+
                 // read the current slice
                 slice = reconstructor->_slices[inputIndex];
 
                 //Update reconstructed volume using current slice
                 //Distribute error to the volume
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (slice(i, j, 0) != -1) {
                             //bias correct and scale the slice
                             slice(i, j, 0) *= exp(-reconstructor->_bias[inputIndex](i, j, 0)) * reconstructor->_scale[inputIndex];
@@ -2361,6 +2356,8 @@ namespace svrtk::Parallel {
         void operator()(const blocked_range<size_t>& r) {
 
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); ++inputIndex) {
+                if (reconstructor->_volcoeffs[inputIndex].empty())
+                    continue;
 
                 // Read the current slice
                 RealImage slice = reconstructor->_slices[inputIndex];
@@ -2397,21 +2394,15 @@ namespace svrtk::Parallel {
                     double v_component = reconstructor->_slice_g_directions[inputIndex][velocityIndex] / (3 * reconstructor->gamma * gval);
 
                     // Distribute error to the volume
-                    POINT3D p;
-                    for (int i = 0; i < slice.GetX(); i++) {
-                        for (int j = 0; j < slice.GetY(); j++) {
-
+                    for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                        for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                             if (slice(i, j, 0) > -10) {
 
                                 if (sim(i, j, 0) < -10)
                                     slice(i, j, 0) = 0;
 
-                                int n = reconstructor->_volcoeffs[inputIndex][i][j].size();
-
-
-                                for (int k = 0; k < n; k++) {
-                                    p = reconstructor->_volcoeffs[inputIndex][i][j][k];
-
+                                for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
+                                    const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                     if (p.value > 0.0) {
 
                                         for (int outputIndex = 0; outputIndex < reconstructor->_reconstructed4D.GetT(); outputIndex++) {
@@ -3039,8 +3030,14 @@ namespace svrtk::Parallel {
             RealImage b;
 
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
+                if (reconstructor->_volcoeffs[inputIndex].empty())
+                    continue;
+
                 if (reconstructor->_verbose)
                     reconstructor->_verbose_log << inputIndex << " ";
+
+                // alias to the current slice
+                const RealImage& slice = reconstructor->_slices[inputIndex];
 
                 //read the current bias image
                 b = reconstructor->_bias[inputIndex];
@@ -3048,20 +3045,18 @@ namespace svrtk::Parallel {
                 //read current scale factor
                 const double scale = reconstructor->_scale[inputIndex];
 
-                const RealPixel *pi = reconstructor->_slices[inputIndex].Data();
+                const RealPixel *pi = slice.Data();
                 RealPixel *pb = b.Data();
-                for (int i = 0; i < reconstructor->_slices[inputIndex].NumberOfVoxels(); i++)
+                for (int i = 0; i < slice.NumberOfVoxels(); i++)
                     if (pi[i] > -1 && scale > 0)
                         pb[i] -= log(scale);
 
                 //Distribute slice intensities to the volume
-                for (int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++)
-                    for (int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++)
-                        if (reconstructor->_slices[inputIndex](i, j, 0) > -0.01) {
-                            //number of volume voxels with non-zero coefficients for current slice voxel
-                            const size_t n = reconstructor->_volcoeffs[inputIndex][i][j].size();
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
+                        if (slice(i, j, 0) > -0.01) {
                             //add contribution of current slice voxel to all voxel volumes to which it contributes
-                            for (size_t k = 0; k < n; k++) {
+                            for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
                                 const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 bias(p.x, p.y, p.z) += p.value * b(i, j, 0);
                             }
@@ -3100,10 +3095,13 @@ namespace svrtk::Parallel {
         void operator()(const blocked_range<size_t>& r) {
             RealImage b;
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
+                if (reconstructor->_volcoeffs[inputIndex].empty())
+                    continue;
+
                 if (reconstructor->_verbose)
                     reconstructor->_verbose_log << inputIndex << " ";
 
-                // alias the current slice
+                // alias to the current slice
                 const RealImage& slice = reconstructor->_slices[inputIndex];
 
                 //read the current bias image
@@ -3119,14 +3117,12 @@ namespace svrtk::Parallel {
                         pb[i] -= log(scale);
 
                 //Distribute slice intensities to the volume
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
+                for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++)
                         if (slice(i, j, 0) != -1) {
-                            //number of volume voxels with non-zero coefficients for current slice voxel
-                            const size_t n = reconstructor->_volcoeffs[inputIndex][i][j].size();
                             //add contribution of current slice voxel to all voxel volumes
                             //to which it contributes
-                            for (size_t k = 0; k < n; k++) {
+                            for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
                                 const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                 bias(p.x, p.y, p.z) += p.value * b(i, j, 0);
                                 volweight3d(p.x, p.y, p.z) += p.value;

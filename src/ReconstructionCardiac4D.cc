@@ -364,14 +364,13 @@ namespace svrtk {
             if (_verbose)
                 _verbose_log << inputIndex << ", ";
             // Do not parallelise: It would cause data inconsistencies
-            for (int i = 0; i < _slices[inputIndex].GetX(); i++)
-                for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
+            for (size_t i = 0; i < _volcoeffs[inputIndex].size(); i++)
+                for (size_t j = 0; j < _volcoeffs[inputIndex][i].size(); j++)
                     for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
                         const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
                         for (int outputIndex = 0; outputIndex < _reconstructed4D.GetT(); outputIndex++)
                             _volume_weights(p.x, p.y, p.z, outputIndex) += _slice_temporal_weight[outputIndex][inputIndex] * p.value;
                     }
-                }
         }
         if (_verbose)
             _verbose_log << "\b\b" << endl;
@@ -433,8 +432,8 @@ namespace svrtk {
             int slice_vox_num = 0;
 
             //Distribute slice intensities to the volume
-            for (int i = 0; i < slice.GetX(); i++)
-                for (int j = 0; j < slice.GetY(); j++)
+            for (size_t i = 0; i < _volcoeffs[inputIndex].size(); i++)
+                for (size_t j = 0; j < _volcoeffs[inputIndex][i].size(); j++)
                     if (slice(i, j, 0) != -1) {
                         //biascorrect and scale the slice
                         slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;

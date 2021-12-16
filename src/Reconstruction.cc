@@ -404,8 +404,8 @@ namespace svrtk {
             //do not simulate excluded slice
             if (_slice_weight[inputIndex] > 0.5) {
                 #pragma omp parallel for
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
+                for (size_t i = 0; i < _volcoeffs[inputIndex].size(); i++)
+                    for (size_t j = 0; j < _volcoeffs[inputIndex][i].size(); j++)
                         if (slice(i, j, 0) > -0.01) {
                             double weight = 0;
                             for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
@@ -1282,24 +1282,12 @@ namespace svrtk {
 
         // Do not parallelise: It would cause data inconsistencies
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            bool excluded = false;
-
-            for (size_t fe = 0; fe < _force_excluded.size(); fe++) {
-                if (inputIndex == _force_excluded[fe]) {
-                    excluded = true;
-                    break;
-                }
-            }
-
-            if (!excluded) {
-                // Do not parallelise: It would cause data inconsistencies
-                for (int i = 0; i < _slices[inputIndex].GetX(); i++)
-                    for (int j = 0; j < _slices[inputIndex].GetY(); j++)
-                        for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
-                            const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
-                            _volume_weights(p.x, p.y, p.z) += p.value;
-                        }
-            }
+            for (size_t i = 0; i < _volcoeffs[inputIndex].size(); i++)
+                for (size_t j = 0; j < _volcoeffs[inputIndex][i].size(); j++)
+                    for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
+                        const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
+                        _volume_weights(p.x, p.y, p.z) += p.value;
+                    }
         }
 
         if (_debug)
@@ -1339,16 +1327,7 @@ namespace svrtk {
         memset(_reconstructed.Data(), 0, sizeof(RealPixel) * _reconstructed.NumberOfVoxels());
 
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            bool excluded = false;
-
-            for (size_t fe = 0; fe < _force_excluded.size(); fe++) {
-                if (inputIndex == _force_excluded[fe]) {
-                    excluded = true;
-                    break;
-                }
-            }
-
-            if (excluded)
+            if (_volcoeffs[inputIndex].empty())
                 continue;
 
             int slice_vox_num = 0;
@@ -1360,8 +1339,8 @@ namespace svrtk {
             const double scale = _scale[inputIndex];
 
             //Distribute slice intensities to the volume
-            for (int i = 0; i < slice.GetX(); i++)
-                for (int j = 0; j < slice.GetY(); j++)
+            for (size_t i = 0; i < _volcoeffs[inputIndex].size(); i++)
+                for (size_t j = 0; j < _volcoeffs[inputIndex][i].size(); j++)
                     if (slice(i, j, 0) > -0.01) {
                         //biascorrect and scale the slice
                         slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
@@ -1432,12 +1411,10 @@ namespace svrtk {
         //prepare image for volume weights, will be needed for Gaussian Reconstruction
         _volume_weightsSF.Initialize(_reconstructed.Attributes());
 
-        const Array<RealImage>& slices = _withMB ? _slicesRwithMB : _slices;
-
         // Do not parallelise: It would cause data inconsistencies
         for (int inputIndex = begin; inputIndex < end; inputIndex++)
-            for (int i = 0; i < slices[inputIndex].GetX(); i++)
-                for (int j = 0; j < slices[inputIndex].GetY(); j++)
+            for (size_t i = 0; i < _volcoeffsSF[inputIndex].size(); i++)
+                for (size_t j = 0; j < _volcoeffsSF[inputIndex][i].size(); j++)
                     for (size_t k = 0; k < _volcoeffsSF[inputIndex % _slicePerDyn][i][j].size(); k++) {
                         const POINT3D& p = _volcoeffsSF[inputIndex % _slicePerDyn][i][j][k];
                         _volume_weightsSF(p.x, p.y, p.z) += p.value;
@@ -1501,6 +1478,9 @@ namespace svrtk {
             interpolated.Initialize(_reconstructed.Attributes());
 
             for (size_t s = 0; s < currentSlices.size(); s++) {
+                if (_volcoeffsSF[s].empty())
+                    continue;
+
                 //copy the current slice
                 slice = currentSlices[s];
                 //alias the current bias image
@@ -1509,8 +1489,8 @@ namespace svrtk {
                 const double scale = currentScales[s];
 
                 int slice_vox_num = 0;
-                for (int i = 0; i < slice.GetX(); i++)
-                    for (int j = 0; j < slice.GetY(); j++)
+                for (size_t i = 0; i < _volcoeffsSF[s].size(); i++)
+                    for (size_t j = 0; j < _volcoeffsSF[s][i].size(); j++)
                         if (slice(i, j, 0) > -0.01) {
                             //biascorrect and scale the slice
                             slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;

@@ -16,32 +16,10 @@
 * limitations under the License.
 */
 
-// MIRTK
-#include "mirtk/Common.h"
-#include "mirtk/Options.h"
-#include "mirtk/NumericsConfig.h"
-#include "mirtk/IOConfig.h"
-#include "mirtk/TransformationConfig.h"
-#include "mirtk/RegistrationConfig.h"
-#include "mirtk/GenericImage.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/Transformation.h"
-#include "mirtk/HomogeneousTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/ImageReader.h"
-
 // SVRTK
 #include "svrtk/ReconstructionCardiac4D.h"
 #define SVRTK_TOOL
 #include "svrtk/Profiling.h"
-
-// Boost
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/format.hpp>
-
-// C++ Standard
-#include <string>
 
 using namespace std;
 using namespace mirtk;
@@ -89,7 +67,6 @@ int main(int argc, char **argv) {
 
     //utility variables
     RealImage stack;
-    constexpr double PI = 3.14159265358979323846;
 
     //declare variables for input
     /// Name for output volume

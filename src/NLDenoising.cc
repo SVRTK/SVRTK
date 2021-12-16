@@ -15,10 +15,9 @@
  =========================================================================*/
 
 
-#include "svrtk/NLDenoising.h"
+#include "svrtk/Common.h"
 
 using namespace std;
-
 
 namespace svrtk {
 
@@ -57,10 +56,7 @@ namespace svrtk {
     }
 
     static double Epsi(double snr) {
-        double val;
-        double pi = 3.1415926535;
-
-        val = 2 + snr * snr - (pi / 8) * exp(-(snr * snr) / 2) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4)) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4));
+        double val = 2 + snr * snr - (PI / 8) * exp(-(snr * snr) / 2) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4)) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4));
         if (val < 0.001) val = 1;
         if (val > 10) val = 1;
         return val;

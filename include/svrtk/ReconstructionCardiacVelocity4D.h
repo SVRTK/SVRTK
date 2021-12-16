@@ -59,8 +59,6 @@ namespace svrtk {
         bool _adaptive_regularisation;
         bool _limit_intensities;
 
-        const double PI = 3.14159265358979323846;
-
         const double gamma = 2*PI*0.042577;
 
         Array<RigidTransformation> _random_transformations;

@@ -17,43 +17,10 @@
 * limitations under the License.
 */
 
-// MIRTK
-#include "mirtk/Common.h"
-#include "mirtk/Options.h"
-#include "mirtk/NumericsConfig.h"
-#include "mirtk/IOConfig.h"
-#include "mirtk/TransformationConfig.h"
-#include "mirtk/RegistrationConfig.h"
-#include "mirtk/GenericImage.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/Transformation.h"
-#include "mirtk/HomogeneousTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/ImageReader.h"
-
 // SVRTK
 #include "svrtk/Reconstruction.h"
 #define SVRTK_TOOL
 #include "svrtk/Profiling.h"
-
-// Boost
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/format.hpp>
-
-// C++ Standard
-#include <iostream>
-#include <ctime>
-#include <fstream>
-#include <cmath>
-#include <set>
-#include <algorithm>
-#include <thread>
-#include <functional>
-#include <vector>
-#include <cstdlib>
-#include <pthread.h>
-#include <string>
 
 using namespace std;
 using namespace mirtk;

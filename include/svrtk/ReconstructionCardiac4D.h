@@ -53,9 +53,6 @@ namespace svrtk {
         Array<RealImage> _error;
         Array<RealImage> _corrected_slices;
 
-        // PI
-        static constexpr double PI = 3.14159265358979323846;
-
         // Reconstructed 4D Cardiac Cine Images
         RealImage _reconstructed4D;
         // TODO: replace _reconstructed4D with _reconstructed and fix conflicts between irtkReconstruction and irtkReconstructionCardiac4D use of _reconstruction and_reconstruction4D

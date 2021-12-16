@@ -21,12 +21,14 @@
 // MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
+#include "mirtk/IOConfig.h"
 #include "mirtk/Array.h"
 #include "mirtk/Arith.h"
 #include "mirtk/Math.h"
 #include "mirtk/Point.h"
 #include "mirtk/BaseImage.h"
 #include "mirtk/GenericImage.h"
+#include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 #include "mirtk/Erosion.h"
 #include "mirtk/GaussianBlurring.h"
@@ -52,7 +54,9 @@
 #include <thread>
 
 // Boost
+#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
+#include <boost/program_options.hpp>
 
 // SVRTK
 #include "svrtk/MeanShift.h"
@@ -72,4 +76,7 @@ namespace svrtk {
 
     typedef Array<POINT3D> VOXELCOEFFS;
     typedef Array<Array<VOXELCOEFFS>> SLICECOEFFS;
+
+    /// PI
+    constexpr double PI = 3.14159265358979323846;
 }

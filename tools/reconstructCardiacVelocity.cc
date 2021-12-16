@@ -16,25 +16,8 @@
 * limitations under the License.
 */
 
-// MIRTK
-#include "mirtk/Common.h"
-#include "mirtk/Options.h"
-#include "mirtk/NumericsConfig.h"
-#include "mirtk/IOConfig.h"
-#include "mirtk/TransformationConfig.h"
-#include "mirtk/RegistrationConfig.h"
-#include "mirtk/GenericImage.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/Transformation.h"
-#include "mirtk/HomogeneousTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/ImageReader.h"
-
 // SVRTK
 #include "svrtk/ReconstructionCardiacVelocity4D.h"
-
-// C++ Standard
-#include <string>
 
 using namespace std;
 using namespace mirtk;
@@ -119,7 +102,6 @@ int main(int argc, char **argv)
     int i, j, ok;
     char buffer[256];
     RealImage stack;
-    const double PI = 3.14159265358979323846;
 
     //declare variables for input
     /// Name for output volume

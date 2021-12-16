@@ -20,15 +20,6 @@
 #include "mirtk/BaseImage.h"
 #include "mirtk/GenericImage.h"
 
-// C++ Standard
-#include <stdio.h>
-#include <vector>
-#include <pthread.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <math.h>
-#include <float.h>
-
 using namespace std;
 using namespace mirtk;
 

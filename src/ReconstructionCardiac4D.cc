@@ -16,23 +16,10 @@
  * limitations under the License.
  */
 
-// MIRTK
-#include "mirtk/Resampling.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/Transformation.h"
-#include "mirtk/HomogeneousTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/ImageTransformation.h"
-#include "mirtk/LinearInterpolateImageFunction.hxx"
-
 // SVRTK
 #include "svrtk/ReconstructionCardiac4D.h"
 #include "svrtk/Profiling.h"
 #include "svrtk/Parallel.h"
-#include "svrtk/Utility.h"
-
-// C++ Standard
-#include <math.h>
 
 using namespace std;
 using namespace mirtk;

@@ -28,7 +28,7 @@ using namespace svrtk;
 using namespace boost::program_options;
 
 // =============================================================================
-//
+// Auxiliary functions
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -42,7 +42,6 @@ void PrintUsage(const options_description& opts) {
     // Print optional arguments
     cout << opts << endl;
 }
-
 
 // -----------------------------------------------------------------------------
 
@@ -225,7 +224,7 @@ int main(int argc, char **argv) {
         ("exclude_slices_only", bool_switch(&robustSlicesOnly), "Robust statistics for exclusion of slices only")
         ("remove_black_background", bool_switch(&removeBlackBackground), "Create mask from black background")
         ("transformations", value<string>(&folder), "Use existing slice-to-volume transformations to initialize the reconstruction")
-        ("force_exclude", value<vector<int>>(&forceExcluded), "Force exclusion of slices with these indices")
+        ("force_exclude", value<vector<int>>(&forceExcluded)->multitoken(), "Force exclusion of slices with these indices")
         ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues [Default: false]")
         ("full_remote", bool_switch(&fullRemoteRecon), "Run SR+SVR steps as remote functions in case of memory issues (slower option) [Default: false]")
         ("no_registration", "Switch off registration")

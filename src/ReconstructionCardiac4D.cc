@@ -378,17 +378,18 @@ namespace svrtk {
         //     _volume_weights.Write("volume_weights.nii.gz");
 
         //find average volume weight to modify alpha parameters accordingly
-        const RealPixel *ptr = _volume_weights.Data();
-        const RealPixel *pm = _mask.Data();
         double sum = 0;
         int num = 0;
         #pragma omp parallel for reduction(+: sum, num)
-        for (int i = 0; i < _volume_weights.NumberOfVoxels(); i++) {
-            if (pm[i] == 1) {
-                sum += ptr[i];
-                num++;
-            }
-        }
+        for (int i = 0; i < _volume_weights.GetX(); i++)
+            for (int j = 0; j < _volume_weights.GetY(); j++)
+                for (int k = 0; k < _volume_weights.GetZ(); k++)
+                    if (_mask(i, j, k) == 1)
+                        for (int f = 0; f < _volume_weights.GetT(); f++) {
+                            sum += _volume_weights(i, j, k, f);
+                            num++;
+                        }
+
         _average_volume_weight = sum / num;
 
         if (_verbose)

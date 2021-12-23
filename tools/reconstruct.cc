@@ -539,8 +539,10 @@ int main(int argc, char **argv) {
     }
 
     // Set debug mode option
-    if (debug) reconstruction.DebugOn();
-    else reconstruction.DebugOff();
+    if (debug)
+        reconstruction.DebugOn();
+    else
+        reconstruction.DebugOff();
 
     // Set verbose mode on with file
     reconstruction.VerboseOn("log-registration.txt");

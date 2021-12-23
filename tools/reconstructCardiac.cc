@@ -52,7 +52,6 @@ void PrintUsage(const options_description& opts) {
 
 // -----------------------------------------------------------------------------
 
-
 int main(int argc, char **argv) {
 
     // -----------------------------------------------------------------------------
@@ -64,9 +63,6 @@ int main(int argc, char **argv) {
 
     // Initialise profiling
     SVRTK_START_TIMING();
-
-    //utility variables
-    RealImage stack;
 
     //declare variables for input
     /// Name for output volume
@@ -144,8 +140,6 @@ int main(int argc, char **argv) {
     bool robustStatistics = true;
     bool robustSlicesOnly = false;
 
-    RealImage average;
-
     string infoFilename = "info.tsv";
     string logID;
     bool noLog = false;
@@ -189,7 +183,7 @@ int main(int argc, char **argv) {
     opts.add_options()
         ("stack_registration", bool_switch(&stackRegistration), "Perform stack-to-stack registration.")
         ("target_stack", value<int>(&templateNumber), "Stack number of target for stack-to-stack registration.")
-        ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK. Only rough alignment with correct orientation and some overlap is needed. Use \'id\' for an identity transformation for at leastone stack. The first stack with \'id\' transformationwill be resampled as template.")
+        ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK. Only rough alignment with correct orientation and some overlap is needed. Use \'id\' for an identity transformation for at leastone stack. The first stack with \'id\' transformation will be resampled as template.")
         ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: twice voxel size in z direction]")
         ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
         ("transformations", value<string>(&folder), "Use existing image-frame to volume transformations to initialize the reconstruction.")
@@ -198,19 +192,19 @@ int main(int argc, char **argv) {
         ("rrintervals", value<vector<double>>(&rrLocs)->multitoken(), "R-R interval for slice-locations 1-L in input stacks. [Default: 1 s]")
         ("cardphase", value<vector<double>>(&cardPhases)->multitoken(), "Cardiac phase (0-2PI) for each image-frames 1-K. [Default: 0]")
         ("temporalpsfgauss", bool_switch(&isTemporalPSFGauss), "Use Gaussian temporal point spread function. [Default: temporal PSF = sinc()*Tukey_window()]")
-        ("resolution", value<double>(&resolution), "Isotropic resolution of the volume [Default: 0.75mm]")
+        ("resolution", value<double>(&resolution), "Isotropic resolution of the volume. [Default: 0.75mm]")
         ("numcardphase", value<int>(&numCardPhase), "Number of cardiac phases to reconstruct. [Default: 15]")
         ("rrinterval", value<double>(&rrInterval), "R-R interval of reconstructed cine volume. [Default: 1s]")
-        ("iterations", value<int>(&iterations), "Number of registration-reconstruction iterations [Default: 4]")
+        ("iterations", value<int>(&iterations), "Number of registration-reconstruction iterations. [Default: 4]")
         ("rec_iterations", value<int>(&recIterationsFirst), "Number of super-resolution reconstruction iterations. [Default: 10]")
         ("rec_iterations_last", value<int>(&recIterationsLast), "Number of super-resolution reconstruction iterations for last iteration. [Default: 2 x rec_iterations]")
-        ("sigma", value<double>(&sigma), "Stdev for bias field [Default: 12mm]")
-        ("average", value<double>(&averageValue), "Average intensity value for stacks [Default: 700]")
-        ("delta", value<double>(&delta), "Parameter to define what is an edge [Default: 150]")
-        ("lambda", value<double>(&lambda), "Smoothing parameter [Default: 0.02]")
-        ("lastIter", value<double>(&lastIterLambda), "Smoothing parameter for last iteration [Default: 0.01]")
-        ("multires", value<int>(&levels), "Multiresolution smoothing with given number of levels [Default: 3]")
-        ("smooth_mask", value<double>(&smoothMask), "Smooth the mask to reduce artefacts of manual segmentation [Default: 4mm]")
+        ("sigma", value<double>(&sigma), "Stdev for bias field. [Default: 12mm]")
+        ("average", value<double>(&averageValue), "Average intensity value for stacks. [Default: 700]")
+        ("delta", value<double>(&delta), "Parameter to define what is an edge. [Default: 150]")
+        ("lambda", value<double>(&lambda), "Smoothing parameter. [Default: 0.02]")
+        ("lastIter", value<double>(&lastIterLambda), "Smoothing parameter for last iteration. [Default: 0.01]")
+        ("multires", value<int>(&levels), "Multiresolution smoothing with given number of levels. [Default: 3]")
+        ("smooth_mask", value<double>(&smoothMask), "Smooth the mask to reduce artefacts of manual segmentation. [Default: 4mm]")
         ("force_exclude", value<vector<int>>(&forceExcludedSlices)->multitoken(), "Force exclusion of image-frames with these indices.")
         ("force_exclude_sliceloc", value<vector<int>>(&forceExcludedLocs)->multitoken(), "Force exclusion of slice-locations with these indices.")
         ("force_exclude_stack", value<vector<int>>(&forceExcludedStacks)->multitoken(), "Force exclusion of stacks with these indices.")
@@ -402,7 +396,7 @@ int main(int argc, char **argv) {
     }
 
     //If transformations were not defined by user, set them to identity
-    if (dofinPaths.empty())
+    if (stackTransformations.empty())
         stackTransformations = Array<RigidTransformation>(stacks.size());
 
     //Initialise 2*slice thickness if not given by user
@@ -464,8 +458,10 @@ int main(int argc, char **argv) {
     }
 
     //Set debug mode
-    if (debug) reconstruction.DebugOn();
-    else reconstruction.DebugOff();
+    if (debug)
+        reconstruction.DebugOn();
+    else
+        reconstruction.DebugOff();
 
     //Set NMI bins for registration
     reconstruction.SetNMIBins(nmiBins);
@@ -528,7 +524,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    average = reconstruction.CreateAverage(stacks, stackTransformations);
+    RealImage average = reconstruction.CreateAverage(stacks, stackTransformations);
     if (debug)
         average.Write("average1.nii.gz");
 
@@ -925,5 +921,3 @@ int main(int argc, char **argv) {
 
     SVRTK_END_TIMING("all");
 }
-
-// -----------------------------------------------------------------------------

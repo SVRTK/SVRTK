@@ -106,10 +106,6 @@ namespace svrtk {
     // Function which computes the value assigned to each voxel
     static void Value_block(double *Estimate, double *Label, int x, int y, int z, int neighborhoodsize, double *average, double global_sum, int sx, int sy, int sz) {
         int x_pos, y_pos, z_pos;
-        bool is_outside;
-        double value = 0.0;
-        double label = 0.0;
-        double denoised_value = 0.0;
         int count = 0;
         int a, b, c, ns, sxy;
 
@@ -119,7 +115,7 @@ namespace svrtk {
         for (c = 0; c < ns; c++) {
             for (b = 0; b < ns; b++) {
                 for (a = 0; a < ns; a++) {
-                    is_outside = false;
+                    bool is_outside = false;
                     x_pos = x + a - neighborhoodsize;
                     y_pos = y + b - neighborhoodsize;
                     z_pos = z + c - neighborhoodsize;
@@ -128,10 +124,10 @@ namespace svrtk {
                     if ((y_pos < 0) || (y_pos > sy - 1)) is_outside = true;
                     if ((x_pos < 0) || (x_pos > sx - 1)) is_outside = true;
                     if (!is_outside) {
-                        value = Estimate[z_pos * (sxy)+(y_pos * sx) + x_pos];
-                        value = value + (average[count] / global_sum);
+                        double value = Estimate[z_pos * (sxy)+(y_pos * sx) + x_pos];
+                        value += average[count] / global_sum;
 
-                        label = Label[(x_pos + y_pos * sx + z_pos * sxy)];
+                        double label = Label[(x_pos + y_pos * sx + z_pos * sxy)];
                         Estimate[z_pos * (sxy)+(y_pos * sx) + x_pos] = value;
                         Label[(x_pos + y_pos * sx + z_pos * sxy)] = label + 1;
                     }
@@ -347,7 +343,6 @@ namespace svrtk {
         epsilon = 0.00001;
         mu1 = 0.95;
         var1 = 0.5;
-        init = 0;
         rc = rows * cols;
 
         Ndims = (2 * f + 1) * (2 * f + 1) * (2 * f + 1);
@@ -478,7 +473,7 @@ namespace svrtk {
 
         double *ima, *fima, *average, *bias;
         double *means, *variances, *Estimate, *Label;
-        double SNR, mean, var, label, estimate;
+        double SNR, mean, var;
         int Ndims, i, j, k, ii, jj, kk, ni, nj, nk, ndim, indice, Nthreads, ini, fin, r;
         int dims0, dims1, dims2, dimsx;
         double max_val;
@@ -633,15 +628,12 @@ namespace svrtk {
         }
 
         // Aggregation of the estimators (i.e. means computation)
-        label = 0.0;
-        estimate = 0.0;
         for (i = 0; i < dimsx; i++) {
-            label = Label[i];
+            const double label = Label[i];
             if (label == 0.0) {
                 fima[i] = ima[i];
             } else {
-                estimate = Estimate[i];
-                estimate = (estimate / label);
+                double estimate = Estimate[i] / label;
                 if (rician) {
                     estimate = (estimate - bias[i]) < 0 ? 0 : (estimate - bias[i]);
                     fima[i] = sqrt(estimate);

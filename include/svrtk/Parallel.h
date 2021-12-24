@@ -1286,12 +1286,13 @@ namespace svrtk::Parallel {
 
                                                                 //Check that we are in tPSF
                                                                 if (aa < 0 || aa >= dim || bb < 0 || bb >= dim || cc < 0 || cc >= dim) {
-                                                                    cerr << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
-                                                                    cerr << l << " " << m << " " << n << endl;
-                                                                    cerr << tx << " " << ty << " " << tz << endl;
-                                                                    cerr << centre << endl;
+                                                                    stringstream err;
+                                                                    err << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
+                                                                    err << l << " " << m << " " << n << endl;
+                                                                    err << tx << " " << ty << " " << tz << endl;
+                                                                    err << centre << endl;
                                                                     tPSF.Write("tPSF.nii.gz");
-                                                                    exit(1);
+                                                                    throw runtime_error(err.str());
                                                                 } else
                                                                     //update transformed PSF
                                                                     tPSF(aa, bb, cc) += value;
@@ -1577,12 +1578,13 @@ namespace svrtk::Parallel {
 
                                                                 //Check that we are in tPSF
                                                                 if (aa < 0 || aa >= dim || bb < 0 || bb >= dim || cc < 0 || cc >= dim) {
-                                                                    cerr << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
-                                                                    cerr << l << " " << m << " " << n << endl;
-                                                                    cerr << tx << " " << ty << " " << tz << endl;
-                                                                    cerr << centre << endl;
+                                                                    stringstream err;
+                                                                    err << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
+                                                                    err << l << " " << m << " " << n << endl;
+                                                                    err << tx << " " << ty << " " << tz << endl;
+                                                                    err << centre << endl;
                                                                     tPSF.Write("tPSF.nii.gz");
-                                                                    exit(1);
+                                                                    throw runtime_error(err.str());
                                                                 } else
                                                                     //update transformed PSF
                                                                     tPSF(aa, bb, cc) += value;
@@ -1862,12 +1864,13 @@ namespace svrtk::Parallel {
 
                                                                 //Check that we are in tPSF
                                                                 if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0) || (cc >= dim)) {
-                                                                    cerr << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
-                                                                    cerr << l << " " << m << " " << n << endl;
-                                                                    cerr << tx << " " << ty << " " << tz << endl;
-                                                                    cerr << centre << endl;
+                                                                    stringstream err;
+                                                                    err << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
+                                                                    err << l << " " << m << " " << n << endl;
+                                                                    err << tx << " " << ty << " " << tz << endl;
+                                                                    err << centre << endl;
                                                                     tPSF.Write("tPSF.nii.gz");
-                                                                    exit(1);
+                                                                    throw runtime_error(err.str());
                                                                 } else
                                                                     //update transformed PSF
                                                                     tPSF(aa, bb, cc) += value;

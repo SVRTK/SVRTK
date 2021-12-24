@@ -791,10 +791,8 @@ namespace svrtk {
 
         /// Return specified transformation
         inline RigidTransformation GetTransformation(int n) {
-            if (_transformations.size() <= n) {
-                cerr << "GetTransformation: too large n = " << n << endl;
-                exit(1);
-            }
+            if (_transformations.size() <= n)
+                throw runtime_error("GetTransformation: too large n = " + to_string(n));
             return _transformations[n];
         }
 

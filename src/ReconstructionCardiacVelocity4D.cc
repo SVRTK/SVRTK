@@ -735,8 +735,7 @@ namespace svrtk {
         if (mix > 0) {
             _sigma = sigma / mix;
         } else {
-            cerr << "Something went wrong: sigma=" << sigma << " mix=" << mix << endl;
-            exit(1);
+            throw runtime_error("Something went wrong: sigma=" + to_string(sigma) + " mix=" + to_string(mix));
         }
         if (_sigma < _step * _step / 6.28)
             _sigma = _step * _step / 6.28;

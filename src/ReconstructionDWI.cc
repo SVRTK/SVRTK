@@ -259,10 +259,8 @@ namespace svrtk {
     RealImage ReconstructionDWI::CreateAverage(Array<RealImage>& stacks,
                                                     Array<RigidTransformation>& stack_transformations)
     {
-        if (!_template_created) {
-            cerr << "Please create the template before calculating the average of the stacks." << endl;
-            exit(1);
-        }
+        if (!_template_created)
+            throw runtime_error("Please create the template before calculating the average of the stacks.");
 
         InvertStackTransformations(stack_transformations);
         ParallelAverage_DWI ParallelAverage_DWI( this,
@@ -379,11 +377,8 @@ namespace svrtk {
     void ReconstructionDWI::SetMask(RealImage * mask, double sigma, double threshold)
     {
 
-        if (!_template_created) {
-            cerr
-            << "Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions." << endl;
-            exit(1);
-        }
+        if (!_template_created)
+            throw runtime_error("Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions.");
 
         _mask = _reconstructed;
 
@@ -434,12 +429,8 @@ namespace svrtk {
 
     void ReconstructionDWI::SetMaskOrient(RealImage * mask, RigidTransformation transformation)
     {
-        if (!_template_created) {
-            cerr
-            << "Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions."
-            << endl;
-            exit(1);
-        }
+        if (!_template_created)
+            throw runtime_error("Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions.");
 
         _mask = _reconstructed;
 
@@ -1121,8 +1112,7 @@ namespace svrtk {
             if (num > 0)
                 stack_average.push_back(sum / num);
             else {
-                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                exit(1);
+                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
         }
 
@@ -1285,8 +1275,7 @@ namespace svrtk {
             if (num > 0)
                 stack_average.push_back(sum / num);
             else {
-                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                exit(1);
+                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
         }
 
@@ -1811,18 +1800,16 @@ namespace svrtk {
 
                                                                     double value = PSF(ii, jj, kk) * weight / sum;
 
-                                                                    if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0)
-                                                                        || (cc >= dim)) {
-                                                                        cerr << "Error while trying to populate tPSF. " << aa << " " << bb
-                                                                        << " " << cc << endl;
-                                                                        cerr << l << " " << m << " " << n << endl;
-                                                                        cerr << tx << " " << ty << " " << tz << endl;
-                                                                        cerr << centre << endl;
+                                                                    if ((aa < 0) || (aa >= dim) || (bb < 0) || (bb >= dim) || (cc < 0) || (cc >= dim)) {
+                                                                        stringstream err;
+                                                                        err << "Error while trying to populate tPSF. " << aa << " " << bb << " " << cc << endl;
+                                                                        err << l << " " << m << " " << n << endl;
+                                                                        err << tx << " " << ty << " " << tz << endl;
+                                                                        err << centre << endl;
                                                                         tPSF.Write("tPSF.nii.gz");
-                                                                        exit(1);
+                                                                        throw runtime_error(err.str());
                                                                     }
                                                                     else
-
                                                                         tPSF(aa, bb, cc) += value;
                                                                 }
 
@@ -2845,8 +2832,7 @@ namespace svrtk {
             _sigma = sigma / mix;
         }
         else {
-            cerr << "Something went wrong: sigma=" << sigma << " mix=" << mix << endl;
-            exit(1);
+            throw runtime_error("Something went wrong: sigma=" + to_string(sigma) + " mix=" + to_string(mix));
         }
         if (_sigma < _step * _step / 6.28)
             _sigma = _step * _step / 6.28;
@@ -3711,10 +3697,9 @@ namespace svrtk {
 //        Transformation *transformation;
         RigidTransformation *rigidTransf;
 
-        if (n == 0) {
-            cerr << "Please create slices before reading transformations!" << endl;
-            exit(1);
-        }
+        if (n == 0)
+            throw runtime_error("Please create slices before reading transformations!");
+
         cout << "Reading transformations:" << endl;
 
         _transformations.clear();
@@ -4055,11 +4040,8 @@ namespace svrtk {
                         int sliceIndex = round(z)+firstSlice_array[i];
                         // cout<<sliceIndex<<" "<<endl;
 
-                        if(sliceIndex>=_transformations.size()) {
-                            cerr<<"Reconstruction::PackageToVolume: sliceIndex out of range."<<endl;
-                            cerr<<sliceIndex<<" "<<_transformations.size()<<endl;
-                            exit(1);
-                        }
+                        if (sliceIndex >= _transformations.size())
+                            throw runtime_error("Reconstruction::PackageToVolume: sliceIndex out of range.\n" + to_string(sliceIndex) + " " + to_string(_transformations.size()));
 
                         if(sliceIndex!=firstSliceIndex) {
                             _transformations[sliceIndex].PutTranslationX(_transformations[firstSliceIndex].GetTranslationX());
@@ -4232,10 +4214,9 @@ namespace svrtk {
 
     void ReconstructionDWI::MaskImage(RealImage& image, double padding)
     {
-        if(image.NumberOfVoxels()!=_mask.NumberOfVoxels()) {
-            cerr<<"Cannot mask the image - different dimensions"<<endl;
-            exit(1);
-        }
+        if (image.NumberOfVoxels() != _mask.NumberOfVoxels())
+            throw runtime_error("Cannot mask the image - different dimensions");
+
         RealPixel *pr = image.Data();
         RealPixel *pm = _mask.Data();
         for (int i = 0; i < image.NumberOfVoxels(); i++) {
@@ -4951,12 +4932,8 @@ namespace svrtk {
             dir(0,1)=gy;
             dir(0,2)=gz;
             Matrix basis = sh.SHbasis(dir,_order);
-            if(basis.Cols() != recon4D.GetT())
-            {
-                cerr<<"GaussianReconstruction4D3:basis numbers does not match SH coefficients number."<<endl;
-                exit(1);
-
-            }
+            if (basis.Cols() != recon4D.GetT())
+                throw runtime_error("GaussianReconstruction4D3:basis numbers does not match SH coefficients number.");
 
             //Distribute slice intensities to the volume
             for (i = 0; i < slice.GetX(); i++)
@@ -5278,13 +5255,10 @@ namespace svrtk {
                 dir(0,1)=gy;
                 dir(0,2)=gz;
                 Matrix basis = sh.SHbasis(dir,reconstructor->_order);
-                if(basis.Cols() != reconstructor->_SH_coeffs.GetT())
-                {
-                    cerr<<"ParallelSimulateSlicesDTI:basis numbers does not match SH coefficients number."<<endl;
-                    exit(1);
-                }
-                double sim_signal;
+                if (basis.Cols() != reconstructor->_SH_coeffs.GetT())
+                    throw runtime_error("ParallelSimulateSlicesDTI:basis numbers does not match SH coefficients number.");
 
+                double sim_signal;
                 POINT3D p;
                 for ( unsigned int i = 0; i < reconstructor->_slices[inputIndex].GetX(); i++ )
                     for ( unsigned int j = 0; j < reconstructor->_slices[inputIndex].GetY(); j++ )
@@ -5390,11 +5364,8 @@ namespace svrtk {
                 dir(0,1)=gy;
                 dir(0,2)=gz;
                 Matrix basis = sh.SHbasis(dir,reconstructor->_order);
-                if(basis.Cols() != reconstructor->_SH_coeffs.GetT())
-                {
-                    cerr<<"ParallelSimulateSlicesDTI:basis numbers does not match SH coefficients number."<<endl;
-                    exit(1);
-                }
+                if (basis.Cols() != reconstructor->_SH_coeffs.GetT())
+                    throw runtime_error("ParallelSimulateSlicesDTI:basis numbers does not match SH coefficients number.");
 
                 //Update reconstructed volume using current slice
 
@@ -5757,11 +5728,8 @@ namespace svrtk {
 
     void ReconstructionDWI::PostProcessMotionParameters(RealImage target, bool empty) //, int packages)
     {
-        if(_slice_order.size()!=_transformations.size())
-        {
-            cerr<<"Slice order does not match the number of transformations."<<endl;
-            exit(1);
-        }
+        if (_slice_order.size() != _transformations.size())
+            throw runtime_error("Slice order does not match the number of transformations.");
 
         //Reset origin for transformations
         int i;
@@ -5945,11 +5913,8 @@ namespace svrtk {
 
     void ReconstructionDWI::PostProcessMotionParametersHS(RealImage target, bool empty) //, int packages)
     {
-        if(_slice_order.size()!=_transformations.size())
-        {
-            cerr<<"Slice order does not match the number of transformations."<<endl;
-            exit(1);
-        }
+        if (_slice_order.size() != _transformations.size())
+            throw runtime_error("Slice order does not match the number of transformations.");
 
         //Reset origin for transformations
         int i;
@@ -6238,11 +6203,8 @@ namespace svrtk {
 
     void ReconstructionDWI::PostProcessMotionParametersHS2(RealImage target, bool empty) //, int packages)
     {
-        if(_slice_order.size()!=_transformations.size())
-        {
-            cerr<<"Slice order does not match the number of transformations."<<endl;
-            exit(1);
-        }
+        if (_slice_order.size() != _transformations.size())
+            throw runtime_error("Slice order does not match the number of transformations.");
 
         //Reset origin for transformations
         int i;
@@ -6547,11 +6509,8 @@ namespace svrtk {
 
     void ReconstructionDWI::PostProcessMotionParameters2(RealImage target, bool empty) //, int packages)
     {
-        if(_slice_order.size()!=_transformations.size())
-        {
-            cerr<<"Slice order does not match the number of transformations."<<endl;
-            exit(1);
-        }
+        if (_slice_order.size() != _transformations.size())
+            throw runtime_error("Slice order does not match the number of transformations.");
 
         //Reset origin for transformations
         int i;

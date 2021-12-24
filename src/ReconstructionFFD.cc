@@ -238,12 +238,8 @@ namespace svrtk {
 
     void ReconstructionFFD::SetMask(RealImage *mask, double sigma, double threshold)
     {
-        if (!_template_created) {
-            cerr
-            << "Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions."
-            << endl;
-            exit(1);
-        }
+        if (!_template_created)
+            throw runtime_error("Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions.");
 
         _mask = _reconstructed;
 
@@ -679,8 +675,7 @@ namespace svrtk {
             if (num > 0)
                 stack_average.push_back(sum / num);
             else {
-                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                exit(1);
+                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
         }
 
@@ -793,8 +788,7 @@ namespace svrtk {
             if (num > 0)
                 stack_average.push_back(sum / num);
             else {
-                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                exit(1);
+                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
         }
 
@@ -2825,8 +2819,7 @@ namespace svrtk {
            } else if ((dout = dynamic_cast<GenericImage<double> *> (_jacobian))) {
                ParallelForEachVoxel(attr, _mask, dout, *this);
            } else {
-               cerr << "Output image data type must be either GreyPixel, float, or double" << endl;
-               exit(1);
+               throw runtime_error("Output image data type must be either GreyPixel, float, or double");
            }
 
        }
@@ -4442,8 +4435,7 @@ namespace svrtk {
             _sigma = sigma / mix;
         }
         else {
-            cerr << "Something went wrong: sigma=" << sigma << " mix=" << mix << endl;
-            exit(1);
+            throw runtime_error("Something went wrong: sigma=" + to_string(sigma) + " mix=" + to_string(mix));
         }
         if (_sigma < _step * _step / 6.28)
             _sigma = _step * _step / 6.28;
@@ -5247,10 +5239,9 @@ namespace svrtk {
 
     void ReconstructionFFD::MaskImage( RealImage& image, double padding )
     {
-        if(image.NumberOfVoxels()!=_mask.NumberOfVoxels()) {
-            cerr<<"Cannot mask the image - different dimensions"<<endl;
-            exit(1);
-        }
+        if (image.NumberOfVoxels() != _mask.NumberOfVoxels())
+            throw runtime_error("Cannot mask the image - different dimensions");
+
         RealPixel *pr = image.Data();
         RealPixel *pm = _mask.Data();
 

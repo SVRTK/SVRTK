@@ -155,8 +155,7 @@ namespace svrtk {
             if (num > 0) {
                 stack_average.push_back(sum / num);
             } else {
-                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                exit(1);
+                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
         }
 
@@ -1158,10 +1157,8 @@ namespace svrtk {
         if (scale == 1)
             return;
 
-        if (scale < 0) {
-            cerr << "Scaling of transformations undefined for scale < 0.";
-            exit(1);
-        }
+        if (scale < 0)
+            throw runtime_error("Scaling of transformations undefined for scale < 0.");
 
         //Reset origin for transformations
         GreyImage t = _reconstructed4D;

@@ -67,10 +67,8 @@ namespace svrtk {
 
     // Create average of all stacks based on the input transformations
     RealImage Reconstruction::CreateAverage(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations) {
-        if (!_template_created) {
-            cerr << "Please create the template before calculating the average of the stacks." << endl;
-            exit(1);
-        }
+        if (!_template_created)
+            throw runtime_error("Please create the template before calculating the average of the stacks.");
 
         SVRTK_START_TIMING();
         const RealImage average = Utility::CreateAverage(this, stacks, stack_transformations);
@@ -195,10 +193,8 @@ namespace svrtk {
 
     // Set given mask to the reconstruction object
     void Reconstruction::SetMask(RealImage *mask, double sigma, double threshold) {
-        if (!_template_created) {
-            cerr << "Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions." << endl;
-            exit(1);
-        }
+        if (!_template_created)
+            throw runtime_error("Please create the template before setting the mask, so that the mask can be resampled to the correct dimensions.");
 
         _mask.Initialize(_reconstructed.Attributes());
 
@@ -475,8 +471,7 @@ namespace svrtk {
             if (num > 0) {
                 stack_average.push_back(sum / num);
             } else {
-                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                exit(1);
+                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
         }
 
@@ -626,8 +621,7 @@ namespace svrtk {
             if (num > 0) {
                 stack_average.push_back(sum / num);
             } else {
-                cerr << "Stack " << ind << " has no overlap with ROI" << endl;
-                exit(1);
+                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
         }
 
@@ -1966,8 +1960,7 @@ namespace svrtk {
         if (mix > 0) {
             _sigma = sigma / mix;
         } else {
-            cerr << "Something went wrong: sigma=" << sigma << " mix=" << mix << endl;
-            exit(1);
+            throw runtime_error("Something went wrong: sigma=" + to_string(sigma) + " mix=" + to_string(mix));
         }
         if (_sigma < _step * _step / 6.28)
             _sigma = _step * _step / 6.28;
@@ -2136,10 +2129,8 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::ReadTransformations(const char *folder, size_t file_count, Array<RigidTransformation>& transformations) {
-        if (_slices.size() == 0) {
-            cerr << "Please create slices before reading transformations!" << endl;
-            exit(1);
-        }
+        if (_slices.empty())
+            throw runtime_error("Please create slices before reading transformations!");
 
         ClearAndReserve(transformations, file_count);
         for (size_t i = 0; i < file_count; i++) {
@@ -2539,11 +2530,8 @@ namespace svrtk {
                     int sliceIndex = round(z) + firstSlice_array[i];
                     // cout<<sliceIndex<<" "<<endl;
 
-                    if (sliceIndex >= _transformations.size()) {
-                        cerr << "Reconstruction::PackageToVolume: sliceIndex out of range." << endl;
-                        cerr << sliceIndex << " " << _transformations.size() << endl;
-                        exit(1);
-                    }
+                    if (sliceIndex >= _transformations.size())
+                        throw runtime_error("Reconstruction::PackageToVolume: sliceIndex out of range.\n" + to_string(sliceIndex) + " " + to_string(_transformations.size()));
 
                     if (sliceIndex != firstSliceIndex) {
                         _transformations[sliceIndex].PutTranslationX(_transformations[firstSliceIndex].GetTranslationX());

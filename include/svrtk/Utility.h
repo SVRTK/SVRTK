@@ -378,10 +378,8 @@ namespace svrtk::Utility {
 
     /// Mask input volume
     inline void MaskImage(RealImage& image, const RealImage& mask, double padding = -1) {
-        if (image.NumberOfVoxels() != mask.NumberOfVoxels()) {
-            cerr << "Cannot mask the image - different dimensions" << endl;
-            exit(1);
-        }
+        if (image.NumberOfVoxels() != mask.NumberOfVoxels())
+            throw runtime_error("Cannot mask the image - different dimensions");
 
         RealPixel *pr = image.Data();
         const RealPixel *pm = mask.Data();

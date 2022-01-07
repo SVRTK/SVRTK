@@ -16,28 +16,22 @@
 * limitations under the License.
 */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
-
-#include "svrtk/Reconstruction.h"
-
-
-using namespace mirtk;
 using namespace std;
+using namespace mirtk;
 
 // =============================================================================
 // Auxiliary functions
@@ -47,11 +41,13 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: filter_background [input_volume] [output_volume] [foreground_sigma] [background_sigma] \n" << endl;
+    cout << "Usage: mirtk pad-image [input_image_A] [input_image_B] [output_image] [threshold value in imageB] [padding value in output] \n" << endl;
+    cout << endl;
+    cout << "Function for padding of an image based on the threshold values in the 2nd image." << endl;
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-    
+
     exit(1);
 }
 
@@ -65,78 +61,91 @@ void usage()
 
 int main(int argc, char **argv)
 {
-    
-    cout << "---------------------------------------------------------------------" << endl;
-    
+
+
     char buffer[256];
     RealImage stack;
     char * output_name = NULL;
 
-    
+
     //if not enough arguments print help
-    if (argc < 5)
+    if (argc < 6)
     usage();
-    
-    
+
+
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
-    
-    
-    //-------------------------------------------------------------------
-    
-    RealImage input_volume, output_volume;
 
-    
-    input_volume.Read(argv[1]);
-    cout<<"Input volume: "<<argv[1]<<endl;
-    argc--;
-    argv++;
-    
-    double smin, smax;
-    input_volume.GetMinMax(&smin, &smax);
-    
-    if (smin < 0 || smax < 0) {
-        input_volume.PutMinMaxAsDouble(0, 1000);
-    }
-    
-    
-    output_name = argv[1];
-    cout<<"Ouput volume: "<<output_name<<endl;
-    argc--;
-    argv++;
-    
-    
-    double bg_sigma, fg_sigma;
-    
-    
-    fg_sigma = atof(argv[1]);
-    cout<<"foreground sigma : "<<fg_sigma<<endl;
-    argc--;
-    argv++;
-    
-    bg_sigma = atof(argv[1]);
-    cout<<"background sigma : "<<bg_sigma<<endl;
-    argc--;
-    argv++;
-    
-    
+
     //-------------------------------------------------------------------
-    
-    Reconstruction *reconstruction = new Reconstruction();
-    
-    Array<RealImage> stacks;
-    stacks.push_back(input_volume);
-    
-    reconstruction->BackgroundFiltering(stacks, fg_sigma, bg_sigma);
-    
-    output_volume = stacks[0];
-    
+
+    RealImage input_volume_A, input_volume_B, output_volume;
+
+
+    input_volume_A.Read(argv[1]);
+    argc--;
+    argv++;
+
+
+    input_volume_B.Read(argv[1]);
+    argc--;
+    argv++;
+
+
+    output_name = argv[1];
+    argc--;
+    argv++;
+
+
+    double threshold = 0;
+    threshold = atof(argv[1]);
+    argc--;
+    argv++;
+
+    double padding = 0;
+    padding = atof(argv[1]);
+    argc--;
+    argv++;
+
+
+
+    //-------------------------------------------------------------------
+
+
+    output_volume = input_volume_A;
+
+    int invert = 0;
+
+    for (int t = 0; t < output_volume.GetT(); t++) {
+        for (int z = 0; z < output_volume.GetZ(); z++) {
+            for (int y = 0; y < output_volume.GetY(); y++) {
+                for (int x = 0; x < output_volume.GetX(); x++) {
+
+                    double i = x;
+                    double j = y;
+                    double k = z;
+                    input_volume_A.ImageToWorld(i,j,k);
+                    input_volume_B.WorldToImage(i,j,k);
+                    i = round(i);
+                    j = round(j);
+                    k = round(k);
+
+                    if (input_volume_B.IsInside(i, j, k)) {
+                        if(invert){
+                            if (input_volume_B(i, j, k, t) != threshold) output_volume(x, y, z, t) = padding;
+                        }else{
+                            if (input_volume_B(i, j, k, t) == threshold) output_volume(x, y, z, t) = padding;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
     output_volume.Write(output_name);
-    
-    
-    cout << "---------------------------------------------------------------------" << endl;
-    
-    
-    
+
+
+
     return 0;
 }

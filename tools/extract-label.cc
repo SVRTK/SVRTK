@@ -16,27 +16,23 @@
  * limitations under the License.
  */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
-
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
-using namespace mirtk;
 using namespace std;
+using namespace mirtk;
  
 // =============================================================================
 // Auxiliary functions
@@ -45,7 +41,12 @@ using namespace std;
 // -----------------------------------------------------------------------------
 void usage()
 {
-    cout << "..." << endl;
+    cout << "Usage: mirtk extract-label [input_label_image] [output_label_image] [start_label_number] [end_label_number]\n" << endl;
+    cout << endl;
+    cout << "Function for extracting specific label range from a multi-label image." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     exit(1);
 }
 // -----------------------------------------------------------------------------

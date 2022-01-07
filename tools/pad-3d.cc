@@ -16,15 +16,12 @@
 * limitations under the License.
 */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h" 
-
 #include "mirtk/IOConfig.h"
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
-
-
 #include "mirtk/Resampling.h"
 #include "mirtk/ResamplingWithPadding.h"
 #include "mirtk/LinearInterpolateImageFunction.hxx"
@@ -37,9 +34,8 @@
 #include "mirtk/FreeFormTransformation.h"
 #include "mirtk/LinearFreeFormTransformation3D.h"
 
-
-using namespace mirtk; 
 using namespace std;
+using namespace mirtk; 
 
 // =============================================================================
 // Auxiliary functions
@@ -49,7 +45,13 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: pad-3d [input] [output] [isotropic-3d-voxel-grid-size] [interpolation mode: 0 - NN (for masks), 1 - Linear (for images)] \n" << endl;
+    cout << "Usage: mirtk pad-3d [input] [output] [isotropic-3d-voxel-grid-size] [interpolation mode: 0 - NN (for masks), 1 - Linear (for images)] \n" << endl;
+    cout << endl;
+    cout << "Function for transforming an image (or a label mask) to an isotropin 3D grid with 0 padding. " << endl;
+    cout << "Primarily used for 3D CNN-input preparation." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     exit(0);
 }
 

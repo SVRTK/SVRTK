@@ -16,14 +16,13 @@
 * limitations under the License.
 */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
@@ -31,9 +30,10 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
-
+// SVRTK
 #include "svrtk/Reconstruction.h"
 
+// C++ Standard
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -49,9 +49,9 @@
 #include <string>
 
 
-
-using namespace mirtk;
 using namespace std;
+using namespace mirtk;
+using namespace svrtk;
 
 // =============================================================================
 //
@@ -596,7 +596,7 @@ int main(int argc, char **argv)
             
             cout.rdbuf (file.rdbuf());
             if (remote_flag) {
-                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_exchange_file_path);
             } else {
                 reconstruction->SliceToVolumeRegistration();
             }
@@ -617,7 +617,7 @@ int main(int argc, char **argv)
 
                     cout.rdbuf (file.rdbuf());
                     if (remote_flag) {
-                        reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_main_file_path, str_current_exchange_file_path);
+                        reconstruction->RemoteSliceToVolumeRegistration(iter, str_mirtk_path, str_current_exchange_file_path);
                     } else {
                         reconstruction->SliceToVolumeRegistration();
                     }
@@ -907,17 +907,9 @@ int main(int argc, char **argv)
         }
         
 
-        if (debug) {
-            //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
-            if ( ! no_log ) {
-                cout.rdbuf (fileEv.rdbuf());
-            }
-            reconstruction->Evaluate(iter);
-                    // cout<<endl;
-            if ( ! no_log ) {
-                cout.rdbuf (strm_buffer);
-            }
-        }
+        //Evaluate - write number of included/excluded/outside/zero slices in each iteration in the file
+        if (debug)
+            reconstruction->Evaluate(iter, fileEv);
         
 //        reconstruction->SaveSliceInfo(iter);
     

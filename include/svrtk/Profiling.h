@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-#ifndef SVRTK_Profiling_H
-#define SVRTK_Profiling_H
+#pragma once
 
 #include "mirtk/Profiling.h"
 
+/// Start measurement of execution time of current code block
 #define SVRTK_START_TIMING    MIRTK_START_TIMING
+/// Reset measurement of starting execution time of current code block
 #define SVRTK_RESET_TIMING    MIRTK_RESET_TIMING
 
+/// End measurement of execution time of current code block
 #ifdef  SVRTK_TOOL
 #define SVRTK_END_TIMING      if (debug) MIRTK_END_TIMING
 #else
 #define SVRTK_END_TIMING      if (_debug) MIRTK_END_TIMING
 #endif
-
-#endif  // SVRTK_Profiling_H

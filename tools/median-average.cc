@@ -17,14 +17,13 @@
  * limitations under the License.
  */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
 #include "mirtk/Transformation.h"
@@ -32,9 +31,10 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
-
+// SVRTK
 #include "svrtk/Reconstruction.h"
 
+// C++ Standard
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -49,10 +49,9 @@
 #include <pthread.h>
 #include <string>
 
-
-
-using namespace mirtk;
 using namespace std;
+using namespace mirtk;
+using namespace svrtk;
 
 // =============================================================================
 //
@@ -62,8 +61,12 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: mirtk .... " << endl;
+    cout << "Usage: mirtk median-average [reference_image] [output_image] [number_of_input_images] [input_1] ... [input_n] " << endl;
     cout << endl;
+    cout << "Function for computing an median average from multiple input files in the reference space." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
     
     exit(1);
 }
@@ -130,32 +133,13 @@ int main(int argc, char **argv)
     argc--;
     argv++;
     
-    //const char *stdev_fname;
-    //stdev_fname = argv[1];
-    //argc--;
-    //argv++;
     
     cout << "Output median stack : " << average_fname << endl;
-    //cout << "Output st.dev : " << stdev_fname << endl;
-    
     
     ImageAttributes attr = target.Attributes();
     
     RealImage output_average_stack;
     output_average_stack.Initialize(attr);
-    
-    //RealImage stdev_stack;
-    //stdev_stack.Initialize(attr);
-    
-
-    cout << "------------------------------------------------------" << endl;
-    
-    double std_th = atof(argv[1]);
-    argc--;
-    argv++;
-    
-    cout << "St.dev threshold : " << std_th << endl;
-    
     
     cout << "------------------------------------------------------" << endl;
     

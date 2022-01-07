@@ -18,31 +18,28 @@
 
 #include "svrtk/SphericalHarmonics.h"
 
-
 using namespace std;
+using namespace mirtk;
 
-namespace mirtk {
+namespace svrtk {
 
-    
+
     SphericalHarmonics::SphericalHarmonics() {
-        
+
     }
-    
+
     SphericalHarmonics::~SphericalHarmonics() {
-        
+
     }
-    
+
     Matrix SphericalHarmonics::shTransform(Matrix dirs, int lmax)
     {
         if (dirs.Cols() != 2)
-        {
-            cout<<"direction matrix should have 2 columns: [ azimuth elevation ]"<<endl;
-            exit(1);
-        }
-        
+            throw runtime_error("direction matrix should have 2 columns: [ azimuth elevation ]");
+
         Matrix SHT(dirs.Rows(), NforL (lmax));
         Vector AL(lmax+1);
-        
+
         for (int i = 0; i < dirs.Rows(); i++)
         {
             double x = std::cos (dirs (i,1));
@@ -60,9 +57,9 @@ namespace mirtk {
             }
         }
         return SHT;
-        
+
     }
-    
+
     void SphericalHarmonics::LegendrePolynomials(Vector& array, const int lmax, const int m, const double x)
     {
         double x2 = x*x;
@@ -78,10 +75,10 @@ namespace mirtk {
         //m is odd
         if (m & 1) array(m) = -array(m);
         if (lmax == m) return;
-        
+
         double f = std::sqrt (double (2*m+3));
         array(m+1) = x * f * array(m);
-        
+
         for (int n = m+2; n <= lmax; n++)
         {
             array(n) = x*array(n-1) - array(n-2)/f;
@@ -89,12 +86,12 @@ namespace mirtk {
             array(n) *= f;
         }
     }
-    
+
     Matrix SphericalHarmonics::cartesian2spherical (Matrix xyz)
     {
         double r,x,y,z;
         Matrix az_el_r(xyz.Rows(),2);
-        
+
         for (int i=0; i<xyz.Rows();i++)
         {
             x=xyz(i,0);
@@ -106,15 +103,13 @@ namespace mirtk {
         }
         return az_el_r;
     }
-    
+
     Vector SphericalHarmonics::LSFit(Vector signal, Matrix dirs, int lmax)
     {
         // check that sizes correspond
-        if(signal.Rows()!=dirs.Rows())
-        {
-            cerr<<"dimensions of signal and direction number do not match: "<<signal.Rows()<<" "<<dirs.Rows()<<endl;
-            exit(1);
-        }
+        if (signal.Rows() != dirs.Rows())
+            throw runtime_error("dimensions of signal and direction number do not match: " + to_string(signal.Rows()) + " " + to_string(dirs.Rows()));
+
         //convert to spherical coordinates
         Matrix dirs_sph;
         dirs_sph = cartesian2spherical(dirs);
@@ -131,7 +126,7 @@ namespace mirtk {
         c=temp*c;
         return c;
     }
-    
+
     void SphericalHarmonics::InitSHT(Matrix dirs, int lmax)
     {
         Matrix dirs_sph;
@@ -139,7 +134,7 @@ namespace mirtk {
         //calculate matrix of basis functions (directions x basis number)
         _SHT = shTransform(dirs_sph,lmax);
         //_SHT.Print();
-        
+
         //calculate inverse matrix for least square fit
         Matrix shtt = _SHT;
         shtt.Transpose();
@@ -147,10 +142,10 @@ namespace mirtk {
         _iSHT.Invert();
         _iSHT=_iSHT*shtt;
 
-        
+
         //_iSHT.Print();
     }
-    
+
     Matrix SphericalHarmonics::SHbasis(Matrix dirs, int lmax)
     {
         Matrix dirs_sph;
@@ -159,14 +154,14 @@ namespace mirtk {
         Matrix SHT = shTransform(dirs_sph,lmax);
         return SHT;
     }
-    
+
     void SphericalHarmonics::InitSHTRegul(Matrix dirs, double lambda, int lmax)
     {
         Matrix dirs_sph;
         dirs_sph = cartesian2spherical(dirs);
         //calculate matrix of basis functions (directions x basis number)
         _SHT = shTransform(dirs_sph,lmax);
-        
+
         //calculate inverse matrix for least square fit
         Matrix shtt = _SHT;
         shtt.Transpose();
@@ -175,8 +170,8 @@ namespace mirtk {
         _iSHT.Invert();
         _iSHT=_iSHT*shtt;
     }
-    
-    
+
+
     Matrix SphericalHarmonics::LaplaceBeltramiMatrix(int lmax)
     {
         int dim = NforL (lmax);
@@ -192,44 +187,34 @@ namespace mirtk {
         //LB.Print();
         return LB;
     }
-    
+
     Vector SphericalHarmonics::Coeff2Signal(Vector c)
     {
-        if(c.Rows()!=_SHT.Cols())
-        {
-            cerr<<"dimensions of SH coeffs and number of basis do not match: "<<c.Rows()<<" "<<_SHT.Cols()<<endl;
-            exit(1);
-        }
+        if (c.Rows() != _SHT.Cols())
+            throw runtime_error("dimensions of SH coeffs and number of basis do not match: " + to_string(c.Rows()) + " " + to_string(_SHT.Cols()));
         return _SHT*c;
     }
-    
+
     Vector SphericalHarmonics::Signal2Coeff(Vector s)
     {
-        if(s.Rows()!=_iSHT.Cols())
-        {
-            cerr<<"dimensions of signal and number of directions do not match: "<<s.Rows()<<" "<<_iSHT.Cols()<<endl;
-            exit(1);
-        }
+        if (s.Rows() != _iSHT.Cols())
+            throw runtime_error("dimensions of signal and number of directions do not match: " + to_string(s.Rows()) + " " + to_string(_iSHT.Cols()));
         return _iSHT*s;
-        
+
     }
-    
+
     RealImage SphericalHarmonics::Signal2Coeff(RealImage signal)
     {
-        if(signal.GetT()!=_iSHT.Cols())
-        {
-            cerr<<"dimensions of signal and number of directions do not match: "<<signal.GetT()<<" "<<_iSHT.Cols()<<endl;
-            exit(1);
-        }
+        if (signal.GetT() != _iSHT.Cols())
+            throw runtime_error("dimensions of signal and number of directions do not match: " + to_string(signal.GetT()) + " " + to_string(_iSHT.Cols()));
 
-        
         //create image with SH coeffs
         ImageAttributes attr = signal.Attributes();
         attr._t = _iSHT.Rows();
         RealImage coeffs(attr);
-        
+
         coeffs = 0;
-        
+
         Vector s(signal.GetT());
         Vector a;
         int i,j,k,t;
@@ -243,25 +228,23 @@ namespace mirtk {
                             s(t)=signal(i,j,k,t);
 
                         a=Signal2Coeff(s);
-                        
+
                         cout << t << endl;
-                        
+
                         for(t=0;t<coeffs.GetT();t++)
                             coeffs(i,j,k,t)=a(t);
                     }
                 }
-        
+
         return coeffs;
     }
-    
-    
+
+
     RealImage SphericalHarmonics::Coeff2Signal(RealImage coeffs)
     {
-        if(coeffs.GetT()!=_SHT.Cols())
-        {
-            cerr<<"dimensions of SH coeffs and number of basis do not match: "<<coeffs.GetT()<<" "<<_SHT.Cols()<<endl;
-            exit(1);
-        }
+        if (coeffs.GetT() != _SHT.Cols())
+            throw runtime_error("dimensions of SH coeffs and number of basis do not match: " + to_string(coeffs.GetT()) + " " + to_string(_SHT.Cols()));
+
         //create image with SH coeffs
         ImageAttributes attr = coeffs.Attributes();
         attr._t = _SHT.Rows();
@@ -283,12 +266,11 @@ namespace mirtk {
                         signal(i,j,k,t)=s(t);
                     //}
                 }
-        
-        
+
+
         return signal;
     }
 
 
 
-} // namespace mirtk
-
+} // namespace svrtk

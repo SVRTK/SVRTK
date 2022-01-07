@@ -2,7 +2,7 @@
 # SVRTK : SVR reconstruction based on MIRTK
 #
 # Copyright 2008-2017 Imperial College London
-# Copyright 2018-2021 King's College London 
+# Copyright 2018-2021 King's College London
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@
 # ============================================================================
 
 cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
-
-set(CMAKE_CXX_FLAGS "-std=c++11")
 
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/config")
 if (NOT COMMAND mirtk_configure_module)

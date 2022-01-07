@@ -2,18 +2,19 @@
  * ....
  */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-
 #include "mirtk/IOConfig.h"
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
 
+// SVRTK
 #include "svrtk/ReconstructionFFD.h"
 
-using namespace mirtk;
 using namespace std;
+using namespace mirtk;
+using namespace svrtk;
 
 // =============================================================================
 // Auxiliary functions
@@ -23,7 +24,16 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: mirtk extract-packages [stack_name] [number_of_packages] \n" << endl;
+    cout << "Usage: mirtk extract-packages [input_stack_name] [number_of_packages] " << endl;
+    cout << endl;
+    cout << "Function for extracting packages (along z) from an input stack of slice based on the given order." << endl;
+    cout << "If the input [number_of_packages] value < 0 the number packages will be assigned to 4 if the slice spacing in z is < 2.25 the and 1 otherwise." << endl;
+    cout << "The output package files have the same name as the original image + -p${i}.nii.gz: [input_stack_name]-p${i}.nii.gz" << endl;
+    cout << "It also computes the least motion/artifact corrupted package based on NCC between sequential slices and it is saved as: package-template.nii.gz file." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
+    
     exit(0);
 }
 

@@ -15,15 +15,14 @@
  =========================================================================*/
 
 
-#include "svrtk/NLDenoising.h"
+#include "svrtk/Common.h"
 
 using namespace std;
 
-
-namespace mirtk {
+namespace svrtk {
 
     // Returns the modified Bessel function I0(x) for any real x.
-    double bessi0(double x) {
+    static double bessi0(double x) {
         double ax, ans, a;
         double y;
         if ((ax = fabs(x)) < 3.75) {
@@ -39,9 +38,8 @@ namespace mirtk {
         return ans;
     }
 
-
     // Returns the modified Bessel function I1(x) for any real x.
-    double bessi1(double x) {
+    static double bessi1(double x) {
         double ax, ans;
         double y;
         if ((ax = fabs(x)) < 3.75) {
@@ -57,20 +55,15 @@ namespace mirtk {
         return x < 0.0 ? -ans : ans;
     }
 
-
-    double Epsi(double snr) {
-        double val;
-        double pi = 3.1415926535;
-
-        val = 2 + snr * snr - (pi / 8) * exp(-(snr * snr) / 2) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4)) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4));
+    static double Epsi(double snr) {
+        double val = 2 + snr * snr - (PI / 8) * exp(-(snr * snr) / 2) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4)) * ((2 + snr * snr) * bessi0((snr * snr) / 4) + (snr * snr) * bessi1((snr * snr) / 4));
         if (val < 0.001) val = 1;
         if (val > 10) val = 1;
         return val;
     }
 
-
     // Function which compute the weighted average for one block
-    void Average_block(double *ima, int x, int y, int z, int neighborhoodsize, double *average, double weight, int sx, int sy, int sz, bool rician) {
+    static void Average_block(double *ima, int x, int y, int z, int neighborhoodsize, double *average, double weight, int sx, int sy, int sz, bool rician) {
         int x_pos, y_pos, z_pos;
         bool is_outside;
         int a, b, c, ns, sxy, count;
@@ -110,14 +103,9 @@ namespace mirtk {
         }
     }
 
-
     // Function which computes the value assigned to each voxel
-    void Value_block(double *Estimate, double *Label, int x, int y, int z, int neighborhoodsize, double *average, double global_sum, int sx, int sy, int sz) {
+    static void Value_block(double *Estimate, double *Label, int x, int y, int z, int neighborhoodsize, double *average, double global_sum, int sx, int sy, int sz) {
         int x_pos, y_pos, z_pos;
-        bool is_outside;
-        double value = 0.0;
-        double label = 0.0;
-        double denoised_value = 0.0;
         int count = 0;
         int a, b, c, ns, sxy;
 
@@ -127,7 +115,7 @@ namespace mirtk {
         for (c = 0; c < ns; c++) {
             for (b = 0; b < ns; b++) {
                 for (a = 0; a < ns; a++) {
-                    is_outside = false;
+                    bool is_outside = false;
                     x_pos = x + a - neighborhoodsize;
                     y_pos = y + b - neighborhoodsize;
                     z_pos = z + c - neighborhoodsize;
@@ -136,10 +124,10 @@ namespace mirtk {
                     if ((y_pos < 0) || (y_pos > sy - 1)) is_outside = true;
                     if ((x_pos < 0) || (x_pos > sx - 1)) is_outside = true;
                     if (!is_outside) {
-                        value = Estimate[z_pos * (sxy)+(y_pos * sx) + x_pos];
-                        value = value + (average[count] / global_sum);
+                        double value = Estimate[z_pos * (sxy)+(y_pos * sx) + x_pos];
+                        value += average[count] / global_sum;
 
-                        label = Label[(x_pos + y_pos * sx + z_pos * sxy)];
+                        double label = Label[(x_pos + y_pos * sx + z_pos * sxy)];
                         Estimate[z_pos * (sxy)+(y_pos * sx) + x_pos] = value;
                         Label[(x_pos + y_pos * sx + z_pos * sxy)] = label + 1;
                     }
@@ -149,8 +137,7 @@ namespace mirtk {
         }
     }
 
-
-    double distance(double* ima, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
+    static double distance(double* ima, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
         double d, acu, distancetotal;
         int i, j, k, ni1, nj1, ni2, nj2, nk1, nk2;
 
@@ -189,8 +176,7 @@ namespace mirtk {
         return d;
     }
 
-
-    double distance2(double* ima, double * medias, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
+    static double distance2(double* ima, double * medias, int x, int y, int z, int nx, int ny, int nz, int f, int sx, int sy, int sz) {
         double d, acu, distancetotal;
         int i, j, k, ni1, nj1, ni2, nj2, nk1, nk2;
 
@@ -231,8 +217,7 @@ namespace mirtk {
         return d;
     }
 
-
-    void Regularize(double* in, double * out, int r, int sx, int sy, int sz) {
+    static void Regularize(double* in, double * out, int r, int sx, int sy, int sz) {
         double acu;
         int ind, i, j, k, ni, nj, nk, ii, jj, kk;
 
@@ -311,8 +296,25 @@ namespace mirtk {
         free(temp);
     }
 
+    typedef struct {
+        int rows;
+        int cols;
+        int slices;
+        double *in_image;
+        double *means_image;
+        double *var_image;
+        double *estimate;
+        double *label;
+        double *bias;
+        int ini;
+        int fin;
+        int radioB;
+        int radioS;
+        bool rician;
+        double max_val;
+    } myargument;
 
-    void* ThreadFunc(void* pArguments) {
+    static void* ThreadFunc(void* pArguments) {
         double *bias, *Estimate, *Label, *ima, *means, *variances, *average, epsilon, mu1, var1, totalweight, wmax, t1, t1i, t2, d, w, distanciaminima;
         int rows, cols, slices, ini, fin, v, f, init, i, j, k, rc, ii, jj, kk, ni, nj, nk, Ndims;
         bool rician;
@@ -341,7 +343,6 @@ namespace mirtk {
         epsilon = 0.00001;
         mu1 = 0.95;
         var1 = 0.5;
-        init = 0;
         rc = rows * cols;
 
         Ndims = (2 * f + 1) * (2 * f + 1) * (2 * f + 1);
@@ -472,7 +473,7 @@ namespace mirtk {
 
         double *ima, *fima, *average, *bias;
         double *means, *variances, *Estimate, *Label;
-        double SNR, mean, var, label, estimate;
+        double SNR, mean, var;
         int Ndims, i, j, k, ii, jj, kk, ni, nj, nk, ndim, indice, Nthreads, ini, fin, r;
         int dims0, dims1, dims2, dimsx;
         double max_val;
@@ -627,15 +628,12 @@ namespace mirtk {
         }
 
         // Aggregation of the estimators (i.e. means computation)
-        label = 0.0;
-        estimate = 0.0;
         for (i = 0; i < dimsx; i++) {
-            label = Label[i];
+            const double label = Label[i];
             if (label == 0.0) {
                 fima[i] = ima[i];
             } else {
-                estimate = Estimate[i];
-                estimate = (estimate / label);
+                double estimate = Estimate[i] / label;
                 if (rician) {
                     estimate = (estimate - bias[i]) < 0 ? 0 : (estimate - bias[i]);
                     fima[i] = sqrt(estimate);
@@ -670,4 +668,4 @@ namespace mirtk {
         return Run(image, 3, 1);
     }
 
-} // namespace mirtk
+} // namespace svrtk

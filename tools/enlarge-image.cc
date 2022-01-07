@@ -16,25 +16,22 @@
 * limitations under the License.
 */
 
-
+// MIRTK
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
-
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
-
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
-
-using namespace mirtk;
 using namespace std;
+using namespace mirtk;
 
 // =============================================================================
 // Auxiliary functions
@@ -44,7 +41,10 @@ using namespace std;
 
 void usage()
 {
-    cout << "Usage: enlarge_image [input_volume] [output_volume] <-x voxels> <-y voxels> <-z voxels> <-percent> <-value value>"<<endl;
+    cout << "Usage: mirtk enlarge-image [input_image] [output_image] <-x voxels> <-y voxels> <-z voxels> <-percent> <-value value>" <<endl;
+    cout << endl;
+    cout << "Function for changing the image grid size with padding (transferred from IRTK library: https://biomedia.doc.ic.ac.uk/software/irtk/)." << endl;
+    cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
 
@@ -61,38 +61,38 @@ void usage()
 
 int main(int argc, char **argv)
 {
-    
+
     cout << "---------------------------------------------------------------------" << endl;
-    
+
     char buffer[256];
-    
+
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
-    
-    
+
+
     if (argc < 3) {
         usage();
         exit(1);
     }
-    
+
     int ex=0,ey=0,ez=0,percent=0,value=0;
     int ok;
-    
+
     char *output_name;
     RealImage input_volume, output_volume;
-    
-    
+
+
     input_volume.Read(argv[1]);
     cout<<"Input volume: "<<argv[1]<<endl;
     argc--;
     argv++;
-    
+
     output_name = argv[1];
     cout<<"Ouput volume: "<<output_name<<endl;
     argc--;
     argv++;
-    
-    
+
+
     // Parse remaining parameters
     while (argc > 1){
         ok = false;
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
         }
     }
 
-    
+
     ImageAttributes attr = input_volume.Attributes();
     if(percent == 1){
         ex = round(double(input_volume.GetX()*ex)/100.0);
@@ -150,25 +150,25 @@ int main(int argc, char **argv)
     attr._x += 2*ex;
     attr._y += 2*ey;
     attr._z += 2*ez;
-    
+
     output_volume.Initialize(attr);
-    
+
     output_volume = 0;
-    
+
     for(int l=0;l<input_volume.GetT();l++)
     for(int i=0; i<input_volume.GetX();i++)
     for(int j=0; j<input_volume.GetY();j++)
     for(int k=0; k<input_volume.GetZ();k++)
     {
-        output_volume.Put(i+ex,j+ey,k+ez,l,input_volume.Get(i,j,k,l));
+        output_volume.Put(i+ex,j+ey,k+ez,l,input_volume(i,j,k,l));
     }
-    
+
     output_volume.Write(output_name);
-    
+
 
     cout << "---------------------------------------------------------------------" << endl;
-    
-    
-    
+
+
+
     return 0;
 }

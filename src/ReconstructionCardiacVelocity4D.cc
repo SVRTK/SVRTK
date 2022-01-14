@@ -186,7 +186,7 @@ namespace svrtk {
 
                 output_4D.Write((boost::format("addon-velocity-%i.nii.gz") % iter).str().c_str());
             } else {
-                #pragma omp parallel for
+                #pragma omp parallel for num_threads(_io_thread_count)
                 for (size_t i = 0; i < _v_directions.size(); i++) {
                     addons[i].Write((boost::format("addon-velocity-%i-%i.nii.gz") % i % iter).str().c_str());
                     _confidence_maps_velocity[i].Write((boost::format("confidence-map-velocity-%i-%i.nii.gz") % i % iter).str().c_str());
@@ -297,7 +297,7 @@ namespace svrtk {
                 for (int j = 0; j < _slices[inputIndex].GetY(); j++)
                     stacks[_stack_index[inputIndex]](i, j, _stack_loc_index[inputIndex], _stack_dyn_index[inputIndex]) = _simulated_slices[inputIndex](i, j, 0);
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t i = 0; i < stacks.size(); i++)
             stacks[i].Write((boost::format("simulated-phase-%i.nii.gz") % i).str().c_str());
 
@@ -337,14 +337,14 @@ namespace svrtk {
                 }
 
                 if (_reconstructed4D.GetT() > 1) {
-                    #pragma omp parallel for
+                    #pragma omp parallel for num_threads(_io_thread_count)
                     for (size_t i = 0; i < stacks.size(); i++)
                         stacks[i].Write((boost::format("simulated-velocity-%i-%i.nii.gz") % i % v).str().c_str());
                 }
             }
 
             if (_reconstructed4D.GetT() == 1) {
-                #pragma omp parallel for
+                #pragma omp parallel for num_threads(_io_thread_count)
                 for (size_t i = 0; i < stacks.size(); i++)
                     velocity_volumes[i].Write((boost::format("simulated-velocity-vector-%i.nii.gz") % i).str().c_str());
             }
@@ -361,7 +361,7 @@ namespace svrtk {
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++)
                         stacks[_stack_index[inputIndex]](i, j, _stack_loc_index[inputIndex], _stack_dyn_index[inputIndex]) = _weights[inputIndex](i, j, 0);
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(_io_thread_count)
             for (size_t i = 0; i < stacks.size(); i++)
                 stacks[i].Write((boost::format("weight-%i-%i.nii.gz") % i % v).str().c_str());
         }

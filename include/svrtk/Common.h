@@ -58,6 +58,9 @@
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 
+// OpenMP
+#include <omp.h>
+
 // SVRTK
 #include "svrtk/MeanShift.h"
 #include "svrtk/NLDenoising.h"

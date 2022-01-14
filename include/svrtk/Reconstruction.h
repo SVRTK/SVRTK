@@ -256,6 +256,9 @@ namespace svrtk {
         int _number_of_slices_org;
         double _average_thickness_org;
 
+        /// Thread count for parallel I/O operations
+        unsigned int _io_thread_count = omp_get_max_threads();
+
         /**
          * @brief Create zero image as a template for reconstructed volume.
          * @param stack Stack to be set as template.

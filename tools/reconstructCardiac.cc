@@ -222,6 +222,7 @@ int main(int argc, char **argv) {
         ("info", value<string>(&infoFilename), "File name for slice information in tab-separated columns.")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results.")
         ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues. [Default: false]")
+        ("io_threads", value<unsigned int>(&reconstruction._io_thread_count)->default_value(reconstruction._io_thread_count), "Thread count for all parallel I/O operations.")
         ("no_log", bool_switch(&noLog), "Do not redirect cout and cerr to log files.");
 
     // Combine all options

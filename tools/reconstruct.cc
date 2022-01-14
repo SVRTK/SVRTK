@@ -229,6 +229,7 @@ int main(int argc, char **argv) {
         ("full_remote", bool_switch(&fullRemoteRecon), "Run SR+SVR steps as remote functions in case of memory issues (slower option) [Default: false]")
         ("no_registration", "Switch off registration")
         ("thin", bool_switch(&thinFlag), "Option for 1.5 x dz slice thickness (testing)")
+        ("io_threads", value<unsigned int>(&reconstruction._io_thread_count)->default_value(reconstruction._io_thread_count), "Thread count for all parallel I/O operations.")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results");
 
     // Combine all options

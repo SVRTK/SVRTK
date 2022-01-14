@@ -504,7 +504,7 @@ namespace svrtk {
         }
 
         if (_debug) {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(_io_thread_count)
             for (size_t ind = 0; ind < stacks.size(); ind++)
                 stacks[ind].Write((boost::format("rescaled-stack%1%.nii.gz") % ind).str().c_str());
         }
@@ -654,7 +654,7 @@ namespace svrtk {
         }
 
         if (_debug) {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(_io_thread_count)
             for (size_t ind = 0; ind < stacks.size(); ind++)
                 stacks[ind].Write((boost::format("rescaled-stack%1%.nii.gz") % ind).str().c_str());
         }
@@ -1056,7 +1056,7 @@ namespace svrtk {
             }
 
             // save slice transformations
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(_io_thread_count)
             for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
                 RigidTransformation r_transform = _transformations[inputIndex];
                 r_transform.PutMatrix(r_transform.GetMatrix() * _offset_matrices[inputIndex]);
@@ -1075,7 +1075,7 @@ namespace svrtk {
             }
 
             // read output transformations
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(_io_thread_count)
             for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
                 const string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
                 _transformations[inputIndex].Read(str_dofout.c_str());
@@ -1115,7 +1115,7 @@ namespace svrtk {
             }
 
             // read output transformations
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(_io_thread_count)
             for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
                 const string str_dofout = str_current_exchange_file_path + "/transformation-" + to_string(inputIndex) + ".dof";
                 _mffd_transformations[inputIndex].Read(str_dofout.c_str());
@@ -1134,7 +1134,7 @@ namespace svrtk {
 
         // save slices
         if (status_flag > 0) {
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(_io_thread_count)
             for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
                 const string str_slice = str_current_exchange_file_path + "/org-slice-" + to_string(inputIndex) + ".nii.gz";
                 _slices[inputIndex].Write(str_slice.c_str());
@@ -1144,7 +1144,7 @@ namespace svrtk {
         }
 
         // save transformations
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             const string str_dofin = str_current_exchange_file_path + "/org-transformation-" + to_string(current_iteration) + "-" + to_string(inputIndex) + ".dof";
             _transformations[inputIndex].Write(str_dofin.c_str());
@@ -2152,7 +2152,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveBiasFields() {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             _bias[inputIndex].Write((boost::format("bias%1%.nii.gz") % inputIndex).str().c_str());
     }
@@ -2166,7 +2166,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveSlices() {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             _slices[inputIndex].Write((boost::format("slice%1%.nii.gz") % inputIndex).str().c_str());
     }
@@ -2175,7 +2175,7 @@ namespace svrtk {
 
     void Reconstruction::SaveSlicesWithTiming() {
         cout << "Saving slices with timing: ";
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             _slices[inputIndex].Write((boost::format("sliceTime%1%.nii.gz") % _slice_timing[inputIndex]).str().c_str());
     }
@@ -2184,7 +2184,7 @@ namespace svrtk {
 
     void Reconstruction::SaveSimulatedSlices() {
         cout << "Saving simulated slices ... ";
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             _simulated_slices[inputIndex].Write((boost::format("simslice%1%.nii.gz") % inputIndex).str().c_str());
         cout << "done." << endl;
@@ -2194,7 +2194,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveWeights() {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++)
             _weights[inputIndex].Write((boost::format("weights%1%.nii.gz") % inputIndex).str().c_str());
     }
@@ -2221,7 +2221,7 @@ namespace svrtk {
 
     void Reconstruction::SaveTransformationsWithTiming(const int iter) {
         cout << "Saving transformations with timing: ";
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t i = 0; i < _transformations.size(); i++) {
             cout << i << " ";
             if (iter < 0)
@@ -2235,7 +2235,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveTransformations() {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(_io_thread_count)
         for (size_t i = 0; i < _transformations.size(); i++)
             _transformations[i].Write((boost::format("transformation%1%.dof") % i).str().c_str());
     }

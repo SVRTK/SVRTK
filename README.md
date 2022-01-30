@@ -36,11 +36,11 @@ docker pull fetalsvrtk/svrtk
 docker run -it --rm --mount type=bind,source=location_on_your_machine,target=/home/data fetalsvrtk/svrtk /bin/bash
 
 cd /home/data
-mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../stack2.nii.gz -thickness 2.5 -default -remote -resolution 0.85
+mirtk reconstructFFD ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../stack2.nii.gz -thickness 2.5 -default -resolution 0.85
 
 ```
 
-_Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 20 GB) in the Desktop Docker settings. _ 
+_Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 16 GB) in the Desktop Docker settings. _ 
 
 
 
@@ -50,7 +50,7 @@ Installation
 Please follow the installation instructions in InstallationInstructions.txt file.
 
 _Notes: The software can be compiled on either Ubuntu or OS X. 
-In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and > 16 GB RAM. 
+In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and > 10 GB RAM. 
 
 
 
@@ -63,7 +63,7 @@ Examples:
 3D brain reconstruction:
 
 ```bash
-mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 -remote
+mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 
 ```
  
  _Notes: The template stack should be the least motion corrupted and the brain position should correspond to the average position between all stacks (e.g., in the middle of the acquisition). The mask should be created for the template stack and cover the brain/head only - without stationary maternal tissue._
@@ -72,7 +72,7 @@ mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../st
 3D fetal body DSVR reconstruction:
 
 ```bash
-mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 0.85
+mirtk reconstructFFD ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 2.5 -default -resolution 0.85
 ```
 
  _Notes: The template stack should be the least motion corrupted and the body/thorax position should correspond to the average position between all stacks (e.g., in the middle of the acquisition). The mask should be created for the template stack and cover the investigated ROI._
@@ -81,22 +81,14 @@ mirtk reconstructBody ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz .
 3D placenta DSVR reconstruction:
 
 ```bash
-mirtk reconstructPlacenta ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -remote -resolution 1.25
+mirtk reconstructFFD ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -iterations 2 -thickness 2.5 2.5 2.5 -resolution 1.25
 ```
-  ---
-3D multi-channel DSVR reconstruction for T2* (reconstruction of 3D T2* maps driven by one of the echoes, e.g., E2, and transformations are propagated to the T2* map channel):
-
-```bash
-mirtk reconstructMC ../outputDSVR-E2.nii.gz 3 ../stack1-E2.nii.gz ../stack2-E2.nii.gz ../stack3-E2.nii.gz -channels 1 ../stack1-T2sMAP.nii.gz ../stack2-T2sMAP.nii.gz ../stack3-T2sMAP.nii.gz -mask ../mask.nii.gz -template ../template-stack-E2.nii.gz -thickness 2.5 -default -remote -no_intensity_matching -resolution 1.25
-```  
- _Notes: The output reconstructed T2* map will be in mc-image-0.nii.gz file._
-  
  ---
 4D cardiac velocity reconstruction:
 - see fetal_cmr_4d git repository for full framework: https://github.com/tomaroberts/fetal_cmr_4d
  
 ```bash
-mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz ../phase_stack3.nii.gz ../phase_stack4.nii.gz ../phase_stack5.nii.gz ../g_values.txt ../g_directions.txt -thickness 6 6 6 6 6 -mask ../mask.nii.gz -rec_iterations 40 -transformations [folder with slice transformations from 4D cardiac reconstruction] -limit_intensities -rec_iterations 40 -resolution 1.25 -force_exclude [list of slices that should be excluded] -numcardphase 25 -rrinterval 0.407046 -rrintervals [number of rr_intervals] [list of rr_intervals] -cardphase [number of slices] [cardiac phases for each of the slices] -debug > log-main.txt
+mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz ../phase_stack3.nii.gz ../phase_stack4.nii.gz ../phase_stack5.nii.gz ../g_values.txt ../g_directions.txt -thickness 6 6 6 6 6 -mask ../mask.nii.gz -rec_iterations 40 -transformations [folder with slice transformations from 4D cardiac reconstruction] -limit_intensities -rec_iterations 40 -resolution 1.25 -force_exclude [list of slices that should be excluded] -numcardphase 25 -rrinterval 0.407046 -rrintervals [list of rr_intervals] -cardphase [cardiac phases for each of the slices] -debug > log-main.txt
 ```
   ---
  Higher order spherical harmonics (SH) reconstruction of fetal brain diffusion MRI:

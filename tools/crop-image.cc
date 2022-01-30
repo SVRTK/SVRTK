@@ -1,7 +1,7 @@
 /*
  * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2018-2021 King's College London
+ * Copyright 2018- King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,13 +31,13 @@
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
-// SVRTK
-#include "svrtk/ReconstructionFFD.h"
+#include "svrtk/Utility.h"
 
 using namespace std;
 using namespace mirtk;
 using namespace svrtk;
- 
+using namespace svrtk::Utility;
+
 // =============================================================================
 // Auxiliary functions
 // =============================================================================
@@ -69,8 +69,6 @@ int main(int argc, char **argv)
 
     char *output_name = NULL;
 
-    ReconstructionFFD reconstruction;
-    
     RealImage input_stack, input_mask, output_stack;
     
 
@@ -103,7 +101,7 @@ int main(int argc, char **argv)
 
     
     RigidTransformation *rigidTransf_mask = new RigidTransformation;
-    reconstruction.TransformMask(input_stack, input_mask, *rigidTransf_mask);
+    TransformMask(input_stack, input_mask, *rigidTransf_mask);
     
     
     RealPixel smin, smax;
@@ -111,7 +109,7 @@ int main(int argc, char **argv)
     
     
     if (smax > 0.5) {
-        reconstruction.CropImage(output_stack,input_mask);
+        CropImage(output_stack,input_mask);
     } else {
         cout << "Warning: zero mask ..." << endl;
     }

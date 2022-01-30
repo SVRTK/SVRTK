@@ -28,7 +28,7 @@ using namespace svrtk;
 using namespace boost::program_options;
 
 // =============================================================================
-// Auxiliary functions
+//
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -42,6 +42,7 @@ void PrintUsage(const options_description& opts) {
     // Print optional arguments
     cout << opts << endl;
 }
+
 
 // -----------------------------------------------------------------------------
 
@@ -161,12 +162,9 @@ int main(int argc, char **argv) {
 
     // Flag that sets slice thickness to 1.5 of spacing (for testing purposes)
     bool thinFlag = false;
-
-    // Flag for longer reconstruction
-    bool fullRemoteRecon = false;
-
-    // Flag for automated exclusion of low quality / similarity stacks
-    bool excludeWrongStacks = false;
+    
+    // Flag for saving slices
+    bool saveSlicesFlag = false;
 
     // Paths of 'dofin' arguments
     vector<string> dofinPaths;
@@ -198,6 +196,7 @@ int main(int argc, char **argv) {
         ("template", value<string>(), "Use template for initialisation of registration loop. [Default: average of stack registration]")
         ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: twice voxel size in z direction]")
         ("default_thickness", value<double>(), "Default thickness for all stacks. [Default: twice voxel size in z direction]")
+        ("default_packages", value<int>(), "Default package number for all stacks. [Default: 1]")
         ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
         ("packages", value<vector<int>>(&packages)->multitoken(), "Give number of packages used during acquisition for each stack. The stacks will be split into packages during registration iteration 1 and then into odd and even slices within each package during registration iteration 2. The method will then continue with slice to volume approach. [Default: slice to volume registration only]")
         ("template_number", value<int>(&templateNumber), "Number of the template stack [Default: 0]")
@@ -214,23 +213,22 @@ int main(int argc, char **argv) {
         ("global_bias_correction", bool_switch(&globalBiasCorrection), "Correct the bias in reconstructed image against previous estimation")
         ("no_intensity_matching", "Switch off intensity matching")
         ("no_robust_statistics", "Switch off robust statistics")
-        ("exclude_wrong_stacks", bool_switch(&excludeWrongStacks), "Automated exclusion of misregistered stacks")
         ("rescale_stacks", bool_switch(&rescaleStacks), "Rescale stacks to avoid nan pixel errors [Default: false]")
         ("svr_only", bool_switch(&svrOnly), "Only SVR registration to a template stack")
         ("no_global", bool_switch(&noGlobalFlag), "No global stack registration")
         ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
         ("ncc", bool_switch(&nccRegFlag), "Use global NCC similarity for SVR steps [Default: NMI]")
+        ("save_slices", bool_switch(&saveSlicesFlag), "Save slices for future exclusion [Default: false]")
         ("structural", bool_switch(&structural), "Use structural exclusion of slices at the last iteration")
         ("exclude_slices_only", bool_switch(&robustSlicesOnly), "Robust statistics for exclusion of slices only")
         ("remove_black_background", bool_switch(&removeBlackBackground), "Create mask from black background")
         ("transformations", value<string>(&folder), "Use existing slice-to-volume transformations to initialize the reconstruction")
         ("force_exclude", value<vector<int>>(&forceExcluded)->multitoken(), "Force exclusion of slices with these indices")
-        ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues [Default: false]")
-        ("full_remote", bool_switch(&fullRemoteRecon), "Run SR+SVR steps as remote functions in case of memory issues (slower option) [Default: false]")
+//        ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues [Default: false]")
         ("no_registration", "Switch off registration")
         ("thin", bool_switch(&thinFlag), "Option for 1.5 x dz slice thickness (testing)")
-        ("io_threads", value<unsigned int>(&reconstruction._io_thread_count)->default_value(reconstruction._io_thread_count), "Thread count for all parallel I/O operations.")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results");
+
 
     // Combine all options
     options_description allOpts("Allowed options");
@@ -262,7 +260,7 @@ int main(int argc, char **argv) {
         PrintUsage(opts);
         return 1;
     }
-
+    
     cout << "Reconstructed volume name : " << outputName << endl;
     cout << "Number of stacks : " << nStacks << endl;
 
@@ -347,7 +345,7 @@ int main(int argc, char **argv) {
     // Number of registration-reconstruction iterations
     if (vm.count("iterations"))
         strFlags += " -iterations " + to_string(iterations);
-
+    
     // The same thickness for all stacks
     if (vm.count("default_thickness")) {
         double defaultThickness = vm["default_thickness"].as<double>();
@@ -355,6 +353,17 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < stacks.size(); i++) {
             thickness.push_back(defaultThickness);
             cout << thickness[i] << " ";
+        }
+        cout << endl;
+    }
+    
+    // The same number of packages for all stacks
+    if (vm.count("default_packages")) {
+        int defaultPackageNumber = vm["default_packages"].as<int>();
+        cout << "Number of packages (default for all stacks): ";
+        for (size_t i = 0; i < stacks.size(); i++) {
+            packages.push_back(defaultPackageNumber);
+            cout << packages[i] << " ";
         }
         cout << endl;
     }
@@ -387,15 +396,9 @@ int main(int argc, char **argv) {
     if (vm.count("multires"))
         strFlags += " -multires " + to_string(levels);
 
-    // Run registration as remote functions
-    if (remoteFlag)
-        strFlags += " -remote";
-
-    // Long reconstruction (10x10x30 iterations)
-    if (fullRemoteRecon) {
-        remoteFlag = true;
-        strFlags += " -remote";
-    }
+//    // Run registration as remote functions
+//    if (remoteFlag)
+//        strFlags += " -remote";
 
     // Use only SVR to the template (skip 1st SR averaging iteration)
     if (svrOnly)
@@ -408,7 +411,7 @@ int main(int argc, char **argv) {
     }
 
     // Force removal of certain slices
-    if (!forceExcluded.empty()) {
+    if (forceExcluded.size() > 0) {
         cout << forceExcluded.size() << " force excluded slices: ";
         for (size_t i = 0; i < forceExcluded.size(); i++)
             cout << forceExcluded[i] << " ";
@@ -453,6 +456,8 @@ int main(int argc, char **argv) {
     // SET RECONSTRUCTION OPTIONS AND PERFORM PREPROCESSING
     // -----------------------------------------------------------------------------
 
+    reconstruction.SetStructural(structural);
+    
     // Set thickness to the exact dz value if specified
     if (flagNoOverlapThickness && thickness.size() < 1) {
         for (size_t i = 0; i < stacks.size(); i++)
@@ -467,6 +472,21 @@ int main(int argc, char **argv) {
             break;
         }
     }
+    
+    // Initialise 2*slice thickness if not given by user
+    if (thickness.empty()) {
+        cout << "Slice thickness : ";
+        for (size_t i = 0; i < stacks.size(); i++) {
+            double dz = stacks[i].GetZSize();
+            if (thinFlag)
+                thickness.push_back(dz * 1.2);
+            else
+                thickness.push_back(dz * 2);
+            cout << thickness[i] << " ";
+        }
+        cout << endl;
+    }
+
 
     if (has4DStacks) {
         cout << "Splitting stacks into dynamics ... ";
@@ -506,6 +526,47 @@ int main(int argc, char **argv) {
 
         cout << "New number of stacks : " << stacks.size() << endl;
     }
+    
+    if (packages.size() > 0) {
+        cout << "Splitting stacks into packages ... ";
+        
+        Array<double> newThickness;
+        Array<int> newPackages;
+        Array<RigidTransformation> newStackTransformations;
+        Array<RealImage> newStacks;
+        
+        int q = 0;
+        for (size_t i = 0; i < stacks.size(); i++) {
+            Array<RealImage> out_packages;
+            if (packages[i] > 1) {
+                SplitImage(stacks[i], packages[i], out_packages);
+                for (size_t j = 0; j < out_packages.size(); j++) {
+                    newStacks.push_back(out_packages[j]);
+                    q = q + 1;
+                    if (thickness.size() > 0)
+                        newThickness.push_back(thickness[i]);
+                    newPackages.push_back(1);
+                    if (!stackTransformations.empty())
+                        newStackTransformations.push_back(stackTransformations[i]);
+                }
+            } else {
+                newStacks.push_back(stacks[i]);
+                if (thickness.size() > 0)
+                    newThickness.push_back(thickness[i]);
+                newPackages.push_back(1);
+                if (!stackTransformations.empty())
+                    newStackTransformations.push_back(stackTransformations[i]);
+            }
+        }
+        
+        stacks = move(newStacks);
+        thickness = move(newThickness);
+        packages = move(newPackages);
+        stackTransformations = move(newStackTransformations);
+
+        cout << "New number of stacks : " << stacks.size() << endl;
+    }
+    
 
     // Read path to MIRTK executables for remote registration
     string strMirtkPath(argv[0]);
@@ -527,23 +588,9 @@ int main(int argc, char **argv) {
     if (dofinPaths.empty())
         stackTransformations = Array<RigidTransformation>(stacks.size());
 
-    // Initialise 2*slice thickness if not given by user
-    if (thickness.empty()) {
-        cout << "Slice thickness : ";
-        for (size_t i = 0; i < stacks.size(); i++) {
-            double dx, dy, dz;
-            stacks[i].GetPixelSize(&dx, &dy, &dz);
-            thickness.push_back(thinFlag ? dz * 1.5 : dz * 2);
-            cout << thickness[i] << " ";
-        }
-        cout << endl;
-    }
-
     // Set debug mode option
-    if (debug)
-        reconstruction.DebugOn();
-    else
-        reconstruction.DebugOff();
+    if (debug) reconstruction.DebugOn();
+    else reconstruction.DebugOff();
 
     // Set verbose mode on with file
     reconstruction.VerboseOn("log-registration.txt");
@@ -560,6 +607,11 @@ int main(int argc, char **argv) {
         *mask = CreateMask(*mask);
         cout << "Warning : no mask was provided " << endl;
     }
+    
+    // If no separate template was provided - use the selected template stack
+    if (!useTemplate) {
+        templateStack = stacks[templateNumber];
+    }
 
     // Before creating the template we will crop template stack according to the given mask
     if (mask != NULL) {
@@ -575,7 +627,7 @@ int main(int argc, char **argv) {
 
         if (debug) {
             m.Write("maskforTemplate.nii.gz");
-            stacks[templateNumber].Write("croppedTemplate.nii.gz");
+            maskedTemplate.Write("croppedTemplate.nii.gz");
         }
     }
 
@@ -588,6 +640,11 @@ int main(int argc, char **argv) {
         maskedTemplate = templateStack * m;
         CropImage(maskedTemplate, m);
         CropImage(templateStack, m);
+        
+        if (debug) {
+            m.Write("maskforTemplate.nii.gz");
+            maskedTemplate.Write("croppedTemplate.nii.gz");
+        }
     }
 
     // Create template volume with isotropic resolution
@@ -613,7 +670,7 @@ int main(int argc, char **argv) {
 
     // Volumetric stack to template registration
     if (!noGlobalFlag)
-        reconstruction.StackRegistrations(stacks, stackTransformations, templateNumber);
+        reconstruction.StackRegistrations(stacks, stackTransformations, templateNumber, &templateStack);
 
     // Create average volume
     average = reconstruction.CreateAverage(stacks, stackTransformations);
@@ -659,108 +716,7 @@ int main(int argc, char **argv) {
 
     // Perform volumetric registration again
     if (!noGlobalFlag)
-        reconstruction.StackRegistrations(stacks, stackTransformations, templateNumber);
-
-    // Exclude low quality / similarity stacks (should be transferred to a separate function)
-    if (excludeWrongStacks) {
-        const size_t bestSelectedStacks = stacks.size();
-        cout << "Selecting stacks : " << " " << endl;
-
-        RealImage transformedTemplateMask = *mask;
-        RealImage templateToCheck = templateStack;
-        TransformMask(templateToCheck, transformedTemplateMask, RigidTransformation());
-        CropImage(templateToCheck, transformedTemplateMask);
-        CropImage(transformedTemplateMask, transformedTemplateMask);
-
-        Array<double> allNccArray;
-        Array<double> allSliceNccArray;
-        Array<int> allIndicesArray;
-        Array<double> allCountArray;
-        Array<double> sortedNccArray;
-        Array<double> selectedNccArray;
-        Array<int> selectedIndicesArray;
-        double maxNcc = -1.0;
-        int averageCountNcc = 0;
-        double averageSliceNcc = 0;
-        double averageVolumeNcc = 0;
-        Array<RealImage> newStacks;
-        Array<double> newThickness;
-        Array<int> newPackages;
-        Array<RigidTransformation> newStackTransformations;
-
-        for (size_t i = 0; i < stacks.size(); i++) {
-            RealImage stackToCheck = stacks[i];
-            Matrix m = stackTransformations[i].GetMatrix();
-            stackToCheck.PutAffineMatrix(m, true);
-
-            const double sliceNcc = VolumeNCC(stackToCheck, templateToCheck, transformedTemplateMask);
-            double countNcc = -1;
-            const double volumeNcc = ComputeNCC(stackToCheck, templateToCheck, 0.1, &countNcc);
-
-            averageCountNcc += countNcc;
-            averageSliceNcc += sliceNcc;
-            averageVolumeNcc += volumeNcc;
-
-            allNccArray.push_back(volumeNcc);
-            allIndicesArray.push_back(i);
-            allCountArray.push_back(countNcc);
-            allSliceNccArray.push_back(sliceNcc);
-
-            if (volumeNcc > maxNcc)
-                maxNcc = volumeNcc;
-        }
-
-        averageCountNcc /= stacks.size();
-        averageSliceNcc /= stacks.size();
-        averageVolumeNcc /= stacks.size();
-
-        double stdCountNcc = 0;
-        double stdSliceNcc = 0;
-        double stdVolumeNcc = 0;
-
-        for (size_t i = 0; i < stacks.size(); i++) {
-            stdCountNcc += pow(allCountArray[i] - averageCountNcc, 2);
-            stdSliceNcc += pow(allSliceNccArray[i] - averageSliceNcc, 2);
-            stdVolumeNcc = averageVolumeNcc + pow(allNccArray[i] - averageVolumeNcc, 2);
-        }
-
-        stdSliceNcc /= stacks.size();
-        stdVolumeNcc /= stacks.size();
-        stdCountNcc /= stacks.size();
-
-        cout << " - average values : volume ncc = " << averageVolumeNcc << " +/- " << stdVolumeNcc << " ; slice ncc = " << averageSliceNcc << " +/- " << stdSliceNcc << " ; volume [mm^3] = " << averageCountNcc << "+/- " << stdCountNcc << endl;
-
-        sortedNccArray = allNccArray;
-        sort(sortedNccArray.begin(), sortedNccArray.end(), greater<double>());
-
-        cout << " - selected : " << endl;
-        size_t totalSelected = 0;
-        for (int j = 0; j < sortedNccArray.size(); j++) {
-            for (size_t i = 0; i < stacks.size(); i++) {
-                if (totalSelected < bestSelectedStacks) {
-                    if (sortedNccArray[j] == allNccArray[i] && allCountArray[i] > 0.65 * averageCountNcc && allNccArray[i] > (averageVolumeNcc - 2 * stdVolumeNcc)) {
-                        selectedNccArray.push_back(allNccArray[i]);
-                        selectedIndicesArray.push_back(allIndicesArray[i]);
-                        totalSelected++;
-                        newStacks.push_back(stacks[allIndicesArray[i]]);
-                        cout << "" << allIndicesArray[i] << " : volume ncc = " << allNccArray[i] << " ; slice ncc = " << allSliceNccArray[i] << endl;
-
-                        if (!stackTransformations.empty())
-                            newStackTransformations.push_back(stackTransformations[i]);
-                        if (!packages.empty())
-                            newPackages.push_back(packages[i]);
-                        if (!thickness.empty())
-                            newThickness.push_back(thickness[i]);
-                    }
-                }
-            }
-        }
-
-        stacks = move(newStacks);
-        thickness = move(newThickness);
-        packages = move(newPackages);
-        stackTransformations = move(newStackTransformations);
-    }
+        reconstruction.StackRegistrations(stacks, stackTransformations, templateNumber, &templateStack);
 
     cout << "------------------------------------------------------" << endl;
 
@@ -777,10 +733,10 @@ int main(int argc, char **argv) {
     Array<RealImage> probabilityMaps;
     reconstruction.CreateSlicesAndTransformations(stacks, stackTransformations, thickness, probabilityMaps);
 
-    // If full remote reconstruction option is used - save the model and all outputs
-    if (fullRemoteRecon)
-        reconstruction.SaveModelRemote(strCurrentExchangeFilePath, 1, 0);
-
+    // Save slices for future exclusion
+    if(saveSlicesFlag)
+        reconstruction.SaveSlices();
+    
     // Mask all the slices
     reconstruction.MaskSlices();
 
@@ -813,46 +769,27 @@ int main(int argc, char **argv) {
 
     int currentIteration = 0;
 
-    if (fullRemoteRecon && packages.size() < 1) {
-        // Run reconstruction remotely ("reconstruct-round" function) - can be removed
-        for (int iter = 0; iter < iterations; iter++) {
-            currentIteration = iter;
-            const string reconstructCmd = strMirtkPath + "/reconstruct-round " + " " + strMirtkPath + " " + strCurrentMainFilePath + " " + strCurrentExchangeFilePath + " " + to_string(currentIteration) + " " + to_string(reconstruction._number_of_slices_org) + " " + to_string(reconstruction._average_thickness_org) + " " + strFlags;
-            if (system(reconstructCmd.c_str()) == -1) {
-                cerr << "The reconstruct command couldn't be executed!" << endl;
-                return 1;
-            }
-        }
-    } else {
+    {
         // Interleaved registration-reconstruction iterations
         for (int iter = 0; iter < iterations; iter++) {
             cout << "------------------------------------------------------" << endl;
             cout << "Iteration : " << iter << endl;
+            
+            reconstruction.SetCurrentIteration(iter);
 
             reconstruction.MaskVolume();
 
             // If only SVR option is used - skip 1st SR only averaging
-            if (svrOnly) {
+            if (svrOnly || iter > 0) {
                 if (remoteFlag)
                     reconstruction.RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
                 else
                     reconstruction.SliceToVolumeRegistration();
-            } else if (iter > 0) {
-                // Run package-based registartion is the number of packages was given
-                if (!packages.empty() && iter < iterations - 1) {
-                    reconstruction.PackageToVolume(stacks, packages, stackTransformations);
-                } else {
-                    // Run
-                    if (remoteFlag)
-                        reconstruction.RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
-                    else
-                        reconstruction.SliceToVolumeRegistration();
-                }
             }
 
-            // Run structure-based outlier rejection if specified
-            if (structural && iter > 1)
-                reconstruction.StructuralExclusion();
+            // Run global NNC structure-based outlier rejection of slices
+            if (structural)
+                reconstruction.GlobalStructuralExclusion();
 
             // Set smoothing parameters
             // Amount of smoothing (given by lambda) is decreased with improving alignment
@@ -894,6 +831,12 @@ int main(int argc, char **argv) {
             // EStep
             if (robustStatistics)
                 reconstruction.EStep();
+            
+            // Run local SSIM structure-based outlier rejection
+            if (structural) {
+                reconstruction.CreateSliceMasks();
+                reconstruction.SStep();
+            }
 
             // Set number of reconstruction iterations
             const int recIterations = iter == iterations - 1 ? srIterations * 3 : srIterations;
@@ -926,12 +869,15 @@ int main(int argc, char **argv) {
 
                 // Run robust statistics for rejection of outliers
                 if (robustStatistics) {
-                    SVRTK_START_TIMING();
                     reconstruction.MStep(i + 1);
                     reconstruction.EStep();
-                    SVRTK_END_TIMING("robust statistics");
                 }
 
+                // Run local SSIM structure-based outlier rejection
+                if (structural) {
+                    reconstruction.SStep();
+                }
+                
                 if (debug) {
                     // Save intermediate reconstructed image
                     reconstruction.GetReconstructed().Write((boost::format("super%1%.nii.gz") % i).str().c_str());
@@ -988,12 +934,6 @@ int main(int argc, char **argv) {
                 stacks[i].Write((boost::format("simulated%1%.nii.gz") % i).str().c_str());
         }
 
-        reconstruction.ScaleVolume();
-    }
-
-    // Load results if remote reconstruction was used - this option can be removed
-    if (fullRemoteRecon) {
-        reconstruction.LoadResultsRemote(strCurrentExchangeFilePath, reconstruction._number_of_slices_org, currentIteration);
         reconstruction.ScaleVolume();
     }
 

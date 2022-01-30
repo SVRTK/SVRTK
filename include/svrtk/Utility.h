@@ -83,6 +83,9 @@ namespace svrtk::Utility {
      */
     double ComputeNCC(const RealImage& slice_1, const RealImage& slice_2, const double threshold = 0.01, double *count = nullptr);
 
+
+    double LocalSSIM(const RealImage slice, const RealImage sim_slice );
+
     /**
      * @brief Compute inter-slice volume NCC (motion metric).
      * @param input_stack
@@ -114,6 +117,9 @@ namespace svrtk::Utility {
     void GlobalStackStats(RealImage template_stack, const RealImage& template_mask, const Array<RealImage>& stacks,
         const Array<RealImage>& masks, double& average_ncc, double& average_volume,
         Array<RigidTransformation>& current_stack_transformations);
+
+    // Cropping of stacks based on intersection
+    void StackIntersection(Array<RealImage>& stacks, RealImage template_mask);
 
     /**
      * @brief Run parallel global similarity statistics.

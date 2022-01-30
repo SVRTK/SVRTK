@@ -23,12 +23,12 @@
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
 
-// SVRTK
-#include "svrtk/ReconstructionFFD.h"
+#include "svrtk/Utility.h"
 
 using namespace std;
 using namespace mirtk;
 using namespace svrtk;
+using namespace svrtk::Utility;
 
 // =============================================================================
 // Auxiliary functions
@@ -65,9 +65,7 @@ int main(int argc, char **argv)
     
     if (argc != 5)
         usage();
-    
-    
-    ReconstructionFFD reconstruction;
+
     
     const char *tmp_fname;
     const char *file_end_fname;
@@ -97,7 +95,7 @@ int main(int argc, char **argv)
     main_mask.Read(tmp_fname);
     
     RigidTransformation *rigidTransf_mask = new RigidTransformation;
-    reconstruction.TransformMask(main_stack, main_mask, *rigidTransf_mask);
+    TransformMask(main_stack, main_mask, *rigidTransf_mask);
     
     argc--;
     argv++;

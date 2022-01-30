@@ -31,16 +31,16 @@
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
-// SVRTK
-#include "svrtk/ReconstructionFFD.h"
-
 // C++ Standard
 #include <set>
+
+#include "svrtk/Utility.h"
 
 using namespace std;
 using namespace mirtk;
 using namespace svrtk;
- 
+using namespace svrtk::Utility;
+
 // =============================================================================
 // Auxiliary functions
 // =============================================================================
@@ -77,8 +77,7 @@ int main(int argc, char **argv)
     
     char *output_name = NULL;
     
-    ReconstructionFFD *reconstruction = new ReconstructionFFD();
-    
+
     RealImage input_stack, input_mask;
     
     
@@ -192,7 +191,7 @@ int main(int argc, char **argv)
         input_mask = org_input_mask;
         
         RigidTransformation *rigidTransf_mask = new RigidTransformation;
-        reconstruction->TransformMask(input_stack, input_mask, *rigidTransf_mask);
+        TransformMask(input_stack, input_mask, *rigidTransf_mask);
         
         info_volume << stack_files[s] << ",";
         info_mean << stack_files[s] << ",";

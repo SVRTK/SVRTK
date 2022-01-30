@@ -188,7 +188,7 @@ namespace svrtk {
         }
 
         if (_debug) {
-            #pragma omp parallel for num_threads(_io_thread_count)
+            #pragma omp parallel for
             for (size_t ind = 0; ind < stacks.size(); ind++)
                 stacks[ind].Write((boost::format("rescaledstack%03i.nii.gz") % ind).str().c_str());
 
@@ -662,7 +662,7 @@ namespace svrtk {
         if (_verbose)
             _verbose_log << "RemoteSliceToVolumeRegistrationCardiac4D" << endl;
 
-        #pragma omp parallel for num_threads(_io_thread_count)
+        #pragma omp parallel for
         for (int t = 0; t < _reconstructed4D.GetT(); t++) {
             string str_source = str_current_exchange_file_path + "/current-source-" + to_string(t) + ".nii.gz";
             source = _reconstructed4D.GetRegion(0, 0, 0, t, attr_recon._x, attr_recon._y, attr_recon._z, t + 1);
@@ -698,7 +698,7 @@ namespace svrtk {
             }
         }
 
-        #pragma omp parallel for num_threads(_io_thread_count)
+        #pragma omp parallel for
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             RigidTransformation r_transform = _transformations[inputIndex];
             r_transform.PutMatrix(r_transform.GetMatrix() * _offset_matrices[inputIndex]);
@@ -719,7 +719,7 @@ namespace svrtk {
             svr_range_stop = min(svr_range_start + stride, (int)_slices.size());
         }
 
-        #pragma omp parallel for num_threads(_io_thread_count)
+        #pragma omp parallel for
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             const string str_dofout = str_current_exchange_file_path + "/res-transformation-" + to_string(inputIndex) + ".dof";
             _transformations[inputIndex].Read(str_dofout.c_str());
@@ -1324,7 +1324,7 @@ namespace svrtk {
         if (_verbose)
             _verbose_log << message;
 
-        #pragma omp parallel for num_threads(_io_thread_count)
+        #pragma omp parallel for
         for (size_t i = 0; i < save_stacks.size(); i++)
             save_stacks[i].Write((boost::format("%s%05i.nii.gz") % filename_prefix % i).str().c_str());
 
@@ -1348,7 +1348,7 @@ namespace svrtk {
                 for (int j = 0; j < source[inputIndex].GetY(); j++)
                     save_stacks[_stack_index[inputIndex]](i, j, _stack_loc_index[inputIndex], _stack_dyn_index[inputIndex]) = source[inputIndex](i, j, 0);
 
-        #pragma omp parallel for num_threads(_io_thread_count)
+        #pragma omp parallel for
         for (size_t i = 0; i < stacks.size(); i++) {
             string filename;
             if (iter < 0 || rec_iter < 0)
@@ -1387,7 +1387,7 @@ namespace svrtk {
                     wstacks[_stack_index[inputIndex]](i, j, _stack_loc_index[inputIndex], _stack_dyn_index[inputIndex]) = 10 * _weights[inputIndex](i, j, 0);
                 }
 
-        #pragma omp parallel for num_threads(_io_thread_count)
+        #pragma omp parallel for 
         for (size_t i = 0; i < stacks.size(); i++) {
             imagestacks[i].Write((boost::format("stack%03i.nii.gz") % i).str().c_str());
             wstacks[i].Write((boost::format("w%03i.nii.gz") % i).str().c_str());

@@ -191,7 +191,6 @@ int main(int argc, char **argv) {
         ("reg_recon_to_ref", bool_switch(&regReconToRef), "Register reconstructed volume to reference volume. [Default: recon to ref]")
         ("ref_transformations", value<string>(&refTransformationsFolder), "Reference slice-to-volume transformation folder.")
         ("log_prefix", value<string>(&logID), "Prefix for the log file.")
-        ("io_threads", value<unsigned int>(&reconstruction._io_thread_count)->default_value(reconstruction._io_thread_count), "Thread count for all parallel I/O operations.")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results.")
         ("no_log", bool_switch(&noLog), "Do not redirect cout and cerr to log files.");
 

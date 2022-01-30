@@ -9,12 +9,12 @@
 #include "mirtk/GenericImage.h"
 #include "mirtk/ImageReader.h"
 
-// SVRTK
-#include "svrtk/ReconstructionFFD.h"
+#include "svrtk/Utility.h"
 
 using namespace std;
 using namespace mirtk;
 using namespace svrtk;
+using namespace svrtk::Utility;
 
 // =============================================================================
 // Auxiliary functions
@@ -170,11 +170,8 @@ int main(int argc, char **argv)
     
     if (number_of_packages > 1) {
         
-        ReconstructionFFD reconstruction;
-        
-        
         Array<RealImage> packages;
-        reconstruction.SplitImage(main_stack, number_of_packages, packages);
+        SplitImage(main_stack, number_of_packages, packages);
         
         string org_name(tmp_fname);
         std::size_t pos = org_name.find(".nii");

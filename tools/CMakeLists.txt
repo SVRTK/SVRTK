@@ -2,7 +2,7 @@
 # SVRTK : SVR reconstruction based on MIRTK
 #
 # Copyright 2008-2017 Imperial College London
-# Copyright 2018-2021 King's College London
+# Copyright 2018- King's College London
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,20 +54,6 @@ mirtk_add_executable(
     ${TBB}
 )
 
-mirtk_add_executable(
-  reconstruct-round
-  SOURCES
-    reconstruct-round.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
 
 mirtk_add_executable(
   pad-3d
@@ -204,20 +190,6 @@ mirtk_add_executable(
     ${TBB}
 )
 
-mirtk_add_executable(
-  reconstructMC
-  SOURCES
-    reconstructMC.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
 
 mirtk_add_executable(
   reconstructCardiacVelocity
@@ -264,40 +236,12 @@ mirtk_add_executable(
     ${TBB}
 )
 
-mirtk_add_executable(
-  reconstructPlacenta
-  SOURCES
-    reconstructPlacenta.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
+
 
 mirtk_add_executable(
-  reconstructAngio
+  reconstructFFD
   SOURCES
-    reconstructAngio.cc
-  DEPENDS
-    LibCommon
-    LibNumerics
-    LibImage
-    LibIO
-    LibRegistration
-    LibTransformation
-    LibSVRTK
-    ${TBB}
-)
-
-mirtk_add_executable(
-  reconstructBody
-  SOURCES
-    reconstructBody.cc
+    reconstructFFD.cc
   DEPENDS
     LibCommon
     LibNumerics
@@ -460,6 +404,22 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
+  prepare-for-monai
+  SOURCES
+    prepare-for-monai.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
   get-t
   SOURCES
     get-t.cc
@@ -493,6 +453,37 @@ mirtk_add_executable(
   image-label-statistics
   SOURCES
     image-label-statistics.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  nan
+  SOURCES
+    nan.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  replace-label
+  SOURCES
+    replace-label.cc
   DEPENDS
     LibCommon
     LibNumerics

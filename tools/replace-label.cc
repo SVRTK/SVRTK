@@ -1,7 +1,7 @@
 /*
  * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2018-2021 King's College London
+ * Copyright 2018- King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,27 @@
  * limitations under the License.
  */
 
-// MIRTK
+
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
+
 #include "mirtk/NumericsConfig.h"
 #include "mirtk/IOConfig.h"
 #include "mirtk/TransformationConfig.h"
 #include "mirtk/RegistrationConfig.h"
+
 #include "mirtk/GenericImage.h"
 #include "mirtk/GenericRegistrationFilter.h"
+
 #include "mirtk/Transformation.h"
 #include "mirtk/HomogeneousTransformation.h"
 #include "mirtk/RigidTransformation.h"
+
 #include "mirtk/ImageReader.h"
 #include "mirtk/Dilation.h"
 
-using namespace std;
 using namespace mirtk;
+using namespace std;
  
 // =============================================================================
 // Auxiliary functions
@@ -41,13 +45,13 @@ using namespace mirtk;
 // -----------------------------------------------------------------------------
 void usage()
 {
-    cout << "Usage: mirtk extract-label [input_label_image] [output_label_image] [start_label_number] [end_label_number]\n" << endl;
+    cout << "Usage: mirtk replate-label [input_parcellation] [reference_parcellation]  [output_parcellation] [label_number_in_reference] [label_number_to_replace_in_input] \n" << endl;
     cout << endl;
-    cout << "Function for extracting specific label range from a multi-label image." << endl;
+    cout << "Function for replacing one label to another based on the provided additional reference parcellation. " << endl;
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-    exit(1);
+    exit(0);
 }
 // -----------------------------------------------------------------------------
 
@@ -65,8 +69,8 @@ int main(int argc, char **argv)
 
     char *output_name = NULL;
 
-
-    RealImage input_stack, output_mask;
+    
+    RealImage input_mask, output_mask, reference_mask;
     
 
     char *tmp_fname = NULL;
@@ -76,50 +80,51 @@ int main(int argc, char **argv)
     InitializeIOLibrary();
 
 
-    
-    //read input name
     tmp_fname = argv[1];
-    input_stack.Read(tmp_fname);
+    input_mask.Read(tmp_fname);
     argc--;
     argv++;
+    
 
-    //read output name
+    tmp_fname = argv[1];
+    reference_mask.Read(tmp_fname);
+    argc--;
+    argv++;
+    
     output_name = argv[1];
     argc--;
     argv++;
     
-    int num_l1 = atoi(argv[1]);
+    
+    int num_l_ref = atoi(argv[1]);
     
     argc--;
     argv++;
     
-    int num_l2 = atoi(argv[1]);
+    int num_l_in = atoi(argv[1]);
     
     argc--;
     argv++;
     
 
-    RealImage output_stack = input_stack;
-    output_stack = 0;
+    output_mask = input_mask;
  
     int sh = 1;
 
-     for (int x = sh; x < input_stack.GetX()-sh; x++) {
-        for (int y = sh; y < input_stack.GetY()-sh; y++) {
-            for (int z = sh; z < input_stack.GetZ()-sh; z++) {
+     for (int x = sh; x < input_mask.GetX()-sh; x++) {
+        for (int y = sh; y < input_mask.GetY()-sh; y++) {
+            for (int z = sh; z < input_mask.GetZ()-sh; z++) {
 
-                if (input_stack(x,y,z) < (num_l2+1) && input_stack(x,y,z) > (num_l1-1)) {
-                    output_stack(x,y,z) = 1;
+                if ( reference_mask(x,y,z) == num_l_ref && input_mask(x,y,z) == num_l_in ) {
+                    output_mask(x,y,z) = num_l_ref;
                 }
-                else {
-                    output_stack(x,y,z) = 0;
-                }
+ 
             }
         }
     }
 
     
-    output_stack.Write(output_name);
+    output_mask.Write(output_name);
 
     
     return 0;

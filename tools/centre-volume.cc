@@ -32,11 +32,13 @@
 #include "mirtk/Dilation.h"
 
 // SVRTK
-#include "svrtk/ReconstructionFFD.h"
+#include "svrtk/Utility.h"
+#define SVRTK_TOOL
 
 using namespace std;
 using namespace mirtk;
 using namespace svrtk;
+using namespace svrtk::Utility;
 
 // =============================================================================
 // Auxiliary functions
@@ -45,8 +47,13 @@ using namespace svrtk;
 // -----------------------------------------------------------------------------
 void usage()
 {
-    cout << "..." << endl;
-    exit(1);
+    cout << "Usage: mirtk centre-volume [input image] [mask] ... [output image] " << endl;
+    cout << endl;
+    cout << "Function that changes origin of the image with respect to the centre of the mask (world coordinates). ." << endl;
+    cout << endl;
+    cout << "\t" << endl;
+    cout << "\t" << endl;
+
 }
 // -----------------------------------------------------------------------------
 
@@ -63,8 +70,6 @@ int main(int argc, char **argv)
     RealImage stack;
 
     char *output_name = NULL;
-
-    ReconstructionFFD reconstruction;
 
     RealImage input_stack, input_mask, output_stack;
 
@@ -97,7 +102,7 @@ int main(int argc, char **argv)
 
 
     RigidTransformation *rigidTransf_mask = new RigidTransformation;
-    reconstruction.TransformMask(input_stack, input_mask, *rigidTransf_mask);
+    TransformMask(input_stack, input_mask, *rigidTransf_mask);
 
     int sh = 0;
 

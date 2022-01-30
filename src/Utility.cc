@@ -345,6 +345,63 @@ namespace svrtk::Utility {
 
     //-------------------------------------------------------------------
 
+    // crop stacks based on global intersection
+    void StackIntersection(Array<RealImage>& stacks, RealImage template_mask) {
+        
+        ImageAttributes attr = template_mask.Attributes();
+        int new_x = 2*attr._x;
+        int new_y = 2*attr._y;
+        int new_z = 2*attr._z;
+        RealImage intersection_mask(attr);
+        intersection_mask = 1;
+        
+        int ix, iy, iz, is;
+        double sx, sy, sz;
+        double wx, wy, wz;
+        for (ix = 0; ix < intersection_mask.GetX(); ix++) {
+            for (iy = 0; iy < intersection_mask.GetY(); iy++) {
+                for (iz = 0; iz < intersection_mask.GetZ(); iz++) {
+                    wx = ix; wy = iy; wz = iz;
+                    intersection_mask.ImageToWorld(wx, wy, wz);
+                    for (is = 0; is < stacks.size(); is++) {
+                        sx = wx; sy = wy; sz = wz;
+                        stacks[is].WorldToImage(sx, sy, sz);
+                        if (stacks[is].IsInside(sx, sy, sz)) {
+                            intersection_mask(ix,iy,iz) = intersection_mask(ix,iy,iz) * 1;
+                        } else {
+                            intersection_mask(ix,iy,iz) = intersection_mask(ix,iy,iz) * 0;
+                        }
+                    }
+                    sx = wx; sy = wy; sz = wz;
+                    template_mask.WorldToImage(sx, sy, sz);
+                    int mx, my, mz;
+                    mx = round(sx); my = round(sy); mz = round(sz);
+                    if (template_mask.IsInside(mx, my, mz) && template_mask(mx, my, mz) > 0)
+                            intersection_mask(ix,iy,iz) = 1;
+                }
+            }
+        }
+        ConnectivityType i_connectivity = CONNECTIVITY_26;
+        Dilate<RealPixel>(&intersection_mask, 5, i_connectivity);
+        
+//        if (_debug) {
+//            intersection_mask.Write("intersection-mask.nii.gz");
+//        }
+        
+        for (int i=0; i<stacks.size(); i++) {
+            RigidTransformation* tmp_r = new RigidTransformation();
+            RealImage i_tmp = intersection_mask;
+            TransformMask(stacks[i],i_tmp, *tmp_r);
+            CropImage(stacks[i],i_tmp);
+//            if (_debug) {
+//                stacks[i].Write((boost::format("gcropped-%1%.nii.gz") % i).str().c_str());
+//            }
+        }
+
+    }
+
+    //-------------------------------------------------------------------
+
     // Implementation of NCC between images
     double ComputeNCC(const RealImage& slice_1, const RealImage& slice_2, const double threshold, double *count) {
         const int slice_1_N = slice_1.NumberOfVoxels();
@@ -404,6 +461,43 @@ namespace svrtk::Utility {
 
         return CC_slice;
     }
+
+    //-------------------------------------------------------------------
+
+    // Implementation of SSIM between images
+    double LocalSSIM( const RealImage slice, const RealImage sim_slice ) {
+        double C1 = 6.5025, C2 = 58.5225;
+        double SSIM = 0, DSSIM = 0;
+        
+        double mu1=0, mu2=0, var1=0, var2=0, covar=0, num=0;
+        double x_sq=0, y_sq=0, xy=0;
+        int box = round(slice.GetX()/2);
+        int y = box;
+        int x = box;
+                
+        for (int yy=0; yy<slice.GetY(); yy++) {
+            for (int xx=0; xx<slice.GetX(); xx++) {
+                if (slice(xx,yy,0)>0.01 && sim_slice(xx,yy,0)>0.01) {
+                    mu1 += slice(xx, yy, 0);
+                    mu2 += sim_slice(xx,yy,0);
+                    num += 1;
+                    x_sq += pow(slice(xx, yy, 0),2.0);
+                    y_sq += pow(sim_slice(xx, yy, 0),2.0);
+                    xy += slice(xx, yy, 0)*sim_slice(xx, yy, 0);
+                 }
+            }
+        }
+                
+        mu1 = mu1/num;
+        mu2 = mu2/num;
+        var1 = (x_sq/num)-pow(mu1,2.0);
+        var2 = (y_sq/num)-pow(mu2,2.0);
+        covar = (xy/num)-mu1*mu2;
+        double curSSIM = ((2*mu1*mu2+C1)*(2*covar+C2)) / ( (pow(mu1,2.)+pow(mu2,2.)+C1) * (var1+var2+C2) );
+        
+        return curSSIM;
+    }
+
 
     //-------------------------------------------------------------------
 

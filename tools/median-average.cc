@@ -31,8 +31,6 @@
 #include "mirtk/RigidTransformation.h"
 #include "mirtk/ImageReader.h"
 
-// SVRTK
-#include "svrtk/Reconstruction.h"
 
 // C++ Standard
 #include <iostream>
@@ -49,9 +47,12 @@
 #include <pthread.h>
 #include <string>
 
+#include "svrtk/Utility.h"
+
 using namespace std;
 using namespace mirtk;
 using namespace svrtk;
+using namespace svrtk::Utility;
 
 // =============================================================================
 //

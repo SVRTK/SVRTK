@@ -39,12 +39,14 @@ namespace svrtk {
         class CoeffInit;
         class CoeffInitSF;
         class Superresolution;
+        class SStep;
         class MStep;
         class EStep;
         class Bias;
         class Scale;
         class NormaliseBias;
         class SimulateSlices;
+        class SimulateMasks;
         class Average;
         class AdaptiveRegularization1;
         class AdaptiveRegularization2;
@@ -74,6 +76,9 @@ namespace svrtk {
         bool _masked_stacks;
 
         double _global_NCC_threshold;
+        int _local_SSIM_window_size;
+        double _local_SSIM_threshold;
+        
         Array<int> _n_packages;
 
         ImageAttributes _attr_reconstructed;
@@ -82,7 +87,8 @@ namespace svrtk {
         bool _saved_slices;
         Array<int> _zero_slices;
 
-        int _cp_spacing;
+        int _current_iteration;
+        Array<int> _cp_spacing;
         bool _filtered_cmp_flag;
         bool _bg_flag;
 
@@ -92,14 +98,15 @@ namespace svrtk {
         Array<RealImage> _simulated_slices;
         Array<RealImage> _simulated_weights;
         Array<RealImage> _simulated_inside;
-
+        Array<RealImage> _slice_masks;
+        Array<RealImage> _slice_ssim_maps;
         Array<ImageAttributes> _slice_attributes;
         Array<RealImage> _slice_dif;
 
         Array<GreyImage> _grey_slices;
         GreyImage _grey_reconstructed;
 
-        Array<int> _reg_slice_weight;
+        Array<int> _structural_slice_weight;
         Array<int> _package_index;
         Array<int> _slice_pos;
 
@@ -107,7 +114,8 @@ namespace svrtk {
         Array<RigidTransformation> _transformations;
         Array<RigidTransformation> _previous_transformations;
         Array<RigidTransformation> _transformationsRwithMB;
-        Array<MultiLevelFreeFormTransformation> _mffd_transformations;
+        Array<MultiLevelFreeFormTransformation*> _mffd_transformations;
+        Array<MultiLevelFreeFormTransformation*> _global_mffd_transformations;
 
         /// Indicator whether slice has an overlap with volumetric mask
         Array<bool> _slice_inside;
@@ -121,6 +129,7 @@ namespace svrtk {
         /// Volumes
         RealImage _reconstructed;
         RealImage _mask;
+        RealImage _evaluation_mask;
         RealImage _target;
         RealImage _brain_probability;
         Array<RealImage> _probability_maps;
@@ -256,9 +265,6 @@ namespace svrtk {
         int _number_of_slices_org;
         double _average_thickness_org;
 
-        /// Thread count for parallel I/O operations
-        unsigned int _io_thread_count = omp_get_max_threads();
-
         /**
          * @brief Create zero image as a template for reconstructed volume.
          * @param stack Stack to be set as template.
@@ -309,7 +315,7 @@ namespace svrtk {
          * @param stack_transformations
          * @param templateNumber
          */
-        void StackRegistrations(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber);
+        void StackRegistrations(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber, RealImage *input_template);
 
         /**
          * @brief Create slices from the stacks and slice-dependent transformations from stack transformations.
@@ -373,6 +379,11 @@ namespace svrtk {
 
         /// Mask slices based on the reconstruction mask
         void MaskSlices();
+        
+        // Create slice masks for the current iterations
+        void CreateSliceMasks();
+        
+        void GlobalReconMask();
 
         /// Set reconstructed image
         void SetTemplate(RealImage tempImage);
@@ -413,6 +424,9 @@ namespace svrtk {
 
         /// Run MStep
         void MStep(int iter);
+        
+        /// Run SStep 
+        void SStep();
 
         /**
          * @brief Run edge-preserving regularization with confidence map.
@@ -534,7 +548,10 @@ namespace svrtk {
             const Array<int>& order, const int step, const int rewinder, const int iter, const int steps);
 
         /// Run structure-based rejection of outliers
-        void StructuralExclusion();
+        void GlobalStructuralExclusion();
+        
+        // Compute local SSIM map between simulated and original slices
+        void SliceSSIMMap(int inputIndex);
 
         /**
          * @brief Evaluate reconstruction quality (errors per slices).
@@ -567,10 +584,12 @@ namespace svrtk {
         friend class Parallel::Superresolution;
         friend class Parallel::MStep;
         friend class Parallel::EStep;
+        friend class Parallel::SStep;
         friend class Parallel::Bias;
         friend class Parallel::Scale;
         friend class Parallel::NormaliseBias;
         friend class Parallel::SimulateSlices;
+        friend class Parallel::SimulateMasks;
         friend class Parallel::Average;
         friend class Parallel::AdaptiveRegularization1;
         friend class Parallel::AdaptiveRegularization2;
@@ -600,6 +619,10 @@ namespace svrtk {
             _template_created = true;
         }
 
+        inline void SetCurrentIteration(int current_iteration) {
+            _current_iteration = current_iteration;
+        }
+        
         /// Return mask
         inline const RealImage& GetMask() {
             return _mask;
@@ -676,6 +699,13 @@ namespace svrtk {
         inline void SetBlurring(bool flag_blurring) {
             _blurring = flag_blurring;
         }
+        
+        
+        inline void SetGlobalNCC(double global_NCC_threshold) {
+            _global_NCC_threshold = global_NCC_threshold;
+        }
+        
+        
 
         /// Set structural flag
         inline void SetStructural(bool flag_structural) {
@@ -805,8 +835,18 @@ namespace svrtk {
         }
 
         /// Set CP spacing
-        inline void SetCP(int cp_spacing) {
-            _cp_spacing = cp_spacing;
+        inline void SetCP(int cp_spacing_value, int step) {
+            if (cp_spacing_value > 4) {
+                _cp_spacing.clear();
+                for (int i=0; i<5; i++) {
+                    if (cp_spacing_value > 4) {
+                        _cp_spacing.push_back(cp_spacing_value);
+                        cp_spacing_value -= step;
+                    } else {
+                        _cp_spacing.push_back(5);
+                    }
+                }
+            }
         }
 
         /// Return rigid transformations

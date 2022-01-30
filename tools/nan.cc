@@ -1,7 +1,7 @@
 /*
  * SVRTK : SVR reconstruction based on MIRTK
  *
- * Copyright 2018-2021 King's College London
+ * Copyright 2018- King's College London
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,39 +16,35 @@
  * limitations under the License.
  */
 
-// MIRTK
+
 #include "mirtk/Common.h"
 #include "mirtk/Options.h"
-#include "mirtk/NumericsConfig.h"
-#include "mirtk/IOConfig.h"
-#include "mirtk/TransformationConfig.h"
-#include "mirtk/RegistrationConfig.h"
-#include "mirtk/GenericImage.h"
-#include "mirtk/GenericRegistrationFilter.h"
-#include "mirtk/Transformation.h"
-#include "mirtk/HomogeneousTransformation.h"
-#include "mirtk/RigidTransformation.h"
-#include "mirtk/ImageReader.h"
-#include "mirtk/Dilation.h"
 
-using namespace std;
+#include "mirtk/IOConfig.h"
+#include "mirtk/GenericImage.h"
+#include "mirtk/ImageReader.h"
+
+
 using namespace mirtk;
- 
+using namespace std;
+
 // =============================================================================
 // Auxiliary functions
 // =============================================================================
 
 // -----------------------------------------------------------------------------
+
 void usage()
 {
-    cout << "Usage: mirtk extract-label [input_label_image] [output_label_image] [start_label_number] [end_label_number]\n" << endl;
+    cout << "Usage: nan [stack_name] [threshold] \n" << endl;
     cout << endl;
-    cout << "Function for extracting specific label range from a multi-label image." << endl;
+    cout << "Function for setting voxels with large (abs) and NaN values to 0." << endl;
     cout << endl;
     cout << "\t" << endl;
     cout << "\t" << endl;
-    exit(1);
+    exit(0);
 }
+
 // -----------------------------------------------------------------------------
 
 // =============================================================================
@@ -59,71 +55,65 @@ void usage()
 
 int main(int argc, char **argv)
 {
-
-    char buffer[256];
-    RealImage stack;
-
-    char *output_name = NULL;
-
-
-    RealImage input_stack, output_mask;
     
-
-    char *tmp_fname = NULL;
+    
+    if (argc < 3)
+        usage();
+    
+    
+    const char *tmp_fname;
     UniquePtr<BaseImage> tmp_image;
-    
     UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
 
 
-    
-    //read input name
+    //-------------------------------------------------------------------
+   
+    RealImage main_stack;
+
     tmp_fname = argv[1];
-    input_stack.Read(tmp_fname);
-    argc--;
-    argv++;
-
-    //read output name
-    output_name = argv[1];
-    argc--;
-    argv++;
+    image_reader.reset(ImageReader::TryNew(tmp_fname));
+    tmp_image.reset(image_reader->Run());
+        
+    main_stack = *tmp_image;
     
-    int num_l1 = atoi(argv[1]);
     
     argc--;
     argv++;
     
-    int num_l2 = atoi(argv[1]);
-    
+    double lower_threshold = 0;
+    lower_threshold = atof(argv[1]);
     argc--;
     argv++;
     
-
-    RealImage output_stack = input_stack;
-    output_stack = 0;
- 
-    int sh = 1;
-
-     for (int x = sh; x < input_stack.GetX()-sh; x++) {
-        for (int y = sh; y < input_stack.GetY()-sh; y++) {
-            for (int z = sh; z < input_stack.GetZ()-sh; z++) {
-
-                if (input_stack(x,y,z) < (num_l2+1) && input_stack(x,y,z) > (num_l1-1)) {
-                    output_stack(x,y,z) = 1;
-                }
-                else {
-                    output_stack(x,y,z) = 0;
+    
+    for (int z = 0; z < main_stack.GetZ(); z++) {
+        
+        for (int y = 0; y < main_stack.GetY(); y++) {
+            
+            for (int x = 0; x < main_stack.GetX(); x++) {
+                
+                for (int t = 0; t < main_stack.GetT(); t++) {
+                
+                    if (main_stack(x,y,z,t) != main_stack(x,y,z,t) || abs(main_stack(x,y,z,t)) > lower_threshold  || main_stack(x,y,z,t) < 0) {
+                        main_stack(x,y,z,t) = 0;
+                    }
+                                    
                 }
             }
         }
     }
 
     
-    output_stack.Write(output_name);
+    main_stack.Write(tmp_fname);
+    
+
+    //-------------------------------------------------------------------
 
     
     return 0;
-    
 }
+
+
 
 

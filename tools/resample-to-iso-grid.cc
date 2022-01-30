@@ -31,12 +31,13 @@
 #include "mirtk/Dilation.h"
 #include "mirtk/ImageReader.h"
 
-// SVRTK
-#include "svrtk/ReconstructionFFD.h"
+
+#include "svrtk/Utility.h"
 
 using namespace std;
 using namespace mirtk;
 using namespace svrtk;
+using namespace svrtk::Utility;
 
 // =============================================================================
 // Auxiliary functions

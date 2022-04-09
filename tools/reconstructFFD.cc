@@ -904,8 +904,8 @@ int main(int argc, char **argv) {
             for (size_t i = 0; i < stacks.size(); i++)
                 stacks[i].Write((boost::format("simulated%1%.nii.gz") % i).str().c_str());
         }
-
-        reconstruction.ScaleVolume();
+        if (intensityMatching)
+            reconstruction.ScaleVolume();
     }
 
     // Remove the file exchange directory

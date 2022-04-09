@@ -922,7 +922,8 @@ int main(int argc, char **argv) {
 
         cout << "------------------------------------------------------" << endl;
 
-        reconstruction.RestoreSliceIntensities();
+        if (intensityMatching)
+            reconstruction.RestoreSliceIntensities();
 
         if (debug) {
             reconstruction.SaveTransformations();

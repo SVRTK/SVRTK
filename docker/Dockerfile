@@ -1,7 +1,7 @@
 #
 # SVRTK : SVR reconstruction based on MIRTK
 #
-# Copyright 2018-2021 King's College London
+# Copyright 2018-2022 King's College London
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,14 +32,11 @@
 #
 #   docker run -it fetalrecon /bin/bash 
 #
-#   docker run -it --mount type=bind,source=/neuro/users/jeff.stout/docker/data,target=/data svrtk
-# 
-# To pass an env var HOST_IP to container, do:
-#
-#   docker run -ti -e HOST_IP=$(ip route | grep -v docker | awk '{if(NF==11) print $9}') --entrypoint /bin/bash local/chris_dev_backend
+#   docker run -it --mount type=bind,source=file_path_on_your_computer,target=/data svrtk
 # 
 
-FROM ubuntu:16.04
+
+FROM ubuntu:20.04
 
 # update and install dependencies
 RUN         apt-get update \
@@ -48,10 +45,10 @@ RUN         apt-get update \
                     build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config ca-certificates
 
 # Download MIRTK (please use this version with additional SVRTK compilation options)
-RUN git clone https://github.com/SVRTK/MIRTK.git /usr/src/MIRTK
+RUN git clone https://github.com/SVRTK/MIRTK.git /home/
 
 # Download SVRTK into /Packages folder of MIRTK
-RUN git clone https://github.com/SVRTK/SVRTK.git /usr/src/MIRTK/Packages/SVRTK
+RUN git clone https://github.com/SVRTK/SVRTK.git /home/MIRTK/Packages/SVRTK
 
 # Compile the code
 RUN cd /usr/src/MIRTK \
@@ -60,5 +57,8 @@ RUN cd /usr/src/MIRTK \
 && cmake -D WITH_TBB="ON" -D MODULE_SVRTK="ON" .. \
 && make -j
 
+# Copy 
+RUN cp /home/MIRTK/build/bin/mirtk /usr/local/bin/
+
 # update path
-ENV PATH="/usr/src/MIRTK/build/bin:/usr/src/MIRTK/build/lib/tools:${PATH}"
+ENV PATH="/home/MIRTK/build/bin:/home/MIRTK/build/lib/tools:${PATH}"

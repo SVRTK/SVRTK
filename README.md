@@ -79,6 +79,8 @@ mirtk reconstructFFD ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ..
 
 _Please note that it requires a 3D trunk mask created (e.g., in ITK-SNAP) for the selected template stack._
 
+_In case of interleaved acquisition you can use mirtk extract-packages function to extract individual stack packages and use it as a template and use -default_packages N flag in reconstruction._
+
  _Notes: The template stack should be the least motion corrupted and the body/thorax position should correspond to the average position between all stacks (e.g., in the middle of the acquisition). The mask should be created for the template stack and cover the investigated ROI._
 
   ---

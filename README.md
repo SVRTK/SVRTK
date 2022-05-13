@@ -60,38 +60,44 @@ Run
 Examples: 
 
 
-3D brain reconstruction:
+**3D brain reconstruction:**
 
 ```bash
 mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 
 ```
  
+ _Please note that it requires a 3D brain mask created (e.g., in ITK-SNAP) for the selected template stack._
+ 
  _Notes: The template stack should be the least motion corrupted and the brain position should correspond to the average position between all stacks (e.g., in the middle of the acquisition). The mask should be created for the template stack and cover the brain/head only - without stationary maternal tissue._
  
    ---
-3D fetal body DSVR reconstruction:
+**3D fetal body/trunk DSVR reconstruction:**
 
 ```bash
 mirtk reconstructFFD ../outputDSVR.nii.gz 6 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz ../stack6.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 2.5 -default -resolution 0.85
 ```
 
+_Please note that it requires a 3D trunk mask created (e.g., in ITK-SNAP) for the selected template stack._
+
  _Notes: The template stack should be the least motion corrupted and the body/thorax position should correspond to the average position between all stacks (e.g., in the middle of the acquisition). The mask should be created for the template stack and cover the investigated ROI._
 
   ---
-3D placenta DSVR reconstruction:
+**3D placenta DSVR reconstruction:**
+
+_Please note that it requires a 3D placenta mask created (e.g., in ITK-SNAP) for the selected template stack._
 
 ```bash
 mirtk reconstructFFD ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz -mask ../mask.nii.gz -template ../template-stack.nii.gz -thickness 2.5 -default -iterations 2 -thickness 2.5 2.5 2.5 -resolution 1.25
 ```
  ---
-4D cardiac velocity reconstruction:
+**4D cardiac velocity reconstruction:**
 - see fetal_cmr_4d git repository for full framework: https://github.com/tomaroberts/fetal_cmr_4d
  
 ```bash
 mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz ../phase_stack3.nii.gz ../phase_stack4.nii.gz ../phase_stack5.nii.gz ../g_values.txt ../g_directions.txt -thickness 6 6 6 6 6 -mask ../mask.nii.gz -rec_iterations 40 -transformations [folder with slice transformations from 4D cardiac reconstruction] -limit_intensities -rec_iterations 40 -resolution 1.25 -force_exclude [list of slices that should be excluded] -numcardphase 25 -rrinterval 0.407046 -rrintervals [list of rr_intervals] -cardphase [cardiac phases for each of the slices] -debug > log-main.txt
 ```
   ---
- Higher order spherical harmonics (SH) reconstruction of fetal brain diffusion MRI:
+** Higher order spherical harmonics (SH) reconstruction of fetal brain diffusion MRI:**
 
 ```bash
 mirtk reconstructDWI ../recon-DWI-vol.nii.gz 2 ../4D-DWI-stack-1.nii.gz ../4D-DWI-stack-2.nii.gz ../gradient-directions-1.b ../gradient-directions-2.b 1000 ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number, e.g., 10] -motion_model_hs -sr_sh_iterations 10 -resolution 1.75 -no_robust_statistics 

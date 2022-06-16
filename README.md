@@ -22,6 +22,7 @@ E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-res
 
 SVRTK contributes to https://github.com/mriphysics/fetal_cmr_4d pipeline.
 
+In case of any questions: *alena.uus (at) kcl.ac.uk*
 
 
 Docker 

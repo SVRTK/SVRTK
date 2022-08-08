@@ -521,7 +521,7 @@ int main(int argc, char **argv) {
         average_thickness  = average_thickness / stacks.size();
         average_spacing = average_spacing / stacks.size();
 
-        if (stacks.size() < 8 && average_thickness/average_spacing < 0.75 ) {
+        if (stacks.size() < 16 && average_thickness/average_spacing < 0.75 ) {
             cout << "Adjusting for undersampling : " << average_thickness/average_spacing << endl;
             for (size_t i = 0; i < stacks.size(); i++) {
                 thickness[i] = thickness[i] * 1.5;

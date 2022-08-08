@@ -415,7 +415,7 @@ int main(int argc, char **argv)
 
 
 
-        double median_volume_selection_threshold = 0.4;
+        double median_volume_selection_threshold = 0.55;
         double median_volume_diff_test = abs(volume_tmp_all[i] - median_volume);
 
 
@@ -527,8 +527,27 @@ int main(int argc, char **argv)
     double norm_volume = 0;
 
 
-    RunParallelGlobalStackStats( stacks, masks, all_global_ncc_array, all_global_volume_array );
+//    RunParallelGlobalStackStats( stacks, masks, all_global_ncc_array, all_global_volume_array );
 
+    for (int i=0; i<stacks.size(); i++) {
+
+        double average_ncc = 0;
+        double average_volume = 0;
+        Array<RigidTransformation> current_stack_tranformations;
+
+        cout << i << " ... " <<  endl;
+    
+        GlobalStackStats(stacks[i], masks[i], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
+        
+//        prelim_stack_tranformations.push_back(current_stack_tranformations);
+
+        all_global_ncc_array.push_back(average_ncc);
+        all_global_volume_array.push_back(average_volume);
+
+//        norm_volume = norm_volume + average_volume;
+    
+    }
+    
 
     for (int i=0; i<stacks.size(); i++) {
         norm_volume = norm_volume + all_global_volume_array[i];

@@ -174,6 +174,8 @@ int main(int argc, char **argv) {
 
     // Flag that sets slice thickness to 1.5 of spacing (for testing purposes)
     bool thinFlag = false;
+    
+    bool compensateFlag = false;
 
     // Paths of 'dofin' arguments
     vector<string> dofinPaths;
@@ -226,6 +228,7 @@ int main(int argc, char **argv) {
         ("average_init", bool_switch(&averageInit), "Initialisation with average of all stacks")
         ("rescale_stacks", bool_switch(&rescaleStacks), "Rescale stacks to avoid nan pixel errors [Default: false]")
         ("no_global", bool_switch(&noGlobalFlag), "No global stack registration")
+        ("compensate", bool_switch(&compensateFlag), "Compensate for undersampling")
         ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
         ("ncc", bool_switch(&nccRegFlag), "Use global NCC similarity for SVR steps [Default: NMI]")
         ("structural", bool_switch(&structural), "Use structural exclusion of slices at the last iteration")
@@ -491,6 +494,7 @@ int main(int argc, char **argv) {
         }
     }
 
+    
     // Initialise 2*slice thickness if not given by user
     if (thickness.empty()) {
         cout << "Slice thickness : ";
@@ -505,6 +509,27 @@ int main(int argc, char **argv) {
         }
         cout << endl;
     }
+    
+    if (compensateFlag)  {
+
+        double average_thickness = 0;
+        double average_spacing = 0;
+        for (size_t i = 0; i < stacks.size(); i++) {
+            average_thickness = average_thickness + thickness[i];
+            average_spacing = average_spacing + stacks[i].GetZSize();
+        }
+        average_thickness  = average_thickness / stacks.size();
+        average_spacing = average_spacing / stacks.size();
+
+        if (stacks.size() < 8 && average_thickness/average_spacing < 0.75 ) {
+            cout << "Adjusting for undersampling : " << average_thickness/average_spacing << endl;
+            for (size_t i = 0; i < stacks.size(); i++) {
+                thickness[i] = thickness[i] * 1.5;
+            }
+        }
+            
+    }
+    
     
     if (has4DStacks) {
         cout << "Splitting stacks into dynamics ... ";

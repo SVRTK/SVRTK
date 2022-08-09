@@ -504,9 +504,10 @@ namespace svrtk {
             //calculate average for the stack
             if (num > 0) {
                 stack_average.push_back(sum / num);
-            } else {
-                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
             }
+//            else {
+//                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
+//            }
         }
 
         double global_average = 0;

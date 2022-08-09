@@ -1442,7 +1442,7 @@ namespace svrtk {
                                 double x = i, y = j, z = 0;
                                 _slices[inputIndex].ImageToWorld(x, y, z);
                                 double jac = _mffd_transformations[inputIndex]->Jacobian(x, y, z, 0, 0);
-                                if ((100*jac) > 60) {
+                                if ((100*jac) > 50) {
                                     _volume_weights(p.x, p.y, p.z) += p.value;
                                 }
                             } else {
@@ -1516,24 +1516,37 @@ namespace svrtk {
             for (size_t i = 0; i < _volcoeffs[inputIndex].size(); i++)
                 for (size_t j = 0; j < _volcoeffs[inputIndex][i].size(); j++)
                     if (slice(i, j, 0) > -0.01) {
-                        //biascorrect and scale the slice
-                        slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
+                        
+                        double jac = 1;
+                        if (_ffd) {
+                            double x = i, y = j, z = 0;
+                            _slices[inputIndex].ImageToWorld(x, y, z);
+                            jac = _mffd_transformations[inputIndex]->Jacobian(x, y, z, 0, 0);
+                        } else {
+                            jac = 1;
+                        }
+                        
+                        if ((100*jac) > 50) {
+                        
+                            //biascorrect and scale the slice
+                            slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
 
-                        //number of volume voxels with non-zero coefficients
-                        //for current slice voxel
-                        const size_t n = _volcoeffs[inputIndex][i][j].size();
+                            //number of volume voxels with non-zero coefficients
+                            //for current slice voxel
+                            const size_t n = _volcoeffs[inputIndex][i][j].size();
 
-                        //if given voxel is not present in reconstructed volume at all, pad it
+                            //if given voxel is not present in reconstructed volume at all, pad it
 
-                        //calculate num of vox in a slice that have overlap with roi
-                        if (n > 0)
-                            slice_vox_num++;
+                            //calculate num of vox in a slice that have overlap with roi
+                            if (n > 0)
+                                slice_vox_num++;
 
-                        //add contribution of current slice voxel to all voxel volumes
-                        //to which it contributes
-                        for (size_t k = 0; k < n; k++) {
-                            const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
-                            _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
+                            //add contribution of current slice voxel to all voxel volumes
+                            //to which it contributes
+                            for (size_t k = 0; k < n; k++) {
+                                const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
+                                _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
+                            }
                         }
                     }
             voxel_num.push_back(slice_vox_num);

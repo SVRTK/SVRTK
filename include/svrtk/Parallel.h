@@ -2292,7 +2292,7 @@ namespace svrtk::Parallel {
                                 bool include_flag = true;
                                 if (reconstructor->_ffd) {
                                     double jac = reconstructor->_mffd_transformations[inputIndex]->Jacobian(p.x, p.y, p.z, 0, 0);
-                                    if ((100*jac) < 60)
+                                    if ((100*jac) < 50)
                                         include_flag = false;
                                 }
                                 

@@ -40,8 +40,8 @@ namespace svrtk {
             _cp_spacing.push_back(5);
             _cp_spacing.push_back(5);
             
-            _global_NCC_threshold = 0.65;
-            _local_SSIM_threshold = 0.5;
+            _global_NCC_threshold = 0.6;
+            _local_SSIM_threshold = 0.4;
             _local_SSIM_window_size = 20;
             
             _nmi_bins = -1;

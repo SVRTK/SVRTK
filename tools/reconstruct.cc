@@ -275,8 +275,10 @@ int main(int argc, char **argv) {
         // Check if the intensity is not negative and correct if so
         double smin, smax;
         stack.GetMinMax(&smin, &smax);
-        if (smin < 0 || smax < 0)
+        if (smin < 0 || smax < 0) {
+            cout << "Warning: stack " << i << " has negative values and was rescaled to [0; 1000]" << endl;
             stack.PutMinMaxAsDouble(0, 1000);
+        }
 
         // Print stack info
         double dx = stack.GetXSize(); double dy = stack.GetYSize();
@@ -329,7 +331,7 @@ int main(int argc, char **argv) {
         templateStack.GetMinMax(&smin, &smax);
         if (smin < 0 || smax < 0) {
             templateStack.PutMinMaxAsDouble(0, 1000);
-            cout << "Warning: stack " << i << " has negative values and was rescaled to [0; 1000]" << endl;
+            cout << "Warning: template stack has negative values and was rescaled to [0; 1000]" << endl;
         }
 
         // Extract 1st dynamic

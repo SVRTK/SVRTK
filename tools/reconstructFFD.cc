@@ -343,8 +343,10 @@ int main(int argc, char **argv) {
         // Check intensities and rescale if required
         double smin, smax;
         templateStack.GetMinMax(&smin, &smax);
-        if (smin < 0 || smax < 0)
+        if (smin < 0 || smax < 0) {
+            cout << "Warning: template stack has negative values and was rescaled to [0; 1000]" << endl;
             templateStack.PutMinMaxAsDouble(0, 1000);
+        }
 
         // Extract 1st dynamic
         if (templateStack.GetT() > 1)

@@ -147,7 +147,7 @@ namespace svrtk::Utility {
      * @param stack_transformations
      * @param smooth_mask
      */
-    void CreateMaskFromBlackBackground(const Reconstruction *reconstructor, const Array<RealImage>& stacks, Array<RigidTransformation> stack_transformations, double smooth_mask);
+    RealImage CreateMaskFromBlackBackground(const Reconstruction *reconstructor, const Array<RealImage>& stacks, Array<RigidTransformation> stack_transformations);
 
     /**
      * @brief Transform and resample mask to the space of the image.

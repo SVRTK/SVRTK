@@ -31,12 +31,12 @@ namespace svrtk {
     protected:
         int _nBins;
         int _padding;
-        GreyImage _image;
+        RealImage _image;
         queue<Point> _q;
-        GreyImage _map, _orig_image;
-        GreyImage *_brain;
-        GreyImage *_output;
-        GreyPixel _imin, _imax;
+        RealImage _map, _orig_image;
+        RealImage *_brain;
+        RealImage *_output;
+        RealPixel _imin, _imax;
         double _limit1, _limit2, _limit, _threshold;
         double _bin_width;
         double * _density;
@@ -45,9 +45,9 @@ namespace svrtk {
     public:
         double _bg, _wm, _gm, _split1, _split2;
 
-        MeanShift(const GreyImage& image, int padding = -1, int nBins = 256);
+        MeanShift(const RealImage& image, int padding = -1, int nBins = 256);
         ~MeanShift();
-        void SetOutput(GreyImage *_output);
+        void SetOutput(RealImage *_output);
         double ValueToBin(double value);
         double BinToValue(int bin);
         void AddPoint(int x, int y, int z);

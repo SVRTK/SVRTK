@@ -691,7 +691,7 @@ namespace svrtk::Utility {
     //-------------------------------------------------------------------
 
     // create a mask from dark / black background
-    void CreateMaskFromBlackBackground(const Reconstruction *reconstructor, const Array<RealImage>& stacks, Array<RigidTransformation> stack_transformations, double smooth_mask) {
+    RealImage CreateMaskFromBlackBackground(const Reconstruction *reconstructor, const Array<RealImage>& stacks, Array<RigidTransformation> stack_transformations) {
         //Create average of the stack using currect stack transformations
         GreyImage average = CreateAverage(reconstructor, stacks, stack_transformations);
 
@@ -706,12 +706,14 @@ namespace svrtk::Utility {
         msh.GenerateDensity();
         msh.SetThreshold();
         msh.RemoveBackground();
-        GreyImage mask = msh.ReturnMask();
+        RealImage mask = msh.ReturnMask();
 
         //Calculate LCC of the mask to remove disconnected structures
         MeanShift msh2(mask, 0, 256);
         msh2.SetOutput(&mask);
         msh2.Lcc(1);
+        
+        return mask;
     }
 
     //-------------------------------------------------------------------

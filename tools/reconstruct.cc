@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
     int levels = 3;
     double lastIterLambda = 0.01;
     double averageValue = 700;
-    double smoothMask = 4;
+    double smoothMask = 2;
     bool globalBiasCorrection = false;
     double lowIntensityCutoff = 0.01;
 
@@ -681,9 +681,6 @@ int main(int argc, char **argv) {
     // Set mask to reconstruction object
     reconstruction.SetMask(mask.get(), smoothMask);
 
-    // If remove_black_background flag is set, create mask from black background of the stacks
-    if (removeBlackBackground)
-        CreateMaskFromBlackBackground(&reconstruction, stacks, stackTransformations, smoothMask);
 
     // Set precision
     cout << setprecision(3);
@@ -698,6 +695,15 @@ int main(int argc, char **argv) {
     // Volumetric stack to template registration
     if (!noGlobalFlag)
         reconstruction.StackRegistrations(stacks, stackTransformations, templateNumber, &templateStack);
+    
+    // If remove_black_background flag is set, create mask from black background of the stacks
+    if (removeBlackBackground)
+    {
+        RealImage new_mask = CreateMaskFromBlackBackground(&reconstruction, stacks, stackTransformations);
+        reconstruction.SetMask(&new_mask, smoothMask, 0.01);
+        if (debug)
+            new_mask.Write("mask_from_black_background.nii.gz");
+    }    
 
     // Create average volume
     average = reconstruction.CreateAverage(stacks, stackTransformations);
@@ -867,6 +873,8 @@ int main(int argc, char **argv) {
 
             // Set number of reconstruction iterations
             const int recIterations = iter == iterations - 1 ? srIterations * 3 : srIterations;
+            cout<<'parameter sr_iterations: '<<srIterations;
+            cout<<'recIterations: '<<recIterations;
 
             // SR reconstruction loop
             for (int i = 0; i < recIterations; i++) {

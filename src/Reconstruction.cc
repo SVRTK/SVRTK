@@ -263,6 +263,7 @@ namespace svrtk {
             _mask.Write("mask.nii.gz");
     }
 
+
     //-------------------------------------------------------------------
 
     // generate reconstruction quality report / metrics
@@ -619,7 +620,10 @@ namespace svrtk {
             double sum = 0, num = 0;
 
             if (_debug)
+            {
                 m = stacks[ind];
+                m=0;
+            }
 
             #pragma omp parallel for reduction(+: sum, num)
             for (int i = 0; i < stacks[ind].GetX(); i++)

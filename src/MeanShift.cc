@@ -24,7 +24,7 @@ using namespace mirtk;
 
 namespace svrtk {
 
-    MeanShift::MeanShift(const GreyImage& image, int padding, int nBins) {
+    MeanShift::MeanShift(const RealImage& image, int padding, int nBins) {
         _image = image;
         _orig_image = image;
         _nBins = nBins;
@@ -54,7 +54,7 @@ namespace svrtk {
         return mask;
     }
 
-    void MeanShift::SetOutput(GreyImage *output) {
+    void MeanShift::SetOutput(RealImage *output) {
         _output = output;
     }
 
@@ -72,7 +72,7 @@ namespace svrtk {
         _bin_width = (_imax - _imin + 1) / _nBins;
 
         cout << "generating density..." << endl;
-        GreyPixel *ptr = _image.Data();
+        RealPixel *ptr = _image.Data();
         for (size_t i = 0; i < _image.NumberOfVoxels(); i++) {
             if (*ptr > _padding) {
                 const int j = ValueToBin(*ptr);
@@ -127,7 +127,7 @@ namespace svrtk {
             return y;
 
         do {
-            GreyPixel *ptr = _image.Data();
+            RealPixel *ptr = _image.Data();
             double sum = 0;
             double points = 0;
 
@@ -448,14 +448,14 @@ namespace svrtk {
         }
 
         cout << "dilating and eroding ... ";
-        _brain = new GreyImage(_map);
+        _brain = new RealImage(_map);
 
         int iterations = 3;
         ConnectivityType connectivity = CONNECTIVITY_26;
 
-        Dilate<GreyPixel>(_brain, iterations, connectivity);
+        Dilate<RealPixel>(_brain, iterations, connectivity);
 
-        Erode<GreyPixel>(_brain, iterations, connectivity);
+        Erode<RealPixel>(_brain, iterations, connectivity);
 
         cout << "recalculating ... ";
 
@@ -489,7 +489,7 @@ namespace svrtk {
 
         *_brain = _map;
 
-        Erode<GreyPixel>(_brain, iterations, connectivity);
+        Erode<RealPixel>(_brain, iterations, connectivity);
 
         cout << "final recalculation ...";
 
@@ -522,8 +522,8 @@ namespace svrtk {
         delete _brain;
         cout << "done." << endl;
 
-        GreyPixel *ptr = _map.Data();
-        GreyPixel *ptr_b = _image.Data();
+        RealPixel *ptr = _map.Data();
+        RealPixel *ptr_b = _image.Data();
         for (size_t i = 0; i < _map.NumberOfVoxels(); i++) {
             if (*ptr == 0)
                 *ptr_b = _padding;

@@ -2122,22 +2122,51 @@ namespace svrtk {
         // update the volume with computed addon
         _reconstructed += addon * _alpha; //_average_volume_weight;
 
+        
+        /*
+        if (_debug) {
+            _reconstructed.Write((boost::format("recon%1%.nii.gz") % iter).str().c_str());
+            _mask.Write((boost::format("_mask%1%.nii.gz") % iter).str().c_str());
+        }
+        */
+
         //bound the intensities
         RealPixel *pr = _reconstructed.Data();
+        RealPixel *pm = _confidence_map.Data();
         #pragma omp parallel for
         for (int i = 0; i < _reconstructed.NumberOfVoxels(); i++) {
-            if (pr[i] < _min_intensity * 0.9)
-                pr[i] = _min_intensity * 0.9;
-            if (pr[i] > _max_intensity * 1.1)
-                pr[i] = _max_intensity * 1.1;
+            if (pm[i]>0)
+            {
+                if (pr[i] < _min_intensity * 0.9)
+                    pr[i] = _min_intensity * 0.9;
+                if (pr[i] > _max_intensity * 1.1)
+                    pr[i] = _max_intensity * 1.1;
+            }
+            else
+                pr[i]=0;
         }
-
+        //cout<<"min int"<<_min_intensity;
+        //cout<<"max int"<<_max_intensity;
+        /*
+        if (_debug) {
+            _reconstructed.Write((boost::format("recon_tr%1%.nii.gz") % iter).str().c_str());
+        }
+        */
         //Smooth the reconstructed image with regularisation
         AdaptiveRegularization(iter, original);
+        /*
 
+        if (_debug) {
+            _reconstructed.Write((boost::format("recon_reg%1%.nii.gz") % iter).str().c_str());
+        }
+        */
         //Remove the bias in the reconstructed volume compared to previous iteration
         if (_global_bias_correction)
             BiasCorrectVolume(original);
+        
+        if (_debug) {
+            _reconstructed.Write((boost::format("recon_reg_bias%1%.nii.gz") % iter).str().c_str());
+        }
 
         SVRTK_END_TIMING("Superresolution");
     }

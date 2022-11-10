@@ -1,7 +1,7 @@
 # ============================================================================
 # SVRTK : SVR reconstruction based on MIRTK
 #
-# Copyright 2018-2020 King's College London 
+# Copyright 2018-... King's College London 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ cd reconstruction-software
 
 
 # ----------------------------------------------------------------------------
-# Install Required Software/Libraries: Ubuntu 16
+# Install Required Software/Libraries: Ubuntu (>18/20)
 
 
 # Check all software up-to-date

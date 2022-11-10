@@ -50,8 +50,8 @@ Installation
 
 Please follow the installation instructions in InstallationInstructions.txt file.
 
-_Notes: The software can be compiled on either Ubuntu or OS X. 
-In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and > 10 GB RAM. 
+_Notes: The software can be compiled on either Ubuntu(>20.0) / Debian or OS X. 
+In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and > 10 GB (brain) / > 32 GB (body/placenta) RAM. 
 
 
 

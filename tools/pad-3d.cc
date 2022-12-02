@@ -120,7 +120,16 @@ int main(int argc, char **argv)
         dim_max = z_max;
     
     
-    double new_res = 1.05*(main_stack.GetXSize() * dim_max)/grid_dim;
+    double min = 100000;
+    if (min > main_stack.GetXSize())
+        min = main_stack.GetXSize();
+    if (min > main_stack.GetYSize())
+        min = main_stack.GetZSize();
+    if (min > main_stack.GetZSize())
+        min = main_stack.GetZSize();
+        
+            
+    double new_res = 1.01*(min * dim_max)/grid_dim;
     
 
     InterpolationMode interpolation = Interpolation_Linear;

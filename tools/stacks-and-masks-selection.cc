@@ -78,6 +78,22 @@ void usage()
 }
 
 
+double median_val(Array<double> in_vector)
+{
+  size_t size = in_vector.size();
+
+  if (size == 0) {
+    return 0;
+  } else {
+    sort(in_vector.begin(), in_vector.end());
+    if (size % 2 == 0) {
+      return (in_vector[size / 2 - 1] + in_vector[size / 2]) / 2;
+    } else {
+      return in_vector[size / 2];
+    }
+  }
+}
+
 
 
 // -----------------------------------------------------------------------------
@@ -312,6 +328,8 @@ int main(int argc, char **argv)
     double volume_tmp_stdev = 0;
 
     double num_tmp = 0;
+    
+    Array<double> volume_tmp_all_nonzero;
 
     cout << "Mask volumes : " << endl;
 
@@ -345,6 +363,11 @@ int main(int argc, char **argv)
             num_tmp = num_tmp + 1;
         }
         volume_tmp_all.push_back(volume_tmp);
+        
+        if (volume_tmp > 30) {
+            volume_tmp_all_nonzero.push_back(volume_tmp);
+        }
+        
     }
 
     volume_tmp_average = volume_tmp_average / num_tmp;
@@ -357,8 +380,11 @@ int main(int argc, char **argv)
 
     volume_tmp_stdev = volume_tmp_stdev / stacks.size();
     volume_tmp_stdev = sqrt(volume_tmp_stdev);
+    
+    double median_volume = median_val(volume_tmp_all_nonzero); //volume_tmp_all);
 
     cout << " - average : " << volume_tmp_average << " +/- " << volume_tmp_stdev << " cc" <<  endl;
+    cout << " - median : " << median_volume << " cc " << endl;
 
     double min_volume = 40;
 
@@ -372,8 +398,11 @@ int main(int argc, char **argv)
 
         double volume_diff_test = abs(volume_tmp_all[i] - volume_tmp_average);
 
+        double median_volume_selection_threshold = 0.5;
+        double median_volume_diff_test = abs(volume_tmp_all[i] - median_volume);
 
-        if (volume_diff_test < 2.5*volume_tmp_stdev && volume_tmp_all[i] > volume_tmp_average*0.35) {
+//        if (volume_diff_test < 2.5*volume_tmp_stdev && volume_tmp_all[i] > volume_tmp_average*0.35) {
+        if (median_volume_diff_test < median_volume_selection_threshold*median_volume) {
 
             RigidTransformation* tmp_r = new RigidTransformation();
 
@@ -483,8 +512,6 @@ int main(int argc, char **argv)
         Array<RigidTransformation> current_stack_tranformations;
 
         cout << i << " ... " <<  endl;
-
-
 
         GlobalStackStats(stacks[i], masks[i], stacks, masks, average_ncc, average_volume, current_stack_tranformations);
 

@@ -47,6 +47,9 @@ namespace svrtk {
         _global_NCC_threshold = 0.5;
         _local_SSIM_threshold = 0.4;
         _local_SSIM_window_size = 20;
+        
+        _number_of_channels = -1;
+        _multiple_channels_flag = false;
 
         _template_created = false;
         _have_mask = false;
@@ -64,6 +67,10 @@ namespace svrtk {
         _masked_stacks = false;
         _filtered_cmp_flag = false;
         _bg_flag = false;
+        _ffd_global_only = false;
+        _ffd_global_ncc = false;
+        _no_masking_background = false;
+        
     }
 
     //-------------------------------------------------------------------
@@ -427,7 +434,12 @@ namespace svrtk {
 
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             // read the current slice
-            const RealImage& slice = _slices[inputIndex];
+            RealImage slice;
+            
+            if (_no_masking_background)
+                slice = _not_masked_slices[inputIndex];
+            else
+                slice = _slices[inputIndex];
 
             //Calculate simulated slice
             sim.Initialize(slice.Attributes());
@@ -612,6 +624,9 @@ namespace svrtk {
         Array<double> stack_average;
         stack_average.reserve(stacks.size());
 
+        Array<double> stack_average_all;
+        stack_average_all.reserve(stacks.size());
+
         //remember the set average value
         _average_value = averageValue;
 
@@ -659,9 +674,13 @@ namespace svrtk {
             //calculate average for the stack
             if (num > 0) {
                 stack_average.push_back(sum / num);
+                stack_average_all.push_back(sum / num);
             } else {
-                throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
+                stack_average_all.push_back(-1);
             }
+            // else {
+                // throw runtime_error("Stack " + to_string(ind) + " has no overlap with ROI");
+            // }
         }
 
         double global_average = 0;
@@ -682,7 +701,14 @@ namespace svrtk {
         //Rescale stacks
         ClearAndReserve(_stack_factor, stacks.size());
         for (size_t ind = 0; ind < stacks.size(); ind++) {
-            double factor = averageValue / (together ? global_average : stack_average[ind]);
+
+            double factor = 0;
+            if (stack_average_all[ind] != -1) {
+                factor = averageValue / (together ? global_average : stack_average_all[ind]);
+            } else {
+                factor = 0;
+            }
+
             _stack_factor.push_back(factor);
 
             RealPixel *ptr = stacks[ind].Data();
@@ -901,6 +927,12 @@ namespace svrtk {
         if (!_have_mask) {
             cerr << "Could not mask slices because no mask has been set." << endl;
             return;
+        }
+        
+        if (_no_masking_background) {
+            for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
+                _not_masked_slices.push_back(_slices[inputIndex]);
+            }
         }
 
         Utility::MaskSlices(_slices, _mask, [&](size_t index, double& x, double& y, double& z) {
@@ -1511,7 +1543,12 @@ namespace svrtk {
 
             int slice_vox_num = 0;
             //copy the current slice
-            slice = _slices[inputIndex];
+            
+            if (_no_masking_background)
+                slice = _not_masked_slices[inputIndex];
+            else
+                slice = _slices[inputIndex];
+
             //alias the current bias image
             const RealImage& b = _bias[inputIndex];
             //read current scale factor
@@ -1785,23 +1822,44 @@ namespace svrtk {
     // initialise / reset EM values
     void Reconstruction::InitializeEMValues() {
         SVRTK_START_TIMING();
+        
+        
+        if (_no_masking_background) {
+            #pragma omp parallel for
+            for (size_t i = 0; i < _slices.size(); i++) {
+                //Initialise voxel weights and bias values
+                const RealPixel *pi = _not_masked_slices[i].Data();
+                RealPixel *pw = _weights[i].Data();
+                RealPixel *pb = _bias[i].Data();
+                for (int j = 0; j < _weights[i].NumberOfVoxels(); j++) {
+                    pw[j] = pi[j] > -0.01 ? 1 : 0;
+                    pb[j] = 0;
+                }
 
-        #pragma omp parallel for
-        for (size_t i = 0; i < _slices.size(); i++) {
-            //Initialise voxel weights and bias values
-            const RealPixel *pi = _slices[i].Data();
-            RealPixel *pw = _weights[i].Data();
-            RealPixel *pb = _bias[i].Data();
-            for (int j = 0; j < _weights[i].NumberOfVoxels(); j++) {
-                pw[j] = pi[j] > -0.01 ? 1 : 0;
-                pb[j] = 0;
+                //Initialise slice weights
+                _slice_weight[i] = 1;
+
+                //Initialise scaling factors for intensity matching
+                _scale[i] = 1;
             }
+        } else {
+            #pragma omp parallel for
+            for (size_t i = 0; i < _slices.size(); i++) {
+                //Initialise voxel weights and bias values
+                const RealPixel *pi = _slices[i].Data();
+                RealPixel *pw = _weights[i].Data();
+                RealPixel *pb = _bias[i].Data();
+                for (int j = 0; j < _weights[i].NumberOfVoxels(); j++) {
+                    pw[j] = pi[j] > -0.01 ? 1 : 0;
+                    pb[j] = 0;
+                }
 
-            //Initialise slice weights
-            _slice_weight[i] = 1;
+                //Initialise slice weights
+                _slice_weight[i] = 1;
 
-            //Initialise scaling factors for intensity matching
-            _scale[i] = 1;
+                //Initialise scaling factors for intensity matching
+                _scale[i] = 1;
+            }
         }
 
         //Force exclusion of slices predefined by user
@@ -2066,13 +2124,22 @@ namespace svrtk {
 
     // compute difference between simulated and original slices
     void Reconstruction::SliceDifference() {
+        
         #pragma omp parallel for
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            _slice_dif[inputIndex] = _slices[inputIndex];
+            
+            RealImage slice;
+            
+            if (_no_masking_background)
+                slice = _not_masked_slices[inputIndex];
+            else
+                slice = _slices[inputIndex];
+            
+            _slice_dif[inputIndex] = slice;
 
             for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
                 for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
-                    if (_slices[inputIndex](i, j, 0) > -0.01) {
+                    if (slice > -0.01) {
                         _slice_dif[inputIndex](i, j, 0) *= exp(-(_bias[inputIndex])(i, j, 0)) * _scale[inputIndex];
                         _slice_dif[inputIndex](i, j, 0) -= _simulated_slices[inputIndex](i, j, 0);
                     } else
@@ -2080,6 +2147,8 @@ namespace svrtk {
                 }
             }
         }
+ 
+        
     }
 
     //-------------------------------------------------------------------

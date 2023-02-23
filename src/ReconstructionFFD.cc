@@ -28,38 +28,69 @@ namespace svrtk {
 
     //-------------------------------------------------------------------
 
+
     // run global ffd stack registration to the template
 
     void ReconstructionFFD::FFDStackRegistrations(Array<RealImage>& stacks, RealImage template_image, RealImage mask) {
         SVRTK_START_TIMING();
-        
-        GaussianBlurring<RealPixel> gb(1.2);
-        ResamplingWithPadding<RealPixel> resampling(1.8, 1.8, 1.8, -1);
-        GenericLinearInterpolateImageFunction<RealImage> interpolator;
-        resampling.Interpolator(&interpolator);
-        resampling.Input(&template_image);
-        resampling.Output(&template_image);
-        resampling.Run();
 
+        GenericLinearInterpolateImageFunction<RealImage> interpolator;
+        
+        double res=1.8;
         Array<RealImage> resampled_stacks;
-        for (int i=0; i<stacks.size(); i++) {
-            RealImage resampled_stack = stacks[i];
-            gb.Input(&resampled_stack);
-            gb.Output(&resampled_stack);
-            gb.Run();
-            RealImage tmp = resampled_stack;
-            resampling.Input(&tmp);
-            resampling.Output(&resampled_stack);
+        if (_ffd_global_only) {
+            // for (int i=0; i<stacks.size(); i++)
+            //     resampled_stacks.push_back(stacks[i]);
+
+            double res = 0.8;
+
+        } 
+        
+        // else {
+        //     double res = 1.8;
+        // } 
+
+            GaussianBlurring<RealPixel> gb(1.2);
+            ResamplingWithPadding<RealPixel> resampling(res, res, res, -1);
+            
+            resampling.Interpolator(&interpolator);
+            resampling.Input(&template_image);
+            resampling.Output(&template_image);
             resampling.Run();
-            resampled_stacks.push_back(resampled_stack);
-        }
+            for (int i=0; i<stacks.size(); i++) {
+                RealImage resampled_stack = stacks[i];
+                gb.Input(&resampled_stack);
+                gb.Output(&resampled_stack);
+                gb.Run();
+                RealImage tmp = resampled_stack;
+                resampling.Input(&tmp);
+                resampling.Output(&resampled_stack);
+                resampling.Run();
+                resampled_stacks.push_back(resampled_stack);
+            }
 
         ParameterList params;
         Insert(params, "Transformation model", "FFD");
         Insert(params, "Control point spacing in X", 10);
         Insert(params, "Control point spacing in Y", 10);
         Insert(params, "Control point spacing in Z", 10);
-        
+
+        if (_ffd_global_only) {
+            Insert(params, "Image (dis-)similarity measure", "NCC");
+            const string type = "box";
+            const string units = "vox";
+            constexpr double width = 5;
+            Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+        }
+
+        if (_ffd_global_ncc) {
+            const string type = "box";
+            const string units = "vox";
+            constexpr double width = 5;
+            Insert(params, string("Local window size [") + type + string("]"), ToString(width) + units);
+        }
+
+
         InterpolationMode interpolation_nn = Interpolation_NN;
         UniquePtr<InterpolateImageFunction> interpolator_nn;
         interpolator_nn.reset(InterpolateImageFunction::New(interpolation_nn));
@@ -91,7 +122,15 @@ namespace svrtk {
             imagetransformation->Output(&transformed_main_mask);
             imagetransformation->TargetPaddingValue(target_padding);
             imagetransformation->SourcePaddingValue(source_padding);
-            imagetransformation->Interpolator(interpolator_nn.get());
+
+            // if (_ffd_global_only) {
+            //     imagetransformation->Interpolator(&interpolator);
+            // } else {
+            //     imagetransformation->Interpolator(interpolator_nn.get());
+            // }
+
+            imagetransformation->Interpolator(&interpolator);
+
             imagetransformation->TwoD(twod);
             imagetransformation->Invert(dofin_invert);
             imagetransformation->Run();

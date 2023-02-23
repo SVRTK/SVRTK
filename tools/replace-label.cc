@@ -97,15 +97,15 @@ int main(int argc, char **argv)
     
     
     int num_l_ref = atoi(argv[1]);
-    
+
     argc--;
     argv++;
-    
+
     int num_l_in = atoi(argv[1]);
-    
+
     argc--;
     argv++;
-    
+
 
     output_mask = input_mask;
  
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
                 if ( reference_mask(x,y,z) == num_l_ref && input_mask(x,y,z) == num_l_in ) {
                     output_mask(x,y,z) = num_l_ref;
                 }
- 
+                
             }
         }
     }

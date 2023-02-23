@@ -245,6 +245,8 @@ int main(int argc, char **argv)
     nStacks = 0;
 
     Array<int> nStackDynamics;
+    
+    UniquePtr<BaseImage> tmp_image;
 
     // Read stacks
     for (int j=0; j<global_nStacks; j++)
@@ -252,7 +254,12 @@ int main(int argc, char **argv)
         //read 4D image
         RealImage image4D;
         cout<<"Reading stack " << j <<  " ... "<<argv[1]<<endl;
-        image4D.Read(argv[1]);
+        
+        image_reader.reset(ImageReader::TryNew(argv[1]));
+        tmp_image.reset(image_reader->Run());
+        image4D = *tmp_image;
+
+//        image4D.Read(argv[1]);
 
         ImageAttributes attr = image4D.Attributes();
         int local_nStacks = attr._t;
@@ -916,7 +923,7 @@ int main(int argc, char **argv)
         reconstruction.InvertStackTransformations(stack_transformations);
     }
 
-    //Initialise 2*slice thickness if not given by user
+    //Initialise slice thickness if not given by user
     if (thickness.size()==0)
     {
         cout<< "Slice thickness is ";

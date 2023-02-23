@@ -68,10 +68,10 @@ namespace svrtk {
 
     double MeanShift::GenerateDensity(double cut_off) {
         _image.GetMinMax(&_imin, &_imax);
-        cout << _imin << " " << _imax << endl;
+        // cout << _imin << " " << _imax << endl;
         _bin_width = (_imax - _imin + 1) / _nBins;
 
-        cout << "generating density..." << endl;
+        // cout << "generating density..." << endl;
         RealPixel *ptr = _image.Data();
         for (size_t i = 0; i < _image.NumberOfVoxels(); i++) {
             if (*ptr > _padding) {
@@ -80,9 +80,9 @@ namespace svrtk {
             }
             ptr++;
         }
-        cout << "done" << endl;
+        // cout << "done" << endl;
 
-        cout << "Cutting off 2% of highest intensities" << endl;
+        // cout << "Cutting off 2% of highest intensities" << endl;
         double sum = 0, bs = 0;
         for (int i = 0; i < _nBins; i++)
             sum += _density[i];
@@ -94,7 +94,7 @@ namespace svrtk {
 
         _limit = BinToValue(i);
 
-        cout << "limit=" << _limit << endl << endl;
+        // cout << "limit=" << _limit << endl << endl;
         return _limit;
     }
 
@@ -154,7 +154,7 @@ namespace svrtk {
         for (int i = mean; i >= 0; i--) {
             double k = sqrt(2 * log(_density[mean] / (double)_density[i]));
             sigma = abs(BinToValue(i) - _gm) / k;
-            cout << "Pos " << BinToValue(i) << ": sigma = " << sigma << endl;
+            // cout << "Pos " << BinToValue(i) << ": sigma = " << sigma << endl;
         }
 
         return sigma;
@@ -184,7 +184,7 @@ namespace svrtk {
         pos = BinToValue(i0); //imin+i0*(imax+1-imin)/nBins;
         //cout<<pos<<endl;
 
-        cout << "Maximum for interval <" << tr1 << ", " << tr2 << "> is " << pos << endl;
+        // cout << "Maximum for interval <" << tr1 << ", " << tr2 << "> is " << pos << endl;
         return pos;
     }
 
@@ -211,55 +211,55 @@ namespace svrtk {
         pos = BinToValue(i0); //imin+i0*(imax+1-imin)/nBins;
         //pos=imin+i0*(imax+1-imin)/nBins;
 
-        cout << "Minimum for interval <" << tr1 << ", " << tr2 << "> is " << pos << endl;
+        // cout << "Minimum for interval <" << tr1 << ", " << tr2 << "> is " << pos << endl;
         return pos;
     }
 
     double MeanShift::split(double pos1, double pos2, double bw, double h1, double h2) {
         bool change = true;
 
-        cout << "split: " << pos1 << " " << pos2 << " " << bw << " " << h1 << " " << h2 << endl;
+        // cout << "split: " << pos1 << " " << pos2 << " " << bw << " " << h1 << " " << h2 << endl;
 
         while (((pos2 - pos1) > _bin_width) && (change) && (bw > _bin_width)) {
             change = false;
-            cout << "pos1=" << pos1 << " pos2=" << pos2 << endl;
+            // cout << "pos1=" << pos1 << " pos2=" << pos2 << endl;
             double tr = _bin_width;
             if (tr < 1) tr = 1;
             double m1 = msh(pos1, bw);
             double m2 = msh(pos2, bw);
-            cout << "m1=" << m1 << ", m2=" << m2 << endl;
+            // cout << "m1=" << m1 << ", m2=" << m2 << endl;
 
             if ((m2 - m1) < tr) {
                 h2 = bw;
                 bw = (h1 + h2) / 2;
                 if (bw <= h2 - 1) {
-                    cout << "reducing bandwidth: bw=" << bw << endl;
-                    cout << "h1=" << h1 << ", h2=" << h2 << endl;
+                    // cout << "reducing bandwidth: bw=" << bw << endl;
+                    // cout << "h1=" << h1 << ", h2=" << h2 << endl;
                     change = true;
                 }
             } else {
-                cout << "changing positions:" << endl;
+                // cout << "changing positions:" << endl;
                 double m3 = msh((pos1 + pos2) / 2, bw);
-                cout << "m3=" << m3 << endl;
+                // cout << "m3=" << m3 << endl;
                 if ((m3 - m1) < tr) {
                     pos1 = (pos1 + pos2) / 2;
                     change = true;
-                    cout << "pos1=" << pos1 << endl;
+                    // cout << "pos1=" << pos1 << endl;
                 } else {
                     if ((m2 - m3) < tr) {
                         pos2 = (pos1 + pos2) / 2;
                         change = true;
-                        cout << "pos2=" << pos2 << endl;
+                        // cout << "pos2=" << pos2 << endl;
                     } else {
                         h1 = bw;
                         bw = (h1 + h2) / 2;
                         if (bw >= h1 + 1) {
-                            cout << "increasing bandwidth: bw=" << bw << endl;
-                            cout << "h1=" << h1 << ", h2=" << h2 << endl;
+                            // cout << "increasing bandwidth: bw=" << bw << endl;
+                            // cout << "h1=" << h1 << ", h2=" << h2 << endl;
                             change = true;
                         } else {
                             //cout<<"bandwidth fixed:"<<bw<<endl;
-                            cout << "change=false, exiting split." << endl;
+                            // cout << "change=false, exiting split." << endl;
                         }
                     }
                 }
@@ -267,13 +267,13 @@ namespace svrtk {
             }
         }
 
-        cout << "threshold=" << pos1 << endl;
+        // cout << "threshold=" << pos1 << endl;
 
         return pos1;
     }
 
     void MeanShift::SetThreshold(double threshold) {
-        cout << "threshold = " << threshold << endl;
+        // cout << "threshold = " << threshold << endl;
 
         _threshold = threshold;
     }
@@ -283,7 +283,7 @@ namespace svrtk {
         double bw = 2 * _nBins;
         double h1 = 0, h2 = bw;
 
-        cout << "calculating threshold ... ";
+        // cout << "calculating threshold ... ";
 
         _limit1 = split(pos1, pos2, bw, h1, h2);
         _bg = findMax(0, _limit1);
@@ -323,7 +323,7 @@ namespace svrtk {
         Grow(lcc_x, lcc_y, lcc_z, label);
 
         if ((add_second) && (lcc2_size > 0.5 * lcc_size)) {
-            cout << "Adding second largest cluster too. ";
+            // cout << "Adding second largest cluster too. ";
             Grow(lcc2_x, lcc2_y, lcc2_z, label);
         }
         //_map.Write("lcc.nii.gz");
@@ -388,7 +388,7 @@ namespace svrtk {
     }
 
     void MeanShift::RegionGrowing() {
-        cout << "Removing background" << endl;
+        // cout << "Removing background" << endl;
 
         _map.Initialize(_image.Attributes());
         _map = 1;
@@ -419,7 +419,7 @@ namespace svrtk {
     }
 
     void MeanShift::RemoveBackground() {
-        cout << "Removing background" << endl;
+        // cout << "Removing background" << endl;
         _map.Initialize(_image.Attributes());
         _map = 1;
 
@@ -447,7 +447,7 @@ namespace svrtk {
             AddPoint(x, y, z + 1);
         }
 
-        cout << "dilating and eroding ... ";
+        // cout << "dilating and eroding ... ";
         _brain = new RealImage(_map);
 
         int iterations = 3;
@@ -457,7 +457,7 @@ namespace svrtk {
 
         Erode<RealPixel>(_brain, iterations, connectivity);
 
-        cout << "recalculating ... ";
+        // cout << "recalculating ... ";
 
         _map = 1;
 
@@ -485,13 +485,13 @@ namespace svrtk {
             AddPoint(x, y, z + 1);
         }
 
-        cout << "eroding ... ";
+        // cout << "eroding ... ";
 
         *_brain = _map;
 
         Erode<RealPixel>(_brain, iterations, connectivity);
 
-        cout << "final recalculation ...";
+        // cout << "final recalculation ...";
 
         _map = 1;
 
@@ -520,7 +520,7 @@ namespace svrtk {
         }
 
         delete _brain;
-        cout << "done." << endl;
+        // cout << "done." << endl;
 
         RealPixel *ptr = _map.Data();
         RealPixel *ptr_b = _image.Data();
@@ -541,15 +541,15 @@ namespace svrtk {
     }
 
     void MeanShift::FindWMGMmeans() {
-        cout << "Finding WM and GM mean" << endl;
-        cout << "Make sure that background has been removed when calling this method!!!" << endl;
+        // cout << "Finding WM and GM mean" << endl;
+        // cout << "Make sure that background has been removed when calling this method!!!" << endl;
 
         _gm = findMax(0, _limit);
         _limit2 = split(_gm, _limit, 2 * _nBins, 0, 2 * _nBins);
         _wm = findMax(_limit2, _limit);
         _split2 = findMin(_gm, _wm);
-        cout << "GM mean = " << _gm << endl;
-        cout << "WM mean = " << _wm << endl;
+        // cout << "GM mean = " << _gm << endl;
+        // cout << "WM mean = " << _wm << endl;
 
         /*
         _limit2 = split(0, _limit, 2 * _nBins, 0, 2 * _nBins);

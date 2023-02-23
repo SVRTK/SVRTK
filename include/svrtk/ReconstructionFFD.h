@@ -28,11 +28,13 @@ namespace svrtk {
     class ReconstructionFFD: public Reconstruction {
     protected:
 
+
     public:
         // Constructor
         ReconstructionFFD() : Reconstruction() {
             _recon_type = _3D;
             _ffd = true;
+            _ffd_global_only = false;
             
             _cp_spacing.push_back(15);
             _cp_spacing.push_back(10);
@@ -53,6 +55,7 @@ namespace svrtk {
         
         // Run FFD stack registrations
         void FFDStackRegistrations(Array<RealImage>& stacks, RealImage template_image, RealImage mask);
+
 
         // Access to Parallel Processing Classes
 

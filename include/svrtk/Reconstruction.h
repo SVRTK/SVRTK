@@ -74,6 +74,9 @@ namespace svrtk {
         bool _no_sr;
         bool _reg_log;
         bool _masked_stacks;
+        bool _ffd_global_only;
+        bool _ffd_global_ncc;
+        bool _no_masking_background;
 
         double _global_NCC_threshold;
         int _local_SSIM_window_size;
@@ -102,6 +105,8 @@ namespace svrtk {
         Array<RealImage> _slice_ssim_maps;
         Array<ImageAttributes> _slice_attributes;
         Array<RealImage> _slice_dif;
+        
+        Array<RealImage> _not_masked_slices;
 
         Array<GreyImage> _grey_slices;
         GreyImage _grey_reconstructed;
@@ -140,6 +145,20 @@ namespace svrtk {
 
         /// Weights for regularization
         RealImage _confidence_map;
+        
+        
+        int _number_of_channels;
+        bool _multiple_channels_flag;
+        
+        Array<Array<RealImage*>> _mc_slices;
+        Array<Array<RealImage*>> _mc_simulated_slices;
+        Array<Array<RealImage*>> _mc_slice_dif;
+
+        Array<RealImage> _mc_reconstructed;
+        
+        Array<double> _max_intensity_mc;
+        Array<double> _min_intensity_mc;
+        
 
         // EM algorithm
         /// Variance for inlier voxel errors
@@ -387,6 +406,8 @@ namespace svrtk {
 
         /// Set reconstructed image
         void SetTemplate(RealImage tempImage);
+
+        // void SetFFDGlobalOnly();
 
         /// Calculate transformation matrix between slices and voxels
         void CoeffInit();
@@ -720,6 +741,25 @@ namespace svrtk {
         /// Set masked stacks flag
         inline void SetMaskedStacks() {
             _masked_stacks = true;
+        }
+
+        inline void SetFFDGlobalOnly() {
+            _ffd_global_only = true; 
+        }
+
+        inline void SetFFDGlobalNCC() {
+            _ffd_global_ncc = true; 
+        }
+        
+        
+        inline void SetMCRecon(int number_of_channels) {
+            _multiple_channels_flag = true;
+            _number_of_channels = number_of_channels;
+        }
+        
+        
+        inline void SetNoMaskingBackground() {
+            _no_masking_background = true;
         }
 
         /// Set sigma flag

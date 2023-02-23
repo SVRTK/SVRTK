@@ -59,6 +59,7 @@ int main(int argc, char **argv) {
     // -----------------------------------------------------------------------------
 
     // Initialisation of MIRTK image reader library
+    UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
 
     // Initialise profiling
@@ -167,6 +168,10 @@ int main(int argc, char **argv) {
     bool saveSlicesFlag = false;
     
     bool compensateFlag = false;
+    
+    bool with_background = false;
+    
+    ConnectivityType connectivity = CONNECTIVITY_26;
 
     // Paths of 'dofin' arguments
     vector<string> dofinPaths;
@@ -196,7 +201,7 @@ int main(int argc, char **argv) {
     opts.add_options()
         ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK. Only rough alignment with correct orientation and some overlap is needed. Use \'id\' for an identity transformation for at leastone stack. The first stack with \'id\' transformationwill be resampled as template.")
         ("template", value<string>(), "Use template for initialisation of registration loop. [Default: average of stack registration]")
-        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: twice voxel size in z direction]")
+        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: voxel size in z direction]")
         ("default_thickness", value<double>(), "Default thickness for all stacks. [Default: twice voxel size in z direction]")
         ("default_packages", value<int>(), "Default package number for all stacks. [Default: 1]")
         ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
@@ -216,10 +221,11 @@ int main(int argc, char **argv) {
         ("no_intensity_matching", "Switch off intensity matching")
         ("no_robust_statistics", "Switch off robust statistics")
         ("rescale_stacks", bool_switch(&rescaleStacks), "Rescale stacks to avoid nan pixel errors [Default: false]")
-        ("svr_only", bool_switch(&svrOnly), "Only SVR registration to a template stack")
-        ("no_global", bool_switch(&noGlobalFlag), "No global stack registration")
-        ("compensate", bool_switch(&compensateFlag), "Compensate for undersampling")
-        ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
+        ("svr_only", bool_switch(&svrOnly), "Only SVR registration to a template stack [Default: false]")
+        ("no_global", bool_switch(&noGlobalFlag), "No global stack registration [Default: false]")
+        ("with_background", bool_switch(&with_background), "Reconstruct with background [Default: false]")
+        ("compensate", bool_switch(&compensateFlag), "Compensate for undersampling [Default: false]")
+//        ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
         ("ncc", bool_switch(&nccRegFlag), "Use global NCC similarity for SVR steps [Default: NMI]")
         ("save_slices", bool_switch(&saveSlicesFlag), "Save slices for future exclusion [Default: false]")
         ("structural", bool_switch(&structural), "Use structural exclusion of slices at the last iteration")
@@ -229,7 +235,7 @@ int main(int argc, char **argv) {
         ("force_exclude", value<vector<int>>(&forceExcluded)->multitoken(), "Force exclusion of slices with these indices")
 //        ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues [Default: false]")
         ("no_registration", "Switch off registration")
-        ("thin", bool_switch(&thinFlag), "Option for 1.5 x dz slice thickness (testing)")
+//        ("thin", bool_switch(&thinFlag), "Option for 1.5 x dz slice thickness (testing)")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results");
 
 
@@ -267,11 +273,18 @@ int main(int argc, char **argv) {
     cout << "Reconstructed volume name : " << outputName << endl;
     cout << "Number of stacks : " << nStacks << endl;
 
+    UniquePtr<BaseImage> tmp_image;
+    
     // Read input stacks
     for (int i = 0; i < nStacks; i++) {
         cout << "Stack " << i << " : " << stackFiles[i];
-        RealImage stack(stackFiles[i].c_str());
-
+        
+        RealImage stack;
+        
+        image_reader.reset(ImageReader::TryNew(stackFiles[i].c_str()));
+        tmp_image.reset(image_reader->Run());
+        stack = *tmp_image;
+        
         // Check if the intensity is not negative and correct if so
         double smin, smax;
         stack.GetMinMax(&smin, &smax);
@@ -324,7 +337,10 @@ int main(int argc, char **argv) {
     // Template for initialisation of registration
     if (vm.count("template")) {
         cout << "Template : " << vm["template"].as<string>() << endl;
-        templateStack.Read(vm["template"].as<string>().c_str());
+        
+        image_reader.reset(ImageReader::TryNew(vm["template"].as<string>().c_str()));
+        tmp_image.reset(image_reader->Run());
+        templateStack = *tmp_image;
 
         // Check intensities and rescale if required
         double smin, smax;
@@ -346,8 +362,12 @@ int main(int argc, char **argv) {
     // Binary mask for reconstruction / final volume
     if (vm.count("mask")) {
         cout << "Mask : " << vm["mask"].as<string>() << endl;
+        
         mask = unique_ptr<RealImage>(new RealImage(vm["mask"].as<string>().c_str()));
+
     }
+    
+    
 
     // Number of registration-reconstruction iterations
     if (vm.count("iterations"))
@@ -406,6 +426,11 @@ int main(int argc, char **argv) {
 //    // Run registration as remote functions
 //    if (remoteFlag)
 //        strFlags += " -remote";
+    
+    
+    if (with_background) {
+        reconstruction.SetNoMaskingBackground();
+    }
 
     // Use only SVR to the template (skip 1st SR averaging iteration)
     if (svrOnly)
@@ -480,7 +505,7 @@ int main(int argc, char **argv) {
         }
     }
     
-    // Initialise 2*slice thickness if not given by user
+    // Initialise slice thickness if not given by user
     if (thickness.empty()) {
         cout << "Slice thickness : ";
         for (size_t i = 0; i < stacks.size(); i++) {
@@ -488,7 +513,7 @@ int main(int argc, char **argv) {
             if (thinFlag)
                 thickness.push_back(dz * 1.2);
             else
-                thickness.push_back(dz * 2);
+                thickness.push_back(dz);
             cout << thickness[i] << " ";
         }
         cout << endl;
@@ -649,6 +674,10 @@ int main(int argc, char **argv) {
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = stacks[templateNumber] * m;
+        
+        if(with_background)
+            Dilate<RealPixel>(&m, 5, connectivity);
+        
         CropImage(stacks[templateNumber], m);
         CropImage(maskedTemplate, m);
 
@@ -665,7 +694,12 @@ int main(int argc, char **argv) {
 
         // Crop template stack and prepare template for global volumetric registration
         maskedTemplate = templateStack * m;
+        
+        if(with_background)
+            Dilate<RealPixel>(&m, 5, connectivity);
+        
         CropImage(maskedTemplate, m);
+        
         CropImage(templateStack, m);
         
         if (debug) {
@@ -699,9 +733,10 @@ int main(int argc, char **argv) {
     // If remove_black_background flag is set, create mask from black background of the stacks
     if (removeBlackBackground)
     {
+        cout << "Creating mask from black background ... " << endl;
         RealImage new_mask = CreateMaskFromBlackBackground(&reconstruction, stacks, stackTransformations);
         reconstruction.SetMask(&new_mask, smoothMask, 0.01);
-        if (debug)
+        // if (debug)
             new_mask.Write("mask_from_black_background.nii.gz");
     }    
 
@@ -717,7 +752,12 @@ int main(int argc, char **argv) {
             continue;
         // Transform the mask
         RealImage m = reconstruction.GetMask();
+        
         TransformMask(stacks[i], m, stackTransformations[i]);
+        
+        if(with_background)
+            Dilate<RealPixel>(&m, 5, connectivity);
+        
         // Crop template stack
         CropImage(stacks[i], m);
 
@@ -869,6 +909,9 @@ int main(int argc, char **argv) {
             if (structural) {
                 reconstruction.CreateSliceMasks();
                 reconstruction.SStep();
+            } else  {
+                if (with_background)
+                    reconstruction.CreateSliceMasks();
             }
 
             // Set number of reconstruction iterations
@@ -925,7 +968,9 @@ int main(int argc, char **argv) {
             } // End of SR reconstruction iterations
 
             // Mask reconstructed image to ROI given by the mask
-            reconstruction.MaskVolume();
+            
+            if(!with_background)
+                reconstruction.MaskVolume();
 
             // Save reconstructed image
             reconstruction.GetReconstructed().Write((boost::format("image%1%.nii.gz") % iter).str().c_str());
@@ -936,6 +981,7 @@ int main(int argc, char **argv) {
             double averageVolumeWeight = 0;
             double ratioExcluded = 0;
             reconstruction.ReconQualityReport(outNcc, outNrmse, averageVolumeWeight, ratioExcluded);
+            cout << endl; 
             cout << " - global metrics: ncc = " << outNcc << " ; nrmse = " << outNrmse << " ; average weight = " << averageVolumeWeight << " ; excluded slices = " << ratioExcluded << endl;
 
             ofstream ofsNcc("output-metric-ncc.txt");

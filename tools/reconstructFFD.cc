@@ -62,6 +62,7 @@ int main(int argc, char **argv) {
     // -----------------------------------------------------------------------------
 
     // Initialisation of MIRTK image reader library
+    UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
 
     // Initialise profiling
@@ -158,10 +159,12 @@ int main(int argc, char **argv) {
     bool structural = false;
     
     // Flag for cropping stacks based on intersection
-    bool intersection = true;
+    bool intersection = false;
 
     // Flag for switching off NMI and using NCC for SVR step
     bool nccRegFlag = false;
+
+    bool nccGlobalRegFlag = false;
 
     // Flag for running registration step outside
     bool remoteFlag = false;
@@ -171,6 +174,9 @@ int main(int argc, char **argv) {
 
     // Flag for no global registration
     bool noGlobalFlag = false;
+
+
+    bool ffdGlobalOnly = false;
 
     // Flag that sets slice thickness to 1.5 of spacing (for testing purposes)
     bool thinFlag = false;
@@ -205,7 +211,7 @@ int main(int argc, char **argv) {
     opts.add_options()
         ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK. Only rough alignment with correct orientation and some overlap is needed. Use \'id\' for an identity transformation for at leastone stack. The first stack with \'id\' transformationwill be resampled as template.")
         ("template", value<string>(), "Use template for initialisation of registration loop. [Default: average of stack registration]")
-        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: twice voxel size in z direction]")
+        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: voxel size in z direction]")
         ("default_thickness", value<double>(), "Default thickness for all stacks. [Default: twice voxel size in z direction]")
         ("default_packages", value<double>(), "Default package number for all stacks. [Default: 1]")
         ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
@@ -227,10 +233,12 @@ int main(int argc, char **argv) {
         ("no_robust_statistics", "Switch off robust statistics")
         ("average_init", bool_switch(&averageInit), "Initialisation with average of all stacks")
         ("rescale_stacks", bool_switch(&rescaleStacks), "Rescale stacks to avoid nan pixel errors [Default: false]")
-        ("no_global", bool_switch(&noGlobalFlag), "No global stack registration")
+        ("no_global_rigid", bool_switch(&noGlobalFlag), "No global rigid stack registration")
+        ("global_ffd_only", bool_switch(&ffdGlobalOnly), "No FFD SVR - only global FFD betweens stacks")
         ("compensate", bool_switch(&compensateFlag), "Compensate for undersampling")
-        ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
+//        ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
         ("ncc", bool_switch(&nccRegFlag), "Use global NCC similarity for SVR steps [Default: NMI]")
+        ("global_ncc", bool_switch(&nccGlobalRegFlag), "Use global NCC similarity for global FFD steps [Default: NMI]")
         ("structural", bool_switch(&structural), "Use structural exclusion of slices at the last iteration")
         ("cp", value<vector<int>>(&cpSpacing), "Initial FFD CP value [mm] and reduction step per iteration [Default: 15 5]")
         ("exclude_slices_only", bool_switch(&robustSlicesOnly), "Robust statistics for exclusion of slices only")
@@ -240,7 +248,7 @@ int main(int argc, char **argv) {
 //        ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues [Default: false]")
         ("default", bool_switch(&defaultFlag), "Set default options: structural, intersection")
         ("no_registration", "Switch off registration")
-        ("thin", bool_switch(&thinFlag), "Option for 1.5 x dz slice thickness (testing)")
+//        ("thin", bool_switch(&thinFlag), "Option for 1.5 x dz slice thickness (testing)")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results");
 
     // Combine all options
@@ -274,14 +282,22 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+
     cout << "Reconstructed volume name : " << outputName << endl;
     cout << "Number of stacks : " << nStacks << endl;
+    
+    UniquePtr<BaseImage> tmp_image;
 
     // Read input stacks
     for (int i = 0; i < nStacks; i++) {
         cout << "Stack " << i << " : " << stackFiles[i];
-        RealImage stack(stackFiles[i].c_str());
-
+        
+        RealImage stack;
+        
+        image_reader.reset(ImageReader::TryNew(stackFiles[i].c_str()));
+        tmp_image.reset(image_reader->Run());
+        stack = *tmp_image;
+        
         // Check if the intensity is not negative and correct if so
         double smin, smax;
         stack.GetMinMax(&smin, &smax);
@@ -379,6 +395,8 @@ int main(int argc, char **argv) {
         }
         cout << endl;
     }
+
+    
     
     // The same number of packages for all stacks
     if (vm.count("default_packages")) {
@@ -429,6 +447,10 @@ int main(int argc, char **argv) {
         strFlags += " -ncc";
     }
 
+    if (nccGlobalRegFlag) {
+        reconstruction.SetFFDGlobalNCC();
+    }
+
     // Force removal of certain slices
     if (!forceExcluded.empty()) {
         cout << forceExcluded.size() << " force excluded slices: ";
@@ -472,6 +494,15 @@ int main(int argc, char **argv) {
         strFlags += " -debug";
     
 
+    if (ffdGlobalOnly) {
+        iterations = 1;
+        remoteFlag = false;
+        reconstruction.SetFFDGlobalOnly();
+        cout << "Running only global FFD and 1 interation" << endl;
+    }
+
+
+
     // -----------------------------------------------------------------------------
     // SET RECONSTRUCTION OPTIONS AND PERFORM PREPROCESSING
     // -----------------------------------------------------------------------------
@@ -499,7 +530,7 @@ int main(int argc, char **argv) {
     }
 
     
-    // Initialise 2*slice thickness if not given by user
+    // Initialise slice thickness if not given by user
     if (thickness.empty()) {
         cout << "Slice thickness : ";
         for (size_t i = 0; i < stacks.size(); i++) {
@@ -508,7 +539,7 @@ int main(int argc, char **argv) {
             if (thinFlag)
                 thickness.push_back(dz * 1.2);
             else
-                thickness.push_back(dz * 2);
+                thickness.push_back(dz);
             cout << thickness[i] << " ";
         }
         cout << endl;
@@ -647,11 +678,36 @@ int main(int argc, char **argv) {
     // Set low intensity cutoff for bias estimation
     reconstruction.SetLowIntensityCutoff(lowIntensityCutoff);
 
+
+    // If remove_black_background flag is set, create mask from black background of the stacks
+    if (removeBlackBackground)
+    {
+
+        cout << "Creating mask from black background ... " << endl;
+
+        mask = unique_ptr<RealImage>(new RealImage(templateStack));
+        *mask = CreateMask(*mask);
+
+        resolution = reconstruction.CreateTemplate(templateStack, resolution);
+        reconstruction.SetMask(mask.get(), smoothMask);
+
+        RealImage new_mask = CreateMaskFromBlackBackground(&reconstruction, stacks, stackTransformations);
+        reconstruction.SetMask(&new_mask, smoothMask, 0.01);
+
+        mask = unique_ptr<RealImage>(new RealImage(new_mask));
+        *mask = CreateMask(*mask);
+
+        // if (debug)
+            new_mask.Write("mask_from_black_background.nii.gz");
+    }   
+
     // If no mask was given - try to create mask from the template image in case it was padded
     if (mask == NULL) {
         cout << "Error : no mask was provided " << endl;
         exit(1);
     }
+
+
     
     // If no separate template was provided - use the selected template stack
     if (!useTemplate) {
@@ -688,7 +744,9 @@ int main(int argc, char **argv) {
     }
 
     // Stack intersection
-    StackIntersection(stacks, dilatedMainMask);
+
+    if (intersection)
+        StackIntersection(stacks, dilatedMainMask);
 
     // Create template volume with isotropic resolution
     // If resolution==0 it will be determined from in-plane resolution of the image
@@ -696,6 +754,8 @@ int main(int argc, char **argv) {
 
     // Set mask to reconstruction object
     reconstruction.SetMask(mask.get(), smoothMask);
+
+
     
     reconstruction.GlobalReconMask();
 

@@ -62,6 +62,7 @@ int main(int argc, char **argv) {
     // -----------------------------------------------------------------------------
 
     // Initialisation of MIRTK image reader library
+    UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
 
     // Initialise profiling
@@ -164,7 +165,7 @@ int main(int argc, char **argv) {
     opts.add_options()
         ("target_stack", value<int>(&templateNumber), "Stack number of target for stack-to-stack registration.")
         ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK/MIRTK. Use \'id\' for an identity transformation.")
-        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: twice voxel size in z direction]")
+        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: voxel size in z direction]")
         ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
         ("transformations", value<string>(&folder), "Use existing image-frame to volume transformations to initialize the reconstruction.")
         ("slice_transformations", value<string>(&sliceTransformationsFolder), "Use existing slice-location transformations to initialize the reconstruction.")
@@ -224,11 +225,18 @@ int main(int argc, char **argv) {
     }
 
     cout << "Number of stacks : " << nStacks << endl;
+    
+    UniquePtr<BaseImage> tmp_image;
 
     // Read stacks
     for (int i = 0; i < nStacks; i++) {
         cout << "Reading stack " << stackFiles[i] << endl;
-        RealImage stack(stackFiles[i].c_str());
+        RealImage stack;
+        
+        image_reader.reset(ImageReader::TryNew(stackFiles[i].c_str()));
+        tmp_image.reset(image_reader->Run());
+        stack = *tmp_image;
+        
         stacks.push_back(move(stack));
     }
 
@@ -389,13 +397,13 @@ int main(int argc, char **argv) {
     if (stackTransformations.empty())
         stackTransformations = Array<RigidTransformation>(stacks.size());
 
-    //Initialise 2*slice thickness if not given by user
+    //Initialise slice thickness if not given by user
     if (thickness.empty()) {
         cout << "Slice thickness is ";
         for (size_t i = 0; i < stacks.size(); i++) {
             double dx, dy, dz;
             stacks[i].GetPixelSize(&dx, &dy, &dz);
-            thickness.push_back(dz * 2);
+            thickness.push_back(dz);
             cout << thickness[i] << " ";
         }
         cout << "." << endl;

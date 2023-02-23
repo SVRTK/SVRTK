@@ -136,10 +136,10 @@ int main(int argc, char **argv)
         double smin, smax;
         stack.GetMinMax(&smin, &smax);
 
-        if (smin < 0 || smax < 0) {
+        // if (smin < 0 || smax < 0) {
 
-            stack.PutMinMaxAsDouble(0, 1000);
-        }
+        //     stack.PutMinMaxAsDouble(0, 1000);
+        // }
 
         argc--;
         argv++;

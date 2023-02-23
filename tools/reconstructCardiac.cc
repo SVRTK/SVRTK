@@ -59,6 +59,7 @@ int main(int argc, char **argv) {
     // -----------------------------------------------------------------------------
 
     // Initialisation of MIRTK image reader library
+    UniquePtr<ImageReader> image_reader;
     InitializeIOLibrary();
 
     // Initialise profiling
@@ -184,7 +185,7 @@ int main(int argc, char **argv) {
         ("stack_registration", bool_switch(&stackRegistration), "Perform stack-to-stack registration.")
         ("target_stack", value<int>(&templateNumber), "Stack number of target for stack-to-stack registration.")
         ("dofin", value<vector<string>>(&dofinPaths)->multitoken(), "The transformations of the input stack to template in \'dof\' format used in IRTK. Only rough alignment with correct orientation and some overlap is needed. Use \'id\' for an identity transformation for at leastone stack. The first stack with \'id\' transformation will be resampled as template.")
-        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: twice voxel size in z direction]")
+        ("thickness", value<vector<double>>(&thickness)->multitoken(), "Give slice thickness. [Default: voxel size in z direction]")
         ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
         ("transformations", value<string>(&folder), "Use existing image-frame to volume transformations to initialize the reconstruction.")
         ("slice_transformations", value<string>(&sliceTransformationsFolder), "Use existing slice-location transformations to initialize the reconstruction.")
@@ -258,10 +259,17 @@ int main(int argc, char **argv) {
     cout << "Reconstructed volume name : " << outputName << endl;
     cout << "Number of stacks : " << nStacks << endl;
 
+    UniquePtr<BaseImage> tmp_image;
+    
     // Read stacks
     for (int i = 0; i < nStacks; i++) {
         cout << "Reading stack " << stackFiles[i] << endl;
-        RealImage stack(stackFiles[i].c_str());
+        RealImage stack;
+        
+        image_reader.reset(ImageReader::TryNew(stackFiles[i].c_str()));
+        tmp_image.reset(image_reader->Run());
+        stack = *tmp_image;
+        
         stacks.push_back(move(stack));
     }
 
@@ -405,7 +413,7 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < stacks.size(); i++) {
             double dx, dy, dz;
             stacks[i].GetPixelSize(&dx, &dy, &dz);
-            thickness.push_back(dz * 2);
+            thickness.push_back(dz);
             cout << thickness[i] << " ";
         }
         cout << "." << endl;

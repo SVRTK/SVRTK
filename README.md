@@ -3,7 +3,7 @@ SVRTK - slice to volume reconstruction toolkit
 
 <img src="additional_files/svr-logo.png" alt="SVRTK" height="260" align ="left" />
 
-SVRTK C++ package (led by Dr Maria Deprez) based on MIRTK library (https://biomedia.doc.ic.ac.uk/software/mirtk/) provides a set of functions for retrospective (image-domain) motion correction and super-resolution reconstruction for fetal MRI including:
+SVRTK C++ package (led by Dr Maria Deprez and implemented by Dr Alena Uus) based on MIRTK library (https://biomedia.doc.ic.ac.uk/software/mirtk/) provides a set of functions for retrospective (image-domain) motion correction and super-resolution reconstruction for fetal MRI including:
 - 3D structural brain
 - 3D structural body
 - 4D whole fetal heart, including magnitude and blood flow reconstructions
@@ -12,7 +12,7 @@ SVRTK C++ package (led by Dr Maria Deprez) based on MIRTK library (https://biome
 - SH brain diffusion (HARDI) 
 
 
-The reconstruction pipelines are based  `reconstruction`  function for rigid SVR reconstruction in IRTK originally implemented by Maria Deprez (Kuklisova-Murgasova et al., 2012): https://biomedia.doc.ic.ac.uk/software/irtk/.
+The reconstruction pipelines are based on  `reconstruction` function for rigid SVR reconstruction in IRTK (Kuklisova-Murgasova et al., 2012): https://biomedia.doc.ic.ac.uk/software/irtk/.
 
 E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-resolution images of the fetal brain from motion-corrupted low-resolution stacks of 2D MRI slices. These output 3D images can be reoriented in any plane for diagnosis and suitable for 3D segmentation. The rest of the reconstruction tools employ additional registration and reconstruction methods depending on the specific features of the problem domain. 
 
@@ -108,7 +108,7 @@ mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz
 mirtk reconstructDWI ../recon-DWI-vol.nii.gz 2 ../4D-DWI-stack-1.nii.gz ../4D-DWI-stack-2.nii.gz ../gradient-directions-1.b ../gradient-directions-2.b [selected b-value: e.g., 1000] ../target-atlas-space-T2-volume.nii.gz ../dof-to-atlas-space.dof -mask ../mask.nii.gz -order 4 -motion_sigma 15 -resolution 1.5 -thickness 2 -sigma 20 -iterations 5 -template [template_number, e.g., 10] -motion_model_hs -sr_sh_iterations 10 -resolution 1.75 -no_robust_statistics 
 ```
 
- _Notes: The algorithm uses only 1 shell for reconstruction (and it should be > 0). You need to specify it after the .b files (e.g., B=1000). The rest of the shells will be excluded. The combined file with all gradient directions for all stacks will be in final-b-file.b. 
+ _Notes: The algorithm uses only 1 shell for reconstruction (and it should be > 0). You need to specify it after the .b files (e.g., B=1000). The rest of the shells will be excluded. The combined file with all gradient directions for all stacks will be in final-b-file.b. The method also expects the reference image (e.g., T2 in the atlas space) and the .dof transformation to it. Please use the given default settings for reconstruction. 
  
 The resulting reconstructed DWI signal will be in ../recon-DWI-vol.nii.gz and the SH coefficients are in shCoeff9.nii.gz files.
 This should be followed by constrained spherical deconvolution for representation of the signal in SH basis based on the functions from MRtrix (https://github.com/MRtrix3/mrtrix3):

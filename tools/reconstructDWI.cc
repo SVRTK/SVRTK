@@ -66,6 +66,7 @@ void usage()
     cerr << "\t[N]                      Number of 4D DWI stacks [Nifti]." << endl;
     cerr << "\t[4D_DWI_stack_1] .. [4D_DWI_stack_4]  The input DWI stacks. Nifti or Analyze format." << endl;
     cerr << "\t[bval_bgrad_file_1]  ..  [bval_bgrad_file_1]         List of .txt files with b-values and grad. directions for each DWI stack and direction in a text file." << endl;
+    cerr << "\t[selected_b_value]       Selected b-value for reconstruction (>0)." << endl;
     cerr << "\t[T2_ref]                 Reference T2 volume in the atlas space." << endl;
     cerr << "\t[dof_to_T2_ref]          Tranformation [.dof] from the diffusion to the reference T2 volume." << endl;
     cerr << "\t" << endl;

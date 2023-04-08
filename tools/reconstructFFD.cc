@@ -80,6 +80,8 @@ int main(int argc, char **argv) {
     // Array of stacks and stack names
     Array<RealImage> stacks;
     vector<string> stackFiles;
+    
+    Array<Array<RealImage>> multi_channel_stacks;
 
     // Template stack
     RealImage templateStack;
@@ -109,6 +111,8 @@ int main(int argc, char **argv) {
     vector<int> forceExcluded;
     
     vector<int> cpSpacing;
+    
+    int number_of_channels = 0;
 
     // Default values for reconstruction variables:
     int templateNumber = 0;
@@ -175,6 +179,7 @@ int main(int argc, char **argv) {
     // Flag for no global registration
     bool noGlobalFlag = false;
 
+    bool multiple_channels_flag = false;
 
     bool ffdGlobalOnly = false;
 
@@ -185,6 +190,8 @@ int main(int argc, char **argv) {
 
     // Paths of 'dofin' arguments
     vector<string> dofinPaths;
+    
+    vector<string> mcStackPaths;
 
     // Create reconstruction object
     ReconstructionFFD reconstruction;
@@ -215,6 +222,8 @@ int main(int argc, char **argv) {
         ("default_thickness", value<double>(), "Default thickness for all stacks. [Default: twice voxel size in z direction]")
         ("default_packages", value<double>(), "Default package number for all stacks. [Default: 1]")
         ("mask", value<string>(), "Binary mask to define the region of interest. [Default: whole image]")
+        ("mc_n", value<int>(&number_of_channels), "Number of additional channels for reconstruction [Default: 0]")
+        ("mc_stacks", value<vector<string>>(&mcStackPaths)->multitoken(), "Additional channel stacks for reconstruction (e.g., [c1_1] .. [c1_N] .. [cM_1] .. [cM_N]).")
         ("packages", value<vector<int>>(&packages)->multitoken(), "Give number of packages used during acquisition for each stack. The stacks will be split into packages during registration iteration 1 and then into odd and even slices within each package during registration iteration 2. The method will then continue with slice to volume approach. [Default: slice to volume registration only]")
         ("template_number", value<int>(&templateNumber), "Number of the template stack [Default: 0]")
         ("iterations", value<int>(&iterations), "Number of registration-reconstruction iterations [Default: 3]")
@@ -267,6 +276,8 @@ int main(int argc, char **argv) {
             throw error("Count of input stacks should equal to stack count!");
         if (!dofinPaths.empty() && dofinPaths.size() < nStacks)
             throw error("Count of dof files should equal to stack count!");
+        if (!mcStackPaths.empty() && mcStackPaths.size() != (number_of_channels*nStacks))
+            throw error("Count of channels stack files should equal to stack count!");
         if (!thickness.empty() && thickness.size() < nStacks)
             throw error("Count of thickness values should equal to stack count!");
         if (!packages.empty() && packages.size() < nStacks)
@@ -302,8 +313,9 @@ int main(int argc, char **argv) {
         double smin, smax;
         stack.GetMinMax(&smin, &smax);
         if (smin < 0 || smax < 0) {
-            stack.PutMinMaxAsDouble(0, 1000);
-            cout << "Warning: stack " << i << " has negative values and was rescaled to [0; 1000]" << endl;
+//            stack.PutMinMaxAsDouble(0, 1000);
+            cout << "Warning: stack " << i << " has negative values and they were removed!" << endl;
+            RemoveNanNegative(stack);
         }
 
         // Print stack info
@@ -328,6 +340,35 @@ int main(int argc, char **argv) {
             stackTransformations.push_back(*rigidTransf);
         }
         InvertStackTransformations(stackTransformations);
+    }
+    
+    // Input additional channels for reconstruction
+    if (!mcStackPaths.empty()) {
+        
+        cout << "Number of channels : " << number_of_channels << endl;
+
+        int j=0;
+        for (int n=0; n<number_of_channels; n++) {
+            Array<RealImage> tmp_mc_array;
+            for (int i = 0; i < stacks.size(); i++) {
+                cout << "MC stack " << i << " (" << n  << ") : " << mcStackPaths[j] << endl;
+                RealImage tmp_mc_stack;
+                image_reader.reset(ImageReader::TryNew(mcStackPaths[j].c_str()));
+                tmp_image.reset(image_reader->Run());
+                tmp_mc_stack = *tmp_image;
+                if (tmp_mc_stack.GetX() != stacks[i].GetX() || tmp_mc_stack.GetY() != stacks[i].GetY() || tmp_mc_stack.GetZ() != stacks[i].GetZ() || tmp_mc_stack.GetT() != stacks[i].GetT()) {
+                    cout << "Dimensions of MC stacks should the same as the main channel." << endl;
+                    exit(1);
+                }
+                tmp_mc_array.push_back(tmp_mc_stack);
+                j=j+1;
+            }
+            multi_channel_stacks.push_back(tmp_mc_array);
+        }
+        multiple_channels_flag = true;
+        reconstruction.SetMCSettings(number_of_channels);
+        
+//
     }
 
     // Slice thickness per stack
@@ -409,33 +450,33 @@ int main(int argc, char **argv) {
         cout << endl;
     }
 
-    // Number of SR iterations
-    if (vm.count("sr_iterations"))
-        strFlags += " -sr_iterations " + to_string(srIterations);
-
-    // Variance of Gaussian kernel to smooth the bias field
-    if (vm.count("sigma"))
-        strFlags += " -sigma " + to_string(sigma);
-
-    // SR smoothing parameter
-    if (vm.count("lambda"))
-        strFlags += " -lambda " + to_string(lambda);
-
-    // Smoothing parameter for last iteration
-    if (vm.count("lastIter"))
-        strFlags += " -lastIter " + to_string(lastIterLambda);
-
-    // SR parameter to define what is an edge
-    if (vm.count("delta"))
-        strFlags += " -delta " + to_string(delta);
-
-    // Isotropic resolution for the reconstructed volume
-    if (vm.count("resolution"))
-        strFlags += " -resolution " + to_string(resolution);
-
-    // Number of resolution levels
-    if (vm.count("multires"))
-        strFlags += " -multires " + to_string(levels);
+//    // Number of SR iterations
+//    if (vm.count("sr_iterations"))
+//        strFlags += " -sr_iterations " + to_string(srIterations);
+//
+//    // Variance of Gaussian kernel to smooth the bias field
+//    if (vm.count("sigma"))
+//        strFlags += " -sigma " + to_string(sigma);
+//
+//    // SR smoothing parameter
+//    if (vm.count("lambda"))
+//        strFlags += " -lambda " + to_string(lambda);
+//
+//    // Smoothing parameter for last iteration
+//    if (vm.count("lastIter"))
+//        strFlags += " -lastIter " + to_string(lastIterLambda);
+//
+//    // SR parameter to define what is an edge
+//    if (vm.count("delta"))
+//        strFlags += " -delta " + to_string(delta);
+//
+//    // Isotropic resolution for the reconstructed volume
+//    if (vm.count("resolution"))
+//        strFlags += " -resolution " + to_string(resolution);
+//
+//    // Number of resolution levels
+//    if (vm.count("multires"))
+//        strFlags += " -multires " + to_string(levels);
 
 //    // Run registration as remote functions
 //    if (remoteFlag)
@@ -444,7 +485,7 @@ int main(int argc, char **argv) {
     // Use NCC similarity metric for SVR
     if (nccRegFlag) {
         reconstruction.SetNCC(nccRegFlag);
-        strFlags += " -ncc";
+//        strFlags += " -ncc";
     }
 
     if (nccGlobalRegFlag) {
@@ -462,36 +503,36 @@ int main(int argc, char **argv) {
     // Switch off intensity matching
     if (vm.count("no_intensity_matching")) {
         intensityMatching = false;
-        strFlags += " -no_intensity_matching";
+//        strFlags += " -no_intensity_matching";
     }
 
     // Switch off robust statistics
     if (vm.count("no_robust_statistics")) {
         robustStatistics = false;
-        strFlags += " -no_robust_statistics";
+//        strFlags += " -no_robust_statistics";
     }
 
-    // Use structural exclusion of slices (after 2nd iteration)
-    if (structural)
-        strFlags += " -structural";
-
-    // Use robust statistics for slices only
-    if (robustSlicesOnly)
-        strFlags += " -exclude_slices_only";
+//    // Use structural exclusion of slices (after 2nd iteration)
+//    if (structural)
+//        strFlags += " -structural";
+//
+//    // Use robust statistics for slices only
+//    if (robustSlicesOnly)
+//        strFlags += " -exclude_slices_only";
 
     // Switch off registration
     if (vm.count("no_registration")) {
         registrationFlag = false;
-        strFlags += " -no_registration";
+//        strFlags += " -no_registration";
     }
 
-    // Perform bias correction of the reconstructed image agains the GW image in the same motion correction iteration
-    if (globalBiasCorrection)
-        strFlags += " -global_bias_correction";
-
-    // Debug mode
-    if (debug)
-        strFlags += " -debug";
+//    // Perform bias correction of the reconstructed image agains the GW image in the same motion correction iteration
+//    if (globalBiasCorrection)
+//        strFlags += " -global_bias_correction";
+//
+//    // Debug mode
+//    if (debug)
+//        strFlags += " -debug";
     
 
     if (ffdGlobalOnly) {
@@ -596,6 +637,28 @@ int main(int argc, char **argv) {
                 }
             }
         }
+        
+        if (number_of_channels > 0) {
+            Array<Array<RealImage>> new_multi_channel_stacks;
+            for (int n=0; n < number_of_channels; n++) {
+                Array<RealImage> tmp_mc_array;
+                RealImage tmp_mc_stack;
+                
+                for (int i=0; i < stacks.size(); i++) {
+                    if (stacks[i].GetT() == 1) {
+                        tmp_mc_array.push_back(multi_channel_stacks[n][i]);
+                    } else {
+                        for (int t=0; t<stacks[i].GetT(); t++) {
+                            tmp_mc_stack = multi_channel_stacks[n][i].GetRegion(0,0,0,t,stacks[i].GetX(),stacks[i].GetY(),stacks[i].GetZ(),(t+1));
+                            tmp_mc_array.push_back(tmp_mc_stack);
+                        }
+                    }
+                }
+                new_multi_channel_stacks.push_back(tmp_mc_array);
+            }
+            multi_channel_stacks = move(new_multi_channel_stacks);
+        }
+
 
         stacks = move(newStacks);
         thickness = move(newThickness);
@@ -634,6 +697,30 @@ int main(int argc, char **argv) {
                 if (!stackTransformations.empty())
                     newStackTransformations.push_back(stackTransformations[i]);
             }
+        }
+        
+        
+        if (number_of_channels > 0) {
+            Array<Array<RealImage>> new_multi_channel_stacks;
+            for (int n=0; n < number_of_channels; n++) {
+                Array<RealImage> tmp_mc_array;
+                RealImage tmp_mc_stack;
+                int q = 0;
+                for (int i=0; i < stacks.size(); i++) {
+                    Array<RealImage> out_packages;
+                    if (packages[i] > 1) {
+                        SplitImage(multi_channel_stacks[n][i], packages[i], out_packages);
+                        for (size_t j = 0; j < out_packages.size(); j++) {
+                            tmp_mc_array.push_back(out_packages[j]);
+                            q = q + 1;
+                        }
+                    } else {
+                        tmp_mc_array.push_back(multi_channel_stacks[n][i]);
+                    }
+                }
+                new_multi_channel_stacks.push_back(tmp_mc_array);
+            }
+            multi_channel_stacks = move(new_multi_channel_stacks);
         }
         
         stacks = move(newStacks);
@@ -779,20 +866,42 @@ int main(int argc, char **argv) {
          stacks[i].PutAffineMatrix(m, true);
          stackTransformations[i].Reset();
          stacks[i].Write((boost::format("reoriented-%1%.nii.gz") % i).str().c_str());
+
+         if (number_of_channels > 0) {
+             for (int n=0; n < number_of_channels; n++) {
+                 multi_channel_stacks[n][i].PutAffineMatrix(m, true);
+             }
+         }
+         
     }
         
     // FFD stack registration to the template
-    reconstruction.FFDStackRegistrations(stacks, templateStack, dilatedMainMask);
-
+    reconstruction.FFDStackRegistrations(stacks, multi_channel_stacks, templateStack, dilatedMainMask);
+ 
     cout << "------------------------------------------------------" << endl;
 
     // Rescale intensities of the stacks to have the same average
-    if (intensityMatching)
+    if (intensityMatching) {
         reconstruction.MatchStackIntensitiesWithMasking(stacks, stackTransformations, averageValue);
+        
+        if (number_of_channels > 0) {
+            for (int n=0; n < number_of_channels; n++) {
+                reconstruction.MatchStackIntensitiesWithMaskingMC(multi_channel_stacks[n], stackTransformations, averageValue);
+            }
+        }
+        
+    }
+    
+
+    
 
     // Create slices and slice-dependent transformations
     Array<RealImage> probabilityMaps;
-    reconstruction.CreateSlicesAndTransformations(stacks, stackTransformations, thickness, probabilityMaps);
+    if (number_of_channels > 0) {
+        reconstruction.CreateSlicesAndTransformationsMC(stacks, multi_channel_stacks, stackTransformations, thickness, probabilityMaps);
+    } else {
+        reconstruction.CreateSlicesAndTransformations(stacks, stackTransformations, thickness, probabilityMaps);
+    }
 
     // Set sigma for the bias field smoothing
     if (sigma > 0)
@@ -1008,6 +1117,14 @@ int main(int argc, char **argv) {
     SVRTK_END_TIMING("all");
 
     cout << "------------------------------------------------------" << endl;
+
+
+    if (number_of_channels > 0) {
+        cout << "Recontructed MC volumes : " << endl;
+        reconstruction.SaveMCReconstructed();
+        cout << "------------------------------------------------------" << endl;
+    }
+
 
     return 0;
 }

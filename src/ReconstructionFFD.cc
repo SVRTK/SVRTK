@@ -31,7 +31,8 @@ namespace svrtk {
 
     // run global ffd stack registration to the template
 
-    void ReconstructionFFD::FFDStackRegistrations(Array<RealImage>& stacks, RealImage template_image, RealImage mask) {
+
+    void ReconstructionFFD::FFDStackRegistrations(Array<RealImage>& stacks, Array<Array<RealImage>>& mc_stacks, RealImage template_image, RealImage mask) {
         SVRTK_START_TIMING();
 
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
@@ -138,6 +139,14 @@ namespace svrtk {
             
             CropImage(stacks[i], transformed_main_mask);
             stacks[i].Write((boost::format("fcropped-%1%.nii.gz") % i).str().c_str());
+            
+            if (_multiple_channels_flag && (_number_of_channels > 0)) {
+                for (int n=0; n<_number_of_channels; n++) {
+                    CropImage(mc_stacks[n][i], transformed_main_mask);
+                }
+            }
+            
+            
         }
         
         SVRTK_END_TIMING("FFDStackRegistrations");

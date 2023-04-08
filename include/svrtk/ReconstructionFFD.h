@@ -53,9 +53,10 @@ namespace svrtk {
         // Destructor
         ~ReconstructionFFD() {}
         
+        
         // Run FFD stack registrations
-        void FFDStackRegistrations(Array<RealImage>& stacks, RealImage template_image, RealImage mask);
-
+        void FFDStackRegistrations(Array<RealImage>& stacks, Array<Array<RealImage>>& mc_stacks, RealImage template_image, RealImage mask);
+ 
 
         // Access to Parallel Processing Classes
 

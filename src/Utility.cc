@@ -737,6 +737,27 @@ namespace svrtk::Utility {
         mask = move(m);
     }
 
+
+    void RemoveNanNegative(RealImage& stack) {
+ 
+        for (int x = 0; x < stack.GetX(); x++) {
+            for (int y = 0; y < stack.GetY(); y++) {
+                for (int z = 0; z < stack.GetZ(); z++) {
+                    
+                    if (stack(x,y,z) < 0)
+                        stack(x,y,z) = 0;
+                    
+                    if (stack(x,y,z) != stack(x,y,z))
+                        stack(x,y,z) = 0;
+                    
+                }
+            }
+        }
+               
+        
+    }
+
+
     //-------------------------------------------------------------------
 
     // run stack background filtering (GS based)

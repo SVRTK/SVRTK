@@ -50,6 +50,8 @@ namespace svrtk {
         class Average;
         class AdaptiveRegularization1;
         class AdaptiveRegularization2;
+        class AdaptiveRegularization1MC;
+        class AdaptiveRegularization2MC;
     }
 
     /**
@@ -224,6 +226,8 @@ namespace svrtk {
         double _average_value;
         Array<int> _stack_index;
 
+        Array<Array<double>> _mc_stack_factor;
+        
         /// GF 200416 Handling slice acquisition order
         Array<int> _slice_timing;
 
@@ -345,6 +349,8 @@ namespace svrtk {
          */
         void CreateSlicesAndTransformations(const Array<RealImage>& stacks, const Array<RigidTransformation>& stack_transformations,
             const Array<double>& thickness, const Array<RealImage>& probability_maps);
+        
+        void CreateSlicesAndTransformationsMC(const Array<RealImage>& stacks, Array<Array<RealImage>> mc_stacks, const Array<RigidTransformation>& stack_transformations, const Array<double>& thickness, const Array<RealImage>& probability_maps);
 
         /**
          * @brief Set slices and transformations from the given array.
@@ -394,6 +400,9 @@ namespace svrtk {
          * @param together
          */
         void MatchStackIntensitiesWithMasking(Array<RealImage>& stacks,
+            const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
+        
+        void MatchStackIntensitiesWithMaskingMC(Array<RealImage>& stacks,
             const Array<RigidTransformation>& stack_transformations, double averageValue, bool together = false);
 
         /// Mask slices based on the reconstruction mask
@@ -455,6 +464,8 @@ namespace svrtk {
          * @param original
          */
         void AdaptiveRegularization(int iter, const RealImage& original);
+        
+        void AdaptiveRegularizationMC( int iter, Array<RealImage>& mc_originals);
 
         /// Run slice to volume registration
         void SliceToVolumeRegistration();
@@ -614,6 +625,8 @@ namespace svrtk {
         friend class Parallel::Average;
         friend class Parallel::AdaptiveRegularization1;
         friend class Parallel::AdaptiveRegularization2;
+        friend class Parallel::AdaptiveRegularization1MC;
+        friend class Parallel::AdaptiveRegularization2MC;
 
         ////////////////////////////////////////////////////////////////////////////////
         // Inline/template definitions
@@ -627,6 +640,25 @@ namespace svrtk {
         /// Uniform PDF
         inline double M(double m) {
             return m * _step;
+        }
+        
+        inline void SetMCSettings(int num)
+        {
+            _number_of_channels = num;
+            _multiple_channels_flag = true;
+        }
+
+
+        inline void SaveMCReconstructed()
+        {
+            char buffer[256];
+            if (_multiple_channels_flag && (_number_of_channels > 0)) {
+                for (int n=0; n<_number_of_channels; n++) {
+                    sprintf(buffer,"mc-output-%i.nii.gz", n);
+                    _mc_reconstructed[n].Write(buffer);
+                    cout << "- " << buffer << endl;
+                }
+            }
         }
 
         /// Return reconstructed volume

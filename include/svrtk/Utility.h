@@ -84,6 +84,9 @@ namespace svrtk::Utility {
     double ComputeNCC(const RealImage& slice_1, const RealImage& slice_2, const double threshold = 0.01, double *count = nullptr);
 
 
+    void RemoveNanNegative(RealImage& stack);
+
+
     double LocalSSIM(const RealImage slice, const RealImage sim_slice );
 
     /**

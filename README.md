@@ -65,7 +65,7 @@ Examples:
 **3D brain reconstruction:**
 
 ```bash
-mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 
+mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../stack3.nii.gz ../stack4.nii.gz ../stack5.nii.gz -mask ../mask.nii.gz  -template ../stack3.nii.gz -thickness 2.5 2.5 2.5 2.5 2.5 -svr_only -resolution 0.75 -iterations 3 -with_background 
 ```
  
  _Please note that it requires a 3D brain mask created (e.g., in ITK-SNAP) for the selected template stack._
@@ -100,7 +100,21 @@ mirtk reconstructFFD ../outputDSVR.nii.gz 3 ../stack1.nii.gz ../stack2.nii.gz ..
 ```bash
 mirtk reconstructCardiacVelocity 5 ../phase_stack1.nii.gz ../phase_stack2.nii.gz ../phase_stack3.nii.gz ../phase_stack4.nii.gz ../phase_stack5.nii.gz ../g_values.txt ../g_directions.txt -thickness 6 6 6 6 6 -mask ../mask.nii.gz -rec_iterations 40 -transformations [folder with slice transformations from 4D cardiac reconstruction] -limit_intensities -rec_iterations 40 -resolution 1.25 -force_exclude [list of slices that should be excluded] -numcardphase 25 -rrinterval 0.407046 -rrintervals [list of rr_intervals] -cardphase [cardiac phases for each of the slices] -debug > log-main.txt
 ```
-  ---
+
+ ---
+**3D multi-channel SVR/DSVR reconstruction for quantitative datasets with multiple echoes:**
+
+_The registration is based only on the main set of stacks - the additional multiple echo stacks for reconstruction are passed using **-mc_n** and **-mc_stacks** flags. Note: the method assumes that all echoes are aligned. Please use **-no_intensity_matching** option for any quantitative studies._
+
+_The method also requires a 3D mask created (e.g., in ITK-SNAP) for the selected template stack._
+
+```bash
+mirtk reconstructFFD ../outputDSVR.nii.gz 3 ../stack1_e02.nii.gz ../stack2_e02.nii.gz -mc_n 2 -mc_stacks ../stack1_e01.nii.gz ../stack2_e01.nii.gz ../t2s_map_1.nii.gz ../t2s_map_2.nii.gz -mask ../mask.nii.gz -template ../template-stack_e02.nii.gz -thickness 2.5 -structural -iterations 2 -thickness 2.5 2.5 -resolution 1.25 -no_intensity_matching
+
+```
+_The output 3D reconstructed images for all channels will be in mc-output-N.nii.gz files._
+
+ ---
 **Higher order spherical harmonics (SH) reconstruction of fetal brain diffusion MRI:**
 
 ```bash

@@ -355,7 +355,17 @@ namespace svrtk::Parallel {
                 memset(sim_weight.Data(), 0, sizeof(RealPixel) * sim_weight.NumberOfVoxels());
                 memset(sim_inside.Data(), 0, sizeof(RealPixel) * sim_inside.NumberOfVoxels());
                 reconstructor->_slice_inside[inputIndex] = false;
-
+                
+                if (reconstructor->_multiple_channels_flag) {
+                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                        for ( int i = 0; i < reconstructor->_simulated_slices[inputIndex].GetX(); i++ ) {
+                            for ( int j = 0; j < reconstructor->_simulated_slices[inputIndex].GetY(); j++ ) {
+                                reconstructor->_mc_simulated_slices[inputIndex][nc]->PutAsDouble(i, j, 0, 0);
+                            }
+                        }
+                    }
+                }
+                
                 for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
                     for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++) {
                             double test_val = reconstructor->_slices[inputIndex](i, j, 0);
@@ -367,6 +377,11 @@ namespace svrtk::Parallel {
                                     const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                     sim_slice(i, j, 0) += p.value * reconstructor->_reconstructed(p.x, p.y, p.z);
                                     weight += p.value;
+                                    
+                                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                        double tmp_val = reconstructor->_mc_simulated_slices[inputIndex][nc]->GetAsDouble(i, j, 0) + p.value * reconstructor->_mc_reconstructed[nc](p.x, p.y, p.z);
+                                        reconstructor->_mc_simulated_slices[inputIndex][nc]->PutAsDouble(i, j, 0, tmp_val);
+                                    }
                                     
                                     if (reconstructor->_no_masking_background) {
                                         sim_inside(i, j, 0) = 1;
@@ -382,6 +397,12 @@ namespace svrtk::Parallel {
                                 if (weight > 0) {
                                     sim_slice(i, j, 0) /= weight;
                                     sim_weight(i, j, 0) = weight;
+                                    
+                                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                        double tmp_val = reconstructor->_mc_simulated_slices[inputIndex][nc]->GetAsDouble(i, j, 0) / weight;
+                                        reconstructor->_mc_simulated_slices[inputIndex][nc]->PutAsDouble(i, j, 0, tmp_val);
+                                    }
+                                    
                                 }
                             }
                         };
@@ -2303,6 +2324,7 @@ namespace svrtk::Parallel {
     public:
         RealImage confidence_map;
         RealImage addon;
+        Array<RealImage> mc_addons;
 
         Superresolution(Reconstruction *reconstructor) : reconstructor(reconstructor) {
             //Clear addon
@@ -2310,6 +2332,14 @@ namespace svrtk::Parallel {
 
             //Clear confidence map
             confidence_map.Initialize(reconstructor->_reconstructed.Attributes());
+            
+            if (reconstructor->_multiple_channels_flag) {
+                mc_addons.clear();
+                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                    mc_addons.push_back(addon);
+                }
+            }
+                            
         }
 
         Superresolution(Superresolution& x, split) : Superresolution(x.reconstructor) {}
@@ -2328,8 +2358,16 @@ namespace svrtk::Parallel {
                             test_val = reconstructor->_slices[inputIndex](i, j, 0);
                         
                         if (test_val > -0.01) {
-                            if (reconstructor->_simulated_slices[inputIndex](i, j, 0) < 0.01)
+                            if (reconstructor->_simulated_slices[inputIndex](i, j, 0) < 0.01) {
                                 reconstructor->_slice_dif[inputIndex](i, j, 0) = 0;
+                                
+                                if (reconstructor->_multiple_channels_flag) {
+                                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                        reconstructor->_mc_slice_dif[inputIndex][nc]->PutAsDouble(i, j, 0, 0);
+                                    }
+                                }
+                            }
+                            
 
                             #pragma omp simd
                             for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
@@ -2348,7 +2386,15 @@ namespace svrtk::Parallel {
                                 
                                 if (include_flag) {
                                     addon(p.x, p.y, p.z) += ssim_weight * multiplier * p.value * reconstructor->_slice_weight[inputIndex] * reconstructor->_slice_dif[inputIndex](i, j, 0);
+                                    
                                     confidence_map(p.x, p.y, p.z) += ssim_weight * multiplier * p.value * reconstructor->_slice_weight[inputIndex];
+                                    
+                                    if (reconstructor->_multiple_channels_flag) {
+                                        for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                                            mc_addons[nc](p.x, p.y, p.z) += ssim_weight * multiplier * p.value * reconstructor->_slice_weight[inputIndex] * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0);
+                                        }
+                                    }
+
                                 }
                                 
                             }
@@ -2360,6 +2406,13 @@ namespace svrtk::Parallel {
         void join(const Superresolution& y) {
             addon += y.addon;
             confidence_map += y.confidence_map;
+            
+            if (reconstructor->_multiple_channels_flag) {
+                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+                    mc_addons[nc] += y.mc_addons[nc];
+                }
+            }
+                            
         }
 
         void operator()() {
@@ -2742,6 +2795,63 @@ namespace svrtk::Parallel {
         }
     };
 
+
+    //-------------------------------------------------------------------
+
+
+    class AdaptiveRegularization1MC {
+        const Reconstruction *reconstructor;
+        Array<Array<RealImage>> &b;
+        const Array<double> &factor;
+        const Array<RealImage> &original;
+
+    public:
+        AdaptiveRegularization1MC(const Reconstruction *_reconstructor,
+                                  Array<Array<RealImage>> &_b,
+                                  const Array<double> &_factor,
+                                  const Array<RealImage> &_original) :
+        reconstructor(_reconstructor),
+        b(_b),
+        factor(_factor),
+        original(_original) { }
+
+        void operator() (const blocked_range<size_t> &r) const {
+            const int dx = reconstructor->_reconstructed.GetX();
+            const int dy = reconstructor->_reconstructed.GetY();
+            const int dz = reconstructor->_reconstructed.GetZ();
+            for ( size_t i = r.begin(); i != r.end(); ++i ) {
+
+                for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+
+                    int x, y, z, xx, yy, zz;
+//                    double diff;
+                    for (x = 0; x < dx; x++)
+                    for (y = 0; y < dy; y++)
+                    for (z = 0; z < dz; z++) {
+                        xx = x + reconstructor->_directions[i][0];
+                        yy = y + reconstructor->_directions[i][1];
+                        zz = z + reconstructor->_directions[i][2];
+                        if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz)
+                            && (reconstructor->_confidence_map(x, y, z) > 0) && (reconstructor->_confidence_map(xx, yy, zz) > 0)) {
+                            const double diff = (original[nc](xx, yy, zz) - original[nc](x, y, z)) * sqrt(factor[i]) / reconstructor->_delta;
+                            b[i][nc](x, y, z) = factor[i] / sqrt(1 + diff * diff);
+                        }
+                        else {
+                            b[i][nc](x, y, z) = 0;
+                        }
+                    }
+
+                }
+            }
+        }
+
+        void operator() () const {
+            parallel_for( blocked_range<size_t>(0, 13), *this );
+        }
+
+    };
+
+
     //-------------------------------------------------------------------
 
     /// Class for adaptive regularisation (Part II)
@@ -2804,6 +2914,79 @@ namespace svrtk::Parallel {
             parallel_for(blocked_range<size_t>(0, reconstructor->_reconstructed.GetX()), *this);
         }
     };
+
+    //-------------------------------------------------------------------
+
+
+    class AdaptiveRegularization2MC {
+        Reconstruction *reconstructor;
+        Array<Array<RealImage>> &b;
+        Array<double> &factor;
+        Array<RealImage> &original;
+
+        public:
+        AdaptiveRegularization2MC( Reconstruction *_reconstructor,
+                                           Array<Array<RealImage>> &_b,
+                                           Array<double> &_factor,
+                                           Array<RealImage> &_original) :
+        reconstructor(_reconstructor),
+        b(_b),
+        factor(_factor),
+        original(_original) { }
+
+        void operator() (const blocked_range<size_t> &r) const {
+            int dx = reconstructor->_reconstructed.GetX();
+            int dy = reconstructor->_reconstructed.GetY();
+            int dz = reconstructor->_reconstructed.GetZ();
+            for ( size_t x = r.begin(); x != r.end(); ++x ) {
+                int xx, yy, zz;
+                for (int y = 0; y < dy; y++)
+                for (int z = 0; z < dz; z++)
+                if(reconstructor->_confidence_map(x,y,z)>0)
+                {
+                    for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
+
+                        double val = 0;
+                        double sum = 0;
+
+                        for (int i = 0; i < 13; i++) {
+                            xx = x + reconstructor->_directions[i][0];
+                            yy = y + reconstructor->_directions[i][1];
+                            zz = z + reconstructor->_directions[i][2];
+                            if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
+                            if(reconstructor->_confidence_map(xx,yy,zz)>0)
+                            {
+                                val += b[i][nc](x, y, z) * original[nc](xx, yy, zz);
+                                sum += b[i][nc](x, y, z);
+                            }
+                        }
+
+                        for (int i = 0; i < 13; i++) {
+                            xx = x - reconstructor->_directions[i][0];
+                            yy = y - reconstructor->_directions[i][1];
+                            zz = z - reconstructor->_directions[i][2];
+                            if ((xx >= 0) && (xx < dx) && (yy >= 0) && (yy < dy) && (zz >= 0) && (zz < dz))
+                            if(reconstructor->_confidence_map(xx,yy,zz)>0)
+                            {
+                                val += b[i][nc](x, y, z) * original[nc](xx, yy, zz);
+                                sum += b[i][nc](x, y, z);
+                            }
+                        }
+                        val -= sum * original[nc](x, y, z);
+                        val = original[nc](x, y, z) + reconstructor->_alpha * reconstructor->_lambda / (reconstructor->_delta * reconstructor->_delta) * val;
+                        reconstructor->_mc_reconstructed[nc](x, y, z) = val;
+                    }
+                }
+
+            }
+        }
+
+        void operator() () const {
+            parallel_for( blocked_range<size_t>(0, reconstructor->_reconstructed.GetX()), *this );
+        }
+
+    };
+
 
     //-------------------------------------------------------------------
 

@@ -43,7 +43,7 @@ mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../st
 
 ```
 
-_Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 16 / 32 GB) in the Desktop Docker settings. _ 
+_Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 16 / 32 GB) in the Desktop Docker settings._ 
 
 
 
@@ -52,8 +52,7 @@ Installation
 
 Please follow the installation instructions in InstallationInstructions.txt file.
 
-_Notes: The software can be compiled on either Ubuntu(>18.0) / Debian or OS X. 
-In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and > 16 GB (brain) / > 32 GB (body/placenta) RAM. 
+_Notes: The software can be compiled on either Ubuntu(>18.0) / Debian or OS X. In order achieve optimal performance it is recommended to run reconstruction on a machine with minimum 6 CPU cores and > 16 GB (brain) / > 32 GB (body/placenta) RAM._
 
 
 

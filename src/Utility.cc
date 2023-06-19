@@ -630,7 +630,7 @@ namespace svrtk::Utility {
         average_volume = 0;
         current_stack_transformations.resize(stacks.size());
 
-        #pragma omp parallel for firstprivate(imagetransformation) private(registration) reduction(+: average_ncc, average_volume)
+        //#pragma omp parallel for firstprivate(imagetransformation) private(registration) reduction(+: average_ncc, average_volume)
         for (size_t i = 0; i < stacks.size(); i++) {
             RealImage input_stack = stacks[i] * masks[i];
 

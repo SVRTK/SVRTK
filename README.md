@@ -3,7 +3,7 @@ SVRTK - slice to volume reconstruction toolkit
 
 <img src="additional_files/svr-logo.png" alt="SVRTK" height="260" align ="left" />
 
-SVRTK C++ package (led by Dr Maria Deprez and implemented by Dr Alena Uus) based on MIRTK library (https://biomedia.doc.ic.ac.uk/software/mirtk/) provides a set of functions for retrospective (image-domain) motion correction and super-resolution reconstruction for fetal MRI including:
+SVRTK C++ package from King's College London based on MIRTK library (https://biomedia.doc.ic.ac.uk/software/mirtk/) provides a set of functions for retrospective (image-domain) motion correction and super-resolution reconstruction for fetal MRI including:
 - 3D structural brain
 - 3D structural body
 - 4D whole fetal heart, including magnitude and blood flow reconstructions
@@ -24,7 +24,7 @@ SVRTK contributes to https://github.com/mriphysics/fetal_cmr_4d pipeline.
 
 Recent general review about SVR tools for fetal MRI: [Uus et al., 2022, BJR, "Retrospective motion correction in foetal MRI for clinical applications: existing methods, applications and integration into clinical practice"](https://pubmed.ncbi.nlm.nih.gov/35834425/).
 
-In case of any questions please contact: *alena.uus (at) kcl.ac.uk*
+In case of any questions please contact: *alena.uus (at) kcl.ac.uk* (main developer)
 
 
 Docker 

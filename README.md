@@ -11,8 +11,7 @@ SVRTK C++ package from King's College London based on MIRTK library (https://bio
 - 3D and 4D multi-channel quantitative T2* 
 - SH brain diffusion (HARDI) 
 
-
-The reconstruction pipelines are based on  `reconstruction` function for rigid SVR reconstruction in IRTK (Kuklisova-Murgasova et al., 2012): https://biomedia.doc.ic.ac.uk/software/irtk/.
+SVRTK repository code was implelemnted by Dr Alena Uus (KCL) based on reconstruction pipelines (`reconstruction` function) for rigid SVR reconstruction in IRTK (Kuklisova-Murgasova et al., 2012): https://biomedia.doc.ic.ac.uk/software/irtk/.
 
 E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-resolution images of the fetal brain from motion-corrupted low-resolution stacks of 2D MRI slices. These output 3D images can be reoriented in any plane for diagnosis and suitable for 3D segmentation. The rest of the reconstruction tools employ additional registration and reconstruction methods depending on the specific features of the problem domain. 
 
@@ -45,6 +44,20 @@ mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../st
 
 _Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 16 / 32 GB) in the Desktop Docker settings._ 
 
+
+The SVRTK docker (tag auto-2.20) also contains solutions for fully automated T2w brain and thorax 3D SVR/DSVR reconstruction in the standard radiological space.
+
+```bash
+
+docker pull fetalsvrtk/svrtk:auto-2.20
+
+bash /home/auto-proc-svrtk/auto-brain-reconstruction.sh /home/data/[path_to_folder_with_nii_files]  /home/data/[path_to_output_folder] OPTIONAL: [motion correction mode: (0 or 1): 0 - minor, 1 - >180 degree rotations / default: 0];  [slice thickness / default: 2.5];  [output recon resolution / default: 0.8];  [number of packages / default: 4 for 1.25 spacing, 1 for the rest]
+
+bash /home/auto-proc-svrtk/auto-thorax-reconstruction.sh /home/data/[path_to_folder_with_nii_files]  /home/data/[path_to_output_folder] OPTIONAL: [motion correction mode: (0 or 1): 0 - minor, 1 - >180 degree rotations / default: 1];  [slice thickness / default: 2.5];  [output recon resolution / default: 0.7];  [number of packages / default: 4 for 1.25 spacing, 1 for the rest]
+
+```
+
+> Uus, A., Grigorescu, I., van Poppel, M., Steinweg, J. K., Roberts, T., Rutherford, M., Hajnal, J., Lloyd, D., Pushparajah, K. & Deprez, M. (2022) Automated 3D reconstruction of the fetal thorax in the standard atlas space from motion-corrupted MRI stacks for 21-36 weeks GA range. Medical Image Analysis, 80 (August 2022).: https://doi.org/10.1016/j.media.2022.102484
 
 
 Installation 
@@ -151,20 +164,19 @@ In case you found SVRTK useful please give appropriate credit to the software.
 Original reconstruction pipeline for 3D fetal brain (original software using IRTK: https://gitlab.com/mariadeprez/irtk-simple):
 > Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M. A., Hajnal, J. V., & Schnabel, J. A. (2012). Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Medical Image Analysis, 16(8), 1550–1564.: https://doi.org/10.1016/j.media.2012.07.004
 
+3D DSVR fetal body / placenta reconstruction:
+> Uus, A., Zhang, T., Jackson, L., Roberts, T., Rutherford, M., Hajnal, J.V., Deprez, M. (2020). Deformable Slice-to-Volume Registration for Motion Correction in Fetal Body MRI and Placenta. IEEE Transactions on Medical Imaging, 39(9), 2750-2759: http://dx.doi.org/10.1109/TMI.2020.2974844 
+
 4D cardiac magnitude reconstruction (original software using IRTK: https://github.com/jfpva/fetal_cmr_4d):
 > van Amerom, J. F. P., Lloyd, D. F. A., Deprez, M., Price, A. N., Malik, S. J., Pushparajah, K., van Poppel, M. P. M, Rutherford, M. A., Razavi, R., Hajnal, J. V. (2019). Fetal whole-heart 4D imaging using motion-corrected multi-planar real-time MRI. Magnetic Resonance in Medicine, 82(3): 1055-1072. : https://doi.org/10.1002/mrm.27858
 
 4D cardiac velocity reconstruction:
 > Roberts, T. A., van Amerom, J. F. P., Uus, A., Lloyd, D. F. A., Price, A. N., Tournier, J-D., Mohanadass, C. A., Jackson, L. H., Malik, S. J., van Poppel, M. P. M, Pushparajah, K., Rutherford, M. A., Razavi, R., Deprez, M., Hajnal, J. V. (2020).Fetal whole heart blood flow imaging using 4D cine MRI. Nat Commun 11, 4992: https://doi.org/10.1038/s41467-020-18790-1
 
-3D DSVR fetal body / placenta reconstruction:
-> Uus, A., Zhang, T., Jackson, L., Roberts, T., Rutherford, M., Hajnal, J.V., Deprez, M. (2020). Deformable Slice-to-Volume Registration for Motion Correction in Fetal Body MRI and Placenta. IEEE Transactions on Medical Imaging, 39(9), 2750-2759: http://dx.doi.org/10.1109/TMI.2020.2974844
- 
-SH brain diffusion reconstruction (HARDI): 
+SH brain diffusion reconstruction (HARDI) (original software using IRTK: https://gitlab.com/mariadeprez/irtk-simple): 
 > Deprez, M., Price, A., Christiaens, D., Estrin, G.L., Cordero-Grande, L., Hutter, J., Daducci, A., Tournier, J-D., Rutherford, M., Counsell, S. J., Cuadra, M. B., Hajnal, J. V. (2020). Higher Order Spherical Harmonics Reconstruction of Fetal Diffusion MRI with Intensity Correction. IEEE Transactions on Medical Imaging, 39 (4), 1104–1113.: https://doi.org/10.1109/tmi.2019.2943565.
 
 3D and 4D T2* placenta reconstruction: 
 > Uus, A., Steinweg, J. K., Ho, A., Jackson, L. H., Hajnal, J. V., Rutherford, M. A., Deprez, M., Hutter, J. (2020) Deformable Slice-to-Volume Registration for Reconstruction of Quantitative T2* Placental and Fetal MRI. In: Hu Y. et al. (eds) Medical Ultrasound, and Preterm, Perinatal and Paediatric Image Analysis. ASMUS 2020, PIPPI 2020. Lecture Notes in Computer Science, vol 12437. Springer, Cham: https://doi.org/10.1007/978-3-030-60334-2_22
-
 
 

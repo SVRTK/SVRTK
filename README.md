@@ -17,9 +17,13 @@ E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-res
 
 <img src="additional_files/svr-example.png" alt="SVRTKEXAMPLE" height="120" align ="center" />
 
+
 4D cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 
+SH brain diffusion reconstruction (HARDI) code was ported from the original IRTK-based implementation by Maria Deprez: https://gitlab.com/mariadeprez/irtk-simple.
+
 SVRTK contributes to https://github.com/mriphysics/fetal_cmr_4d pipeline.
+
 
 Recent general review about SVR tools for fetal MRI: [Uus et al., 2022, BJR, "Retrospective motion correction in foetal MRI for clinical applications: existing methods, applications and integration into clinical practice"](https://pubmed.ncbi.nlm.nih.gov/35834425/).
 

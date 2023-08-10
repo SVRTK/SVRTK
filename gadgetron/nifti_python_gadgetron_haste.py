@@ -365,12 +365,8 @@ def IsmrmrdToNiftiGadget(connection):
 
             if num_files >= 6:
                 print("Launching docker now...")
-                # command = '''gnome-terminal -- bash -c "docker run --rm  --mount type=bind,
-                # source=/home/sn21/data/t2-stacks, target=/home/data fetalsvrtk/svrtk:auto-2.20 sh -c ' bash
-                # /home/auto-proc-svrtk/auto-brain-reconstruction.sh /home/data/2023-07-20
-                # /home/data/2023-07-20-result 1 4.5 1.0 1 ; ' "'''
 
-                command = ''' gnome-terminal -- bash -c "docker run --rm  --mount type=bind,source=/home/sn21/data/t2-stacks,target=/home/data fetalsvrtk/svrtk:auto-2.20 sh -c ' bash /home/auto-proc-svrtk/auto-brain-reconstruction.sh /home/data/2023-08-10 /home/data/2023-08-10-result 1 4.5 1.0 1 ; ' " '''
+                command = f'''gnome-terminal -- bash -c "docker run --rm --mount type=bind,source=/home/sn21/data/t2-stacks,target=/home/data fetalsvrtk/svrtk:auto-2.20 sh -c 'bash /home/auto-proc-svrtk/auto-brain-reconstruction.sh /home/data/{date_path} /home/data/{date_path}-result 1 4.5 1.0 1 ;'"'''
 
                 subprocess.call(['bash', '-c', command])
 

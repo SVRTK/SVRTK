@@ -11,16 +11,16 @@ SVRTK C++ package from King's College London based on MIRTK library (https://bio
 - 3D and 4D multi-channel quantitative T2* 
 - SH brain diffusion (HARDI) 
 
-SVRTK repository code was implelemnted by Dr Alena Uus (KCL) based on reconstruction pipelines (`reconstruction` function) for rigid SVR reconstruction in IRTK (Kuklisova-Murgasova et al., 2012): https://biomedia.doc.ic.ac.uk/software/irtk/.
+SVRTK repository code was implemented by Dr Alena Uus (KCL) based on the rigid SVR code originally designed and implemented by Dr Maria Deprez, available as `reconstruction` function in IRTK (Kuklisova-Murgasova et al., 2012): https://biomedia.doc.ic.ac.uk/software/irtk/.
 
 E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-resolution images of the fetal brain from motion-corrupted low-resolution stacks of 2D MRI slices. These output 3D images can be reoriented in any plane for diagnosis and suitable for 3D segmentation. The rest of the reconstruction tools employ additional registration and reconstruction methods depending on the specific features of the problem domain. 
 
 <img src="additional_files/svr-example.png" alt="SVRTKEXAMPLE" height="120" align ="center" />
 
 
-4D cardiac reconstruction code was ported from the original IRTK-based implementation by Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
+4D cardiac reconstruction code was ported from the original IRTK-based implementation by Dr Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
 
-SH brain diffusion reconstruction (HARDI) code was ported from the original IRTK-based implementation by Maria Deprez: https://gitlab.com/mariadeprez/irtk-simple.
+SH brain diffusion reconstruction (HARDI) code was ported from the original IRTK-based implementation by Dr Maria Deprez: https://gitlab.com/mariadeprez/irtk-simple.
 
 SVRTK contributes to https://github.com/mriphysics/fetal_cmr_4d pipeline.
 

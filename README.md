@@ -11,7 +11,9 @@ SVRTK C++ package from King's College London based on MIRTK library (https://bio
 - 3D and 4D multi-channel quantitative T2* 
 - SH brain diffusion (HARDI) 
 
-SVRTK repository code was implemented by Dr Alena Uus (KCL) based on the rigid SVR code originally designed and implemented by Dr Maria Deprez (Kuklisova-Murgasova et al., 2012), available as `reconstruction` function in IRTK : https://biomedia.doc.ic.ac.uk/software/irtk/. Additional code optimisation was performed by Dr Onur Ulgen and Dr Eric Kerfoot.
+SVRTK repository code was implemented by Dr Alena Uus (KCL) based on the rigid SVR code originally designed and implemented by Dr Maria Deprez (Kuklisova-Murgasova et al., 2012), available as `reconstruction` function in IRTK : https://biomedia.doc.ic.ac.uk/software/irtk/. Additional code optimisation was performed by Dr Onur Ulgen and Dr Eric Kerfoot. 
+
+Development of SVRTK was supported by projects led by Dr Maria Deprez, Prof Mary Rutherford, Dr Jana Hutter, Dr Lisa Story and Prof Jo Hajnal. 
 
 E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-resolution images of the fetal brain from motion-corrupted low-resolution stacks of 2D MRI slices. These output 3D images can be reoriented in any plane for diagnosis and suitable for 3D segmentation. The rest of the reconstruction tools employ additional registration and reconstruction methods depending on the specific features of the problem domain. 
 

@@ -29,10 +29,18 @@ SVRTK contributes to https://github.com/mriphysics/fetal_cmr_4d pipeline.
 
 Recent general review about SVR tools for fetal MRI: [Uus et al., 2022, BJR, "Retrospective motion correction in foetal MRI for clinical applications: existing methods, applications and integration into clinical practice"](https://pubmed.ncbi.nlm.nih.gov/35834425/).
 
-In case of any questions please contact: *alena.uus (at) kcl.ac.uk* (main developer)
 
+<img src="additional_files/au.jpg" alt="SVRTK" height="260" align ="left" />
 
-_Note:_ all commits by individual users (both signed and not-signed) can be accessed via: https://github.com/SVRTK/SVRTK/commits 
+In case of any questions please contact: 
+
+*alena.uus (at) kcl.ac.uk* (main developer).
+
+<br/><br/>
+
+<br/><br/>
+
+<br/><br/>
 
 
 Docker 

@@ -178,7 +178,17 @@ Citation and acknowledgements
 -----------------------------
 
 
-In case you found SVRTK useful please give appropriate credit to the software.
+Please give appropriate credit to the SVRTK package by citing Uus et al., 2020 (original work where SVRTK was implemented). 
+
+**I.e., this is the official citation for SVRTK:**
+
+> Uus, A., Zhang, T., Jackson, L., Roberts, T., Rutherford, M., Hajnal, J.V., Deprez, M. (2020). Deformable Slice-to-Volume Registration for Motion Correction in Fetal Body MRI and Placenta. IEEE Transactions on Medical Imaging, 39(9), 2750-2759: http://dx.doi.org/10.1109/TMI.2020.2974844 
+
+
+
+-----------------------------
+
+And use addtional references for individual reconstruction functions: 
 
 Original reconstruction pipeline for 3D fetal brain (original software using IRTK: https://gitlab.com/mariadeprez/irtk-simple):
 > Kuklisova-Murgasova, M., Quaghebeur, G., Rutherford, M. A., Hajnal, J. V., & Schnabel, J. A. (2012). Reconstruction of fetal brain MRI with intensity matching and complete outlier removal. Medical Image Analysis, 16(8), 1550–1564.: https://doi.org/10.1016/j.media.2012.07.004

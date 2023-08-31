@@ -43,11 +43,11 @@ namespace svrtk {
         _alpha = (0.05 / _lambda) * _delta * _delta;
         _low_intensity_cutoff = 0.01;
         _nmi_bins = -1;
-        
+
         _global_NCC_threshold = 0.5;
         _local_SSIM_threshold = 0.4;
         _local_SSIM_window_size = 20;
-        
+
         _number_of_channels = -1;
         _multiple_channels_flag = false;
 
@@ -70,7 +70,7 @@ namespace svrtk {
         _ffd_global_only = false;
         _ffd_global_ncc = false;
         _no_masking_background = false;
-        
+
     }
 
     //-------------------------------------------------------------------
@@ -154,7 +154,7 @@ namespace svrtk {
 
         if (_debug)
             _reconstructed.Write("template.nii.gz");
-        
+
         if (_multiple_channels_flag && _number_of_channels > 0) {
             for (int n=0; n<_number_of_channels; n++) {
                 _mc_reconstructed.push_back(_reconstructed);
@@ -283,7 +283,7 @@ namespace svrtk {
     void Reconstruction::ReconQualityReport(double& out_ncc, double& out_nrmse, double& average_weight, double& ratio_excluded) {
         Parallel::QualityReport parallelQualityReport(this);
         parallelQualityReport();
-        
+
         size_t count_excluded_str = 0;
         for (size_t i = 0; i < _slices.size(); i++)
             if (_structural_slice_weight[i] < 1)
@@ -311,7 +311,7 @@ namespace svrtk {
 
     // run global stack registration to the template
     void Reconstruction::StackRegistrations(const Array<RealImage>& stacks, Array<RigidTransformation>& stack_transformations, int templateNumber, RealImage* input_template) {
-        
+
         SVRTK_START_TIMING();
 
         InvertStackTransformations(stack_transformations);
@@ -323,13 +323,13 @@ namespace svrtk {
             // check whether to use the global template or the selected stack if no template was provided
             target = _template_flag ? _reconstructed : stacks[templateNumber];
         }
-        
+
         RealImage m_tmp = _evaluation_mask;
         TransformMask(target, m_tmp, RigidTransformation());
         target *= m_tmp;
         target.Write("masked.nii.gz");
 
-        
+
         if (_debug) {
             target.Write("target.nii.gz");
             stacks[0].Write("stack0.nii.gz");
@@ -352,7 +352,7 @@ namespace svrtk {
             rz = stack_transformations[i].GetRotationZ();
             cout << "- # " << i << " : " << tx << " " << ty << " " << tz << " | " << rx << " " << ry << " " << rz << endl;
         }
-        
+
         InvertStackTransformations(stack_transformations);
 
         SVRTK_END_TIMING("StackRegistrations");
@@ -412,22 +412,22 @@ namespace svrtk {
 
         if (_verbose)
             _verbose_log << "scale : " << scale << endl;
-        
-        
+
+
         RealPixel *ptr = reconstructed.Data();
         #pragma omp parallel for
         for (int i = 0; i < reconstructed.NumberOfVoxels(); i++)
             if (ptr[i] > 0)
                 ptr[i] *= scale;
-        
-        
+
+
         if (_multiple_channels_flag && (_number_of_channels > 0)) {
             for (int n=0; n<_number_of_channels; n++) {
-                
+
                 double average_stack_factor = 0;
                 double nn = 0;
                 Array<double> current_mc_stack_factor = _mc_stack_factor[n];
-                
+
                 for (int i = 0; i < current_mc_stack_factor.size(); i++) {
                     if (current_mc_stack_factor[i] > 0) {
                         average_stack_factor = average_stack_factor + current_mc_stack_factor[i];
@@ -435,16 +435,16 @@ namespace svrtk {
                     }
                 }
                 average_stack_factor = average_stack_factor / nn;
-                
+
                 RealPixel *ptr_mc = _mc_reconstructed[n].Data();
                 for (int i = 0; i < _mc_reconstructed[n].NumberOfVoxels(); i++)
                     if (ptr_mc[i] > 0)
                         ptr_mc[i] /= average_stack_factor;
-                
+
             }
         }
-        
-        
+
+
     }
 
     //-------------------------------------------------------------------
@@ -467,12 +467,7 @@ namespace svrtk {
 
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             // read the current slice
-            RealImage slice;
-            
-            if (_no_masking_background)
-                slice = _not_masked_slices[inputIndex];
-            else
-                slice = _slices[inputIndex];
+            const RealImage& slice = _no_masking_background ? _not_masked_slices[inputIndex] : _slices[inputIndex];
 
             //Calculate simulated slice
             sim.Initialize(slice.Attributes());
@@ -870,7 +865,7 @@ namespace svrtk {
                 if (ptr[i] > 0)
                     ptr[i] *= factor;
         }
-        
+
         _mc_stack_factor.push_back(current_stack_factor);
 
 //        if (_debug) {
@@ -902,7 +897,7 @@ namespace svrtk {
             //image attributes contain image and voxel size
             reserve_size += stacks[i].Attributes()._z;;
         }
-        
+
         ClearAndReserve(_zero_slices, reserve_size);
         ClearAndReserve(_slices, reserve_size);
         ClearAndReserve(_slice_masks, reserve_size);
@@ -1022,7 +1017,7 @@ namespace svrtk {
             //image attributes contain image and voxel size
             reserve_size += stacks[i].Attributes()._z;;
         }
-        
+
         ClearAndReserve(_zero_slices, reserve_size);
         ClearAndReserve(_slices, reserve_size);
         ClearAndReserve(_slice_masks, reserve_size);
@@ -1074,8 +1069,8 @@ namespace svrtk {
 
                 //create slice by selecting the appropriate region of the stack
                 RealImage slice = stacks[i].GetRegion(0, 0, j, attr._x, attr._y, j + 1);
-                
-                
+
+
                 //set correct voxel size in the stack. Z size is equal to slice thickness.
                 slice.PutPixelSize(attr._dx, attr._dy, thickness[i]);
                 //remember the slice
@@ -1110,16 +1105,12 @@ namespace svrtk {
                 _stack_index.push_back(i);
                 //initialize slice transformation with the stack transformation
                 _transformations.push_back(stack_transformations[i]);
-                
-                
+
                 Array<RealImage*> tmp_mc_slices;
                 Array<RealImage*> tmp_mc_simulated_slices;
                 Array<RealImage*> tmp_mc_diff_slices;
                 for (int n=0; n<_number_of_channels; n++) {
-
-                    RealImage slice_mc;
-                    slice_mc = mc_stacks[n][i].GetRegion(0, 0, j, stacks[i].GetX(), stacks[i].GetY(), j + 1);
-                    
+                    RealImage slice_mc = mc_stacks[n][i].GetRegion(0, 0, j, stacks[i].GetX(), stacks[i].GetY(), j + 1);
                     slice_mc.PutPixelSize(attr._dx, attr._dy, thickness[i]);
                     RealImage *p_mc_slice = new RealImage(slice_mc);
                     slice_mc = 1;
@@ -1134,8 +1125,7 @@ namespace svrtk {
                 _mc_simulated_slices.push_back(tmp_mc_simulated_slices);
                 _mc_slice_dif.push_back(tmp_mc_diff_slices);
 
-
-                // if non-rigid FFD registartion option was selected
+                // if non-rigid FFD registration option was selected
                 if (_ffd) {
                     MultiLevelFreeFormTransformation* mffd = new MultiLevelFreeFormTransformation();
                     _mffd_transformations.push_back(mffd);
@@ -1230,12 +1220,9 @@ namespace svrtk {
             cerr << "Could not mask slices because no mask has been set." << endl;
             return;
         }
-        
-        if (_no_masking_background) {
-            for (int inputIndex = 0; inputIndex < _slices.size(); ++inputIndex) {
-                _not_masked_slices.push_back(_slices[inputIndex]);
-            }
-        }
+
+        if (_no_masking_background)
+            _not_masked_slices.insert(_not_masked_slices.end(), _slices.begin(), _slices.end());
 
         Utility::MaskSlices(_slices, _mask, [&](size_t index, double& x, double& y, double& z) {
             if (!_ffd)
@@ -1306,7 +1293,7 @@ namespace svrtk {
         source *= _evaluation_mask;
         RealPixel smin, smax;
         source.GetMinMax(&smin, &smax);
-        
+
         if (smin < -0.1)
             source_padding = -1;
         else if (smin < 0.1)
@@ -1322,10 +1309,10 @@ namespace svrtk {
         // #pragma omp parallel for private(output, target, slice_mask) firstprivate(imagetransformation) reduction(+: mean_ncc)
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             // transfrom reconstructed volume to the slice space
-            
+
             RealImage output, target, slice_mask;
             output.Initialize(_slices[inputIndex].Attributes());
-            
+
             GenericLinearInterpolateImageFunction<RealImage> interpolator;
             ImageTransformation imagetransformation;
             imagetransformation.Input(&source);
@@ -1335,7 +1322,7 @@ namespace svrtk {
             imagetransformation.Interpolator(&interpolator);
             imagetransformation.TwoD(twod);
             imagetransformation.Invert(dofin_invert);
-            
+
             if (_ffd)
                 imagetransformation.Transformation(_mffd_transformations[inputIndex]);
             else
@@ -1348,7 +1335,7 @@ namespace svrtk {
             gb.Input(&_slices[inputIndex]);
             gb.Output(&target);
             gb.Run();
-            
+
             // compute NCC
             double output_ncc = ComputeNCC(target, output, 0);
             if (output_ncc == -1)
@@ -1392,14 +1379,14 @@ namespace svrtk {
         SVRTK_END_TIMING("SStep");
     }
 
-    
+
     //-------------------------------------------------------------------
 
     void Reconstruction::SliceSSIMMap(int inputIndex) {
         RealImage slice_1 = _slices[inputIndex];
         RealImage slice_2 = _simulated_slices[inputIndex];
         RealImage slice_mask = _slice_masks[inputIndex];
-        
+
         for (int i = 0; i < slice_1.GetX(); i++) {
             for (int j = 0; j < slice_1.GetY(); j++) {
                 if (slice_1(i, j, 0) > 0.01) {
@@ -1411,14 +1398,14 @@ namespace svrtk {
         gb.Input(&slice_1);
         gb.Output(&slice_1);
         gb.Run();
-        
+
         RealImage m_slice_1 = slice_1 * slice_mask;
         RealImage m_slice_2 = slice_2 * slice_mask;
         double global_cc = ComputeNCC(m_slice_1, m_slice_2);
 
         RealImage ssim_map = slice_1;
         ssim_map = 1;
-        
+
         int shift = round(_local_SSIM_window_size/2);
         RealImage region_1, region_2, region_mask;
 
@@ -1451,7 +1438,7 @@ namespace svrtk {
             }
         }
         _slice_ssim_maps[inputIndex] = ssim_map;
-        
+
     }
 
     //-------------------------------------------------------------------
@@ -1702,7 +1689,7 @@ namespace svrtk {
             if (_ffd) {
                 MultiLevelFreeFormTransformation* mffd = new MultiLevelFreeFormTransformation();
                 _mffd_transformations.push_back(mffd);}
-            
+
         }
     }
 
@@ -1765,18 +1752,18 @@ namespace svrtk {
                     break;
                 }
             }
-            
+
             if (_structural_slice_weight[inputIndex] < 0.5)
                 excluded = true;
 
             if (!excluded) {
-            
+
                 // Do not parallelise: It would cause data inconsistencies
                 for (int i = 0; i < _slices[inputIndex].GetX(); i++)
                     for (int j = 0; j < _slices[inputIndex].GetY(); j++)
                         for (size_t k = 0; k < _volcoeffs[inputIndex][i][j].size(); k++) {
                             const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
-                            
+
                             if (_ffd) {
                                 double x = i, y = j, z = 0;
                                 _slices[inputIndex].ImageToWorld(x, y, z);
@@ -1787,7 +1774,7 @@ namespace svrtk {
                             } else {
                                 _volume_weights(p.x, p.y, p.z) += p.value;
                             }
-                            
+
                         }
             }
 
@@ -1801,7 +1788,7 @@ namespace svrtk {
                         _volume_weights(x,y,z) = 1;
                     }
         }
-        
+
 
         if (_debug)
             _volume_weights.Write("volume_weights.nii.gz");
@@ -1838,7 +1825,7 @@ namespace svrtk {
 
         //clear _reconstructed image
         memset(_reconstructed.Data(), 0, sizeof(RealPixel) * _reconstructed.NumberOfVoxels());
-        
+
         if (_multiple_channels_flag && (_number_of_channels > 0)) {
             for (int n=0; n<_number_of_channels; n++) {
                 _mc_reconstructed[n] = 0;
@@ -1851,18 +1838,13 @@ namespace svrtk {
 
             int slice_vox_num = 0;
             //copy the current slice
-            
-            if (_no_masking_background)
-                slice = _not_masked_slices[inputIndex];
-            else
-                slice = _slices[inputIndex];
+            slice = _no_masking_background ? _not_masked_slices[inputIndex] : _slices[inputIndex];
 
             //alias the current bias image
             const RealImage& b = _bias[inputIndex];
             //read current scale factor
             const double scale = _scale[inputIndex];
-            
-            
+
             Array<RealImage> mc_slices;
             if (_multiple_channels_flag && (_number_of_channels > 0)) {
                 for (int n=0; n<_number_of_channels; n++) {
@@ -1870,12 +1852,11 @@ namespace svrtk {
                 }
             }
 
-
             //Distribute slice intensities to the volume
             for (size_t i = 0; i < _volcoeffs[inputIndex].size(); i++)
                 for (size_t j = 0; j < _volcoeffs[inputIndex][i].size(); j++)
                     if (slice(i, j, 0) > -0.01) {
-                        
+
                         double jac = 1;
                         if (_ffd) {
                             double x = i, y = j, z = 0;
@@ -1884,12 +1865,11 @@ namespace svrtk {
                         } else {
                             jac = 1;
                         }
-                        
+
                         if ((100*jac) > 50) {
-                        
                             //biascorrect and scale the slice
                             slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
-                            
+
                             if (_multiple_channels_flag && (_number_of_channels > 0)) {
                                 for (int n=0; n<_number_of_channels; n++) {
                                     mc_slices[n](i, j, 0) *= exp(-b(i, j, 0)) * scale;
@@ -1909,17 +1889,17 @@ namespace svrtk {
                             //add contribution of current slice voxel to all voxel volumes
                             //to which it contributes
                             for (size_t k = 0; k < n; k++) {
-                                
+
                                 const POINT3D& p = _volcoeffs[inputIndex][i][j][k];
-                                
+
                                 _reconstructed(p.x, p.y, p.z) += p.value * slice(i, j, 0);
-                                
+
                                 if (_multiple_channels_flag && (_number_of_channels > 0)) {
                                     for (int n=0; n<_number_of_channels; n++) {
                                         _mc_reconstructed[n](p.x, p.y, p.z) += p.value * mc_slices[n](i, j, 0);
                                     }
                                 }
-                                
+
                             }
                         }
                     }
@@ -1932,8 +1912,7 @@ namespace svrtk {
         _reconstructed /= _volume_weights;
 
         _reconstructed.Write("init.nii.gz");
-        
-        
+
         if (_multiple_channels_flag && (_number_of_channels > 0)) {
             for (int n=0; n<_number_of_channels; n++) {
                 _mc_reconstructed[n] /= _volume_weights;
@@ -2154,7 +2133,7 @@ namespace svrtk {
                 }
             }
         }
-        
+
         if (_multiple_channels_flag) {
             for (int n=0; n<_number_of_channels; n++) {
                 _max_intensity_mc.push_back(voxel_limits<RealPixel>::min());
@@ -2177,7 +2156,7 @@ namespace svrtk {
             }
         }
 
-        
+
     }
 
     //-------------------------------------------------------------------
@@ -2185,8 +2164,7 @@ namespace svrtk {
     // initialise / reset EM values
     void Reconstruction::InitializeEMValues() {
         SVRTK_START_TIMING();
-        
-        
+
         if (_no_masking_background) {
             #pragma omp parallel for
             for (size_t i = 0; i < _slices.size(); i++) {
@@ -2487,63 +2465,49 @@ namespace svrtk {
 
     // compute difference between simulated and original slices
     void Reconstruction::SliceDifference() {
-        
         #pragma omp parallel for
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
-            
-            RealImage slice;
-            
-            if (_no_masking_background)
-                slice = _not_masked_slices[inputIndex];
-            else
-                slice = _slices[inputIndex];
-            
+            Array<double> mc_ds;
+            const RealImage& slice = _no_masking_background ? _not_masked_slices[inputIndex] : _slices[inputIndex];
             _slice_dif[inputIndex] = slice;
-            
+
             for (int i = 0; i < _slices[inputIndex].GetX(); i++) {
                 for (int j = 0; j < _slices[inputIndex].GetY(); j++) {
-                    
-                    Array<double> mc_ds;
                     if (_multiple_channels_flag) {
+                        ClearAndReserve(mc_ds, _number_of_channels);
                         for (int n=0; n<_number_of_channels; n++) {
                             mc_ds.push_back(_mc_slices[inputIndex][n]->GetAsDouble(i, j, 0));
                         }
                     }
-                    
-                    if (slice > -0.01) {
+
+                    if (slice(i, j, 0) > -0.01) {
                         _slice_dif[inputIndex](i, j, 0) *= exp(-(_bias[inputIndex])(i, j, 0)) * _scale[inputIndex];
                         _slice_dif[inputIndex](i, j, 0) -= _simulated_slices[inputIndex](i, j, 0);
-                        
+
                         if (_multiple_channels_flag) {
                             for (int n=0; n<_number_of_channels; n++) {
                                 mc_ds[n] = mc_ds[n] * exp(-(_bias[inputIndex])(i, j, 0)) * _scale[inputIndex];
                                 mc_ds[n] = mc_ds[n] - _mc_simulated_slices[inputIndex][n]->GetAsDouble(i, j, 0);
                             }
                         }
-                                                    
                     } else {
                         _slice_dif[inputIndex](i, j, 0) = 0;
-                        
+
                         if (_multiple_channels_flag) {
                             for (int n=0; n<_number_of_channels; n++) {
                                 mc_ds[n] = 0;
                             }
                         }
-                                                    
                     }
-                    
+
                     if (_multiple_channels_flag) {
                         for (int n=0; n<_number_of_channels; n++) {
                             _mc_slice_dif[inputIndex][n]->PutAsDouble(i, j, 0, mc_ds[n]);
                         }
                     }
-                                            
-                    
                 }
             }
         }
- 
-        
     }
 
     //-------------------------------------------------------------------
@@ -2563,7 +2527,7 @@ namespace svrtk {
         RealImage& addon = parallelSuperresolution.addon;
         _confidence_map = move(parallelSuperresolution.confidence_map);
         //_confidence4mask = _confidence_map;
-        
+
         Array<RealImage> mc_addons;
         Array<RealImage> mc_originals;
 
@@ -2571,9 +2535,9 @@ namespace svrtk {
             mc_addons = move(parallelSuperresolution.mc_addons);
             mc_originals = _mc_reconstructed;
         }
- 
-               
-        
+
+
+
 
         if (_debug) {
             _confidence_map.Write((boost::format("confidence-map%1%.nii.gz") % iter).str().c_str());
@@ -2595,7 +2559,7 @@ namespace svrtk {
                     }
                 }
             }
-            
+
             RealPixel *pa = addon.Data();
             RealPixel *pcm = _confidence_map.Data();
             #pragma omp parallel for
@@ -2607,18 +2571,18 @@ namespace svrtk {
                     pcm[i] = 1;
                 }
             }
-            
+
         }
 
         // update the volume with computed addon
         _reconstructed += addon * _alpha; //_average_volume_weight;
-        
+
         if (_multiple_channels_flag) {
             for (int nc=0; nc<_number_of_channels; nc++) {
                 _mc_reconstructed[nc] += mc_addons[nc] * _alpha;
             }
         }
-        
+
         if (_multiple_channels_flag) {
             for (int nc=0; nc<_number_of_channels; nc++) {
                 for (int i = 0; i < _reconstructed.GetX(); i++)
@@ -2632,7 +2596,7 @@ namespace svrtk {
 
             }
         }
-                    
+
 
         /*
         if (_debug) {
@@ -2665,11 +2629,11 @@ namespace svrtk {
         */
         //Smooth the reconstructed image with regularisation
         AdaptiveRegularization(iter, original);
-        
+
         if (_multiple_channels_flag) {
             AdaptiveRegularizationMC(iter, mc_originals);
         }
-        
+
         /*
 
         if (_debug) {
@@ -2679,7 +2643,7 @@ namespace svrtk {
         //Remove the bias in the reconstructed volume compared to previous iteration
         if (_global_bias_correction)
             BiasCorrectVolume(original);
-        
+
         if (_debug) {
             _reconstructed.Write((boost::format("recon_reg_bias%1%.nii.gz") % iter).str().c_str());
         }
@@ -3011,7 +2975,7 @@ namespace svrtk {
     //-------------------------------------------------------------------
 
     void Reconstruction::SaveTransformations() {
-        #pragma omp parallel for 
+        #pragma omp parallel for
         for (size_t i = 0; i < _transformations.size(); i++)
             _transformations[i].Write((boost::format("transformation%1%.dof") % i).str().c_str());
     }

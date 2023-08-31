@@ -129,7 +129,7 @@ namespace svrtk::Parallel {
         void operator()(const blocked_range<size_t>& r) {
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 const double out_ncc = ComputeNCC(reconstructor->_slices[inputIndex], reconstructor->_simulated_slices[inputIndex], 0.1);
-                
+
                 if (out_ncc > 0)
                     out_global_ncc += out_ncc;
 
@@ -142,11 +142,10 @@ namespace svrtk::Parallel {
                 for (int x = 0; x < reconstructor->_slices[inputIndex].GetX(); x++) {
                     for (int y = 0; y < reconstructor->_slices[inputIndex].GetY(); y++) {
                         for (int z = 0; z < reconstructor->_slices[inputIndex].GetZ(); z++) {
-                            
                             double test_val = reconstructor->_simulated_slices[inputIndex](x, y, z);
                             if (reconstructor->_no_masking_background)
                                 test_val = reconstructor->_simulated_slices[inputIndex](x, y, z) * reconstructor->_slice_masks[inputIndex](x, y, z);
-                            
+
                             if (reconstructor->_slices[inputIndex](x, y, z) > 0 && test_val > 0) {
                                 point_nt = reconstructor->_slices[inputIndex](x, y, z) * exp(-(reconstructor->_bias[inputIndex])(x, y, 0)) * reconstructor->_scale[inputIndex];
                                 point_ns = reconstructor->_simulated_slices[inputIndex](x, y, z);
@@ -310,19 +309,19 @@ namespace svrtk::Parallel {
                         }
                     }
                 }
-                
+
                 if (slice_inside) {
                     GaussianBlurring<RealPixel> gb(2);
                     gb.Input(&sim_mask);
                     gb.Output(&sim_mask);
                     gb.Run();
-                    
+
                     RealPixel *pm = sim_mask.Data();
                     for (int i = 0; i < sim_mask.NumberOfVoxels(); i++)
                         if (pm[i] > 0.3)
                             pm[i] = 1;
                 }
-                
+
             } //end of loop for a slice inputIndex
         }
 
@@ -355,7 +354,7 @@ namespace svrtk::Parallel {
                 memset(sim_weight.Data(), 0, sizeof(RealPixel) * sim_weight.NumberOfVoxels());
                 memset(sim_inside.Data(), 0, sizeof(RealPixel) * sim_inside.NumberOfVoxels());
                 reconstructor->_slice_inside[inputIndex] = false;
-                
+
                 if (reconstructor->_multiple_channels_flag) {
                     for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
                         for ( int i = 0; i < reconstructor->_simulated_slices[inputIndex].GetX(); i++ ) {
@@ -365,44 +364,38 @@ namespace svrtk::Parallel {
                         }
                     }
                 }
-                
+
                 for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
                     for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++) {
                             double test_val = reconstructor->_slices[inputIndex](i, j, 0);
                             if (reconstructor->_no_masking_background)
                                 test_val = reconstructor->_not_masked_slices[inputIndex](i, j, 0);
-                            if ( test_val > -0.01) {
+                            if (test_val > -0.01) {
                                 double weight = 0;
                                 for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
                                     const POINT3D& p = reconstructor->_volcoeffs[inputIndex][i][j][k];
                                     sim_slice(i, j, 0) += p.value * reconstructor->_reconstructed(p.x, p.y, p.z);
                                     weight += p.value;
-                                    
+
                                     for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
                                         double tmp_val = reconstructor->_mc_simulated_slices[inputIndex][nc]->GetAsDouble(i, j, 0) + p.value * reconstructor->_mc_reconstructed[nc](p.x, p.y, p.z);
                                         reconstructor->_mc_simulated_slices[inputIndex][nc]->PutAsDouble(i, j, 0, tmp_val);
                                     }
-                                    
-                                    if (reconstructor->_no_masking_background) {
+
+                                    if (reconstructor->_no_masking_background || reconstructor->_mask(p.x, p.y, p.z) > 0.1) {
                                         sim_inside(i, j, 0) = 1;
                                         reconstructor->_slice_inside[inputIndex] = true;
-                                    } else {
-                                        if (reconstructor->_mask(p.x, p.y, p.z) > 0.1) {
-                                            sim_inside(i, j, 0) = 1;
-                                            reconstructor->_slice_inside[inputIndex] = true;
-                                        }
                                     }
-                                    
                                 }
                                 if (weight > 0) {
                                     sim_slice(i, j, 0) /= weight;
                                     sim_weight(i, j, 0) = weight;
-                                    
+
                                     for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
                                         double tmp_val = reconstructor->_mc_simulated_slices[inputIndex][nc]->GetAsDouble(i, j, 0) / weight;
                                         reconstructor->_mc_simulated_slices[inputIndex][nc]->PutAsDouble(i, j, 0, tmp_val);
                                     }
-                                    
+
                                 }
                             }
                         };
@@ -711,7 +704,7 @@ namespace svrtk::Parallel {
         SliceToVolumeRegistrationFFD(Reconstruction *reconstructor) : reconstructor(reconstructor) {}
 
         void operator()(const blocked_range<size_t>& r) const {
-            
+
 
             // define registration model
             ParameterList params_init;
@@ -734,15 +727,15 @@ namespace svrtk::Parallel {
 
             RealPixel smin, smax;
             reconstructor->_reconstructed.GetMinMax(&smin, &smax);
-            
+
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
 
                 GenericRegistrationFilter registration;
-                                
+
                 RealPixel tmin, tmax;
                 const RealImage& target = reconstructor->_slices[inputIndex];
                 target.GetMinMax(&smin, &smax);
-                
+
                 if (smax > 1 && (smax - smin) > 1) {
 
                     if (reconstructor->_ffd_global_only) {
@@ -754,7 +747,7 @@ namespace svrtk::Parallel {
                         reconstructor->_mffd_transformations[inputIndex] = mffd_init;
 
                     } else {
-                    
+
                         ParameterList params = params_init;
                         // run registration
                         registration.Parameter(params);
@@ -766,7 +759,7 @@ namespace svrtk::Parallel {
                             Transformation *tt = Transformation::New((boost::format("ms-%1%.dof") % current_stack).str().c_str());
                             mffd_init = dynamic_cast<MultiLevelFreeFormTransformation*> (tt);
                             registration.InitialGuess(mffd_init);
-                            
+
                         } else {
                             registration.InitialGuess(reconstructor->_mffd_transformations[inputIndex]);
                         }
@@ -775,7 +768,7 @@ namespace svrtk::Parallel {
                         registration.Output(&dofout);
                         registration.GuessParameter();
                         registration.Run();
-                        
+
                         MultiLevelFreeFormTransformation *mffd_dofout = dynamic_cast<MultiLevelFreeFormTransformation*> (dofout);
                         reconstructor->_mffd_transformations[inputIndex] = mffd_dofout;
                     }
@@ -831,7 +824,7 @@ namespace svrtk::Parallel {
             register_cmd += " -dofout " + file_prefix + "transformation-%1%.dof";
             if (reconstructor->_ncc_reg)
                 register_cmd += string(" -sim NCC -window ") + (rigid ? "0" : "5");
-                
+
             if (!rigid && reconstructor->_cp_spacing.size() > 0)
                 register_cmd += " -ds " + to_string(reconstructor->_cp_spacing[reconstructor->_current_iteration]);
             register_cmd += " -threads 1";  // Remove parallelisation of the register command
@@ -994,11 +987,10 @@ namespace svrtk::Parallel {
 
                 for (int i = 0; i < global_slice.GetX(); i++)
                     for (int j = 0; j < global_slice.GetY(); j++) {
-                        
                         double test_val = reconstructor->_slices[inputIndex](i, j, 0);
                         if (reconstructor->_no_masking_background)
                             test_val = reconstructor->_not_masked_slices[inputIndex](i, j, 0);
-                        
+
                         if (test_val > -0.01 && reconstructor->_structural_slice_weight[inputIndex] > 0 && !excluded_slice) {
                             //calculate centrepoint of slice voxel in volume space (tx,ty,tz)
                             double x = i;
@@ -1085,16 +1077,11 @@ namespace svrtk::Parallel {
                                                             if ((n >= 0) && (n < global_reconstructed.GetZ())) {
                                                                 const double weight = (1 - fabs(l - x)) * (1 - fabs(m - y)) * (1 - fabs(n - z));
                                                                 sum += weight;
-                                                                
-                                                                if (reconstructor->_mask(l, m, n) == 1) {
-                                                                    inside = true;
-                                                                    slice_inside = true;
-                                                                }
-                                                                if (reconstructor->_no_masking_background) {
-                                                                    inside = true;
-                                                                    slice_inside = true;
-                                                                }
 
+                                                                if (reconstructor->_mask(l, m, n) == 1 || reconstructor->_no_masking_background) {
+                                                                    inside = true;
+                                                                    slice_inside = true;
+                                                                }
                                                             }
 
                                         //if there were no voxels do nothing
@@ -2060,7 +2047,7 @@ namespace svrtk::Parallel {
 
             for (size_t inputIndex = r.begin(); inputIndex < r.end(); inputIndex++) {
                 // read the current slice
-                
+
                 if (reconstructor->_no_masking_background)
                     slice = reconstructor->_not_masked_slices[inputIndex];
                 else
@@ -2332,14 +2319,14 @@ namespace svrtk::Parallel {
 
             //Clear confidence map
             confidence_map.Initialize(reconstructor->_reconstructed.Attributes());
-            
+
             if (reconstructor->_multiple_channels_flag) {
                 mc_addons.clear();
                 for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
                     mc_addons.push_back(addon);
                 }
             }
-                            
+
         }
 
         Superresolution(Superresolution& x, split) : Superresolution(x.reconstructor) {}
@@ -2350,24 +2337,24 @@ namespace svrtk::Parallel {
                 //Distribute error to the volume
                 for (size_t i = 0; i < reconstructor->_volcoeffs[inputIndex].size(); i++)
                     for (size_t j = 0; j < reconstructor->_volcoeffs[inputIndex][i].size(); j++) {
-                        
+
                         double test_val;
                         if (reconstructor->_no_masking_background)
                             test_val = reconstructor->_not_masked_slices[inputIndex](i, j, 0);
                         else
                             test_val = reconstructor->_slices[inputIndex](i, j, 0);
-                        
+
                         if (test_val > -0.01) {
                             if (reconstructor->_simulated_slices[inputIndex](i, j, 0) < 0.01) {
                                 reconstructor->_slice_dif[inputIndex](i, j, 0) = 0;
-                                
+
                                 if (reconstructor->_multiple_channels_flag) {
                                     for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
                                         reconstructor->_mc_slice_dif[inputIndex][nc]->PutAsDouble(i, j, 0, 0);
                                     }
                                 }
                             }
-                            
+
 
                             #pragma omp simd
                             for (size_t k = 0; k < reconstructor->_volcoeffs[inputIndex][i][j].size(); k++) {
@@ -2376,19 +2363,19 @@ namespace svrtk::Parallel {
                                 double ssim_weight = 1;
                                 if (reconstructor->_structural)
                                     ssim_weight = reconstructor->_slice_ssim_maps[inputIndex](i, j, 0);
-                                
+
                                 bool include_flag = true;
                                 if (reconstructor->_ffd) {
                                     double jac = reconstructor->_mffd_transformations[inputIndex]->Jacobian(p.x, p.y, p.z, 0, 0);
                                     if ((100*jac) < 50)
                                         include_flag = false;
                                 }
-                                
+
                                 if (include_flag) {
                                     addon(p.x, p.y, p.z) += ssim_weight * multiplier * p.value * reconstructor->_slice_weight[inputIndex] * reconstructor->_slice_dif[inputIndex](i, j, 0);
-                                    
+
                                     confidence_map(p.x, p.y, p.z) += ssim_weight * multiplier * p.value * reconstructor->_slice_weight[inputIndex];
-                                    
+
                                     if (reconstructor->_multiple_channels_flag) {
                                         for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
                                             mc_addons[nc](p.x, p.y, p.z) += ssim_weight * multiplier * p.value * reconstructor->_slice_weight[inputIndex] * reconstructor->_mc_slice_dif[inputIndex][nc]->GetAsDouble(i, j, 0);
@@ -2396,7 +2383,7 @@ namespace svrtk::Parallel {
                                     }
 
                                 }
-                                
+
                             }
                         }
                     }
@@ -2406,13 +2393,13 @@ namespace svrtk::Parallel {
         void join(const Superresolution& y) {
             addon += y.addon;
             confidence_map += y.confidence_map;
-            
+
             if (reconstructor->_multiple_channels_flag) {
                 for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
                     mc_addons[nc] += y.mc_addons[nc];
                 }
             }
-                            
+
         }
 
         void operator()() {
@@ -2584,9 +2571,9 @@ namespace svrtk::Parallel {
 
         void operator()(const blocked_range<size_t>& r) const {
             for (size_t inputIndex = r.begin(); inputIndex != r.end(); inputIndex++) {
-                        
+
                 reconstructor->SliceSSIMMap(inputIndex);
-                
+
             } //end of loop for a slice inputIndex
         }
 
@@ -2945,7 +2932,6 @@ namespace svrtk::Parallel {
                 if(reconstructor->_confidence_map(x,y,z)>0)
                 {
                     for (int nc=0; nc<reconstructor->_number_of_channels; nc++) {
-
                         double val = 0;
                         double sum = 0;
 
@@ -3125,12 +3111,7 @@ namespace svrtk::Parallel {
                     reconstructor->_verbose_log << inputIndex << " ";
 
                 // alias to the current slice
-                RealImage slice;
-                
-                if (reconstructor->_no_masking_background)
-                    slice = reconstructor->_not_masked_slices[inputIndex];
-                else
-                    slice = reconstructor->_slices[inputIndex];
+                const RealImage& slice = reconstructor->_no_masking_background ? reconstructor->_not_masked_slices[inputIndex] : reconstructor->_slices[inputIndex];
 
                 //read the current bias image
                 b = reconstructor->_bias[inputIndex];

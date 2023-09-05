@@ -381,7 +381,7 @@ namespace svrtk {
     void Reconstruction::ScaleVolume(RealImage& reconstructed) {
         double scalenum = 0, scaleden = 0;
 
-        #pragma omp parallel for
+        //#pragma omp parallel for 
         for (size_t inputIndex = 0; inputIndex < _slices.size(); inputIndex++) {
             // alias for the current slice
             const RealImage& slice = _slices[inputIndex];

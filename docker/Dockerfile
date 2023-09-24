@@ -45,13 +45,13 @@ RUN         apt-get update \
                     build-essential libtbb-dev libboost-all-dev libeigen3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget zram-config ca-certificates
 
 # Download MIRTK (please use this version with additional SVRTK compilation options)
-RUN git clone https://github.com/SVRTK/MIRTK.git /home/
+RUN git clone https://github.com/SVRTK/MIRTK.git /home/MIRTK
 
 # Download SVRTK into /Packages folder of MIRTK
 RUN git clone https://github.com/SVRTK/SVRTK.git /home/MIRTK/Packages/SVRTK
 
 # Compile the code
-RUN cd /usr/src/MIRTK \
+RUN cd /home/MIRTK \
 && mkdir build \
 && cd build/ \
 && cmake -D WITH_TBB="ON" -D MODULE_SVRTK="ON" .. \

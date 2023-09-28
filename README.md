@@ -62,17 +62,19 @@ mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../st
 _Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 16 / 32 GB) in the Desktop Docker settings._ 
 
 
-The SVRTK docker (tag auto-2.20) also contains solutions for fully automated T2w brain and thorax 3D SVR/DSVR reconstruction in the standard radiological space.
+The SVRTK docker (tag auto-3.00) also contains solutions for fully automated T2w brain and thorax 3D SVR/DSVR reconstruction in the standard radiological space.
 
 ```bash
 
-docker pull fetalsvrtk/svrtk:auto-2.20
+docker pull fetalsvrtk/svrtk:auto-3.00
 
 bash /home/auto-proc-svrtk/auto-brain-reconstruction.sh /home/data/[path_to_folder_with_nii_files]  /home/data/[path_to_output_folder] OPTIONAL: [motion correction mode: (0 or 1): 0 - minor, 1 - >180 degree rotations / default: 0];  [slice thickness / default: 2.5];  [output recon resolution / default: 0.8];  [number of packages / default: 4 for 1.25 spacing, 1 for the rest]
 
 bash /home/auto-proc-svrtk/auto-thorax-reconstruction.sh /home/data/[path_to_folder_with_nii_files]  /home/data/[path_to_output_folder] OPTIONAL: [motion correction mode: (0 or 1): 0 - minor, 1 - >180 degree rotations / default: 1];  [slice thickness / default: 2.5];  [output recon resolution / default: 0.7];  [number of packages / default: 4 for 1.25 spacing, 1 for the rest]
 
 ```
+
+Please cite the following works for auto brain and thorax recons: 
 
 > Uus, A. U., Hall, M., Payette, K., Hajnal, J. V., Deprez, M., Hutter, J., Rutherford, M. A., Story, L. (2023) Combined quantitative T2* map and structural T2- weighted tissue-specific analysis for fetal brain MRI: pilot automated pipeline. PIPPI MICCAI 2023 workshop (Accepted / in press)
 

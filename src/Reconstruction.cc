@@ -47,6 +47,9 @@ namespace svrtk {
         _global_NCC_threshold = 0.5;
         _local_SSIM_threshold = 0.4;
         _local_SSIM_window_size = 20;
+        _global_JAC_threshold = 30;
+        
+        _global_cp_spacing = 10;
 
         _number_of_channels = -1;
         _multiple_channels_flag = false;
@@ -70,6 +73,7 @@ namespace svrtk {
         _ffd_global_only = false;
         _ffd_global_ncc = false;
         _no_masking_background = false;
+        _combined_rigid_ffd = false;
 
     }
 
@@ -1768,7 +1772,7 @@ namespace svrtk {
                                 double x = i, y = j, z = 0;
                                 _slices[inputIndex].ImageToWorld(x, y, z);
                                 double jac = _mffd_transformations[inputIndex]->Jacobian(x, y, z, 0, 0);
-                                if ((100*jac) > 50) {
+                                if ((100*jac) > _global_JAC_threshold) {
                                     _volume_weights(p.x, p.y, p.z) += p.value;
                                 }
                             } else {
@@ -1866,7 +1870,7 @@ namespace svrtk {
                             jac = 1;
                         }
 
-                        if ((100*jac) > 50) {
+                        if ((100*jac) > _global_JAC_threshold) {
                             //biascorrect and scale the slice
                             slice(i, j, 0) *= exp(-b(i, j, 0)) * scale;
 

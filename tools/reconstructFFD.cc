@@ -38,6 +38,8 @@ using namespace boost::program_options;
 
 void PrintUsage(const options_description& opts) {
     // Print positional arguments
+    cout << "SVRTK package: https://github.com/SVRTK/SVRTK" << endl;
+    cout << endl;
     cout << "Usage: reconstructFFD [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
     cout << "  [reconstructed]            Name for the reconstructed volume (Nifti format)" << endl;
     cout << "  [N]                        Number of stacks" << endl;
@@ -130,6 +132,11 @@ int main(int argc, char **argv) {
     bool globalBiasCorrection = false;
     double lowIntensityCutoff = 0.01;
     int maskDilation = 7;
+    double sliceNCCThreshold = 0.6;
+    int globalCPSpacing = 15;
+    double jacThreshold = 30;
+    double localSSIMThreshold = 0.3;
+
 
     // Flags for reconstruction options:
     // Flag whether the template (-template option)
@@ -152,7 +159,9 @@ int main(int argc, char **argv) {
     // Flags to switch the robust statistics on and off
     bool robustStatistics = true;
     bool robustSlicesOnly = false;
-
+    
+    bool combinedRigidFFD = false;
+    
     // No log flag
     bool noLog = false;
 
@@ -197,6 +206,8 @@ int main(int argc, char **argv) {
     ReconstructionFFD reconstruction;
 
     cout << "------------------------------------------------------" << endl;
+    cout << "SVRTK package: https://github.com/SVRTK/SVRTK" << endl;
+    cout << "------------------------------------------------------" << endl;
 
     // -----------------------------------------------------------------------------
     // READ INPUT DATA AND OPTIONS
@@ -236,6 +247,9 @@ int main(int argc, char **argv) {
         ("lambda", value<double>(&lambda), "Smoothing parameter [Default: 0.02]")
         ("dilation", value<int>(&maskDilation), "Mask dilation for reconstruction ROI [Default: 7]")
         ("lastIter", value<double>(&lastIterLambda), "Smoothing parameter for last iteration [Default: 0.01]")
+        ("exclusion_ncc", value<double>(&sliceNCCThreshold), "NCC threshold for structural slice exclusion [Default: 0.60]")
+        ("exclusion_ssim", value<double>(&localSSIMThreshold), "SSIM threshold for local structural exclusion [Default: 0.30]")
+        ("jac_threshold", value<double>(&jacThreshold), "JAC threshold for structural slice exclusion [Default: 30]")
         ("smooth_mask", value<double>(&smoothMask), "Smooth the mask to reduce artefacts of manual segmentation [Default: 4mm]")
         ("global_bias_correction", bool_switch(&globalBiasCorrection), "Correct the bias in reconstructed image against previous estimation")
         ("no_intensity_matching", "Switch off intensity matching")
@@ -249,7 +263,9 @@ int main(int argc, char **argv) {
         ("ncc", bool_switch(&nccRegFlag), "Use global NCC similarity for SVR steps [Default: NMI]")
         ("global_ncc", bool_switch(&nccGlobalRegFlag), "Use global NCC similarity for global FFD steps [Default: NMI]")
         ("structural", bool_switch(&structural), "Use structural exclusion of slices at the last iteration")
+        ("combined_rigid_ffd", bool_switch(&combinedRigidFFD), "Use combined Rigid+FFD for slice-to-volume registration")
         ("cp", value<vector<int>>(&cpSpacing), "Initial FFD CP value [mm] and reduction step per iteration [Default: 15 5]")
+        ("global_cp", value<int>(&globalCPSpacing), "CP spacing for global stack FFD step [Default: 15]")
         ("exclude_slices_only", bool_switch(&robustSlicesOnly), "Robust statistics for exclusion of slices only")
         ("remove_black_background", bool_switch(&removeBlackBackground), "Create mask from black background")
         ("transformations", value<string>(&folder), "Use existing slice-to-volume transformations to initialize the reconstruction")
@@ -259,6 +275,7 @@ int main(int argc, char **argv) {
         ("no_registration", "Switch off registration")
 //        ("thin", bool_switch(&thinFlag), "Option for 1.5 x dz slice thickness (testing)")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results");
+
 
     // Combine all options
     options_description allOpts("Allowed options");
@@ -391,7 +408,11 @@ int main(int argc, char **argv) {
     if (cpSpacing.size() > 0) {
         reconstruction.SetCP(cpSpacing[0],cpSpacing[1]);
     }
-
+    
+    reconstruction.SetGlobalCP(globalCPSpacing);
+    
+    reconstruction.SetRigidFFDSettings(combinedRigidFFD);
+    
     // Template for initialisation of registration
     if (vm.count("template")) {
         cout << "Template : " << vm["template"].as<string>() << endl;
@@ -487,7 +508,15 @@ int main(int argc, char **argv) {
         reconstruction.SetNCC(nccRegFlag);
 //        strFlags += " -ncc";
     }
+    
 
+    reconstruction.SetGlobalNCC(sliceNCCThreshold);
+    
+    reconstruction.SetGlobalJAC(jacThreshold);
+    
+    reconstruction.SetLocalSSIM(localSSIMThreshold);
+
+    
     if (nccGlobalRegFlag) {
         reconstruction.SetFFDGlobalNCC();
     }
@@ -943,7 +972,6 @@ int main(int argc, char **argv) {
             reconstruction.MaskVolume();
             
             bool was_averageInit = false;
-            reconstruction.SetGlobalNCC(0.65);
 
             // If averageInit option is used - skip 1st SR only averaging
             if (!averageInit) {

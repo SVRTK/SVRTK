@@ -38,6 +38,7 @@ namespace svrtk {
         GenericLinearInterpolateImageFunction<RealImage> interpolator;
         
         double res=1.8;
+        
         Array<RealImage> resampled_stacks;
         if (_ffd_global_only) {
             // for (int i=0; i<stacks.size(); i++)
@@ -72,9 +73,9 @@ namespace svrtk {
 
         ParameterList params;
         Insert(params, "Transformation model", "FFD");
-        Insert(params, "Control point spacing in X", 10);
-        Insert(params, "Control point spacing in Y", 10);
-        Insert(params, "Control point spacing in Z", 10);
+        Insert(params, "Control point spacing in X", _global_cp_spacing);
+        Insert(params, "Control point spacing in Y", _global_cp_spacing);
+        Insert(params, "Control point spacing in Z", _global_cp_spacing);
 
         if (_ffd_global_only) {
             Insert(params, "Image (dis-)similarity measure", "NCC");

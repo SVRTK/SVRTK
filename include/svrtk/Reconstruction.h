@@ -83,6 +83,7 @@ namespace svrtk {
         double _global_NCC_threshold;
         int _local_SSIM_window_size;
         double _local_SSIM_threshold;
+        double _global_JAC_threshold;
         
         Array<int> _n_packages;
 
@@ -94,6 +95,7 @@ namespace svrtk {
 
         int _current_iteration;
         Array<int> _cp_spacing;
+        int _global_cp_spacing;
         bool _filtered_cmp_flag;
         bool _bg_flag;
 
@@ -151,6 +153,8 @@ namespace svrtk {
         
         int _number_of_channels;
         bool _multiple_channels_flag;
+        
+        bool _combined_rigid_ffd;
         
         Array<Array<RealImage*>> _mc_slices;
         Array<Array<RealImage*>> _mc_simulated_slices;
@@ -648,6 +652,12 @@ namespace svrtk {
             _multiple_channels_flag = true;
         }
 
+        
+        
+        inline void SetRigidFFDSettings(bool combined_rigid_ffd)
+        {
+            _combined_rigid_ffd = combined_rigid_ffd;
+        }
 
         inline void SaveMCReconstructed()
         {
@@ -756,6 +766,14 @@ namespace svrtk {
         
         inline void SetGlobalNCC(double global_NCC_threshold) {
             _global_NCC_threshold = global_NCC_threshold;
+        }
+        
+        inline void SetGlobalJAC(double global_JAC_threshold) {
+            _global_JAC_threshold = global_JAC_threshold;
+        }
+        
+        inline void SetLocalSSIM(double local_SSIM_threshold) {
+            _local_SSIM_threshold = local_SSIM_threshold;
         }
         
         
@@ -920,6 +938,13 @@ namespace svrtk {
                 }
             }
         }
+        
+        inline void SetGlobalCP(int cp_spacing_value) {
+            
+            _global_cp_spacing = cp_spacing_value;
+            
+        }
+        
 
         /// Return rigid transformations
         inline void GetTransformations(Array<RigidTransformation>& transformations) {

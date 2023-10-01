@@ -35,6 +35,8 @@ using namespace boost::program_options;
 
 void PrintUsage(const options_description& opts) {
     // Print positional arguments
+    cout << "SVRTK package: https://github.com/SVRTK/SVRTK" << endl;
+    cout << endl;
     cout << "Usage: reconstruct [reconstructed] [N] [stack_1] .. [stack_N] <options>\n" << endl;
     cout << "  [reconstructed]            Name for the reconstructed volume (Nifti format)" << endl;
     cout << "  [N]                        Number of stacks" << endl;
@@ -123,6 +125,7 @@ int main(int argc, char **argv) {
     double smoothMask = 2;
     bool globalBiasCorrection = false;
     double lowIntensityCutoff = 0.01;
+    double sliceNCCThreshold = 0.5;
     
     int number_of_channels = 0;
 
@@ -189,6 +192,8 @@ int main(int argc, char **argv) {
     Reconstruction reconstruction;
 
     cout << "------------------------------------------------------" << endl;
+    cout << "SVRTK package: https://github.com/SVRTK/SVRTK" << endl;
+    cout << "------------------------------------------------------" << endl;
 
     // -----------------------------------------------------------------------------
     // READ INPUT DATA AND OPTIONS
@@ -227,6 +232,7 @@ int main(int argc, char **argv) {
         ("delta", value<double>(&delta), "Parameter to define what is an edge [Default: 150]")
         ("lambda", value<double>(&lambda), "Smoothing parameter [Default: 0.02]")
         ("lastIter", value<double>(&lastIterLambda), "Smoothing parameter for last iteration [Default: 0.01]")
+        ("exclusionNCC", value<double>(&sliceNCCThreshold), "NCC threshold for structural slice exclusion [Default: 0.50]")
         ("smooth_mask", value<double>(&smoothMask), "Smooth the mask to reduce artefacts of manual segmentation [Default: 4mm]")
         ("global_bias_correction", bool_switch(&globalBiasCorrection), "Correct the bias in reconstructed image against previous estimation")
         ("no_intensity_matching", "Switch off intensity matching")
@@ -360,7 +366,7 @@ int main(int argc, char **argv) {
     }
     
             
-            
+    reconstruction.SetGlobalNCC(sliceNCCThreshold);
 
     // Slice thickness per stack
     if (!thickness.empty()) {

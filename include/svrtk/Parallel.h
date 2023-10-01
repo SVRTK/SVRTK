@@ -708,7 +708,12 @@ namespace svrtk::Parallel {
 
             // define registration model
             ParameterList params_init;
-            Insert(params_init, "Transformation model", "FFD");
+            
+            if (reconstructor->_combined_rigid_ffd) {
+                Insert(params_init, "Transformation model", "Rigid+FFD");
+            } else {
+                Insert(params_init, "Transformation model", "FFD");
+            }
 
             if (reconstructor->_ncc_reg) {
                 Insert(params_init, "Image (dis-)similarity measure", "NCC");
@@ -2367,7 +2372,7 @@ namespace svrtk::Parallel {
                                 bool include_flag = true;
                                 if (reconstructor->_ffd) {
                                     double jac = reconstructor->_mffd_transformations[inputIndex]->Jacobian(p.x, p.y, p.z, 0, 0);
-                                    if ((100*jac) < 50)
+                                    if ((100*jac) < reconstructor->_global_JAC_threshold)
                                         include_flag = false;
                                 }
 

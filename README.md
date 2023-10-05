@@ -11,16 +11,16 @@ SVRTK C++ package from King's College London based on MIRTK library (https://bio
 - 3D and 4D multi-channel quantitative T2* 
 - SH brain diffusion (HARDI) 
 
-SVRTK repository code was implemented by Dr Alena Uus (KCL) based on the rigid SVR code originally designed and implemented by Dr Maria Deprez (Kuklisova-Murgasova et al., 2012), available as `reconstruction` function in IRTK : https://biomedia.doc.ic.ac.uk/software/irtk/. Additional code optimisation was performed by Dr Onur Ulgen and Dr Eric Kerfoot. 
+SVRTK repository code was implemented by Dr Alena Uus (KCL) based on the rigid SVR code originally designed and implemented by Dr Maria Deprez (Kuklisova-Murgasova et al., 2012), available as `reconstruction` function in IRTK : https://biomedia.doc.ic.ac.uk/software/irtk/. Additional code optimisation was performed by Dr Tom Roberts, Dr Onur Ulgen and Dr Eric Kerfoot. 
 
 Development of SVRTK was supported by projects led by Dr Maria Deprez, Prof Mary Rutherford, Dr Jana Hutter, Dr Lisa Story and Prof Jo Hajnal. 
 
 E.g., the “mirtk reconstruct" tool  performs SVR reconstruction of 3D high-resolution images of the fetal brain from motion-corrupted low-resolution stacks of 2D MRI slices. These output 3D images can be reoriented in any plane for diagnosis and suitable for 3D segmentation. The rest of the reconstruction tools employ additional registration and reconstruction methods depending on the specific features of the problem domain. 
 
-<img src="additional_files/svr-example.png" alt="SVRTKEXAMPLE" height="120" align ="center" />
-
 
 4D cardiac reconstruction code was ported from the original IRTK-based implementation by Dr Joshua van Amerom: https://github.com/jfpva/irtk_cardiac4d.
+
+4D cardiac velocity reconstruction code contibutes to the fetal cardiac pipeline by Dr Tom Roberst: https://github.com/tomaroberts/fetal_cmr_4d
 
 SH brain diffusion reconstruction (HARDI) code was ported from the original IRTK-based implementation by Dr Maria Deprez: https://gitlab.com/mariadeprez/irtk-simple.
 
@@ -62,7 +62,10 @@ mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../st
 _Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 16 / 32 GB) in the Desktop Docker settings._ 
 
 
-The SVRTK docker (tag auto-3.00) also contains solutions for fully automated T2w brain and thorax 3D SVR/DSVR reconstruction in the standard radiological space.
+The SVRTK docker (tag auto-3.00) also contains solutions for [fully automated T2w brain](https://github.com/SVRTK/auto-proc-svrtk) ([auto-proc-svrtk repository](https://github.com/SVRTK/auto-proc-svrtk)) and thorax 3D SVR/DSVR reconstruction in the standard radiological space.
+
+<img src="additional_files/svrtk-auto-brain.jpg" alt="AUTOSVRTKEXAMPLE" height="150" align ="center" />
+
 
 ```bash
 

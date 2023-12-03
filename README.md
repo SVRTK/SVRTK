@@ -62,18 +62,18 @@ mirtk reconstruct ../outputSVR.nii.gz  5 ../stack1.nii.gz ../stack2.nii.gz ../st
 _Notes: In order to make sure that reconstruction is fast enough - please select a sufficient number of CPUs (e.g., > 8) and amount of RAM (e.g., > 16 / 32 GB) in the Desktop Docker settings._ 
 
 
-The SVRTK docker (tag auto-3.00) also contains solutions for [fully automated T2w brain](https://github.com/SVRTK/auto-proc-svrtk) ([auto-proc-svrtk repository](https://github.com/SVRTK/auto-proc-svrtk)) and thorax 3D SVR/DSVR reconstruction in the standard radiological space.
+The SVRTK docker (tag _general_auto_amd_) also contains solutions for [fully automated T2w brain](https://github.com/SVRTK/auto-proc-svrtk) ([auto-proc-svrtk repository](https://github.com/SVRTK/auto-proc-svrtk)) and thorax 3D SVR/DSVR reconstruction in the standard radiological space.
 
 <img src="additional_files/svrtk-auto-brain.jpg" alt="AUTOSVRTKEXAMPLE" height="150" align ="center" />
 
 
 ```bash
 
-docker pull fetalsvrtk/svrtk:auto-3.00
+docker pull fetalsvrtk/svrtk:general_auto_amd
 
-bash /home/auto-proc-svrtk/auto-brain-reconstruction.sh /home/data/[path_to_folder_with_nii_files]  /home/data/[path_to_output_folder] OPTIONAL: [motion correction mode: (0 or 1): 0 - minor, 1 - >180 degree rotations / default: 0];  [slice thickness / default: 2.5];  [output recon resolution / default: 0.8];  [number of packages / default: 4 for 1.25 spacing, 1 for the rest]
+docker run --rm  --mount type=bind,source=LOCATION_ON_YOUR_MACHINE,target=/home/data  fetalsvrtk/svrtk:general_auto_amd sh -c ' bash /home/auto-proc-svrtk/scripts/auto-brain-reconstruction.sh /home/data/folder-with-files /home/data/out-brain-recon-results 1 [slice thickness] [output resolution] 1; chmod 1777 -R /home/data/out-brain-recon-results ; ' 
 
-bash /home/auto-proc-svrtk/auto-thorax-reconstruction.sh /home/data/[path_to_folder_with_nii_files]  /home/data/[path_to_output_folder] OPTIONAL: [motion correction mode: (0 or 1): 0 - minor, 1 - >180 degree rotations / default: 1];  [slice thickness / default: 2.5];  [output recon resolution / default: 0.7];  [number of packages / default: 4 for 1.25 spacing, 1 for the rest]
+docker run --rm  --mount type=bind,source=LOCATION_ON_YOUR_MACHINE,target=/home/data  fetalsvrtk/svrtk:general_auto_amd sh -c ' bash /home/auto-proc-svrtk/scripts/auto-thorax-reconstruction.sh /home/data/folder-with-files /home/data/out-thorax-recon-results 1 [slice thickness] [output resolution] 1; chmod 1777 -R /home/data/out-thorax-recon-results ; '
 
 ```
 

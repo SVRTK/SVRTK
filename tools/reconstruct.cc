@@ -143,9 +143,13 @@ int main(int argc, char **argv) {
     bool intensityMatching = true;
 
     bool rescaleStacks = false;
+    
+    int bg_dilation = 5;
 
     // Flag whether registration should be used
     bool registrationFlag = true;
+    
+    bool no_offset_registration = false;
 
     // Flags to switch the robust statistics on and off
     bool robustStatistics = true;
@@ -241,6 +245,8 @@ int main(int argc, char **argv) {
         ("svr_only", bool_switch(&svrOnly), "Only SVR registration to a template stack [Default: false]")
         ("no_global", bool_switch(&noGlobalFlag), "No global stack registration [Default: false]")
         ("with_background", bool_switch(&with_background), "Reconstruct with background [Default: false]")
+        ("no_offset_registration", bool_switch(&no_offset_registration), "No offset and background settings in registration [Default: false]")
+        ("bg_dilation", value<int>(&bg_dilation), "Degree of dilation for background reconstruction [Default: 5]")
         ("compensate", bool_switch(&compensateFlag), "Compensate for undersampling [Default: false]")
 //        ("exact_thickness", bool_switch(&flagNoOverlapThickness), "Exact slice thickness without negative gap [Default: false]")
         ("ncc", bool_switch(&nccRegFlag), "Use global NCC similarity for SVR steps [Default: NMI]")
@@ -480,6 +486,11 @@ int main(int argc, char **argv) {
     if (with_background) {
         reconstruction.SetNoMaskingBackground();
     }
+    
+    if (no_offset_registration) {
+        reconstruction.SetNoOffsetRegistration();
+    }
+    
 
 //    // Use only SVR to the template (skip 1st SR averaging iteration)
 //    if (svrOnly)
@@ -772,7 +783,7 @@ int main(int argc, char **argv) {
         maskedTemplate = stacks[templateNumber] * m;
         
         if(with_background)
-            Dilate<RealPixel>(&m, 5, connectivity);
+            Dilate<RealPixel>(&m, bg_dilation, connectivity);
         
 //        if (!useTemplate)
 //            CropImage(stacks[templateNumber], m);
@@ -794,7 +805,7 @@ int main(int argc, char **argv) {
         maskedTemplate = templateStack * m;
         
         if(with_background)
-            Dilate<RealPixel>(&m, 5, connectivity);
+            Dilate<RealPixel>(&m, bg_dilation, connectivity);
         
         CropImage(maskedTemplate, m);
         
@@ -854,7 +865,7 @@ int main(int argc, char **argv) {
         TransformMask(stacks[i], m, stackTransformations[i]);
         
         if(with_background)
-            Dilate<RealPixel>(&m, 5, connectivity);
+            Dilate<RealPixel>(&m, bg_dilation, connectivity);
         
         // Crop template stack
         CropImage(stacks[i], m);
@@ -876,7 +887,7 @@ int main(int argc, char **argv) {
                 TransformMask(tmp_mc_stack, m2, stackTransformations[i]);
                 
                 if(with_background)
-                    Dilate<RealPixel>(&m2, 5, connectivity);
+                    Dilate<RealPixel>(&m2, bg_dilation, connectivity);
                 
                 CropImage(tmp_mc_stack, m2);
                 multi_channel_stacks[n][i] = tmp_mc_stack;
@@ -1010,11 +1021,16 @@ int main(int argc, char **argv) {
             reconstruction.MaskVolume();
 
             // If only SVR option is used - skip 1st SR only averaging
-            if (svrOnly || iter > 0) {
-                if (remoteFlag)
-                    reconstruction.RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
-                else
-                    reconstruction.SliceToVolumeRegistration();
+            
+            if (registrationFlag) {
+            
+                if (svrOnly || iter > 0) {
+                    if (remoteFlag)
+                        reconstruction.RemoteSliceToVolumeRegistration(iter, strMirtkPath, strCurrentExchangeFilePath);
+                    else
+                        reconstruction.SliceToVolumeRegistration();
+                }
+                
             }
 
             // Run global NNC structure-based outlier rejection of slices
@@ -1166,6 +1182,7 @@ int main(int argc, char **argv) {
         if (debug) {
             reconstruction.SaveTransformations();
             reconstruction.SaveSlices();
+            reconstruction.SaveSimulatedSlices();
             reconstruction.SaveWeights();
             reconstruction.SaveBiasFields();
             reconstruction.SimulateStacks(stacks);

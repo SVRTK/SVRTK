@@ -734,12 +734,12 @@ namespace svrtk {
             _debug = false;
         }
 
-        /// Enable debug mode
+        /// Enable profiling mode
         inline void ProfileOn() {
             _profile = true;
         }
 
-        /// Disable debug mode
+        /// Disable profiling mode
         inline void ProfileOff() {
             _profile = false;
         }

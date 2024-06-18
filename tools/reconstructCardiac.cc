@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
     unique_ptr<RealImage> mask;
     int iterations = 4;
     bool debug = false;
+    bool profile = false;
     double sigma = 20;
     double motionSigma = 0;
     double resolution = 0.75;
@@ -222,6 +223,7 @@ int main(int argc, char **argv) {
         ("log_prefix", value<string>(&logID), "Prefix for the log file.")
         ("info", value<string>(&infoFilename), "File name for slice information in tab-separated columns.")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results.")
+        ("profile", bool_switch(&profile), "Profile - output profiling timings (also on in debug mode)")
         ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues. [Default: false]")
         ("no_log", bool_switch(&noLog), "Do not redirect cout and cerr to log files.");
 
@@ -470,6 +472,12 @@ int main(int argc, char **argv) {
         reconstruction.DebugOn();
     else
         reconstruction.DebugOff();
+
+    //Set profiling mode
+    if (profile)
+        reconstruction.ProfileOn();
+    else
+        reconstruction.ProfileOff();
 
     //Set NMI bins for registration
     reconstruction.SetNMIBins(nmiBins);

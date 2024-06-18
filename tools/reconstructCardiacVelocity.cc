@@ -98,6 +98,7 @@ int main(int argc, char **argv) {
     int templateNumber = 0;
     unique_ptr<RealImage> mask;
     bool debug = false;
+    bool profile = false;
     double sigma = 20;
     double resolution = 1.25;
     int numCardPhase = 15;
@@ -439,6 +440,13 @@ int main(int argc, char **argv) {
         reconstruction.DebugOn();
     else
         reconstruction.DebugOff();
+
+    //Set profiling mode
+    if (profile)
+        reconstruction.ProfileOn();
+    else
+        reconstruction.ProfileOff();
+    cout << "Profiling: " << profile << endl;
 
     //Set adaptive regularisation option flag
     reconstruction.SetAdaptiveRegularisation(adaptiveRegularisation);

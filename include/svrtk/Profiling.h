@@ -27,7 +27,7 @@
 
 /// End measurement of execution time of current code block
 #ifdef  SVRTK_TOOL
-#define SVRTK_END_TIMING      if (debug) MIRTK_END_TIMING
+#define SVRTK_END_TIMING      if (debug || profile) MIRTK_END_TIMING
 #else
-#define SVRTK_END_TIMING      if (_debug) MIRTK_END_TIMING
+#define SVRTK_END_TIMING      if (_debug || _profile) MIRTK_END_TIMING
 #endif

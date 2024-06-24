@@ -249,6 +249,9 @@ namespace svrtk {
         /// Debug mode
         bool _debug;
 
+        /// Profile output mode
+        bool _profile;
+
         /// Verbose mode
         bool _verbose;
         ostream _verbose_log {cout.rdbuf()};
@@ -730,6 +733,16 @@ namespace svrtk {
         /// Disable debug mode
         inline void DebugOff() {
             _debug = false;
+        }
+
+        /// Enable profiling mode
+        inline void ProfileOn() {
+            _profile = true;
+        }
+
+        /// Disable profiling mode
+        inline void ProfileOff() {
+            _profile = false;
         }
 
         /// Enable verbose mode

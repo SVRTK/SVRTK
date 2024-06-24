@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
     int iterations = 3;
     int srIterations = 7;
     bool debug = false;
+    bool profile = false;
     double sigma = 20;
     double resolution = 0.75;
     double lambda = 0.02;

@@ -106,6 +106,7 @@ int main(int argc, char **argv) {
     int iterations = 4;
     bool debug = false;
     bool profile = false;
+    bool outputTransformations = false;
     double sigma = 20;
     double motionSigma = 0;
     double resolution = 0.75;
@@ -224,6 +225,7 @@ int main(int argc, char **argv) {
         ("info", value<string>(&infoFilename), "File name for slice information in tab-separated columns.")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results.")
         ("profile", bool_switch(&profile), "Profile - output profiling timings (also on in debug mode)")
+        ("output_transformations", bool_switch(&outputTransformations), "Save transformation to file")
         ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues. [Default: false]")
         ("no_log", bool_switch(&noLog), "Do not redirect cout and cerr to log files.");
 
@@ -531,7 +533,7 @@ int main(int argc, char **argv) {
             reconstruction.GetVerboseLog() << "Skipping stack-to-stack registration; target stack has more than one time frame." << endl;
         else {
             reconstruction.StackRegistrations(maskedStacks, stackTransformations, templateNumber, NULL);
-            if (debug) {
+            if (debug || outputTransformations) {
                 InvertStackTransformations(stackTransformations);
                 for (size_t i = 0; i < stacks.size(); i++)
                     stackTransformations[i].Write((boost::format("stack-transformation%03i.dof") % i).str().c_str());
@@ -911,12 +913,13 @@ int main(int argc, char **argv) {
         cout << "SaveSlices" << endl;
     reconstruction.SaveSlices(stacks);
 
-    if (debug)
+    if (debug || outputTransformations) {
         cout << "SaveTransformations" << endl;
-    reconstruction.SaveTransformations();
+        reconstruction.SaveTransformations();
+    }
 
     //save final transformation to reference volume
-    if (haveRefVol)
+    if (haveRefVol && (debug || outputTransformations))
         transformationReconToRef.Write("recon_to_ref.dof");
 
     if (!infoFilename.empty()) {

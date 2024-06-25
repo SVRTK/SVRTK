@@ -642,11 +642,10 @@ int main(int argc, char **argv) {
     ofstream fileEv((logID + "log-evaluation.txt").c_str());
 
     //interleaved registration-reconstruction iterations
-    if (debug)
-        cout << "Number of iterations is " << iterations << endl;
+    cout << "Will run " << iterations << " main iterations:" << endl;
 
     for (int iter = 0; iter < iterations; iter++) {
-        cout << "Iteration " << iter << endl;
+        cout << "Iteration " << iter+1 << "... " << endl;
 
         //perform slice-to-volume registrations
         if (iter > 0) {
@@ -807,7 +806,7 @@ int main(int argc, char **argv) {
         //Save reconstructed image
         reconstructed = reconstruction.GetReconstructedCardiac4D();
         StaticMaskVolume4D(reconstructed, reconstruction.GetMask(), -1);
-        reconstructed.Write((boost::format("reconstructed_mc%02i.nii.gz") % iter).str().c_str());
+        if (debug) reconstructed.Write((boost::format("reconstructed_mc%02i.nii.gz") % iter).str().c_str());
 
         //Save Calculated Entropy
         entropy.push_back(e);
@@ -832,7 +831,7 @@ int main(int argc, char **argv) {
             }
 
             // Save Transformation
-            transformationReconToRef.Write((boost::format("recon_to_ref_mc%02i.dof") % iter).str().c_str());
+            if (outputTransformations) transformationReconToRef.Write((boost::format("recon_to_ref_mc%02i.dof") % iter).str().c_str());
 
             // Calculate Displacements Relative to Alignment
             meanDisplacement.push_back(reconstruction.CalculateDisplacement(transformationReconToRef));
@@ -909,9 +908,10 @@ int main(int argc, char **argv) {
         cout << "Saving Reconstructed Volume" << endl;
     reconstruction.GetReconstructedCardiac4D().Write(outputName.c_str());
 
-    if (debug)
+    if (debug) {
         cout << "SaveSlices" << endl;
-    reconstruction.SaveSlices(stacks);
+        reconstruction.SaveSlices(stacks);
+    }
 
     if (debug || outputTransformations) {
         cout << "SaveTransformations" << endl;
@@ -919,7 +919,7 @@ int main(int argc, char **argv) {
     }
 
     //save final transformation to reference volume
-    if (haveRefVol && (debug || outputTransformations))
+    if (haveRefVol && outputTransformations)
         transformationReconToRef.Write("recon_to_ref.dof");
 
     if (!infoFilename.empty()) {

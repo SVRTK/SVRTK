@@ -267,7 +267,7 @@ int main(int argc, char **argv) {
     
     // Read stacks
     for (int i = 0; i < nStacks; i++) {
-        cout << "Reading stack " << stackFiles[i] << endl;
+        if (debug) cout << "Reading stack " << stackFiles[i] << endl;
         RealImage stack;
         
         image_reader.reset(ImageReader::TryNew(stackFiles[i].c_str()));
@@ -278,18 +278,18 @@ int main(int argc, char **argv) {
     }
 
     // Target stack
-    if (vm.count("target_stack"))
+    if (vm.count("target_stack") && debug)
         cout << "Target stack no. is " << templateNumber << " (zero-indexed stack no. " << --templateNumber << ")" << endl;
 
     //Read stack transformations
     if (!dofinPaths.empty()) {
         for (size_t i = 0; i < stacks.size(); i++) {
-            cout << "Reading transformation " << dofinPaths[i];
+            if (debug) cout << "Reading transformation " << dofinPaths[i];
             cout.flush();
             Transformation *transformation = dofinPaths[i] == "id" ? new RigidTransformation : Transformation::New(dofinPaths[i].c_str());
             unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(transformation));
             stackTransformations.push_back(*rigidTransf);
-            cout << " done." << endl;
+            if (debug) cout << " done." << endl;
         }
         InvertStackTransformations(stackTransformations);
     }
@@ -335,13 +335,13 @@ int main(int argc, char **argv) {
 
     // Binary masks for all stacks
     if (!maskFiles.empty()) {
-        cout << "Reading stack masks ... ";
+        if (debug) cout << "Reading stack masks ... ";
         for (size_t i = 0; i < stacks.size(); i++) {
             unique_ptr<RealImage> binaryMask(new RealImage(maskFiles[i].c_str()));
             masks.push_back(move(*binaryMask));
         }
         reconstruction.SetMaskedStacks();
-        cout << "done." << endl;
+        if (debug) cout << "done." << endl;
     }
 
     // Switch off stack intensity matching

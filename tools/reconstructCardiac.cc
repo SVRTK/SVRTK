@@ -106,6 +106,7 @@ int main(int argc, char **argv) {
     int iterations = 4;
     bool debug = false;
     bool profile = false;
+    bool outputTransformations = false;
     double sigma = 20;
     double motionSigma = 0;
     double resolution = 0.75;
@@ -224,6 +225,7 @@ int main(int argc, char **argv) {
         ("info", value<string>(&infoFilename), "File name for slice information in tab-separated columns.")
         ("debug", bool_switch(&debug), "Debug mode - save intermediate results.")
         ("profile", bool_switch(&profile), "Profile - output profiling timings (also on in debug mode)")
+        ("output_transformations", bool_switch(&outputTransformations), "Save transformation to file")
         ("remote", bool_switch(&remoteFlag), "Run SVR registration as remote functions in case of memory issues. [Default: false]")
         ("no_log", bool_switch(&noLog), "Do not redirect cout and cerr to log files.");
 
@@ -265,7 +267,7 @@ int main(int argc, char **argv) {
     
     // Read stacks
     for (int i = 0; i < nStacks; i++) {
-        cout << "Reading stack " << stackFiles[i] << endl;
+        if (debug) cout << "Reading stack " << stackFiles[i] << endl;
         RealImage stack;
         
         image_reader.reset(ImageReader::TryNew(stackFiles[i].c_str()));
@@ -276,18 +278,18 @@ int main(int argc, char **argv) {
     }
 
     // Target stack
-    if (vm.count("target_stack"))
+    if (vm.count("target_stack") && debug)
         cout << "Target stack no. is " << templateNumber << " (zero-indexed stack no. " << --templateNumber << ")" << endl;
 
     //Read stack transformations
     if (!dofinPaths.empty()) {
         for (size_t i = 0; i < stacks.size(); i++) {
-            cout << "Reading transformation " << dofinPaths[i];
+            if (debug) cout << "Reading transformation " << dofinPaths[i];
             cout.flush();
             Transformation *transformation = dofinPaths[i] == "id" ? new RigidTransformation : Transformation::New(dofinPaths[i].c_str());
             unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(transformation));
             stackTransformations.push_back(*rigidTransf);
-            cout << " done." << endl;
+            if (debug) cout << " done." << endl;
         }
         InvertStackTransformations(stackTransformations);
     }
@@ -333,13 +335,13 @@ int main(int argc, char **argv) {
 
     // Binary masks for all stacks
     if (!maskFiles.empty()) {
-        cout << "Reading stack masks ... ";
+        if (debug) cout << "Reading stack masks ... ";
         for (size_t i = 0; i < stacks.size(); i++) {
             unique_ptr<RealImage> binaryMask(new RealImage(maskFiles[i].c_str()));
             masks.push_back(move(*binaryMask));
         }
         reconstruction.SetMaskedStacks();
-        cout << "done." << endl;
+        if (debug) cout << "done." << endl;
     }
 
     // Switch off stack intensity matching
@@ -531,7 +533,7 @@ int main(int argc, char **argv) {
             reconstruction.GetVerboseLog() << "Skipping stack-to-stack registration; target stack has more than one time frame." << endl;
         else {
             reconstruction.StackRegistrations(maskedStacks, stackTransformations, templateNumber, NULL);
-            if (debug) {
+            if (debug || outputTransformations) {
                 InvertStackTransformations(stackTransformations);
                 for (size_t i = 0; i < stacks.size(); i++)
                     stackTransformations[i].Write((boost::format("stack-transformation%03i.dof") % i).str().c_str());
@@ -640,11 +642,10 @@ int main(int argc, char **argv) {
     ofstream fileEv((logID + "log-evaluation.txt").c_str());
 
     //interleaved registration-reconstruction iterations
-    if (debug)
-        cout << "Number of iterations is " << iterations << endl;
+    cout << "Will run " << iterations << " main iterations:" << endl;
 
     for (int iter = 0; iter < iterations; iter++) {
-        cout << "Iteration " << iter << endl;
+        cout << "Iteration " << iter+1 << "... " << endl;
 
         //perform slice-to-volume registrations
         if (iter > 0) {
@@ -805,7 +806,7 @@ int main(int argc, char **argv) {
         //Save reconstructed image
         reconstructed = reconstruction.GetReconstructedCardiac4D();
         StaticMaskVolume4D(reconstructed, reconstruction.GetMask(), -1);
-        reconstructed.Write((boost::format("reconstructed_mc%02i.nii.gz") % iter).str().c_str());
+        if (debug) reconstructed.Write((boost::format("reconstructed_mc%02i.nii.gz") % iter).str().c_str());
 
         //Save Calculated Entropy
         entropy.push_back(e);
@@ -830,7 +831,7 @@ int main(int argc, char **argv) {
             }
 
             // Save Transformation
-            transformationReconToRef.Write((boost::format("recon_to_ref_mc%02i.dof") % iter).str().c_str());
+            if (outputTransformations) transformationReconToRef.Write((boost::format("recon_to_ref_mc%02i.dof") % iter).str().c_str());
 
             // Calculate Displacements Relative to Alignment
             meanDisplacement.push_back(reconstruction.CalculateDisplacement(transformationReconToRef));
@@ -907,16 +908,18 @@ int main(int argc, char **argv) {
         cout << "Saving Reconstructed Volume" << endl;
     reconstruction.GetReconstructedCardiac4D().Write(outputName.c_str());
 
-    if (debug)
+    if (debug) {
         cout << "SaveSlices" << endl;
-    reconstruction.SaveSlices(stacks);
+        reconstruction.SaveSlices(stacks);
+    }
 
-    if (debug)
+    if (debug || outputTransformations) {
         cout << "SaveTransformations" << endl;
-    reconstruction.SaveTransformations();
+        reconstruction.SaveTransformations();
+    }
 
     //save final transformation to reference volume
-    if (haveRefVol)
+    if (haveRefVol && outputTransformations)
         transformationReconToRef.Write("recon_to_ref.dof");
 
     if (!infoFilename.empty()) {

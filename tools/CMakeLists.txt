@@ -24,6 +24,88 @@
 
 #set(USE_Python TRUE)
 
+
+
+mirtk_add_executable(
+  guess-thickness
+  SOURCES
+    guess-thickness.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
+mirtk_add_executable(
+  guess-resolution
+  SOURCES
+    guess-resolution.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+
+mirtk_add_executable(
+  extract-label-brain-lr
+  SOURCES
+    extract-label-brain-lr.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+mirtk_add_executable(
+  label-biometry-brain
+  SOURCES
+    label-biometry-brain.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
+
+mirtk_add_executable(
+  replace-label-brain
+  SOURCES
+    replace-label-brain.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+)
+
 mirtk_add_executable(
   resample-to-iso-grid
   SOURCES

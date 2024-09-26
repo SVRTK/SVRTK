@@ -81,6 +81,8 @@ Please cite the following works for auto brain and thorax recons:
 
 > Uus, A. U., Hall, M., Payette, K., Hajnal, J. V., Deprez, M., Hutter, J., Rutherford, M. A., Story, L. (2023) Combined quantitative T2* map and structural T2- weighted tissue-specific analysis for fetal brain MRI: pilot automated pipeline. PIPPI MICCAI 2023 workshop (Accepted / in press)
 
+> Uus, A. U., Neves Silva, S., Aviles Verdera, J., Payette, K., Hall, M., Colford, K., Luis, A., Sousa, H. S., Ning, Z., Roberts, T., McElroy, S., Deprez, M., Hajnal, J. V., Rutherford, M. A., Story, L., Hutter, J. (2024) Scanner-based real-time 3D brain+body slice-to-volume reconstruction for T2-weighted 0.55T low field fetal MRI. medRxiv 2024.04.22.24306177: https://doi.org/10.1101/2024.04.22.24306177
+
 > Uus, A., Grigorescu, I., van Poppel, M., Steinweg, J. K., Roberts, T., Rutherford, M., Hajnal, J., Lloyd, D., Pushparajah, K. & Deprez, M. (2022) Automated 3D reconstruction of the fetal thorax in the standard atlas space from motion-corrupted MRI stacks for 21-36 weeks GA range. Medical Image Analysis, 80 (August 2022).: https://doi.org/10.1016/j.media.2022.102484
 
 

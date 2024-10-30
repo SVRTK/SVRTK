@@ -28,25 +28,30 @@ set(HEADERS
   ../svrtk/Reconstruction.h
   ../svrtk/ReconstructionDWI.h
   ../svrtk/ReconstructionCardiac4D.h
+  ../svrtk/ReconstructionqMRI.h
   ../svrtk/ReconstructionCardiacVelocity4D.h
   ../svrtk/ReconstructionFFD.h
   ../svrtk/MeanShift.h
   ../svrtk/NLDenoising.h
   ../svrtk/SphericalHarmonics.h
   ../svrtk/Parallel.h
+  ../svrtk/ParallelqMRI.h
   ../svrtk/Utility.h
+  ../svrtk/Dictionary.h
 )
 
 set(SOURCES
   Reconstruction.cc
   ReconstructionDWI.cc
   ReconstructionCardiac4D.cc
+  ReconstructionqMRI.cc
   ReconstructionCardiacVelocity4D.cc
   ReconstructionFFD.cc
   MeanShift.cc
   NLDenoising.cc
   SphericalHarmonics.cc
   Utility.cc
+  Dictionary.cc
 )
 
 set(DEPENDS
@@ -58,6 +63,8 @@ set(DEPENDS
   LibTransformation
   ${Boost_LIBRARIES}
   ${TBB}
+  ${Eigen3_LIBRARIES}
+  
 )
 
 mirtk_add_library()

@@ -258,6 +258,22 @@ mirtk_add_executable(
 )
 
 mirtk_add_executable(
+  FitDictionary
+  SOURCES
+    FitDictionary.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+    ${Eigen3_LIBRARIES}
+)
+
+mirtk_add_executable(
   reconstructDWI
   SOURCES
     reconstructDWI.cc
@@ -301,6 +317,22 @@ mirtk_add_executable(
     LibTransformation
     LibSVRTK
     ${TBB}
+)
+
+mirtk_add_executable(
+  reconstructqMRI
+  SOURCES
+    reconstructqMRI.cc
+  DEPENDS
+    LibCommon
+    LibNumerics
+    LibImage
+    LibIO
+    LibRegistration
+    LibTransformation
+    LibSVRTK
+    ${TBB}
+    ${Eigen3_LIBRARIES}
 )
 
 mirtk_add_executable(

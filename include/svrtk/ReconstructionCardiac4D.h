@@ -277,6 +277,18 @@ namespace svrtk {
         /// Calculate entropy
         double CalculateEntropy();
 
+        // Calculate Root Square Error
+        double CalculateRSE(bool exclude_slices);
+
+        // Calculate Normalised Root Mean Squared Error
+        double CalculateNRMSE(bool exclude_slices);
+
+        // Calculate Normalised Cross Correlation
+        double CalculateNCC(bool exclude_slices);
+
+        // Calculate included/excluded slices
+        void EvalSlices(int& included_count, int& excluded_count, int& outside_count);
+
         /// Save slices
         void SaveSlices(const Array<RealImage>& stacks);
 

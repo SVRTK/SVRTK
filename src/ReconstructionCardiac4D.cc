@@ -1316,6 +1316,169 @@ namespace svrtk {
 
         return -entropy;
     }
+        // evaluation based on the number of excluded slices
+    void ReconstructionCardiac4D::EvalSlices(int& included_count, int& excluded_count, int& outside_count) {
+        included_count = 0, excluded_count = 0, outside_count = 0;
+
+        string included, excluded, outside;
+        for (size_t i = 0; i < _slices.size(); i++) {
+            if (_slice_inside[i]) {
+                if (_slice_weight[i] >= 0.5) {
+                    included += " " + to_string(i);
+                    included_count++;
+                } else {
+                    excluded += " " + to_string(i);
+                    excluded_count++;
+                }
+            } else {
+                outside += " " + to_string(i);
+                outside_count++;
+            }
+        }
+    }
+
+
+    /***
+     * Calculate Root Squared Error
+     * as:
+     * sqrt( sum ( (sliceVoxel - simSliceVoxel)^2 ) / num_voxels )
+     */
+    double ReconstructionCardiac4D::CalculateRSE(bool exclude_slices) {
+        double sum = 0, num = 0;
+
+        // slices
+        for(int index=0; index < _slices.size(); index++) {
+            if((!exclude_slices) || ((_slice_weight[index]>0.5) && _slice_inside[index])) {
+
+                // voxels
+                #pragma omp parallel for reduction(+: sum, num)
+                for (int j=0; j<_slices[index].GetY(); j++) {
+                    for (int i=0; i<_slices[index].GetX(); i++) {
+                        if(_slices[index](i,j,0)>0 && _simulated_weights[index](i,j,0)>0.99)
+                        {
+                            double sliceValue = _slices[index](i,j,0) * exp(-(_bias[index])(i, j, 0)) * _scale[index];
+                            double simValue = _simulated_slices[index](i,j,0);
+                            double diff = sliceValue - simValue; 
+                            sum += diff*diff;
+                            num++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return sqrt(sum/num);
+    }
+
+    /**
+     * Calculate Normalised Root Mean Squared Error
+     * as:
+     * sqrt( sum( (sliceVoxel - simSliceVoxel)^2 ) / num_voxels ) / 
+     * ( sum(sliceVoxel) / num_voxels ) 
+     */
+    double ReconstructionCardiac4D::CalculateNRMSE(bool exclude_slices) {
+        double sumDiff = 0, sumValue = 0, num = 0;
+
+        // slices
+        for(int index=0; index < _slices.size(); index++) {
+            if((!exclude_slices) || ((_slice_weight[index]>0.5) && _slice_inside[index])) {
+
+                // voxels
+                #pragma omp parallel for reduction(+: sumDiff, sumValue, num)
+                for (int j=0; j<_slices[index].GetY(); j++) {
+                    for (int i=0; i<_slices[index].GetX(); i++) {
+                        if(_slices[index](i,j,0)>0 && _simulated_weights[index](i,j,0)>0.99)
+                        {
+                            double sliceValue = _slices[index](i,j,0) * exp(-(_bias[index])(i, j, 0)) * _scale[index];
+                            double simValue = _simulated_slices[index](i,j,0);
+                            double diff = sliceValue - simValue; 
+                            sumValue += sliceValue;
+                            sumDiff += diff*diff;
+                            num++;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return sqrt(sumDiff/num) / (sumValue/num);
+    }
+
+    /**
+     * Calculate Normalised Cross Coefficient
+     * as:
+     * sum((sliceVoxel - mean_sliceVoxel) * (simSliceVoxel - mean_simSliceVoxel)) /
+     * sqrt( sum((sliceVoxel - mean_sliceVoxel)^2) * sum((simSliceVoxel - mean_simSliceVoxel)^2)) )
+     */
+    double ReconstructionCardiac4D::CalculateNCC(bool exclude_slices) {
+        double sumSliceVal=0, countSliceVal=0, sumSimVal=0, countSimVal=0;
+        double sliceAvg = 0, simAvg = 0;
+
+        double diff_sum = 0;
+        double sliceNormSq = 0;
+        double simNormSq = 0;
+
+        // Calculate means:
+
+        // slices
+        for(int index=0; index < _slices.size(); index++) {
+            if((!exclude_slices) || ((_slice_weight[index]>0.5) && _slice_inside[index])) {
+
+                // voxels
+                #pragma omp parallel for reduction(+: sumSliceVal, countSliceVal, sumSimVal, countSimVal)
+                for (int j=0; j<_slices[index].GetY(); j++) {
+                    for (int i=0; i<_slices[index].GetX(); i++) {
+                        if(_slices[index](i,j,0)>0 && _simulated_weights[index](i,j,0)>0.99)
+                        {
+                            double sliceValue = _slices[index](i,j,0) * exp(-(_bias[index])(i, j, 0)) * _scale[index];
+                            double simValue = _simulated_slices[index](i,j,0);
+
+                            sumSliceVal += sliceValue;
+                            countSliceVal++;
+                            sumSimVal += simValue;
+                            countSimVal++;
+                        }
+                    }
+                }
+            }
+        }
+        sliceAvg = sumSliceVal / countSliceVal;
+        simAvg = sumSimVal / countSimVal;
+
+        // Calculate NCC:
+
+        // slices
+        for(int index=0; index < _slices.size(); index++) {
+            if((!exclude_slices) || ((_slice_weight[index]>0.5) && _slice_inside[index])) {
+
+                // voxels
+                #pragma omp parallel for reduction(+: diff_sum, sliceNormSq, simNormSq) collapse(3)
+                for (int l=0; l<_slices[index].GetT(); l++) {
+                    for (int j=0; j<_slices[index].GetY(); j++) {
+                        for (int i=0; i<_slices[index].GetX(); i++) {
+                            if(_slices[index](i,j,0,l)>0 && _simulated_weights[index](i,j,0,l)>0.99)
+                            {
+                                double sliceValue = _slices[index](i,j,0,l) * exp(-(_bias[index])(i, j, 0)) * _scale[index];
+                                double simValue = _simulated_slices[index](i,j,0,l);
+
+                                diff_sum += (sliceValue - sliceAvg) * (simValue - simAvg);
+                                sliceNormSq += pow(sliceValue - sliceAvg, 2);
+                                simNormSq += pow(simValue - simAvg, 2);
+
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+
+        double ncc = 0;
+        if (sliceNormSq * simNormSq > 0)
+            ncc = diff_sum / sqrt(sliceNormSq * simNormSq);
+        
+        return ncc;
+    }
 
     // -----------------------------------------------------------------------------
     // Common save functions

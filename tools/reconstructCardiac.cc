@@ -892,6 +892,30 @@ int main(int argc, char **argv) {
         }
     }
 
+    // Evaluate reconstruction
+    cout << endl;
+    cout << "------------------------------------------------------" << endl;
+    cout << "             RECONSTRUCTION EVALUATION                " << endl;
+    cout << "------------------------------------------------------" << endl;
+    cout << endl;
+    
+    double ncc = reconstruction.CalculateNCC(true);
+    double nrmse = reconstruction.CalculateNRMSE(true);
+    double rse = reconstruction.CalculateRSE(true);
+    int includedSlices = 0;
+    int excludedSlices = 0;
+    int outsideSlices = 0;
+    reconstruction.EvalSlices(includedSlices, excludedSlices, outsideSlices);
+    
+    cout << "Reconstruction quality metrics: " << endl;
+    cout << "Similarity measure (Normalised Cross Correlation): " << ncc << endl;
+    cout << "Error measure (Normalised Root Mean Square Error): " << nrmse << endl;
+    cout << "Slice use summary: " << includedSlices << " included, " <<  excludedSlices << " excluded, " << outsideSlices << " outside ROI." << endl;  
+    cout << endl;
+
+    cout << "------------------------------------------------------" << endl;
+    cout << endl;    
+
     // Remove the file exchange directory
     boost::filesystem::remove_all(strCurrentExchangeFilePath.c_str());
 

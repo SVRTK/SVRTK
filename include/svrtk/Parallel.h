@@ -545,13 +545,16 @@ namespace svrtk::Parallel {
                     Insert(params, "Transformation model", "Rigid");
                     reconstructor->_grey_reconstructed.GetMinMax(&tmin, &tmax);
 
-                    if (smin < 1)
-                        Insert(params, "Background value for image 1", -1);
-
-                    if (tmin < 0)
-                        Insert(params, "Background value for image 2", -1);
-                    else if (tmin < 1)
-                        Insert(params, "Background value for image 2", 0);
+                    if (!reconstructor->_no_offset_registration) {
+                        
+                        if (smin < 1)
+                            Insert(params, "Background value for image 1", -1);
+                        if (tmin < 0)
+                            Insert(params, "Background value for image 2", -1);
+                        else if (tmin < 1)
+                            Insert(params, "Background value for image 2", 0);
+                        
+                    }
 
                     if (!reconstructor->_ncc_reg) {
                         Insert(params, "Image (dis-)similarity measure", "NMI");
@@ -570,10 +573,13 @@ namespace svrtk::Parallel {
 
                     //put origin to zero
                     RigidTransformation offset;
-                    ResetOrigin(target, offset);
-                    const Matrix& mo = offset.GetMatrix();
                     auto& transformation = reconstructor->_transformations[inputIndex];
-                    transformation.PutMatrix(transformation.GetMatrix() * mo);
+                    
+                    if (!reconstructor->_no_offset_registration) {
+                        ResetOrigin(target, offset);
+                        const Matrix& mo = offset.GetMatrix();
+                        transformation.PutMatrix(transformation.GetMatrix() * mo);
+                    }
 
                     // run registration
                     registration.Input(&target, &reconstructor->_grey_reconstructed);
@@ -587,8 +593,11 @@ namespace svrtk::Parallel {
                     unique_ptr<RigidTransformation> rigidTransf(dynamic_cast<RigidTransformation*>(dofout));
                     transformation = *rigidTransf;
 
-                    //undo the offset
-                    transformation.PutMatrix(transformation.GetMatrix() * mo.Inverse());
+                    if (!reconstructor->_no_offset_registration) {
+                        //undo the offset
+                        const Matrix& mo = offset.GetMatrix();
+                        transformation.PutMatrix(transformation.GetMatrix() * mo.Inverse());
+                    }
 
                     // save log outputs
                     if (reconstructor->_reg_log) {

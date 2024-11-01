@@ -79,6 +79,7 @@ namespace svrtk {
         bool _ffd_global_only;
         bool _ffd_global_ncc;
         bool _no_masking_background;
+        bool _no_offset_registration;
 
         double _global_NCC_threshold;
         int _local_SSIM_window_size;
@@ -825,6 +826,11 @@ namespace svrtk {
             _no_masking_background = true;
         }
 
+        inline void SetNoOffsetRegistration() {
+            _no_offset_registration = true;
+        }
+
+        
         /// Set sigma flag
         inline void SetSigma(double sigma) {
             _sigma_bias = sigma;

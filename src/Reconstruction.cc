@@ -74,6 +74,7 @@ namespace svrtk {
         _ffd_global_ncc = false;
         _no_masking_background = false;
         _combined_rigid_ffd = false;
+        _no_offset_registration = false;
 
     }
 

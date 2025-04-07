@@ -222,7 +222,7 @@ namespace svrtk {
         ClearAndReserve(_stack_loc_index, reserve_size);
         ClearAndReserve(_stack_dyn_index, reserve_size);
         ClearAndReserve(_transformations, reserve_size);
-        ClearAndReserve(_slice_excluded, reserve_size);
+        _slice_excluded.clear();
         ClearAndReserve(_slice_svr_card_index, reserve_size);
         if (!probability_maps.empty())
             ClearAndReserve(_probability_maps, reserve_size);
@@ -540,7 +540,7 @@ namespace svrtk {
             memset(_simulated_slices[i].Data(), 0, sizeof(RealPixel) * _simulated_slices[i].NumberOfVoxels());
 
         //Initialise indicator of images having overlap with volume
-        _slice_inside = Array<bool>(_slices.size(), true);
+        _slice_inside = deque<bool>(_slices.size(), true);
 
         //Simulate images
         Parallel::SimulateStacksCardiac4D simulatestacks(this);

@@ -313,6 +313,15 @@ namespace svrtk::Utility {
 
     //-------------------------------------------------------------------
 
+    /// Clear and resize memory for deque
+    template<typename VectorType>
+    inline void ClearAndResize(deque<VectorType>& vectorVar, size_t reserveSize, const VectorType& defaultValue = VectorType()) {
+        vectorVar.clear();
+        vectorVar.resize(reserveSize, defaultValue);
+    }
+
+    //-------------------------------------------------------------------
+
     /**
      * @brief Binarise mask.
      * If template image has been masked instead of creating the mask in separate

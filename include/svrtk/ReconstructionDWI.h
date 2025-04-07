@@ -45,7 +45,7 @@ namespace svrtk {
 
         Array<RigidTransformation> _transformations;
 
-        Array<bool> _slice_inside;
+        deque<bool> _slice_inside;
 
         RealImage _reconstructed;
 

@@ -103,7 +103,7 @@ namespace svrtk {
         Array<int> _force_excluded_locs;
 
         // Slice Excluded
-        Array<bool> _slice_excluded;
+        deque<bool> _slice_excluded;
 
         // Temporal Weighting Tukey Window Edge Percent
         // applies to sinc temporal weighting only

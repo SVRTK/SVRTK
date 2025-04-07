@@ -128,8 +128,8 @@ namespace svrtk {
         Array<MultiLevelFreeFormTransformation*> _global_mffd_transformations;
 
         /// Indicator whether slice has an overlap with volumetric mask
-        Array<bool> _slice_inside;
-        Array<bool> _slice_insideSF;
+        deque<bool> _slice_inside;
+        deque<bool> _slice_insideSF;
 
         /// Flag to say whether the template volume has been created
         bool _template_created;
